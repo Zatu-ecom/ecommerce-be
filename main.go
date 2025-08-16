@@ -7,7 +7,7 @@ import (
 
 	"datun.com/be/common"
 	"datun.com/be/common/middleware"
-	"datun.com/be/user_management/container"
+	userManagement "datun.com/be/user_management"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -45,5 +45,5 @@ func main() {
 }
 
 func registerContainer(router *gin.Engine) {
-	_ = container.NewContainer(router)
+	_ = userManagement.NewContainer(router)
 }
