@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"datun.com/be/user_management/entity"
+	"datun.com/be/user_management/utils"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +41,7 @@ func (r *UserRepositoryImpl) FindByID(id uint) (*entity.User, error) {
 	result := r.db.Preload("Addresses").First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New("user not found")
+			return nil, errors.New(utils.UserNotFoundMsg)
 		}
 		return nil, result.Error
 	}
@@ -53,7 +54,7 @@ func (r *UserRepositoryImpl) FindByEmail(email string) (*entity.User, error) {
 	result := r.db.Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New("user not found")
+			return nil, errors.New(utils.UserNotFoundMsg)
 		}
 		return nil, result.Error
 	}

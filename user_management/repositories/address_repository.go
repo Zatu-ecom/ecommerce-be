@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"datun.com/be/user_management/entity"
+	"datun.com/be/user_management/utils"
 	"gorm.io/gorm"
 )
 
@@ -65,7 +66,7 @@ func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address,
 	result := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New("address not found")
+			return nil, errors.New(utils.AddressNotFoundMsg)
 		}
 		return nil, result.Error
 	}
@@ -110,7 +111,7 @@ func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
 	var address entity.Address
 	if err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("address not found")
+			return errors.New(utils.AddressNotFoundMsg)
 		}
 		return err
 	}
@@ -120,7 +121,7 @@ func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
 	r.db.Model(&entity.Address{}).Where("user_id = ?", userID).Count(&count)
 
 	if address.IsDefault && count == 1 {
-		return errors.New("cannot delete the only default address")
+		return errors.New(utils.CannotDeleteOnlyDefaultAddressMsg)
 	}
 
 	tx := r.db.Begin()
@@ -160,7 +161,7 @@ func (r *AddressRepositoryImpl) SetDefault(id uint, userID uint) error {
 	if err := tx.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("address not found")
+			return errors.New(utils.AddressNotFoundMsg)
 		}
 		return err
 	}

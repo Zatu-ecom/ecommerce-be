@@ -9,6 +9,7 @@ import (
 	"datun.com/be/user_management/entity"
 	"datun.com/be/user_management/model"
 	"datun.com/be/user_management/repositories"
+	"datun.com/be/user_management/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -36,10 +37,15 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 
 // Register creates a new user account
 func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*entity.User, string, error) {
+	// Validate password confirmation
+	if req.Password != req.ConfirmPassword {
+		return nil, "", errors.New(utils.PasswordMismatchMsg)
+	}
+
 	// Check if user already exists
 	existingUser, _ := s.userRepo.FindByEmail(req.Email)
 	if existingUser != nil {
-		return nil, "", errors.New("user with this email already exists")
+		return nil, "", errors.New(utils.UserExistsMsg)
 	}
 
 	// Hash password
@@ -81,17 +87,17 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*entity.User, strin
 	// Find user by email
 	user, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
-		return nil, "", errors.New("invalid email or password")
+		return nil, "", errors.New(utils.InvalidCredentialsMsg)
 	}
 
 	// Check if account is active
 	if !user.IsActive {
-		return nil, "", errors.New("account is deactivated")
+		return nil, "", errors.New(utils.AccountDeactivatedMsg)
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return nil, "", errors.New("invalid email or password")
+		return nil, "", errors.New(utils.InvalidCredentialsMsg)
 	}
 
 	// Generate JWT token
@@ -136,7 +142,7 @@ func (s *UserServiceImpl) UpdateProfile(userID uint, req model.UserUpdateRequest
 func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChangeRequest) error {
 	// Check if new password matches confirmation
 	if req.NewPassword != req.ConfirmPassword {
-		return errors.New("new password and confirmation do not match")
+		return errors.New(utils.PasswordMismatchMsg)
 	}
 
 	// Find user by ID
@@ -147,7 +153,7 @@ func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChan
 
 	// Verify current password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
-		return errors.New("current password is incorrect")
+		return errors.New(utils.InvalidCurrentPasswordMsg)
 	}
 
 	// Hash new password

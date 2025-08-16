@@ -2,13 +2,14 @@ package model
 
 // UserRegisterRequest represents the request body for user registration
 type UserRegisterRequest struct {
-	FirstName   string `json:"firstName" binding:"required"`
-	LastName    string `json:"lastName" binding:"required"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=6"`
-	Phone       string `json:"phone"`
-	DateOfBirth string `json:"dateOfBirth"`
-	Gender      string `json:"gender"`
+	FirstName       string `json:"firstName" binding:"required"`
+	LastName        string `json:"lastName" binding:"required"`
+	Email           string `json:"email" binding:"required,email"`
+	Password        string `json:"password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirmPassword" binding:"required"`
+	Phone           string `json:"phone"`
+	DateOfBirth     string `json:"dateOfBirth"`
+	Gender          string `json:"gender"`
 }
 
 // UserLoginRequest represents the request body for user login

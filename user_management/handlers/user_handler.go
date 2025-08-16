@@ -10,6 +10,7 @@ import (
 	"datun.com/be/common"
 	"datun.com/be/user_management/model"
 	"datun.com/be/user_management/service"
+	"datun.com/be/user_management/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,20 +32,24 @@ func (h *UserHandler) Register(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var validationErrors []common.ValidationError
 		validationErrors = append(validationErrors, common.ValidationError{
-			Field:   "request",
+			Field:   utils.RequestFieldName,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, "Validation failed", validationErrors, "VALIDATION_ERROR")
+		common.ErrorWithValidation(c, http.StatusBadRequest, utils.ValidationFailedMsg, validationErrors, utils.ValidationErrorCode)
 		return
 	}
 
 	user, token, err := h.userService.Register(req)
 	if err != nil {
-		if err.Error() == "user with this email already exists" {
-			common.ErrorWithCode(c, http.StatusConflict, err.Error(), "USER_EXISTS")
+		if err.Error() == utils.UserExistsMsg {
+			common.ErrorWithCode(c, http.StatusConflict, err.Error(), utils.UserExistsCode)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, "Failed to register user: "+err.Error())
+		if err.Error() == utils.PasswordMismatchMsg {
+			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.PasswordMismatchCode)
+			return
+		}
+		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToRegisterUserMsg+": "+err.Error())
 		return
 	}
 
@@ -67,9 +72,9 @@ func (h *UserHandler) Register(c *gin.Context) {
 		Token: token,
 	}
 
-	common.SuccessResponse(c, http.StatusCreated, "User registered successfully", map[string]interface{}{
-		"user":  authResponse.User,
-		"token": authResponse.Token,
+	common.SuccessResponse(c, http.StatusCreated, utils.RegisterSuccessMsg, map[string]interface{}{
+		utils.UserFieldName:  authResponse.User,
+		utils.TokenFieldName: authResponse.Token,
 	})
 }
 
@@ -77,17 +82,17 @@ func (h *UserHandler) Register(c *gin.Context) {
 func (h *UserHandler) Login(c *gin.Context) {
 	var req model.UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid request format", "VALIDATION_ERROR")
+		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidRequestFormatMsg, utils.ValidationErrorCode)
 		return
 	}
 
 	user, token, err := h.userService.Login(req)
 	if err != nil {
-		if err.Error() == "account is deactivated" {
-			common.ErrorWithCode(c, http.StatusForbidden, err.Error(), "ACCOUNT_DEACTIVATED")
+		if err.Error() == utils.AccountDeactivatedMsg {
+			common.ErrorWithCode(c, http.StatusForbidden, err.Error(), utils.AccountDeactivatedCode)
 			return
 		}
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Invalid email or password", "INVALID_CREDENTIALS")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.InvalidCredentialsMsg, utils.InvalidCredentialsCode)
 		return
 	}
 
@@ -105,58 +110,58 @@ func (h *UserHandler) Login(c *gin.Context) {
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Login successful", map[string]interface{}{
-		"user":      userResponse,
-		"token":     token,
-		"expiresIn": "24h",
+	common.SuccessResponse(c, http.StatusOK, utils.LoginSuccessMsg, map[string]interface{}{
+		utils.UserFieldName:      userResponse,
+		utils.TokenFieldName:     token,
+		utils.ExpiresInFieldName: utils.TokenExpirationDisplay,
 	})
 }
 
 // RefreshToken handles token refresh
 func (h *UserHandler) RefreshToken(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Invalid token", "TOKEN_INVALID")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.TokenInvalidMsg, utils.TokenInvalidCode)
 		return
 	}
 
-	email, exists := c.Get("email")
+	email, exists := c.Get(utils.EmailKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Invalid token", "TOKEN_INVALID")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.TokenInvalidMsg, utils.TokenInvalidCode)
 		return
 	}
 
 	// Generate new token
 	token, err := h.userService.RefreshToken(userID.(uint), email.(string))
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, "Failed to refresh token: "+err.Error())
+		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToRefreshTokenMsg+": "+err.Error())
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Token refreshed successfully", map[string]interface{}{
-		"token":     token,
-		"expiresIn": "24h",
+	common.SuccessResponse(c, http.StatusOK, utils.TokenRefreshedMsg, map[string]interface{}{
+		utils.TokenFieldName:     token,
+		utils.ExpiresInFieldName: utils.TokenExpirationDisplay,
 	})
 }
 
 // GetProfile handles retrieving user profile
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Authentication required", "AUTH_REQUIRED")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
 		return
 	}
 
 	// Get user profile
 	user, err := h.userService.GetProfile(userID.(uint))
 	if err != nil {
-		if err.Error() == "user not found" {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), "USER_NOT_FOUND")
+		if err.Error() == utils.UserNotFoundMsg {
+			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.UserNotFoundCode)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, "Failed to get profile: "+err.Error())
+		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToGetProfileMsg+": "+err.Error())
 		return
 	}
 
@@ -188,19 +193,19 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		})
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Profile retrieved successfully", map[string]interface{}{
-		"user": map[string]interface{}{
-			"id":          userResponse.ID,
-			"firstName":   userResponse.FirstName,
-			"lastName":    userResponse.LastName,
-			"email":       userResponse.Email,
-			"phone":       userResponse.Phone,
-			"dateOfBirth": userResponse.DateOfBirth,
-			"gender":      userResponse.Gender,
-			"isActive":    userResponse.IsActive,
-			"createdAt":   userResponse.CreatedAt,
-			"updatedAt":   userResponse.UpdatedAt,
-			"addresses":   addressResponses,
+	common.SuccessResponse(c, http.StatusOK, utils.ProfileRetrievedMsg, map[string]interface{}{
+		utils.UserFieldName: map[string]interface{}{
+			"id":                     userResponse.ID,
+			"firstName":              userResponse.FirstName,
+			"lastName":               userResponse.LastName,
+			"email":                  userResponse.Email,
+			"phone":                  userResponse.Phone,
+			"dateOfBirth":            userResponse.DateOfBirth,
+			"gender":                 userResponse.Gender,
+			"isActive":               userResponse.IsActive,
+			"createdAt":              userResponse.CreatedAt,
+			"updatedAt":              userResponse.UpdatedAt,
+			utils.AddressesFieldName: addressResponses,
 		},
 	})
 }
@@ -208,9 +213,9 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 // UpdateProfile handles updating user profile
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Authentication required", "AUTH_REQUIRED")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
 		return
 	}
 
@@ -218,17 +223,17 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var validationErrors []common.ValidationError
 		validationErrors = append(validationErrors, common.ValidationError{
-			Field:   "request",
+			Field:   utils.RequestFieldName,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, "Validation failed", validationErrors, "VALIDATION_ERROR")
+		common.ErrorWithValidation(c, http.StatusBadRequest, utils.ValidationFailedMsg, validationErrors, utils.ValidationErrorCode)
 		return
 	}
 
 	// Update profile
 	user, err := h.userService.UpdateProfile(userID.(uint), req)
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, "Failed to update profile: "+err.Error())
+		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToUpdateProfileMsg+": "+err.Error())
 		return
 	}
 
@@ -246,43 +251,43 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Profile updated successfully", map[string]interface{}{
-		"user": userResponse,
+	common.SuccessResponse(c, http.StatusOK, utils.ProfileUpdatedMsg, map[string]interface{}{
+		utils.UserFieldName: userResponse,
 	})
 }
 
 // ChangePassword handles changing user password
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, "Authentication required", "AUTH_REQUIRED")
+		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
 		return
 	}
 
 	var req model.UserPasswordChangeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid request format", "VALIDATION_ERROR")
+		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidRequestFormatMsg, utils.ValidationErrorCode)
 		return
 	}
 
 	// Check if new password and confirm password match
 	if req.NewPassword != req.ConfirmPassword {
-		common.ErrorWithCode(c, http.StatusBadRequest, "New password and confirmation do not match", "PASSWORD_MISMATCH")
+		common.ErrorWithCode(c, http.StatusBadRequest, utils.PasswordMismatchMsg, utils.PasswordMismatchCode)
 		return
 	}
 
 	// Change password
 	if err := h.userService.ChangePassword(userID.(uint), req); err != nil {
-		if err.Error() == "current password is incorrect" {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), "INVALID_CURRENT_PASSWORD")
+		if err.Error() == utils.InvalidCurrentPasswordMsg {
+			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.InvalidCurrentPasswordCode)
 			return
 		}
 		common.ErrorResp(c, http.StatusInternalServerError, "Failed to change password: "+err.Error())
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Password changed successfully", nil)
+	common.SuccessResponse(c, http.StatusOK, utils.PasswordChangedMsg, nil)
 }
 
 // Logout handles user logout
@@ -290,14 +295,14 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	// Get token from Authorization header
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		common.ErrorWithCode(c, http.StatusBadRequest, "No token provided", "TOKEN_REQUIRED")
+		common.ErrorWithCode(c, http.StatusBadRequest, utils.NoTokenProvidedMsg, utils.TokenRequiredCode)
 		return
 	}
 
 	// Check if the header has the Bearer prefix
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid authorization format", "INVALID_AUTH_FORMAT")
+		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidAuthFormatMsg, utils.InvalidAuthFormatCode)
 		return
 	}
 
@@ -306,13 +311,13 @@ func (h *UserHandler) Logout(c *gin.Context) {
 
 	// Add token to blacklist in Redis
 	// The token will be blacklisted for the same duration as the token's validity
-	err := common.BlacklistToken(tokenString, common.TokenExpireDuration)
+	err := common.BlacklistToken(tokenString, utils.TokenExpireDuration)
 	if err != nil {
 		fmt.Printf("Warning: Failed to blacklist token: %v\n", err)
 		// Continue anyway, as this is not critical
 	}
 
-	common.SuccessResponse(c, http.StatusOK, "Logged out successfully", nil)
+	common.SuccessResponse(c, http.StatusOK, utils.LogoutSuccessMsg, nil)
 }
 
 // getUserIDParam gets a user ID from a path parameter
