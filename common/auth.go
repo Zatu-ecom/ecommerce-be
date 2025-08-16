@@ -11,10 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Token constants
-const (
-	TokenExpireDuration = time.Hour * 24
-)
+// Token constants - using local constants
 
 // JWT claims struct
 type Claims struct {
@@ -67,7 +64,7 @@ func ParseToken(tokenString string, secret string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token")
+	return nil, errors.New(TokenInvalidMsg)
 }
 
 // AuthMiddleware creates a Gin middleware for JWT authentication
@@ -76,15 +73,15 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Get the Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			ErrorWithCode(c, http.StatusUnauthorized, "Authentication required", "AUTH_REQUIRED")
+			ErrorWithCode(c, http.StatusUnauthorized, AuthenticationRequiredMsg, AuthRequiredCode)
 			c.Abort()
 			return
 		}
 
 		// Check if the header has the Bearer prefix
 		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			ErrorWithCode(c, http.StatusUnauthorized, "Invalid authorization format", "INVALID_AUTH_FORMAT")
+		if len(parts) != 2 || parts[0] != BearerPrefix {
+			ErrorWithCode(c, http.StatusUnauthorized, InvalidAuthFormatMsg, InvalidAuthFormatCode)
 			c.Abort()
 			return
 		}
@@ -94,21 +91,21 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		// Check if token is blacklisted
 		if IsTokenBlacklisted(tokenString) {
-			ErrorWithCode(c, http.StatusUnauthorized, "Token has been revoked", "TOKEN_REVOKED")
+			ErrorWithCode(c, http.StatusUnauthorized, TokenRevokedMsg, TokenRevokedCode)
 			c.Abort()
 			return
 		}
 
 		claims, err := ParseToken(tokenString, secret)
 		if err != nil {
-			ErrorWithCode(c, http.StatusUnauthorized, "Invalid or expired token", "TOKEN_INVALID")
+			ErrorWithCode(c, http.StatusUnauthorized, TokenInvalidMsg, TokenInvalidCode)
 			c.Abort()
 			return
 		}
 
 		// Set user info in context
-		c.Set("user_id", claims.UserID)
-		c.Set("email", claims.Email)
+		c.Set(UserIDKey, claims.UserID)
+		c.Set(EmailKey, claims.Email)
 
 		c.Next()
 	}

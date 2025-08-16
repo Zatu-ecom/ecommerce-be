@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -64,7 +65,7 @@ func GetRedis() *redis.Client {
 // SetKey sets a key-value pair in Redis with expiration
 func SetKey(key string, value interface{}, expiration time.Duration) error {
 	if redisClient == nil {
-		return fmt.Errorf("Redis client is not initialized")
+		return errors.New(RedisNotInitializedMsg)
 	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
@@ -72,7 +73,7 @@ func SetKey(key string, value interface{}, expiration time.Duration) error {
 // GetKey retrieves a value from Redis
 func GetKey(key string) (string, error) {
 	if redisClient == nil {
-		return "", fmt.Errorf("Redis client is not initialized")
+		return "", errors.New(RedisNotInitializedMsg)
 	}
 	return redisClient.Get(ctx, key).Result()
 }
@@ -80,7 +81,7 @@ func GetKey(key string) (string, error) {
 // DelKey deletes a key from Redis
 func DelKey(key string) error {
 	if redisClient == nil {
-		return fmt.Errorf("Redis client is not initialized")
+		return errors.New(RedisNotInitializedMsg)
 	}
 	return redisClient.Del(ctx, key).Err()
 }
