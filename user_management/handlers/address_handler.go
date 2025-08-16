@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"datun.com/be/common"
-	"datun.com/be/user/model"
-	"datun.com/be/user/service"
+	"datun.com/be/user_management/model"
+	"datun.com/be/user_management/service"
 	"github.com/gin-gonic/gin"
 )
 

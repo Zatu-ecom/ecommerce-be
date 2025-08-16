@@ -1,9 +1,9 @@
 package service
 
 import (
-	"datun.com/be/user/entity"
-	"datun.com/be/user/model"
-	"datun.com/be/user/repositories"
+	"datun.com/be/user_management/entity"
+	"datun.com/be/user_management/model"
+	"datun.com/be/user_management/repositories"
 )
 
 // AddressService defines the interface for address-related business logic

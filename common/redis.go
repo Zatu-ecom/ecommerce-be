@@ -63,26 +63,45 @@ func GetRedis() *redis.Client {
 
 // SetKey sets a key-value pair in Redis with expiration
 func SetKey(key string, value interface{}, expiration time.Duration) error {
+	if redisClient == nil {
+		return fmt.Errorf("Redis client is not initialized")
+	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
 
 // GetKey retrieves a value from Redis
 func GetKey(key string) (string, error) {
+	if redisClient == nil {
+		return "", fmt.Errorf("Redis client is not initialized")
+	}
 	return redisClient.Get(ctx, key).Result()
 }
 
 // DelKey deletes a key from Redis
 func DelKey(key string) error {
+	if redisClient == nil {
+		return fmt.Errorf("Redis client is not initialized")
+	}
 	return redisClient.Del(ctx, key).Err()
 }
 
 // BlacklistToken adds a JWT token to the blacklist
 func BlacklistToken(token string, expiration time.Duration) error {
+	if redisClient == nil {
+		// If Redis is not available, log a warning but don't fail the operation
+		// This allows the application to work without Redis (but tokens won't be blacklisted)
+		fmt.Println("Warning: Redis is not available, token blacklisting is disabled")
+		return nil
+	}
 	return SetKey("blacklist:"+token, "1", expiration)
 }
 
 // IsTokenBlacklisted checks if a token is blacklisted
 func IsTokenBlacklisted(token string) bool {
+	if redisClient == nil {
+		// If Redis is not available, tokens can't be blacklisted
+		return false
+	}
 	_, err := GetKey("blacklist:" + token)
 	return err == nil
 }

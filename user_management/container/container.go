@@ -1,7 +1,7 @@
 package container
 
 import (
-	"datun.com/be/user/routes"
+	"datun.com/be/user_management/routes"
 	"github.com/gin-gonic/gin"
 )
 

@@ -3,7 +3,7 @@ package repositories
 import (
 	"errors"
 
-	"datun.com/be/user/entity"
+	"datun.com/be/user_management/entity"
 	"gorm.io/gorm"
 )
 

@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"datun.com/be/user/entity"
+	"datun.com/be/user_management/entity"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -50,7 +50,7 @@ func CloseDB() {
 		log.Printf("Error getting SQL DB instance: %v", err)
 		return
 	}
-	
+
 	if err := sqlDB.Close(); err != nil {
 		log.Printf("Error closing database connection: %v", err)
 	} else {

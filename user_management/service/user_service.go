@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"datun.com/be/common"
-	"datun.com/be/user/entity"
-	"datun.com/be/user/model"
-	"datun.com/be/user/repositories"
+	"datun.com/be/user_management/entity"
+	"datun.com/be/user_management/model"
+	"datun.com/be/user_management/repositories"
 	"golang.org/x/crypto/bcrypt"
 )
 

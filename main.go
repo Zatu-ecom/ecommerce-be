@@ -7,7 +7,7 @@ import (
 
 	"datun.com/be/common"
 	"datun.com/be/common/middleware"
-	"datun.com/be/user/container"
+	"datun.com/be/user_management/container"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -20,6 +20,9 @@ func main() {
 
 	/* Connect Database */
 	common.ConnectDB()
+
+	/* Connect Redis */
+	common.ConnectRedis()
 
 	/* Initialize Gin Router */
 	gin.SetMode(gin.ReleaseMode) // Set to release mode for production

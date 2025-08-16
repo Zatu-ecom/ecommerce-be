@@ -3,9 +3,9 @@ package routes
 import (
 	"datun.com/be/common"
 	"datun.com/be/common/middleware"
-	"datun.com/be/user/handlers"
-	"datun.com/be/user/repositories"
-	"datun.com/be/user/service"
+	"datun.com/be/user_management/handlers"
+	"datun.com/be/user_management/repositories"
+	"datun.com/be/user_management/service"
 	"github.com/gin-gonic/gin"
 )
 

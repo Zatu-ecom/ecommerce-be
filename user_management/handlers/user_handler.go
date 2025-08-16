@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"datun.com/be/common"
-	"datun.com/be/user/model"
-	"datun.com/be/user/service"
+	"datun.com/be/user_management/model"
+	"datun.com/be/user_management/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -285,8 +287,31 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 // Logout handles user logout
 func (h *UserHandler) Logout(c *gin.Context) {
-	// In a real implementation, this would blacklist the token in Redis
-	// For now, we'll just return a success message
+	// Get token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		common.ErrorWithCode(c, http.StatusBadRequest, "No token provided", "TOKEN_REQUIRED")
+		return
+	}
+
+	// Check if the header has the Bearer prefix
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid authorization format", "INVALID_AUTH_FORMAT")
+		return
+	}
+
+	// Get the token
+	tokenString := parts[1]
+
+	// Add token to blacklist in Redis
+	// The token will be blacklisted for the same duration as the token's validity
+	err := common.BlacklistToken(tokenString, common.TokenExpireDuration)
+	if err != nil {
+		fmt.Printf("Warning: Failed to blacklist token: %v\n", err)
+		// Continue anyway, as this is not critical
+	}
+
 	common.SuccessResponse(c, http.StatusOK, "Logged out successfully", nil)
 }
 
