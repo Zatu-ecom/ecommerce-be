@@ -39,22 +39,8 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 		return
 	}
 
-	// Transform addresses
-	var addressResponses []model.AddressResponse
-	for _, address := range addresses {
-		addressResponses = append(addressResponses, model.AddressResponse{
-			ID:        address.ID,
-			Street:    address.Street,
-			City:      address.City,
-			State:     address.State,
-			ZipCode:   address.ZipCode,
-			Country:   address.Country,
-			IsDefault: address.IsDefault,
-		})
-	}
-
 	common.SuccessResponse(c, http.StatusOK, utils.AddressesRetrievedMsg, map[string]interface{}{
-		utils.AddressesFieldName: addressResponses,
+		utils.AddressesFieldName: addresses,
 	})
 }
 
@@ -85,19 +71,8 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
-
 	common.SuccessResponse(c, http.StatusCreated, utils.AddressCreatedMsg, map[string]interface{}{
-		utils.AddressFieldName: addressResponse,
+		utils.AddressFieldName: address,
 	})
 }
 
@@ -139,19 +114,8 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
-
 	common.SuccessResponse(c, http.StatusOK, utils.AddressUpdatedMsg, map[string]interface{}{
-		utils.AddressFieldName: addressResponse,
+		utils.AddressFieldName: address,
 	})
 }
 
@@ -216,19 +180,8 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
-
 	common.SuccessResponse(c, http.StatusOK, utils.DefaultAddressUpdatedMsg, map[string]interface{}{
-		utils.AddressFieldName: addressResponse,
+		utils.AddressFieldName: address,
 	})
 }
 

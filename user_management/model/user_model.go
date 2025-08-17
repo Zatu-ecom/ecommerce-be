@@ -50,12 +50,19 @@ type UserResponse struct {
 
 // AuthResponse represents the authentication response with user data and token
 type AuthResponse struct {
-	User  UserResponse `json:"user"`
-	Token string       `json:"token"`
+	User      UserResponse `json:"user"`
+	Token     string       `json:"token"`
+	ExpiresIn string       `json:"expiresIn"`
 }
 
 // TokenResponse represents the token refresh response
 type TokenResponse struct {
 	Token     string `json:"token"`
 	ExpiresIn string `json:"expiresIn"`
+}
+
+// Create profile response that includes user data and addresses
+type ProfileResponse struct {
+	UserResponse
+	Addresses []AddressResponse `json:"addresses"`
 }

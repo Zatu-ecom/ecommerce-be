@@ -8,11 +8,11 @@ import (
 
 // AddressService defines the interface for address-related business logic
 type AddressService interface {
-	GetAddresses(userID uint) ([]entity.Address, error)
-	AddAddress(userID uint, req model.AddressRequest) (*entity.Address, error)
-	UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*entity.Address, error)
+	GetAddresses(userID uint) ([]model.AddressResponse, error)
+	AddAddress(userID uint, req model.AddressRequest) (*model.AddressResponse, error)
+	UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*model.AddressResponse, error)
 	DeleteAddress(addressID uint, userID uint) error
-	SetDefaultAddress(addressID uint, userID uint) (*entity.Address, error)
+	SetDefaultAddress(addressID uint, userID uint) (*model.AddressResponse, error)
 }
 
 // AddressServiceImpl implements the AddressService interface
@@ -28,12 +28,31 @@ func NewAddressService(addressRepo repositories.AddressRepository) AddressServic
 }
 
 // GetAddresses retrieves all addresses for a user
-func (s *AddressServiceImpl) GetAddresses(userID uint) ([]entity.Address, error) {
-	return s.addressRepo.FindByUserID(userID)
+func (s *AddressServiceImpl) GetAddresses(userID uint) ([]model.AddressResponse, error) {
+	addresses, err := s.addressRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Transform addresses
+	var addressResponses []model.AddressResponse
+	for _, address := range addresses {
+		addressResponses = append(addressResponses, model.AddressResponse{
+			ID:        address.ID,
+			Street:    address.Street,
+			City:      address.City,
+			State:     address.State,
+			ZipCode:   address.ZipCode,
+			Country:   address.Country,
+			IsDefault: address.IsDefault,
+		})
+	}
+
+	return addressResponses,nil
 }
 
 // AddAddress adds a new address for a user
-func (s *AddressServiceImpl) AddAddress(userID uint, req model.AddressRequest) (*entity.Address, error) {
+func (s *AddressServiceImpl) AddAddress(userID uint, req model.AddressRequest) (*model.AddressResponse, error) {
 	address := &entity.Address{
 		UserID:    userID,
 		Street:    req.Street,
@@ -48,11 +67,22 @@ func (s *AddressServiceImpl) AddAddress(userID uint, req model.AddressRequest) (
 		return nil, err
 	}
 
-	return address, nil
+	// Create response
+	addressResponse := model.AddressResponse{
+		ID:        address.ID,
+		Street:    address.Street,
+		City:      address.City,
+		State:     address.State,
+		ZipCode:   address.ZipCode,
+		Country:   address.Country,
+		IsDefault: address.IsDefault,
+	}
+
+	return &addressResponse, nil
 }
 
 // UpdateAddress updates an existing address
-func (s *AddressServiceImpl) UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*entity.Address, error) {
+func (s *AddressServiceImpl) UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*model.AddressResponse, error) {
 	// Find the address by ID and user ID
 	address, err := s.addressRepo.FindByID(addressID, userID)
 	if err != nil {
@@ -72,7 +102,18 @@ func (s *AddressServiceImpl) UpdateAddress(addressID uint, userID uint, req mode
 		return nil, err
 	}
 
-	return address, nil
+	// Create response
+	addressResponse := model.AddressResponse{
+		ID:        address.ID,
+		Street:    address.Street,
+		City:      address.City,
+		State:     address.State,
+		ZipCode:   address.ZipCode,
+		Country:   address.Country,
+		IsDefault: address.IsDefault,
+	}
+
+	return &addressResponse, nil
 }
 
 // DeleteAddress deletes an address
@@ -81,10 +122,26 @@ func (s *AddressServiceImpl) DeleteAddress(addressID uint, userID uint) error {
 }
 
 // SetDefaultAddress sets an address as the default address
-func (s *AddressServiceImpl) SetDefaultAddress(addressID uint, userID uint) (*entity.Address, error) {
+func (s *AddressServiceImpl) SetDefaultAddress(addressID uint, userID uint) (*model.AddressResponse, error) {
 	if err := s.addressRepo.SetDefault(addressID, userID); err != nil {
 		return nil, err
 	}
 
-	return s.addressRepo.FindByID(addressID, userID)
+	address, err := s.addressRepo.FindByID(addressID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create response
+	addressResponse := model.AddressResponse{
+		ID:        address.ID,
+		Street:    address.Street,
+		City:      address.City,
+		State:     address.State,
+		ZipCode:   address.ZipCode,
+		Country:   address.Country,
+		IsDefault: address.IsDefault,
+	}
+
+	return &addressResponse, nil
 }

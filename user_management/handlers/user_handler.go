@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"datun.com/be/common"
 	"datun.com/be/user_management/model"
@@ -39,7 +38,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.userService.Register(req)
+	authResponse, err := h.userService.Register(req)
 	if err != nil {
 		if err.Error() == utils.UserExistsMsg {
 			common.ErrorWithCode(c, http.StatusConflict, err.Error(), utils.UserExistsCode)
@@ -53,29 +52,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	authResponse := model.AuthResponse{
-		User:  userResponse,
-		Token: token,
-	}
-
-	common.SuccessResponse(c, http.StatusCreated, utils.RegisterSuccessMsg, map[string]interface{}{
-		utils.UserFieldName:  authResponse.User,
-		utils.TokenFieldName: authResponse.Token,
-	})
+	common.SuccessResponse(c, http.StatusCreated, utils.RegisterSuccessMsg, authResponse)
 }
 
 // Login handles user authentication
@@ -86,7 +63,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.userService.Login(req)
+	authResponse, err := h.userService.Login(req)
 	if err != nil {
 		if err.Error() == utils.AccountDeactivatedMsg {
 			common.ErrorWithCode(c, http.StatusForbidden, err.Error(), utils.AccountDeactivatedCode)
@@ -96,25 +73,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	common.SuccessResponse(c, http.StatusOK, utils.LoginSuccessMsg, map[string]interface{}{
-		utils.UserFieldName:      userResponse,
-		utils.TokenFieldName:     token,
-		utils.ExpiresInFieldName: utils.TokenExpirationDisplay,
-	})
+	common.SuccessResponse(c, http.StatusOK, utils.LoginSuccessMsg, authResponse)
 }
 
 // RefreshToken handles token refresh
@@ -133,16 +92,13 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Generate new token
-	token, err := h.userService.RefreshToken(userID.(uint), email.(string))
+	tokenResponse, err := h.userService.RefreshToken(userID.(uint), email.(string))
 	if err != nil {
 		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToRefreshTokenMsg+": "+err.Error())
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, utils.TokenRefreshedMsg, map[string]interface{}{
-		utils.TokenFieldName:     token,
-		utils.ExpiresInFieldName: utils.TokenExpirationDisplay,
-	})
+	common.SuccessResponse(c, http.StatusOK, utils.TokenRefreshedMsg, tokenResponse)
 }
 
 // GetProfile handles retrieving user profile
@@ -155,7 +111,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	// Get user profile
-	user, err := h.userService.GetProfile(userID.(uint))
+	profileResponse, err := h.userService.GetProfile(userID.(uint))
 	if err != nil {
 		if err.Error() == utils.UserNotFoundMsg {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.UserNotFoundCode)
@@ -165,48 +121,8 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	// Transform addresses
-	var addressResponses []model.AddressResponse
-	for _, address := range user.Addresses {
-		addressResponses = append(addressResponses, model.AddressResponse{
-			ID:        address.ID,
-			Street:    address.Street,
-			City:      address.City,
-			State:     address.State,
-			ZipCode:   address.ZipCode,
-			Country:   address.Country,
-			IsDefault: address.IsDefault,
-		})
-	}
-
 	common.SuccessResponse(c, http.StatusOK, utils.ProfileRetrievedMsg, map[string]interface{}{
-		utils.UserFieldName: map[string]interface{}{
-			"id":                     userResponse.ID,
-			"firstName":              userResponse.FirstName,
-			"lastName":               userResponse.LastName,
-			"email":                  userResponse.Email,
-			"phone":                  userResponse.Phone,
-			"dateOfBirth":            userResponse.DateOfBirth,
-			"gender":                 userResponse.Gender,
-			"isActive":               userResponse.IsActive,
-			"createdAt":              userResponse.CreatedAt,
-			"updatedAt":              userResponse.UpdatedAt,
-			utils.AddressesFieldName: addressResponses,
-		},
+		utils.UserFieldName: profileResponse,
 	})
 }
 
@@ -231,24 +147,10 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Update profile
-	user, err := h.userService.UpdateProfile(userID.(uint), req)
+	userResponse, err := h.userService.UpdateProfile(userID.(uint), req)
 	if err != nil {
 		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToUpdateProfileMsg+": "+err.Error())
 		return
-	}
-
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
 	}
 
 	common.SuccessResponse(c, http.StatusOK, utils.ProfileUpdatedMsg, map[string]interface{}{

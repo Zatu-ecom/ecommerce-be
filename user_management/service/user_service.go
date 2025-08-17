@@ -15,12 +15,12 @@ import (
 
 // UserService defines the interface for user-related business logic
 type UserService interface {
-	Register(req model.UserRegisterRequest) (*entity.User, string, error)
-	Login(req model.UserLoginRequest) (*entity.User, string, error)
-	GetProfile(userID uint) (*entity.User, error)
-	UpdateProfile(userID uint, req model.UserUpdateRequest) (*entity.User, error)
+	Register(req model.UserRegisterRequest) (*model.AuthResponse, error)
+	Login(req model.UserLoginRequest) (*model.AuthResponse, error)
+	GetProfile(userID uint) (*model.ProfileResponse, error)
+	UpdateProfile(userID uint, req model.UserUpdateRequest) (*model.UserResponse, error)
 	ChangePassword(userID uint, req model.UserPasswordChangeRequest) error
-	RefreshToken(userID uint, email string) (string, error)
+	RefreshToken(userID uint, email string) (*model.TokenResponse, error)
 }
 
 // UserServiceImpl implements the UserService interface
@@ -36,22 +36,22 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 }
 
 // Register creates a new user account
-func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*entity.User, string, error) {
+func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthResponse, error) {
 	// Validate password confirmation
 	if req.Password != req.ConfirmPassword {
-		return nil, "", errors.New(utils.PasswordMismatchMsg)
+		return nil, errors.New(utils.PasswordMismatchMsg)
 	}
 
 	// Check if user already exists
 	existingUser, _ := s.userRepo.FindByEmail(req.Email)
 	if existingUser != nil {
-		return nil, "", errors.New(utils.UserExistsMsg)
+		return nil, errors.New(utils.UserExistsMsg)
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	// Create user entity
@@ -70,52 +70,120 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*entity.User,
 
 	// Save user to database
 	if err := s.userRepo.Create(user); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	// Generate JWT token
 	token, err := common.GenerateToken(user.ID, user.Email, os.Getenv("JWT_SECRET"))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	return user, token, nil
+	// Create response
+	userResponse := model.UserResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		DateOfBirth: user.DateOfBirth,
+		Gender:      user.Gender,
+		IsActive:    user.IsActive,
+		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+	}
+
+	authResponse := &model.AuthResponse{
+		User:      userResponse,
+		Token:     token,
+		ExpiresIn: utils.TokenExpirationDisplay,
+	}
+
+	return authResponse, nil
 }
 
 // Login authenticates a user and returns a token
-func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*entity.User, string, error) {
+func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse, error) {
 	// Find user by email
 	user, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
-		return nil, "", errors.New(utils.InvalidCredentialsMsg)
+		return nil, errors.New(utils.InvalidCredentialsMsg)
 	}
 
 	// Check if account is active
 	if !user.IsActive {
-		return nil, "", errors.New(utils.AccountDeactivatedMsg)
+		return nil, errors.New(utils.AccountDeactivatedMsg)
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return nil, "", errors.New(utils.InvalidCredentialsMsg)
+		return nil, errors.New(utils.InvalidCredentialsMsg)
 	}
 
 	// Generate JWT token
 	token, err := common.GenerateToken(user.ID, user.Email, os.Getenv("JWT_SECRET"))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	return user, token, nil
+	// Create response
+	userResponse := model.UserResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		DateOfBirth: user.DateOfBirth,
+		Gender:      user.Gender,
+		IsActive:    user.IsActive,
+		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+	}
+
+	authResponse := &model.AuthResponse{
+		User:      userResponse,
+		Token:     token,
+		ExpiresIn: utils.TokenExpirationDisplay,
+	}
+
+	return authResponse, nil
 }
 
-// GetProfile retrieves user profile information
-func (s *UserServiceImpl) GetProfile(userID uint) (*entity.User, error) {
-	return s.userRepo.FindByID(userID)
+// GetProfile retrieves user profile information including addresses
+func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, errors.New(utils.UserNotFoundMsg)
+	}
+
+	// Create user response
+	userResponse := model.UserResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		DateOfBirth: user.DateOfBirth,
+		Gender:      user.Gender,
+		IsActive:    user.IsActive,
+		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// TODO: Get addresses from address service
+	// For now, return empty addresses array
+	addresses := []model.AddressResponse{}
+
+	profileResponse := &model.ProfileResponse{
+		UserResponse: userResponse,
+		Addresses:    addresses,
+	}
+
+	return profileResponse, nil
 }
 
 // UpdateProfile updates user profile information
-func (s *UserServiceImpl) UpdateProfile(userID uint, req model.UserUpdateRequest) (*entity.User, error) {
+func (s *UserServiceImpl) UpdateProfile(userID uint, req model.UserUpdateRequest) (*model.UserResponse, error) {
 	// Find user by ID
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
@@ -135,7 +203,21 @@ func (s *UserServiceImpl) UpdateProfile(userID uint, req model.UserUpdateRequest
 		return nil, err
 	}
 
-	return user, nil
+	// Create response
+	userResponse := &model.UserResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		Email:       user.Email,
+		Phone:       user.Phone,
+		DateOfBirth: user.DateOfBirth,
+		Gender:      user.Gender,
+		IsActive:    user.IsActive,
+		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+	}
+
+	return userResponse, nil
 }
 
 // ChangePassword updates a user's password
@@ -171,6 +253,16 @@ func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChan
 }
 
 // RefreshToken generates a new JWT token
-func (s *UserServiceImpl) RefreshToken(userID uint, email string) (string, error) {
-	return common.GenerateToken(userID, email, os.Getenv("JWT_SECRET"))
+func (s *UserServiceImpl) RefreshToken(userID uint, email string) (*model.TokenResponse, error) {
+	token, err := common.GenerateToken(userID, email, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		return nil, err
+	}
+
+	tokenResponse := &model.TokenResponse{
+		Token:     token,
+		ExpiresIn: utils.TokenExpirationDisplay,
+	}
+
+	return tokenResponse, nil
 }
