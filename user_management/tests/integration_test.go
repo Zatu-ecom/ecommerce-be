@@ -767,8 +767,8 @@ func setupRoutes(router *gin.Engine, db *gorm.DB) {
 	addressRepo := repositories.NewAddressRepository(db)
 
 	// Set up services
-	userService := service.NewUserService(userRepo)
 	addressService := service.NewAddressService(addressRepo)
+	userService := service.NewUserService(userRepo, addressService)
 
 	// Set up handlers
 	userHandler := handlers.NewUserHandler(userService)

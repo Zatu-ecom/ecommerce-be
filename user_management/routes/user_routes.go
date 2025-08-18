@@ -16,8 +16,11 @@ type UserModule struct {
 
 // NewUserModule creates a new instance of UserModule
 func NewUserModule() *UserModule {
+	addressRepo := repositories.NewAddressRepository(common.GetDB())
+	addressService := service.NewAddressService(addressRepo)
+
 	userRepo := repositories.NewUserRepository(common.GetDB())
-	userService := service.NewUserService(userRepo)
+	userService := service.NewUserService(userRepo, addressService)
 
 	return &UserModule{
 		userHandler: handlers.NewUserHandler(userService),

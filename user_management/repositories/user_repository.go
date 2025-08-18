@@ -38,7 +38,7 @@ func (r *UserRepositoryImpl) Create(user *entity.User) error {
 // FindByID finds a user by ID
 func (r *UserRepositoryImpl) FindByID(id uint) (*entity.User, error) {
 	var user entity.User
-	result := r.db.Preload("Addresses").First(&user, id)
+	result := r.db.First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(utils.UserNotFoundMsg)

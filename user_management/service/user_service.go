@@ -25,13 +25,15 @@ type UserService interface {
 
 // UserServiceImpl implements the UserService interface
 type UserServiceImpl struct {
-	userRepo repositories.UserRepository
+	userRepo       repositories.UserRepository
+	addressService AddressService
 }
 
 // NewUserService creates a new instance of UserService
-func NewUserService(userRepo repositories.UserRepository) UserService {
+func NewUserService(userRepo repositories.UserRepository, addressService AddressService) UserService {
 	return &UserServiceImpl{
-		userRepo: userRepo,
+		userRepo:       userRepo,
+		addressService: addressService,
 	}
 }
 
@@ -170,13 +172,28 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
 	}
 
-	// TODO: Get addresses from address service
+	addresses, err := s.addressService.GetAddresses(userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// For now, return empty addresses array
-	addresses := []model.AddressResponse{}
+	addressesResList := []model.AddressResponse{}
+	for _, address := range addresses {
+		addressesResList = append(addressesResList,
+			model.AddressResponse{
+				ID:      address.ID,
+				Street:  address.Street,
+				City:    address.City,
+				State:   address.State,
+				ZipCode: address.ZipCode,
+				Country: address.Country,
+			})
+	}
 
 	profileResponse := &model.ProfileResponse{
 		UserResponse: userResponse,
-		Addresses:    addresses,
+		Addresses:    addressesResList,
 	}
 
 	return profileResponse, nil
