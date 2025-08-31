@@ -1,4 +1,4 @@
-# Datun E-commerce Backend
+# Zatu E-commerce Backend
 
 This project implements the backend API for the Datun e-commerce platform as specified in the PRD document.
 
