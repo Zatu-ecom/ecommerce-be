@@ -5,9 +5,10 @@ import (
 	"log"
 	"os"
 
-	"datun.com/be/common"
-	"datun.com/be/common/middleware"
-	userManagement "datun.com/be/user_management"
+	"ecommerce-be/common"
+	"ecommerce-be/common/middleware"
+	userManagement "ecommerce-be/user_management"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )

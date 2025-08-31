@@ -4,7 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"datun.com/be/user_management/entity"
+	"ecommerce-be/user_management/entity"
+
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )

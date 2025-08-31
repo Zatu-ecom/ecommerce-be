@@ -1,9 +1,10 @@
 package userManagement
 
 import (
-	"datun.com/be/user_management/routes"
+	"ecommerce-be/common"
+	"ecommerce-be/user_management/routes"
+
 	"github.com/gin-gonic/gin"
-	"datun.com/be/common"
 )
 
 /* NewContainer initializes dependencies dynamically */

@@ -1,11 +1,12 @@
 package routes
 
 import (
-	"datun.com/be/common"
-	"datun.com/be/common/middleware"
-	"datun.com/be/user_management/handlers"
-	"datun.com/be/user_management/repositories"
-	"datun.com/be/user_management/service"
+	"ecommerce-be/common"
+	"ecommerce-be/common/middleware"
+	"ecommerce-be/user_management/handlers"
+	"ecommerce-be/user_management/repositories"
+	"ecommerce-be/user_management/service"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,16 +25,16 @@ func NewAddressModule() *AddressModule {
 
 // RegisterRoutes registers all user-related routes
 func (m *AddressModule) RegisterRoutes(router *gin.Engine) {
-		// Auth middleware for protected routes
-		auth := middleware.Auth()
-		
-		// Address routes (protected)
-		userRoutes := router.Group("/api/users")
-		{
-			userRoutes.GET("/addresses", auth, m.addressHandler.GetAddresses)
-			userRoutes.POST("/addresses", auth, m.addressHandler.AddAddress)
-			userRoutes.PUT("/addresses/:id", auth, m.addressHandler.UpdateAddress)
-			userRoutes.DELETE("/addresses/:id", auth, m.addressHandler.DeleteAddress)
-			userRoutes.PATCH("/addresses/:id/default", auth, m.addressHandler.SetDefaultAddress)
-		}
+	// Auth middleware for protected routes
+	auth := middleware.Auth()
+
+	// Address routes (protected)
+	userRoutes := router.Group("/api/users")
+	{
+		userRoutes.GET("/addresses", auth, m.addressHandler.GetAddresses)
+		userRoutes.POST("/addresses", auth, m.addressHandler.AddAddress)
+		userRoutes.PUT("/addresses/:id", auth, m.addressHandler.UpdateAddress)
+		userRoutes.DELETE("/addresses/:id", auth, m.addressHandler.DeleteAddress)
+		userRoutes.PATCH("/addresses/:id/default", auth, m.addressHandler.SetDefaultAddress)
+	}
 }

@@ -3,8 +3,9 @@ package repositories
 import (
 	"errors"
 
-	"datun.com/be/user_management/entity"
-	"datun.com/be/user_management/utils"
+	"ecommerce-be/user_management/entity"
+	"ecommerce-be/user_management/utils"
+
 	"gorm.io/gorm"
 )
 

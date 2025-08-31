@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"datun.com/be/common"
-	"datun.com/be/user_management/model"
-	"datun.com/be/user_management/service"
-	"datun.com/be/user_management/utils"
+	"ecommerce-be/common"
+	"ecommerce-be/user_management/model"
+	"ecommerce-be/user_management/service"
+	"ecommerce-be/user_management/utils"
+
 	"github.com/gin-gonic/gin"
 )
 

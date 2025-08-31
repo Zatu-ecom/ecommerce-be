@@ -5,7 +5,8 @@ import (
 	"os"
 	"time"
 
-	"datun.com/be/common"
+	"ecommerce-be/common"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )

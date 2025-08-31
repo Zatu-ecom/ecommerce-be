@@ -5,11 +5,13 @@ import (
 	"os"
 	"time"
 
-	"datun.com/be/common"
-	"datun.com/be/user_management/entity"
-	"datun.com/be/user_management/model"
-	"datun.com/be/user_management/repositories"
-	"datun.com/be/user_management/utils"
+	"ecommerce-be/common"
+	"ecommerce-be/user_management/entity"
+	"ecommerce-be/user_management/model"
+	"ecommerce-be/user_management/repositories"
+	"ecommerce-be/user_management/utils"
+	commonEntity "ecommerce-be/common/entity" 
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -66,8 +68,10 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 		DateOfBirth: req.DateOfBirth,
 		Gender:      req.Gender,
 		IsActive:    true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		BaseEntity: commonEntity.BaseEntity{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
 	}
 
 	// Save user to database

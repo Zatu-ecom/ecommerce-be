@@ -1,9 +1,9 @@
 package service
 
 import (
-	"datun.com/be/user_management/entity"
-	"datun.com/be/user_management/model"
-	"datun.com/be/user_management/repositories"
+	"ecommerce-be/user_management/entity"
+	"ecommerce-be/user_management/model"
+	"ecommerce-be/user_management/repositories"
 )
 
 // AddressService defines the interface for address-related business logic
@@ -48,7 +48,7 @@ func (s *AddressServiceImpl) GetAddresses(userID uint) ([]model.AddressResponse,
 		})
 	}
 
-	return addressResponses,nil
+	return addressResponses, nil
 }
 
 // AddAddress adds a new address for a user

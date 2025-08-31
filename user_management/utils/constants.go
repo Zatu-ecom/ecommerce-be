@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"datun.com/be/common"
+	"ecommerce-be/common"
 )
 
 // Import auth-related constants from common package

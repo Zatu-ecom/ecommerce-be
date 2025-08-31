@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 
-	"datun.com/be/user_management/entity"
+	"ecommerce-be/user_management/entity"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
