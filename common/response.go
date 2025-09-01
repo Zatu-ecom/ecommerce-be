@@ -25,6 +25,16 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
+// PaginationResponse represents pagination information in API responses
+type PaginationResponse struct {
+	CurrentPage  int  `json:"currentPage"`
+	TotalPages   int  `json:"totalPages"`
+	TotalItems   int  `json:"totalItems"`
+	ItemsPerPage int  `json:"itemsPerPage"`
+	HasNext      bool `json:"hasNext"`
+	HasPrev      bool `json:"hasPrev"`
+}
+
 // SuccessResponse sends a successful API response
 func SuccessResponse(c *gin.Context, statusCode int, message string, data interface{}) {
 	c.JSON(statusCode, Response{

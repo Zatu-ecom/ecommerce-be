@@ -1,11 +1,18 @@
 package entity
 
-import "ecommerce-be/common/entity"
+import (
+	"ecommerce-be/common/entity"
+)
 
 type PackageOption struct {
 	entity.BaseEntity
-	ProductID uint    `json:"productId" gorm:"index"`
-	Name      string  `json:"name" binding:"required"`
-	Price     float64 `json:"price" binding:"required"`
-	Quantity  int     `json:"quantity" binding:"required"`
+	ProductID   uint    `json:"productId" gorm:"column:productId;not null"`
+	Name        string  `json:"name" binding:"required" gorm:"column:name"`
+	Description string  `json:"description" gorm:"column:description"`
+	Price       float64 `json:"price" binding:"required,gt=0" gorm:"column:price"`
+	Quantity    int     `json:"quantity" binding:"required,gt=0" gorm:"column:quantity"`
+	IsActive    bool    `json:"isActive" gorm:"column:isActive;default:true"`
+
+	// Relationships - use pointers to avoid N+1 queries
+	Product *Product `json:"product,omitempty" gorm:"foreignKey:ProductID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
