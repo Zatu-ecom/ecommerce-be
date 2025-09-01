@@ -27,7 +27,7 @@ func GenerateToken(userID uint, email string, secret string) (string, error) {
 		UserID: userID,
 		Email:  email,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(TokenExpireDuration).Unix(),
+			ExpiresAt: time.Now().Add(TOKEN_EXPIRE_DURATION).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 	}
@@ -64,7 +64,7 @@ func ParseToken(tokenString string, secret string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New(TokenInvalidMsg)
+	return nil, errors.New(TOKEN_INVALID_MSG)
 }
 
 // AuthMiddleware creates a Gin middleware for JWT authentication
@@ -73,15 +73,15 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Get the Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			ErrorWithCode(c, http.StatusUnauthorized, AuthenticationRequiredMsg, AuthRequiredCode)
+			ErrorWithCode(c, http.StatusUnauthorized, AUTHENTICATION_REQUIRED_MSG, AUTH_REQUIRED_CODE)
 			c.Abort()
 			return
 		}
 
 		// Check if the header has the Bearer prefix
 		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != BearerPrefix {
-			ErrorWithCode(c, http.StatusUnauthorized, InvalidAuthFormatMsg, InvalidAuthFormatCode)
+		if len(parts) != 2 || parts[0] != BEARER_PREFIX {
+			ErrorWithCode(c, http.StatusUnauthorized, INVALID_AUTH_FORMAT_MSG, INVALID_AUTH_FORMAT_CODE)
 			c.Abort()
 			return
 		}
@@ -91,21 +91,21 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		// Check if token is blacklisted
 		if IsTokenBlacklisted(tokenString) {
-			ErrorWithCode(c, http.StatusUnauthorized, TokenRevokedMsg, TokenRevokedCode)
+			ErrorWithCode(c, http.StatusUnauthorized, TOKEN_REVOKED_MSG, TOKEN_REVOKED_CODE)
 			c.Abort()
 			return
 		}
 
 		claims, err := ParseToken(tokenString, secret)
 		if err != nil {
-			ErrorWithCode(c, http.StatusUnauthorized, TokenInvalidMsg, TokenInvalidCode)
+			ErrorWithCode(c, http.StatusUnauthorized, TOKEN_INVALID_MSG, TOKEN_INVALID_CODE)
 			c.Abort()
 			return
 		}
 
 		// Set user info in context
-		c.Set(UserIDKey, claims.UserID)
-		c.Set(EmailKey, claims.Email)
+		c.Set(USER_ID_KEY, claims.UserID)
+		c.Set(EMAIL_KEY, claims.Email)
 
 		c.Next()
 	}

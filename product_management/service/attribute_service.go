@@ -75,19 +75,8 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(req model.AttributeDefi
 		return nil, err
 	}
 
-	// Create response
-	attributeResponse := &model.AttributeDefinitionResponse{
-		ID:            attribute.ID,
-		Key:           attribute.Key,
-		Name:          attribute.Name,
-		DataType:      attribute.DataType,
-		Unit:          attribute.Unit,
-		Description:   attribute.Description,
-		AllowedValues: attribute.AllowedValues,
-		IsActive:      attribute.IsActive,
-		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
-	}
-
+	// Build response using converter
+	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -118,19 +107,8 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(id uint, req model.Attr
 		return nil, err
 	}
 
-	// Create response
-	attributeResponse := &model.AttributeDefinitionResponse{
-		ID:            attribute.ID,
-		Key:           attribute.Key,
-		Name:          attribute.Name,
-		DataType:      attribute.DataType,
-		Unit:          attribute.Unit,
-		Description:   attribute.Description,
-		AllowedValues: attribute.AllowedValues,
-		IsActive:      attribute.IsActive,
-		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
-	}
-
+	// Build response using converter
+	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -148,18 +126,8 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDef
 
 	var attributesResponse []model.AttributeDefinitionResponse
 	for _, attribute := range attributes {
-		attributeResponse := model.AttributeDefinitionResponse{
-			ID:            attribute.ID,
-			Key:           attribute.Key,
-			Name:          attribute.Name,
-			DataType:      attribute.DataType,
-			Unit:          attribute.Unit,
-			Description:   attribute.Description,
-			AllowedValues: attribute.AllowedValues,
-			IsActive:      attribute.IsActive,
-			CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
-		}
-		attributesResponse = append(attributesResponse, attributeResponse)
+		ar := utils.ConvertAttributeDefinitionToResponse(&attribute)
+		attributesResponse = append(attributesResponse, *ar)
 	}
 
 	return &model.AttributeDefinitionsResponse{
@@ -174,18 +142,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByID(id uint) (*model.Attri
 		return nil, err
 	}
 
-	attributeResponse := &model.AttributeDefinitionResponse{
-		ID:            attribute.ID,
-		Key:           attribute.Key,
-		Name:          attribute.Name,
-		DataType:      attribute.DataType,
-		Unit:          attribute.Unit,
-		Description:   attribute.Description,
-		AllowedValues: attribute.AllowedValues,
-		IsActive:      attribute.IsActive,
-		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
-	}
-
+	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -199,18 +156,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(key string) (*model.A
 		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_NOT_FOUND_MSG)
 	}
 
-	attributeResponse := &model.AttributeDefinitionResponse{
-		ID:            attribute.ID,
-		Key:           attribute.Key,
-		Name:          attribute.Name,
-		DataType:      attribute.DataType,
-		Unit:          attribute.Unit,
-		Description:   attribute.Description,
-		AllowedValues: attribute.AllowedValues,
-		IsActive:      attribute.IsActive,
-		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
-	}
-
+	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
 	return attributeResponse, nil
 }
 

@@ -3,9 +3,7 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -14,58 +12,38 @@ import (
 var redisClient *redis.Client
 var ctx = context.Background()
 
-// ConnectRedis initializes a Redis client connection
-func ConnectRedis() {
-	redisHost := os.Getenv("REDIS_HOST")
-	if redisHost == "" {
-		redisHost = "localhost"
-	}
+// InitializeRedis initializes the Redis client
+func InitializeRedis() error {
+	addr := os.Getenv("REDIS_ADDR")
+	password := os.Getenv("REDIS_PASSWORD")
+	db := 0
 
-	redisPort := os.Getenv("REDIS_PORT")
-	if redisPort == "" {
-		redisPort = "6379"
-	}
-
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-
-	redisDB := 0
-	if dbEnv := os.Getenv("REDIS_DB"); dbEnv != "" {
-		var err error
-		redisDB, err = strconv.Atoi(dbEnv)
-		if err != nil {
-			redisDB = 0
-		}
-	}
-
-	addr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	fmt.Printf("Connecting to Redis at %s\n", addr)
-
-	// Create a new Redis client
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:        addr,
-		Password:    redisPassword,
-		DB:          redisDB,
-		DialTimeout: 5 * time.Second,
+		Addr:     addr,
+		Password: password,
+		DB:       db,
 	})
 
-	// Test the connection
-	_, err := redisClient.Ping(ctx).Result()
-	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v\n", err)
-	} else {
-		fmt.Println("🚀 Redis connected successfully!")
-	}
+	return nil
 }
 
-// GetRedis returns the Redis client
-func GetRedis() *redis.Client {
-	return redisClient
+// ConnectRedis is a backward-compatible alias for InitializeRedis
+func ConnectRedis() error {
+	return InitializeRedis()
+}
+
+// GetRedisClient returns the Redis client instance
+func GetRedisClient() (*redis.Client, error) {
+	if redisClient == nil {
+		return nil, errors.New(REDIS_NOT_INITIALIZED_MSG)
+	}
+	return redisClient, nil
 }
 
 // SetKey sets a key-value pair in Redis with expiration
 func SetKey(key string, value interface{}, expiration time.Duration) error {
 	if redisClient == nil {
-		return errors.New(RedisNotInitializedMsg)
+		return errors.New(REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
@@ -73,7 +51,7 @@ func SetKey(key string, value interface{}, expiration time.Duration) error {
 // GetKey retrieves a value from Redis
 func GetKey(key string) (string, error) {
 	if redisClient == nil {
-		return "", errors.New(RedisNotInitializedMsg)
+		return "", errors.New(REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Get(ctx, key).Result()
 }
@@ -81,28 +59,32 @@ func GetKey(key string) (string, error) {
 // DelKey deletes a key from Redis
 func DelKey(key string) error {
 	if redisClient == nil {
-		return errors.New(RedisNotInitializedMsg)
+		return errors.New(REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Del(ctx, key).Err()
 }
 
-// BlacklistToken adds a JWT token to the blacklist
+// BlacklistToken stores a token in Redis with an expiration time
 func BlacklistToken(token string, expiration time.Duration) error {
-	if redisClient == nil {
-		// If Redis is not available, log a warning but don't fail the operation
-		// This allows the application to work without Redis (but tokens won't be blacklisted)
-		fmt.Println("Warning: Redis is not available, token blacklisting is disabled")
-		return nil
+	client, err := GetRedisClient()
+	if err != nil {
+		return err
 	}
-	return SetKey("blacklist:"+token, "1", expiration)
+
+	return client.Set(ctx, token, "blacklisted", expiration).Err()
 }
 
 // IsTokenBlacklisted checks if a token is blacklisted
 func IsTokenBlacklisted(token string) bool {
-	if redisClient == nil {
-		// If Redis is not available, tokens can't be blacklisted
+	client, err := GetRedisClient()
+	if err != nil {
 		return false
 	}
-	_, err := GetKey("blacklist:" + token)
-	return err == nil
+
+	result, err := client.Get(ctx, token).Result()
+	if err != nil {
+		return false
+	}
+
+	return result == "blacklisted"
 }

@@ -103,30 +103,10 @@ func (s *ProductServiceImpl) CreateProduct(req model.ProductCreateRequest) (*mod
 		return nil, err
 	}
 
-	// Create response
-	productResponse := &model.ProductResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         model.CategoryInfo{ID: category.ID, Name: category.Name},
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       make(map[string]string),
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
-
+	// Build response using converter
+	productResponse := utils.ConvertProductToResponse(product)
+	// Ensure category info is set
+	productResponse.Category = model.CategoryInfo{ID: category.ID, Name: category.Name}
 	// Add attributes to response
 	for _, attr := range req.Attributes {
 		productResponse.Attributes[attr.Key] = attr.Value
@@ -198,30 +178,9 @@ func (s *ProductServiceImpl) UpdateProduct(id uint, req model.ProductUpdateReque
 		return nil, err
 	}
 
-	// Create response
-	productResponse := &model.ProductResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         model.CategoryInfo{ID: category.ID, Name: category.Name},
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       make(map[string]string),
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
-
+	// Build response using converter
+	productResponse := utils.ConvertProductToResponse(product)
+	productResponse.Category = model.CategoryInfo{ID: category.ID, Name: category.Name}
 	return productResponse, nil
 }
 
@@ -251,8 +210,8 @@ func (s *ProductServiceImpl) GetAllProducts(page, limit int, filters map[string]
 	// Convert to response models
 	var productsResponse []model.ProductResponse
 	for _, product := range products {
-		productResponse := s.convertProductToResponse(product)
-		productsResponse = append(productsResponse, productResponse)
+		pr := utils.ConvertProductToResponse(&product)
+		productsResponse = append(productsResponse, *pr)
 	}
 
 	// Calculate pagination
@@ -288,48 +247,16 @@ func (s *ProductServiceImpl) GetProductByID(id uint) (*model.ProductDetailRespon
 		return nil, err
 	}
 
-	var categoryInfo model.CategoryHierarchyInfo
+	var parentCategory *entity.Category
 	if category.ParentID != 0 {
-		parentCategory, err := s.categoryRepo.FindByID(category.ParentID)
-		if err == nil && parentCategory != nil {
-			categoryInfo = model.CategoryHierarchyInfo{
-				ID:     category.ID,
-				Name:   category.Name,
-				Parent: &model.CategoryInfo{ID: parentCategory.ID, Name: parentCategory.Name},
-			}
-		}
-	} else {
-		categoryInfo = model.CategoryHierarchyInfo{
-			ID:     category.ID,
-			Name:   category.Name,
-			Parent: nil,
+		if pc, err := s.categoryRepo.FindByID(category.ParentID); err == nil {
+			parentCategory = pc
 		}
 	}
+	categoryInfo := utils.ConvertCategoryToHierarchyInfo(category, parentCategory)
 
-	// Create detailed response
-	productDetailResponse := &model.ProductDetailResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         categoryInfo,
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       []model.ProductAttributeResponse{},
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
-
+	// Create detailed response using converter
+	productDetailResponse := utils.ConvertProductToDetailResponse(product, *categoryInfo)
 	return productDetailResponse, nil
 }
 
@@ -359,16 +286,8 @@ func (s *ProductServiceImpl) SearchProducts(query string, filters map[string]int
 	// Convert to search results
 	var searchResults []model.SearchResult
 	for _, product := range products {
-		searchResult := model.SearchResult{
-			ID:               product.ID,
-			Name:             product.Name,
-			Price:            product.Price,
-			ShortDescription: product.ShortDescription,
-			Images:           product.Images,
-			RelevanceScore:   0.8,                             // Placeholder - implement actual relevance scoring
-			MatchedFields:    []string{"name", "description"}, // Placeholder
-		}
-		searchResults = append(searchResults, searchResult)
+		result := utils.ConvertProductToSearchResult(&product)
+		searchResults = append(searchResults, *result)
 	}
 
 	// Calculate pagination
@@ -430,15 +349,8 @@ func (s *ProductServiceImpl) GetRelatedProducts(productID uint, limit int) (*mod
 	// Convert to response models
 	var relatedProductsResponse []model.RelatedProductResponse
 	for _, relatedProduct := range relatedProducts {
-		relatedProductResponse := model.RelatedProductResponse{
-			ID:               relatedProduct.ID,
-			Name:             relatedProduct.Name,
-			Price:            relatedProduct.Price,
-			ShortDescription: relatedProduct.ShortDescription,
-			Images:           relatedProduct.Images,
-			RelationReason:   "Same category",
-		}
-		relatedProductsResponse = append(relatedProductsResponse, relatedProductResponse)
+		r := utils.ConvertProductToRelatedProduct(&relatedProduct)
+		relatedProductsResponse = append(relatedProductsResponse, *r)
 	}
 
 	return &model.RelatedProductsResponse{
@@ -455,39 +367,4 @@ func (s *ProductServiceImpl) validateProductAttributes(categoryID uint, attribut
 	// 3. Validate attribute values against allowed values
 	// 4. Validate data types
 	return nil
-}
-
-// convertProductToResponse converts a product entity to response model
-func (s *ProductServiceImpl) convertProductToResponse(product entity.Product) model.ProductResponse {
-	// Get category info
-	var categoryInfo model.CategoryInfo
-	if product.Category.ID != 0 {
-		categoryInfo = model.CategoryInfo{
-			ID:   product.Category.ID,
-			Name: product.Category.Name,
-		}
-	}
-
-	return model.ProductResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         categoryInfo,
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       make(map[string]string),
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
 }
