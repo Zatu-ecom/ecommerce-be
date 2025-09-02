@@ -228,7 +228,7 @@ func TestContainerPerformance(t *testing.T) {
 		// Insert bulk data
 		for i := 0; i < 1000; i++ {
 			container.ExecuteRawSQL(t,
-				"INSERT INTO bulk_test (name, value) VALUES (?, ?)",
+				"INSERT INTO bulk_test (name, value) VALUES ($1, $2)",
 				fmt.Sprintf("item_%d", i), i,
 			)
 		}
@@ -272,7 +272,7 @@ func TestContainerIsolation(t *testing.T) {
 			)
 		`)
 		container1.ExecuteRawSQL(t,
-			"INSERT INTO isolation_test (data) VALUES (?)",
+			"INSERT INTO isolation_test (data) VALUES ($1)",
 			"container1_data",
 		)
 
