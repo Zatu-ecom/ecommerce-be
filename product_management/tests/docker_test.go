@@ -127,7 +127,7 @@ func TestDatabaseOperations(t *testing.T) {
 
 		// Insert data
 		container.ExecuteRawSQL(t,
-			"INSERT INTO data_test (name, value) VALUES (?, ?)",
+			"INSERT INTO data_test (name, value) VALUES ($1, $2)",
 			"test_item", 42,
 		)
 
@@ -156,7 +156,7 @@ func TestDockerContainerPerformance(t *testing.T) {
 		// Perform multiple database operations
 		for i := 0; i < 50; i++ {
 			var result int
-			err := container.GetDB().Raw("SELECT ?", i).Scan(&result).Error
+			err := container.GetDB().Raw("SELECT $1::integer", i).Scan(&result).Error
 			require.NoError(t, err, "Query %d should succeed", i)
 			assert.Equal(t, i, result, "Query %d result should match", i)
 		}
@@ -183,7 +183,7 @@ func TestDockerContainerPerformance(t *testing.T) {
 		// Insert bulk data
 		for i := 0; i < 500; i++ {
 			container.ExecuteRawSQL(t,
-				"INSERT INTO bulk_test (name, value) VALUES (?, ?)",
+				"INSERT INTO bulk_test (name, value) VALUES ($1, $2)",
 				fmt.Sprintf("item_%d", i), i,
 			)
 		}
@@ -227,7 +227,7 @@ func TestDockerContainerIsolation(t *testing.T) {
 			)
 		`)
 		container1.ExecuteRawSQL(t,
-			"INSERT INTO isolation_test (data) VALUES (?)",
+			"INSERT INTO isolation_test (data) VALUES ($1)",
 			"container1_data",
 		)
 

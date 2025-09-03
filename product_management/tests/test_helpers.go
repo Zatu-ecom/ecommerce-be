@@ -136,6 +136,34 @@ var (
 			Discount:         0,
 			Tags:             []string{"laptop", "computer", "test"},
 		},
+		{
+			Name:             "Test Tablet",
+			Brand:            "TestBrand",
+			SKU:              "TEST-TABLET-001",
+			Price:            499.99,
+			Currency:         "USD",
+			ShortDescription: "Versatile tablet for testing",
+			LongDescription:  "This is a comprehensive test tablet with all features needed for testing purposes",
+			Images:           []string{"tablet1.jpg", "tablet2.jpg"},
+			InStock:          true,
+			IsPopular:        true,
+			Discount:         5,
+			Tags:             []string{"tablet", "mobile", "test"},
+		},
+		{
+			Name:             "Test Headphones",
+			Brand:            "TestBrand",
+			SKU:              "TEST-HEADPHONES-001",
+			Price:            199.99,
+			Currency:         "USD",
+			ShortDescription: "Premium headphones for testing",
+			LongDescription:  "This is a comprehensive test headphones with all features needed for testing purposes",
+			Images:           []string{"headphones1.jpg", "headphones2.jpg"},
+			InStock:          true,
+			IsPopular:        false,
+			Discount:         15,
+			Tags:             []string{"headphones", "audio", "test"},
+		},
 	}
 )
 
@@ -494,6 +522,13 @@ func BuildProductCreateRequest(name string, categoryID uint, brand, sku string, 
 		IsPopular:        false,
 		Discount:         0,
 		Tags:             []string{"test", "product"},
+		Attributes: []model.ProductAttributeRequest{
+			{Key: "color", Value: "Black"},
+			{Key: "size", Value: "Medium"},
+		},
+		PackageOptions: []model.PackageOptionRequest{
+			{Name: "Standard Package", Description: "Default packaging", Price: 0.0, Quantity: 1},
+		},
 	}
 }
 

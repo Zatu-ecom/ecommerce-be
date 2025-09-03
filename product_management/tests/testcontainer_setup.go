@@ -160,7 +160,6 @@ func (tc *PostgreSQLTestContainer) VerifyTableExists(t *testing.T, tableName str
 			WHERE table_schema = 'public' 
 			AND table_name = ?
 		)
-	)
 	`, tableName).Scan(&exists).Error
 
 	require.NoError(t, err, "Failed to check if table %s exists", tableName)
