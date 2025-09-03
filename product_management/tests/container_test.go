@@ -199,9 +199,9 @@ func TestContainerPerformance(t *testing.T) {
 		start := time.Now()
 
 		// Perform multiple database operations
-		for i := 0; i < 100; i++ {
+		for i := 1; i <= 100; i++ {
 			var result int
-			err := container.GetDB().Raw("SELECT ?", i).Scan(&result).Error
+			err := container.GetDB().Raw(fmt.Sprintf("SELECT %d", i)).Scan(&result).Error
 			require.NoError(t, err, "Query %d should succeed", i)
 			assert.Equal(t, i, result, "Query %d result should match", i)
 		}
