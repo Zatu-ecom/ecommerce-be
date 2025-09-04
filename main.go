@@ -7,6 +7,7 @@ import (
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/middleware"
+	productManagement "ecommerce-be/product_management"
 	userManagement "ecommerce-be/user_management"
 
 	"github.com/gin-gonic/gin"
@@ -47,4 +48,5 @@ func main() {
 
 func registerContainer(router *gin.Engine) {
 	_ = userManagement.NewContainer(router)
+	_ = productManagement.NewContainer(router)
 }
