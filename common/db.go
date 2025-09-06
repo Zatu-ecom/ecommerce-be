@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 
-	"ecommerce-be/user_management/entity"
+	productEntity "ecommerce-be/product_management/entity"
+	userEntity "ecommerce-be/user_management/entity"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -37,7 +38,15 @@ func ConnectDB() {
 	fmt.Println("🚀 Database connected successfully!")
 
 	/* Auto-migrate tables */
-	db.AutoMigrate(&entity.User{}, &entity.Address{})
+	db.AutoMigrate(
+		// User Management
+		&userEntity.User{}, &userEntity.Address{},
+		
+		// Product Management
+		&productEntity.Category{}, &productEntity.Product{},
+		&productEntity.AttributeDefinition{}, &productEntity.CategoryAttribute{},
+		&productEntity.ProductAttribute{}, &productEntity.PackageOption{},
+	)
 }
 
 func GetDB() *gorm.DB {
