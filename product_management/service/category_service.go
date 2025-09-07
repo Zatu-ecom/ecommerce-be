@@ -36,10 +36,6 @@ func NewCategoryService(categoryRepo repositories.CategoryRepository) CategorySe
 // CreateCategory creates a new category
 func (s *CategoryServiceImpl) CreateCategory(req model.CategoryCreateRequest) (*model.CategoryResponse, error) {
 	// Check if category with same name exists in the same parent
-	var parentID uint
-	if req.ParentID != nil {
-		parentID = *req.ParentID
-	}
 
 	existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
 	if err != nil {
@@ -63,7 +59,7 @@ func (s *CategoryServiceImpl) CreateCategory(req model.CategoryCreateRequest) (*
 	// Create category entity
 	category := &entity.Category{
 		Name:        req.Name,
-		ParentID:    parentID,
+		ParentID:    req.ParentID,
 		Description: req.Description,
 		IsActive:    true,
 		BaseEntity: commonEntity.BaseEntity{
@@ -120,11 +116,7 @@ func (s *CategoryServiceImpl) UpdateCategory(id uint, req model.CategoryUpdateRe
 
 	// Update category fields
 	category.Name = req.Name
-	if req.ParentID != nil {
-		category.ParentID = *req.ParentID
-	} else {
-		category.ParentID = 0
-	}
+	category.ParentID = req.ParentID
 	category.Description = req.Description
 	category.IsActive = req.IsActive
 	category.UpdatedAt = time.Now()
@@ -179,15 +171,15 @@ func (s *CategoryServiceImpl) GetAllCategories() (*model.CategoriesResponse, err
 		categoryResponse := utils.ConvertCategoryToHierarchyResponse(&category)
 		categoryMap[category.ID] = categoryResponse
 
-		if category.ParentID == 0 {
+		if category.ParentID == nil || *category.ParentID == 0 {
 			rootCategories = append(rootCategories, categoryResponse)
 		}
 	}
 
 	// Build parent-child relationships
 	for _, category := range categories {
-		if category.ParentID != 0 {
-			if parent, exists := categoryMap[category.ParentID]; exists {
+		if category.ParentID != nil && *category.ParentID != 0 {
+			if parent, exists := categoryMap[*category.ParentID]; exists {
 				child := categoryMap[category.ID]
 				parent.Children = append(parent.Children, *child)
 			}

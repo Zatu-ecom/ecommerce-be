@@ -10,6 +10,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 var db *gorm.DB
@@ -29,7 +30,11 @@ func ConnectDB() {
 	fmt.Println(dsn)
 
 	/* Initialize database */
-	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true, // Use singular table names
+		},
+	})
 	if err != nil {
 		log.Fatal("Failed to connect to database: ", err)
 	}
@@ -41,7 +46,7 @@ func ConnectDB() {
 	db.AutoMigrate(
 		// User Management
 		&userEntity.User{}, &userEntity.Address{},
-		
+
 		// Product Management
 		&productEntity.Category{}, &productEntity.Product{},
 		&productEntity.AttributeDefinition{}, &productEntity.CategoryAttribute{},

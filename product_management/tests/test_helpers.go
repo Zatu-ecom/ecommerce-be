@@ -183,15 +183,10 @@ func NewTestHelper(router *gin.Engine, db *gorm.DB) *TestHelper {
 
 // CreateTestCategory creates a test category in the database
 func (th *TestHelper) CreateTestCategory(t *testing.T, name, description string, parentID *uint) *entity.Category {
-	var parentIDValue uint
-	if parentID != nil {
-		parentIDValue = *parentID
-	}
-
 	category := &entity.Category{
 		Name:        name,
 		Description: description,
-		ParentID:    parentIDValue,
+		ParentID:    parentID,
 		IsActive:    true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),

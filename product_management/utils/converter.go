@@ -10,8 +10,8 @@ import (
 // ConvertCategoryToResponse converts Category entity to CategoryResponse model
 func ConvertCategoryToResponse(category *entity.Category) *model.CategoryResponse {
 	var responseParentID *uint
-	if category.ParentID != 0 {
-		responseParentID = &category.ParentID
+	if category.ParentID != nil && *category.ParentID != 0 {
+		responseParentID = category.ParentID
 	}
 
 	return &model.CategoryResponse{
@@ -28,8 +28,8 @@ func ConvertCategoryToResponse(category *entity.Category) *model.CategoryRespons
 // ConvertCategoryToHierarchyResponse converts Category entity to CategoryHierarchyResponse model
 func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.CategoryHierarchyResponse {
 	var responseParentID *uint
-	if category.ParentID != 0 {
-		responseParentID = &category.ParentID
+	if category.ParentID != nil && *category.ParentID != 0 {
+		responseParentID = category.ParentID
 	}
 
 	// Convert children recursively

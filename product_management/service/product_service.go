@@ -248,8 +248,8 @@ func (s *ProductServiceImpl) GetProductByID(id uint) (*model.ProductDetailRespon
 	}
 
 	var parentCategory *entity.Category
-	if category.ParentID != 0 {
-		if pc, err := s.categoryRepo.FindByID(category.ParentID); err == nil {
+	if category.ParentID != nil && *category.ParentID != 0 {
+		if pc, err := s.categoryRepo.FindByID(*category.ParentID); err == nil {
 			parentCategory = pc
 		}
 	}
