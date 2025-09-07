@@ -2,54 +2,14 @@ package query
 
 // Category queries
 const (
-	GET_ALL_CATEGORIES_QUERY = `
-		SELECT 
-			c.id, c.name, c.parentId, c.description, c.isActive, 
-			c.createdAt, c.updatedAt
-		FROM categories c
-		WHERE c.isActive = true
-		ORDER BY c.name ASC
-	`
-
-	GET_CATEGORY_BY_ID_QUERY = `
-		SELECT 
-			c.id, c.name, c.parentId, c.description, c.isActive,
-			c.createdAt, c.updatedAt
-		FROM categories c
-		WHERE c.id = ? AND c.isActive = true
-	`
-
-	GET_CATEGORIES_BY_PARENT_ID_QUERY = `
-		SELECT 
-			c.id, c.name, c.parentId, c.description, c.isActive,
-			c.createdAt, c.updatedAt
-		FROM categories c
-		WHERE c.parentId = ? AND c.isActive = true
-		ORDER BY c.name ASC
-	`
-
-	CREATE_CATEGORY_QUERY = `
-		INSERT INTO categories (name, parentId, description, isActive, createdAt, updatedAt)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`
-
-	UPDATE_CATEGORY_QUERY = `
-		UPDATE categories 
-		SET name = ?, parentId = ?, description = ?, isActive = ?, updatedAt = ?
-		WHERE id = ?
-	`
-
-	SOFT_DELETE_CATEGORY_QUERY = `
-		UPDATE categories 
-		SET isActive = false, updatedAt = ?
-		WHERE id = ?
-	`
-
-	CHECK_CATEGORY_HAS_PRODUCTS_QUERY = `
-		SELECT COUNT(*) FROM products WHERE categoryId = ? AND isActive = true
-	`
-
-	CHECK_CATEGORY_HAS_CHILDREN_QUERY = `
-		SELECT COUNT(*) FROM categories WHERE parentId = ? AND isActive = true
+	FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY = `
+		WITH RECURSIVE category_hierarchy AS (
+				SELECT id, parent_id FROM category WHERE id = ?
+				UNION ALL
+				SELECT c.id, c.parent_id FROM category c JOIN category_hierarchy ch ON c.id = ch.parent_id
+			)
+			SELECT DISTINCT ad.* FROM attribute_definition ad
+			JOIN category_attribute ca ON ad.id = ca.attribute_definition_id
+			WHERE ca.category_id IN (SELECT id FROM category_hierarchy)
 	`
 )

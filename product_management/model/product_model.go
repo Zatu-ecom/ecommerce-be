@@ -63,7 +63,6 @@ type PackageOptionResponse struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
 	Quantity    int     `json:"quantity"`
-	IsActive    bool    `json:"isActive"`
 	CreatedAt   string  `json:"createdAt"`
 	UpdatedAt   string  `json:"updatedAt"`
 }
@@ -83,7 +82,6 @@ type ProductResponse struct {
 	Images           []string                `json:"images"`
 	InStock          bool                    `json:"inStock"`
 	IsPopular        bool                    `json:"isPopular"`
-	IsActive         bool                    `json:"isActive"`
 	Discount         int                     `json:"discount"`
 	Tags             []string                `json:"tags"`
 	Attributes       map[string]string       `json:"attributes"`
@@ -107,7 +105,6 @@ type ProductDetailResponse struct {
 	Images           []string                   `json:"images"`
 	InStock          bool                       `json:"inStock"`
 	IsPopular        bool                       `json:"isPopular"`
-	IsActive         bool                       `json:"isActive"`
 	Discount         int                        `json:"discount"`
 	Tags             []string                   `json:"tags"`
 	Attributes       []ProductAttributeResponse `json:"attributes"`
@@ -188,7 +185,6 @@ type PackageOptionUpdateRequest struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price" binding:"required,gt=0"`
 	Quantity    int     `json:"quantity" binding:"required,gt=0"`
-	IsActive    bool    `json:"isActive"`
 }
 
 // PackageOptionsResponse represents the response for getting package options

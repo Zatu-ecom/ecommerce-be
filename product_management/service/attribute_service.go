@@ -20,6 +20,7 @@ type AttributeDefinitionService interface {
 	GetAllAttributes() (*model.AttributeDefinitionsResponse, error)
 	GetAttributeByID(id uint) (*model.AttributeDefinitionResponse, error)
 	GetAttributeByKey(key string) (*model.AttributeDefinitionResponse, error)
+	CreateCategoryAttributeDefinition(categoryID uint, req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error)
 }
 
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
@@ -36,38 +37,10 @@ func NewAttributeDefinitionService(attributeRepo repositories.AttributeDefinitio
 
 // CreateAttribute creates a new attribute definition
 func (s *AttributeDefinitionServiceImpl) CreateAttribute(req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error) {
-	// Validate attribute key format
-	if !s.isValidAttributeKey(req.Key) {
-		return nil, errors.New(utils.ATTRIBUTE_KEY_FORMAT_MSG)
-	}
+	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
 
-	// Check if attribute with same key already exists
-	existingAttribute, err := s.attributeRepo.FindByKey(req.Key)
 	if err != nil {
 		return nil, err
-	}
-	if existingAttribute != nil {
-		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_EXISTS_MSG)
-	}
-
-	// Validate data type
-	if !s.isValidDataType(req.DataType) {
-		return nil, errors.New(utils.ATTRIBUTE_DATA_TYPE_INVALID_MSG)
-	}
-
-	// Create attribute definition entity
-	attribute := &entity.AttributeDefinition{
-		Key:           req.Key,
-		Name:          req.Name,
-		DataType:      req.DataType,
-		Unit:          req.Unit,
-		Description:   req.Description,
-		AllowedValues: req.AllowedValues,
-		IsActive:      true,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
 	}
 
 	// Save attribute to database
@@ -99,7 +72,6 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(id uint, req model.Attr
 	attribute.Unit = req.Unit
 	attribute.Description = req.Description
 	attribute.AllowedValues = req.AllowedValues
-	attribute.IsActive = req.IsActive
 	attribute.UpdatedAt = time.Now()
 
 	// Save updated attribute
@@ -160,6 +132,21 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(key string) (*model.A
 	return attributeResponse, nil
 }
 
+func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(categoryID uint, req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error) {
+	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.attributeRepo.CreateCategoryAttributeDefinition(attribute, categoryID); err != nil {
+		return nil, err
+	}
+
+	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
+	return attributeResponse, nil
+}
+
 // isValidAttributeKey validates the attribute key format
 func (s *AttributeDefinitionServiceImpl) isValidAttributeKey(key string) bool {
 	// Key must contain only lowercase letters, numbers, and underscores
@@ -176,4 +163,41 @@ func (s *AttributeDefinitionServiceImpl) isValidDataType(dataType string) bool {
 		}
 	}
 	return false
+}
+
+func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(req model.AttributeDefinitionCreateRequest) (*entity.AttributeDefinition, error) {
+	// Validate attribute key format
+	if !s.isValidAttributeKey(req.Key) {
+		return nil, errors.New(utils.ATTRIBUTE_KEY_FORMAT_MSG)
+	}
+
+	// Check if attribute with same key already exists
+	existingAttribute, err := s.attributeRepo.FindByKey(req.Key)
+	if err != nil {
+		return nil, err
+	}
+	if existingAttribute != nil {
+		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_EXISTS_MSG)
+	}
+
+	// Validate data type
+	if !s.isValidDataType(req.DataType) {
+		return nil, errors.New(utils.ATTRIBUTE_DATA_TYPE_INVALID_MSG)
+	}
+
+	// Create attribute definition entity
+	attribute := &entity.AttributeDefinition{
+		Key:           req.Key,
+		Name:          req.Name,
+		DataType:      req.DataType,
+		Unit:          req.Unit,
+		Description:   req.Description,
+		AllowedValues: req.AllowedValues,
+		BaseEntity: commonEntity.BaseEntity{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	return attribute, nil
 }

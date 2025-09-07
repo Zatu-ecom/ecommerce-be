@@ -187,7 +187,6 @@ func (th *TestHelper) CreateTestCategory(t *testing.T, name, description string,
 		Name:        name,
 		Description: description,
 		ParentID:    parentID,
-		IsActive:    true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -209,7 +208,6 @@ func (th *TestHelper) CreateTestAttribute(t *testing.T, key, name, dataType, uni
 		Unit:          unit,
 		Description:   description,
 		AllowedValues: allowedValues,
-		IsActive:      true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -236,7 +234,6 @@ func (th *TestHelper) CreateTestProduct(t *testing.T, categoryID uint, name, bra
 		Images:           []string{"test1.jpg", "test2.jpg"},
 		InStock:          true,
 		IsPopular:        false,
-		IsActive:         true,
 		Discount:         0,
 		Tags:             []string{"test", "product"},
 		BaseEntity: commonEntity.BaseEntity{
@@ -259,9 +256,7 @@ func (th *TestHelper) CreateTestCategoryAttribute(t *testing.T, categoryID, attr
 		IsRequired:            isRequired,
 		IsSearchable:          isSearchable,
 		IsFilterable:          isFilterable,
-		SortOrder:             sortOrder,
 		DefaultValue:          defaultValue,
-		IsActive:              true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -281,7 +276,6 @@ func (th *TestHelper) CreateTestProductAttribute(t *testing.T, productID, attrib
 		AttributeDefinitionID: attributeID,
 		Key:                   key,
 		Value:                 value,
-		IsActive:              true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -302,7 +296,6 @@ func (th *TestHelper) CreateTestPackageOption(t *testing.T, productID uint, name
 		Description: description,
 		Price:       price,
 		Quantity:    quantity,
-		IsActive:    true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -441,7 +434,6 @@ func AssertCategoryResponse(t *testing.T, response *model.CategoryResponse, expe
 	assert.NotZero(t, response.ID, "Expected non-zero category ID")
 	assert.Equal(t, expectedName, response.Name, "Expected category name %s, got %s", expectedName, response.Name)
 	assert.Equal(t, expectedDescription, response.Description, "Expected category description %s, got %s", expectedDescription, response.Description)
-	assert.True(t, response.IsActive, "Expected category to be active")
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 	assert.NotEmpty(t, response.UpdatedAt, "Expected non-empty updated at")
 }
@@ -451,7 +443,6 @@ func AssertAttributeResponse(t *testing.T, response *model.AttributeDefinitionRe
 	assert.Equal(t, expectedKey, response.Key, "Expected attribute key %s, got %s", expectedKey, response.Key)
 	assert.Equal(t, expectedName, response.Name, "Expected attribute name %s, got %s", expectedName, response.Name)
 	assert.Equal(t, expectedDataType, response.DataType, "Expected attribute data type %s, got %s", expectedDataType, response.DataType)
-	assert.True(t, response.IsActive, "Expected attribute to be active")
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 }
 
@@ -460,7 +451,6 @@ func AssertProductResponse(t *testing.T, response *model.ProductResponse, expect
 	assert.Equal(t, expectedName, response.Name, "Expected product name %s, got %s", expectedName, response.Name)
 	assert.Equal(t, expectedSKU, response.SKU, "Expected product SKU %s, got %s", expectedSKU, response.SKU)
 	assert.Equal(t, expectedPrice, response.Price, "Expected product price %f, got %f", expectedPrice, response.Price)
-	assert.True(t, response.IsActive, "Expected product to be active")
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 	assert.NotEmpty(t, response.UpdatedAt, "Expected non-empty updated at")
 }

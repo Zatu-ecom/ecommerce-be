@@ -15,12 +15,14 @@ This document outlines the API specifications for the Product Service in our e-c
 
 ### 2.2 Database Tables
 
-- `categories` - Hierarchical product categories
-- `attribute_definitions` - Master attribute definitions  
-- `category_attributes` - Category-specific attribute configurations
-- `products` - Core product information
-- `product_attributes` - Dynamic product attribute values
-- `package_options` - Product variants and packages
+- `category` - Hierarchical product categories (singular table names)
+- `attribute_definition` - Master attribute definitions  
+- `category_attribute` - Category-specific attribute configurations
+- `product` - Core product information
+- `product_attribute` - Dynamic product attribute values
+- `package_option` - Product variants and packages
+
+**Note**: All table names use singular form as per the GORM configuration with `SingularTable: true`.
 
 ## 3. API Specifications
 
@@ -32,7 +34,6 @@ This document outlines the API specifications for the Product Service in our e-c
 - **Headers**: 
   - `Authorization`: Bearer token (optional for public access)
 - **Query Parameters**:
-  - `includeInactive`: Include inactive categories (boolean, default: false)
   - `parentId`: Filter by parent category ID (integer, optional)
 - **Request Body**: None
 
@@ -48,14 +49,12 @@ This document outlines the API specifications for the Product Service in our e-c
         "name": "Electronics",
         "parentId": null,
         "description": "Electronic products and devices",
-        "isActive": true,
         "children": [
           {
             "id": 2,
             "name": "Smartphones",
             "parentId": 1,
             "description": "Mobile phones and accessories",
-            "isActive": true,
             "children": []
           },
           {
@@ -63,7 +62,6 @@ This document outlines the API specifications for the Product Service in our e-c
             "name": "Laptops",
             "parentId": 1,
             "description": "Portable computers",
-            "isActive": true,
             "children": []
           }
         ]
@@ -104,7 +102,6 @@ This document outlines the API specifications for the Product Service in our e-c
       "name": "Gaming Laptops",
       "parentId": 3,
       "description": "High-performance laptops for gaming",
-      "isActive": true,
       "createdAt": "2024-01-15T10:30:00Z",
       "updatedAt": "2024-01-15T10:30:00Z"
     }
@@ -124,8 +121,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```json
 {
   "name": "Premium Gaming Laptops",
-  "description": "High-end gaming laptops with premium features",
-  "isActive": true
+  "description": "High-end gaming laptops with premium features"
 }
 ```
 
@@ -140,7 +136,6 @@ This document outlines the API specifications for the Product Service in our e-c
       "name": "Premium Gaming Laptops",
       "parentId": 3,
       "description": "High-end gaming laptops with premium features",
-      "isActive": true,
       "updatedAt": "2024-01-15T11:00:00Z"
     }
   }
@@ -149,22 +144,62 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.4 Delete Category
 - **Endpoint**: `DELETE /api/categories/{categoryId}`
-- **Description**: Soft delete a category (set isActive to false)
+- **Description**: Permanently delete a category
 - **Headers**: 
   - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `categoryId`: Category ID to delete
 
 **Business Rules**:
-- Cannot delete category with active products
-- Cannot delete category with active child categories
-- Soft delete only (set isActive = false)
+- Cannot delete category with products
+- Cannot delete category with child categories
+- Permanent deletion (hard delete)
 
 **Response (200 OK)**:
 ```json
 {
   "success": true,
   "message": "Category deleted successfully"
+}
+```
+
+#### 3.1.5 Get Category Attributes with Inheritance
+- **Endpoint**: `GET /api/categories/{categoryId}/attributes`
+- **Description**: Get all attributes for a category including inherited attributes from parent categories
+- **Headers**: 
+  - `Authorization`: Bearer token (Admin required)
+- **Path Parameters**:
+  - `categoryId`: Category ID
+
+**Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Category attributes retrieved successfully",
+  "data": {
+    "attributes": [
+      {
+        "id": 1,
+        "key": "warranty_period",
+        "name": "Warranty Period",
+        "dataType": "number",
+        "unit": "months",
+        "description": "Product warranty duration",
+        "allowedValues": null,
+        "createdAt": "2024-01-15T10:30:00Z"
+      },
+      {
+        "id": 2,
+        "key": "color",
+        "name": "Color",
+        "dataType": "string",
+        "unit": null,
+        "description": "Product color",
+        "allowedValues": ["Red", "Blue", "Green", "Black", "White"],
+        "createdAt": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -177,7 +212,6 @@ This document outlines the API specifications for the Product Service in our e-c
   - `Authorization`: Bearer token (Admin required)
 - **Query Parameters**:
   - `dataType`: Filter by data type (string, number, boolean, array)
-  - `isActive`: Filter by active status (boolean, default: true)
 
 **Response (200 OK)**:
 ```json
@@ -194,7 +228,6 @@ This document outlines the API specifications for the Product Service in our e-c
         "unit": "months",
         "description": "Product warranty duration",
         "allowedValues": null,
-        "isActive": true,
         "createdAt": "2024-01-15T10:30:00Z"
       },
       {
@@ -205,7 +238,6 @@ This document outlines the API specifications for the Product Service in our e-c
         "unit": null,
         "description": "Product color",
         "allowedValues": ["Red", "Blue", "Green", "Black", "White"],
-        "isActive": true,
         "createdAt": "2024-01-15T10:30:00Z"
       }
     ]
@@ -260,16 +292,63 @@ This document outlines the API specifications for the Product Service in our e-c
 }
 ```
 
+#### 3.2.3 Create Category-Specific Attribute Definition
+- **Endpoint**: `POST /api/attributes/{categoryId}`
+- **Description**: Create a new attribute definition and associate it with a specific category
+- **Headers**: 
+  - `Authorization`: Bearer token (Admin required)
+  - `Content-Type`: application/json
+- **Path Parameters**:
+  - `categoryId`: Category ID to associate the attribute with
+- **Request Body**:
+```json
+{
+  "key": "gpu_memory",
+  "name": "GPU Memory",
+  "dataType": "string",
+  "unit": "GB",
+  "description": "Graphics card memory size",
+  "allowedValues": ["4GB", "6GB", "8GB", "12GB", "16GB"]
+}
+```
+
+**Validation Rules**:
+- Same as Create Attribute Definition
+- `categoryId`: Must exist and be active
+- `key`: Must be unique across all attributes
+
+**Response (201 Created)**:
+```json
+{
+  "success": true,
+  "message": "Category attribute definition created successfully",
+  "data": {
+    "attribute": {
+      "id": 4,
+      "key": "gpu_memory",
+      "name": "GPU Memory",
+      "dataType": "string",
+      "unit": "GB",
+      "description": "Graphics card memory size",
+      "allowedValues": ["4GB", "6GB", "8GB", "12GB", "16GB"],
+      "isActive": true,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  }
+}
+```
+
 ### 3.3 Category Attribute Configuration APIs
 
+> **Note**: The category attribute configuration APIs have been moved to the Category Management section (3.1.5) and Attribute Definition section (3.2.3) for better organization. The inheritance-based approach provides a more flexible and maintainable solution.
+
 #### 3.3.1 Get Category Attributes
-- **Endpoint**: `GET /api/categories/{categoryId}/attributes`
-- **Description**: Get attribute configuration for a specific category
-- **Headers**: None required
+- **Endpoint**: `GET /api/categories/{categoryId}/attributes` (Now returns inherited attributes)
+- **Description**: Get all attributes for a category including inherited attributes from parent categories
+- **Headers**: 
+  - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `categoryId`: Category ID
-- **Query Parameters**:
-  - `includeInactive`: Include inactive attributes (boolean, default: false)
 
 **Response (200 OK)**:
 ```json
@@ -277,42 +356,26 @@ This document outlines the API specifications for the Product Service in our e-c
   "success": true,
   "message": "Category attributes retrieved successfully",
   "data": {
-    "categoryId": 2,
-    "categoryName": "Smartphones",
     "attributes": [
       {
         "id": 1,
-        "attributeDefinition": {
-          "id": 1,
-          "key": "warranty_period",
-          "name": "Warranty Period",
-          "dataType": "number",
-          "unit": "months",
-          "allowedValues": null
-        },
-        "isRequired": true,
-        "isSearchable": true,
-        "isFilterable": true,
-        "sortOrder": 1,
-        "defaultValue": "",
-        "isActive": true
+        "key": "warranty_period",
+        "name": "Warranty Period",
+        "dataType": "number",
+        "unit": "months",
+        "description": "Product warranty duration",
+        "allowedValues": null,
+        "createdAt": "2024-01-15T10:30:00Z"
       },
       {
         "id": 2,
-        "attributeDefinition": {
-          "id": 2,
-          "key": "color",
-          "name": "Color",
-          "dataType": "string",
-          "unit": null,
-          "allowedValues": ["Red", "Blue", "Green", "Black", "White"]
-        },
-        "isRequired": true,
-        "isSearchable": true,
-        "isFilterable": true,
-        "sortOrder": 2,
-        "defaultValue": "",
-        "isActive": true
+        "key": "color",
+        "name": "Color",
+        "dataType": "string",
+        "unit": null,
+        "description": "Product color",
+        "allowedValues": ["Red", "Blue", "Green", "Black", "White"],
+        "createdAt": "2024-01-15T10:30:00Z"
       }
     ]
   }
@@ -320,45 +383,42 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.3.2 Configure Category Attributes
-- **Endpoint**: `POST /api/categories/{categoryId}/attributes`
-- **Description**: Configure attributes for a category
+- **Endpoint**: `POST /api/categories/{categoryId}/attributes` (Now creates category-specific attributes)
+- **Description**: Create a new attribute definition and associate it with a specific category
 - **Headers**: 
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Path Parameters**:
-  - `categoryId`: Category ID
+  - `categoryId`: Category ID to associate the attribute with
 - **Request Body**:
 ```json
 {
-  "attributes": [
-    {
-      "attributeDefinitionId": 1,
-      "isRequired": true,
-      "isSearchable": true,
-      "isFilterable": true,
-      "sortOrder": 1,
-      "defaultValue": "12"
-    },
-    {
-      "attributeDefinitionId": 2,
-      "isRequired": false,
-      "isSearchable": true,
-      "isFilterable": true,
-      "sortOrder": 2,
-      "defaultValue": ""
-    }
-  ]
+  "key": "gpu_memory",
+  "name": "GPU Memory",
+  "dataType": "string",
+  "unit": "GB",
+  "description": "Graphics card memory size",
+  "allowedValues": ["4GB", "6GB", "8GB", "12GB", "16GB"]
 }
 ```
 
-**Response (200 OK)**:
+**Response (201 Created)**:
 ```json
 {
   "success": true,
-  "message": "Category attributes configured successfully",
+  "message": "Category attribute definition created successfully",
   "data": {
-    "categoryId": 2,
-    "configuredAttributes": 2
+    "attribute": {
+      "id": 4,
+      "key": "gpu_memory",
+      "name": "GPU Memory",
+      "dataType": "string",
+      "unit": "GB",
+      "description": "Graphics card memory size",
+      "allowedValues": ["4GB", "6GB", "8GB", "12GB", "16GB"],
+      "isActive": true,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
   }
 }
 ```
@@ -410,7 +470,6 @@ This document outlines the API specifications for the Product Service in our e-c
         ],
         "inStock": true,
         "isPopular": true,
-        "isActive": true,
         "discount": 0,
         "tags": ["smartphone", "apple", "5g"],
         "attributes": {
@@ -1007,6 +1066,24 @@ This document outlines the API specifications for the Product Service in our e-c
 - Proper indexing on search fields
 - Composite indexes for filter combinations
 - Query optimization for attribute lookups
+
+### 6.4 Category Hierarchy Performance
+- **Get All Categories API**: Uses optimized queries to avoid N+1 problems
+- **Inheritance-based Attributes**: Reduces data duplication and improves maintainability
+- **Single Query Approach**: Fetches all categories in one query and builds hierarchy in memory
+- **Avoids Duplicate Data**: Prevents fetching the same category multiple times in nested relationships
+
+**Performance Benefits**:
+- Reduced database queries for category hierarchies
+- Eliminated duplicate category data in responses
+- Improved response times for large category trees
+- Better memory efficiency for nested category structures
+
+### 6.5 Simplified Data Model
+- **Removed `isActive` Fields**: All entities now use hard delete instead of soft delete
+- **Cleaner API Responses**: No more `isActive` fields in JSON responses
+- **Simplified Queries**: No need to filter by `isActive` status in database queries
+- **Reduced Complexity**: Less conditional logic in business rules and validation
 
 ## 7. Implementation Notes
 

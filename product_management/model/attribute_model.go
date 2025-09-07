@@ -17,7 +17,6 @@ type AttributeDefinitionUpdateRequest struct {
 	Unit          string   `json:"unit" binding:"max=20"`
 	Description   string   `json:"description" binding:"max=500"`
 	AllowedValues []string `json:"allowedValues"`
-	IsActive      bool     `json:"isActive"`
 }
 
 // AttributeDefinitionResponse represents the attribute definition data returned in API responses
@@ -29,7 +28,6 @@ type AttributeDefinitionResponse struct {
 	Unit          string   `json:"unit"`
 	Description   string   `json:"description"`
 	AllowedValues []string `json:"allowedValues"`
-	IsActive      bool     `json:"isActive"`
 	CreatedAt     string   `json:"createdAt"`
 }
 
@@ -44,7 +42,6 @@ type CategoryAttributeConfig struct {
 	IsRequired            bool   `json:"isRequired"`
 	IsSearchable          bool   `json:"isSearchable"`
 	IsFilterable          bool   `json:"isFilterable"`
-	SortOrder             int    `json:"sortOrder"`
 	DefaultValue          string `json:"defaultValue"`
 }
 
@@ -60,9 +57,7 @@ type CategoryAttributeResponse struct {
 	IsRequired          bool                        `json:"isRequired"`
 	IsSearchable        bool                        `json:"isSearchable"`
 	IsFilterable        bool                        `json:"isFilterable"`
-	SortOrder           int                         `json:"sortOrder"`
 	DefaultValue        string                      `json:"defaultValue"`
-	IsActive            bool                        `json:"isActive"`
 }
 
 // CategoryAttributesResponse represents the response for getting category attributes

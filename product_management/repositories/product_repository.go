@@ -17,7 +17,7 @@ type ProductRepository interface {
 	FindBySKU(sku string) (*entity.Product, error)
 	FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
 	Search(query string, filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
-	SoftDelete(id uint) error
+	Delete(id uint) error
 	UpdateStock(id uint, inStock bool) error
 	FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error)
 }
@@ -45,7 +45,7 @@ func (r *ProductRepositoryImpl) Update(product *entity.Product) error {
 // FindByID finds a product by ID with eager loading
 func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 	var product entity.Product
-	result := r.db.Preload("Category").Preload("Category.Parent").Where("id = ? AND is_active = true", id).First(&product)
+	result := r.db.Preload("Category").Preload("Category.Parent").Where("id = ?", id).First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
@@ -58,7 +58,7 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 // FindBySKU finds a product by SKU
 func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
 	var product entity.Product
-	result := r.db.Where("sku = ? AND is_active = true", sku).First(&product)
+	result := r.db.Where("sku = ?", sku).First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil // Not found, but not an error
@@ -73,7 +73,7 @@ func (r *ProductRepositoryImpl) FindAll(filters map[string]interface{}, page, li
 	var products []entity.Product
 	var total int64
 
-	query := r.db.Model(&entity.Product{}).Where("is_active = true")
+	query := r.db.Model(&entity.Product{})
 
 	// Apply filters
 	if categoryID, exists := filters["categoryId"]; exists {
@@ -127,7 +127,7 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 	var products []entity.Product
 	var total int64
 
-	dbQuery := r.db.Model(&entity.Product{}).Where("is_active = true")
+	dbQuery := r.db.Model(&entity.Product{})
 
 	// Apply search query
 	if query != "" {
@@ -166,8 +166,8 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 }
 
 // SoftDelete soft deletes a product
-func (r *ProductRepositoryImpl) SoftDelete(id uint) error {
-	return r.db.Model(&entity.Product{}).Where("id = ?", id).Update("is_active", false).Error
+func (r *ProductRepositoryImpl) Delete(id uint) error {
+	return r.db.Model(&entity.Product{}).Delete("id = ?", id).Error
 }
 
 // UpdateStock updates product stock status
@@ -179,7 +179,7 @@ func (r *ProductRepositoryImpl) UpdateStock(id uint, inStock bool) error {
 func (r *ProductRepositoryImpl) FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error) {
 	var products []entity.Product
 	result := r.db.Preload("Category").
-		Where("category_id = ? AND id != ? AND is_active = true", categoryID, excludeProductID).
+		Where("category_id = ? AND id != ?", categoryID, excludeProductID).
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&products)

@@ -19,7 +19,6 @@ func ConvertCategoryToResponse(category *entity.Category) *model.CategoryRespons
 		Name:        category.Name,
 		ParentID:    responseParentID,
 		Description: category.Description,
-		IsActive:    category.IsActive,
 		CreatedAt:   category.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   category.UpdatedAt.Format(time.RFC3339),
 	}
@@ -44,7 +43,6 @@ func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.Catego
 		Name:        category.Name,
 		ParentID:    responseParentID,
 		Description: category.Description,
-		IsActive:    category.IsActive,
 		Children:    children,
 	}
 }
@@ -59,7 +57,6 @@ func ConvertAttributeDefinitionToResponse(attribute *entity.AttributeDefinition)
 		Unit:          attribute.Unit,
 		Description:   attribute.Description,
 		AllowedValues: attribute.AllowedValues,
-		IsActive:      attribute.IsActive,
 		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
 	}
 }
@@ -88,7 +85,6 @@ func ConvertProductToResponse(product *entity.Product) *model.ProductResponse {
 		Images:           product.Images,
 		InStock:          product.InStock,
 		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
 		Discount:         product.Discount,
 		Tags:             product.Tags,
 		Attributes:       make(map[string]string),
@@ -114,7 +110,6 @@ func ConvertProductToDetailResponse(product *entity.Product, categoryInfo model.
 		Images:           product.Images,
 		InStock:          product.InStock,
 		IsPopular:        product.IsPopular,
-		IsActive:         product.IsActive,
 		Discount:         product.Discount,
 		Tags:             product.Tags,
 		Attributes:       []model.ProductAttributeResponse{},

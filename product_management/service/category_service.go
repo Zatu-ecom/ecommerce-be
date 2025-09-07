@@ -19,6 +19,7 @@ type CategoryService interface {
 	GetAllCategories() (*model.CategoriesResponse, error)
 	GetCategoryByID(id uint) (*model.CategoryResponse, error)
 	GetCategoriesByParent(parentID *uint) (*model.CategoriesResponse, error)
+	GetAttributesByCategoryIDWithInheritance(catagoryID uint) (model.AttributeDefinitionsResponse, error)
 }
 
 // CategoryServiceImpl implements the CategoryService interface
@@ -61,7 +62,6 @@ func (s *CategoryServiceImpl) CreateCategory(req model.CategoryCreateRequest) (*
 		Name:        req.Name,
 		ParentID:    req.ParentID,
 		Description: req.Description,
-		IsActive:    true,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -118,7 +118,6 @@ func (s *CategoryServiceImpl) UpdateCategory(id uint, req model.CategoryUpdateRe
 	category.Name = req.Name
 	category.ParentID = req.ParentID
 	category.Description = req.Description
-	category.IsActive = req.IsActive
 	category.UpdatedAt = time.Now()
 
 	// Save updated category
@@ -153,7 +152,7 @@ func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
 	}
 
 	// Soft delete category
-	return s.categoryRepo.SoftDelete(id)
+	return s.categoryRepo.Delete(id)
 }
 
 // GetAllCategories gets all categories in hierarchical structure
@@ -225,5 +224,22 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(parentID *uint) (*model.Cate
 
 	return &model.CategoriesResponse{
 		Categories: categoriesResponse,
+	}, nil
+}
+
+func  (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(catagoryID uint) (model.AttributeDefinitionsResponse, error) {
+	attributes, err := s.categoryRepo.FindAttributesByCategoryIDWithInheritance(catagoryID)
+	if err != nil {
+		return model.AttributeDefinitionsResponse{}, err
+	}
+
+	var attributesResponse []model.AttributeDefinitionResponse
+	for _, attribute := range attributes {
+		ar := utils.ConvertAttributeDefinitionToResponse(&attribute)
+		attributesResponse = append(attributesResponse, *ar)
+	}
+
+	return model.AttributeDefinitionsResponse{
+		Attributes: attributesResponse,
 	}, nil
 }

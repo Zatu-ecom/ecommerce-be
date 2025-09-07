@@ -80,6 +80,7 @@ const (
 	FAILED_TO_ADD_PACKAGE_OPTION_MSG       = "Failed to add package option"
 	FAILED_TO_UPDATE_PACKAGE_OPTION_MSG    = "Failed to update package option"
 	FAILED_TO_DELETE_PACKAGE_OPTION_MSG    = "Failed to delete package option"
+	FAILED_TO_GET_CATEGORY_ATTRIBUTES_MSG  = "Failed to get category attributes"
 )
 
 // Permission and access messages

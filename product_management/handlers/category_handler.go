@@ -184,3 +184,23 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 
 	common.SuccessResponse(c, http.StatusOK, utils.CATEGORIES_RETRIEVED_MSG, categoriesResponse)
 }
+
+func (h *CategoryHandler) GetAttributesByCategoryIDWithInheritance(c *gin.Context) {
+	categoryID, err := strconv.ParseUint(c.Param("categoryId"), 10, 32)
+	if err != nil {
+		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid category ID", utils.VALIDATION_ERROR_CODE)
+		return
+	}
+
+	attributesResponse, err := h.categoryService.GetAttributesByCategoryIDWithInheritance(uint(categoryID))
+	if err != nil {
+		if err.Error() == utils.CATEGORY_NOT_FOUND_MSG {
+			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.CATEGORY_NOT_FOUND_CODE)
+			return
+		}
+		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_CATEGORY_ATTRIBUTES_MSG+": "+err.Error())
+		return
+	}
+
+	common.SuccessResponse(c, http.StatusOK, utils.CATEGORY_ATTRIBUTES_RETRIEVED_MSG, attributesResponse)
+}

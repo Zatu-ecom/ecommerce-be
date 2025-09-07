@@ -41,5 +41,6 @@ func (m *AttributeModule) RegisterRoutes(router *gin.Engine) {
 		attributeRoutes.POST("", auth, m.attributeHandler.CreateAttribute)
 		attributeRoutes.PUT("/:attributeId", auth, m.attributeHandler.UpdateAttribute)
 		attributeRoutes.DELETE("/:attributeId", auth, m.attributeHandler.DeleteAttribute)
+		attributeRoutes.POST("/:categoryId", auth, m.attributeHandler.CreateCategoryAttributeDefinition)
 	}
 }

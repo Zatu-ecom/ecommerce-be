@@ -11,9 +11,7 @@ type CategoryAttribute struct {
 	IsRequired            bool   `json:"isRequired" gorm:"column:is_required;default:false"`
 	IsSearchable          bool   `json:"isSearchable" gorm:"column:is_searchable;default:false"`
 	IsFilterable          bool   `json:"isFilterable" gorm:"column:is_filterable;default:false"`
-	SortOrder             int    `json:"sortOrder" gorm:"column:sort_order;default:0"`
-	DefaultValue          string `json:"defaultValue" gorm:"column:defaultValue"`
-	IsActive              bool   `json:"isActive" gorm:"column:is_active;default:true"`
+	DefaultValue          string `json:"defaultValue" gorm:"column:default_value"`
 
 	// Relationships - use pointers to avoid N+1 queries
 	Category            *Category            `json:"category,omitempty" gorm:"foreignKey:category_id;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`

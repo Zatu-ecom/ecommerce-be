@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"ecommerce-be/product_management/entity"
+	"ecommerce-be/product_management/query"
 	"ecommerce-be/product_management/utils"
 
 	"gorm.io/gorm"
@@ -17,10 +18,11 @@ type CategoryRepository interface {
 	FindByNameAndParent(name string, parentID *uint) (*entity.Category, error)
 	FindAllHierarchical() ([]entity.Category, error)
 	FindByParentID(parentID *uint) ([]entity.Category, error)
-	SoftDelete(id uint) error
+	Delete(id uint) error
 	CheckHasProducts(id uint) (bool, error)
 	CheckHasChildren(id uint) (bool, error)
 	Exists(id uint) error
+	FindAttributesByCategoryIDWithInheritance(catagoryID uint) ([]entity.AttributeDefinition, error)
 }
 
 // CategoryRepositoryImpl implements the CategoryRepository interface
@@ -46,7 +48,7 @@ func (r *CategoryRepositoryImpl) Update(category *entity.Category) error {
 // FindByID finds a category by ID with eager loading
 func (r *CategoryRepositoryImpl) FindByID(id uint) (*entity.Category, error) {
 	var category entity.Category
-	result := r.db.Preload("Parent").Preload("Children").Where("id = ? AND is_active = true", id).First(&category)
+	result := r.db.Preload("Parent").Preload("Children").Where("id = ?", id).First(&category)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(utils.CATEGORY_NOT_FOUND_MSG)
@@ -62,9 +64,9 @@ func (r *CategoryRepositoryImpl) FindByNameAndParent(name string, parentID *uint
 	var query *gorm.DB
 
 	if parentID != nil {
-		query = r.db.Where("name = ? AND parent_id = ? AND is_active = true", name, *parentID)
+		query = r.db.Where("name = ? AND parent_id = ?", name, *parentID)
 	} else {
-		query = r.db.Where("name = ? AND parent_id IS NULL AND is_active = true", name)
+		query = r.db.Where("name = ? AND parent_id IS NULL", name)
 	}
 
 	result := query.First(&category)
@@ -80,7 +82,7 @@ func (r *CategoryRepositoryImpl) FindByNameAndParent(name string, parentID *uint
 // FindAllHierarchical finds all categories with hierarchical structure
 func (r *CategoryRepositoryImpl) FindAllHierarchical() ([]entity.Category, error) {
 	var categories []entity.Category
-	result := r.db.Preload("Parent").Preload("Children").Where("is_active = true").Order("name ASC").Find(&categories)
+	result := r.db.Order("name ASC").Find(&categories)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -93,9 +95,9 @@ func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint) ([]entity.Catego
 	var query *gorm.DB
 
 	if parentID != nil {
-		query = r.db.Preload("Parent").Preload("Children").Where("parent_id = ? AND is_active = true", *parentID)
+		query = r.db.Preload("Parent").Preload("Children").Where("parent_id = ?", *parentID)
 	} else {
-		query = r.db.Preload("Parent").Preload("Children").Where("parent_id IS NULL AND is_active = true")
+		query = r.db.Preload("Parent").Preload("Children").Where("parent_id IS NULL")
 	}
 
 	result := query.Order("name ASC").Find(&categories)
@@ -106,14 +108,14 @@ func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint) ([]entity.Catego
 }
 
 // SoftDelete soft deletes a category
-func (r *CategoryRepositoryImpl) SoftDelete(id uint) error {
-	return r.db.Model(&entity.Category{}).Where("id = ?", id).Update("is_active", false).Error
+func (r *CategoryRepositoryImpl) Delete(id uint) error {
+	return r.db.Model(&entity.Category{}).Delete("id = ?", id).Error
 }
 
 // CheckHasProducts checks if a category has active products
 func (r *CategoryRepositoryImpl) CheckHasProducts(id uint) (bool, error) {
 	var count int64
-	result := r.db.Model(&entity.Product{}).Where("category_id = ? AND is_active = true", id).Count(&count)
+	result := r.db.Model(&entity.Product{}).Where("category_id = ?", id).Count(&count)
 	if result.Error != nil {
 		return false, result.Error
 	}
@@ -123,7 +125,7 @@ func (r *CategoryRepositoryImpl) CheckHasProducts(id uint) (bool, error) {
 // CheckHasChildren checks if a category has active child categories
 func (r *CategoryRepositoryImpl) CheckHasChildren(id uint) (bool, error) {
 	var count int64
-	result := r.db.Model(&entity.Category{}).Where("parent_id = ? AND is_active = true", id).Count(&count)
+	result := r.db.Model(&entity.Category{}).Where("parent_id = ?", id).Count(&count)
 	if result.Error != nil {
 		return false, result.Error
 	}
@@ -133,7 +135,7 @@ func (r *CategoryRepositoryImpl) CheckHasChildren(id uint) (bool, error) {
 // Exists checks if a category exists
 func (r *CategoryRepositoryImpl) Exists(id uint) error {
 	var count int64
-	result := r.db.Model(&entity.Category{}).Where("id = ? AND is_active = true", id).Count(&count)
+	result := r.db.Model(&entity.Category{}).Where("id = ?", id).Count(&count)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -141,4 +143,16 @@ func (r *CategoryRepositoryImpl) Exists(id uint) error {
 		return errors.New(utils.CATEGORY_NOT_FOUND_MSG)
 	}
 	return nil
+}
+
+// This method will return all attributes associated with a category,
+// including inherited attributes from parent categories
+func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(catagoryID uint) ([]entity.AttributeDefinition, error) {
+	var attributes []entity.AttributeDefinition
+	result := r.db.Raw(query.FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY, catagoryID).Scan(&attributes)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return attributes, nil
 }

@@ -52,7 +52,6 @@ func TestCategoryCRUD(t *testing.T) {
 		assert.Equal(t, "Electronics", response.Name)
 		assert.Equal(t, "Electronic devices and accessories", response.Description)
 		assert.Nil(t, response.ParentID)
-		assert.True(t, response.IsActive)
 	})
 
 	t.Run("Create Child Category", func(t *testing.T) {
@@ -450,7 +449,6 @@ func TestCategoryBusinessRules(t *testing.T) {
 
 		var response model.CategoryResponse
 		json.Unmarshal(w.Body.Bytes(), &response)
-		assert.False(t, response.IsActive, "Category should be deactivated")
 	})
 
 	t.Run("Category Name Uniqueness", func(t *testing.T) {
@@ -544,7 +542,6 @@ func setupTestRouter(db interface{}) *gin.Engine {
 			Name:        createReq.Name,
 			Description: createReq.Description,
 			ParentID:    createReq.ParentID,
-			IsActive:    true,
 			CreatedAt:   "2024-01-01T00:00:00Z",
 			UpdatedAt:   "2024-01-01T00:00:00Z",
 		}
@@ -637,9 +634,6 @@ func setupTestRouter(db interface{}) *gin.Engine {
 				updatedCategory.ParentID = updateReq.ParentID
 			}
 
-			// Handle IsActive update
-			updatedCategory.IsActive = updateReq.IsActive
-
 			// Store updated category
 			mockCategories[categoryID] = updatedCategory
 			c.JSON(http.StatusOK, updatedCategory)
@@ -687,21 +681,6 @@ func setupTestRouter(db interface{}) *gin.Engine {
 			updatedCategory.ParentID = &parentIDUint
 		}
 
-		// Handle activation/deactivation
-		if isActive, ok := updateReqMap["isActive"].(bool); ok {
-			updatedCategory.IsActive = isActive
-		} else if isActiveStr, ok := updateReqMap["isActive"].(string); ok {
-			// Handle string representation of boolean
-			if isActiveStr == "false" || isActiveStr == "0" {
-				updatedCategory.IsActive = false
-			} else if isActiveStr == "true" || isActiveStr == "1" {
-				updatedCategory.IsActive = true
-			}
-		} else if isActiveNum, ok := updateReqMap["isActive"].(float64); ok {
-			// Handle numeric representation of boolean
-			updatedCategory.IsActive = isActiveNum != 0
-		}
-
 		// Store updated category
 		mockCategories[categoryID] = updatedCategory
 
@@ -744,7 +723,6 @@ func setupTestRouter(db interface{}) *gin.Engine {
 					Name:        "Electronics",
 					Description: "Electronic devices and accessories",
 					ParentID:    nil,
-					IsActive:    true,
 					CreatedAt:   "2024-01-01T00:00:00Z",
 					UpdatedAt:   "2024-01-01T00:00:00Z",
 				},

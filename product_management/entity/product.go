@@ -4,6 +4,7 @@ import (
 	"ecommerce-be/common/entity"
 )
 
+// TODO : Remove isActive field remove all 
 type Product struct {
 	entity.BaseEntity
 	Name             string   `json:"name" binding:"required" gorm:"column:name"`
@@ -17,7 +18,6 @@ type Product struct {
 	Images           []string `json:"images" gorm:"column:images;type:text[]"`
 	InStock          bool     `json:"inStock" gorm:"column:in_stock;default:true"`
 	IsPopular        bool     `json:"isPopular" gorm:"column:is_popular;default:false"`
-	IsActive         bool     `json:"isActive" gorm:"column:is_active;default:true"`
 	Discount         int      `json:"discount" gorm:"column:discount;default:0"`
 	Tags             []string `json:"tags" gorm:"column:tags;type:text[]"`
 

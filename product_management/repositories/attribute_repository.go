@@ -17,6 +17,7 @@ type AttributeDefinitionRepository interface {
 	FindAll() ([]entity.AttributeDefinition, error)
 	Update(attribute *entity.AttributeDefinition) error
 	Delete(id uint) error
+	CreateCategoryAttributeDefinition(attribute *entity.AttributeDefinition, categoryID uint) error
 }
 
 // AttributeDefinitionRepositoryImpl implements the AttributeDefinitionRepository interface
@@ -52,7 +53,7 @@ func (r *AttributeDefinitionRepositoryImpl) FindByID(id uint) (*entity.Attribute
 // FindByKey finds an attribute definition by key
 func (r *AttributeDefinitionRepositoryImpl) FindByKey(key string) (*entity.AttributeDefinition, error) {
 	var attribute entity.AttributeDefinition
-	result := r.db.Where("key = ? AND is_active = true", key).First(&attribute)
+	result := r.db.Where("key = ?", key).First(&attribute)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -65,7 +66,7 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKey(key string) (*entity.Attri
 // FindAll finds all active attribute definitions
 func (r *AttributeDefinitionRepositoryImpl) FindAll() ([]entity.AttributeDefinition, error) {
 	var attributes []entity.AttributeDefinition
-	result := r.db.Where("is_active = true").Order("name ASC").Find(&attributes)
+	result := r.db.Order("name ASC").Find(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -79,5 +80,33 @@ func (r *AttributeDefinitionRepositoryImpl) Update(attribute *entity.AttributeDe
 
 // Delete soft deletes an attribute definition by setting isActive to false
 func (r *AttributeDefinitionRepositoryImpl) Delete(id uint) error {
-	return r.db.Model(&entity.AttributeDefinition{}).Where("id = ?", id).Update("is_active", false).Error
+	return r.db.Model(&entity.AttributeDefinition{}).Delete("id = ?", id).Error
+}
+
+func (s *AttributeDefinitionRepositoryImpl) CreateCategoryAttributeDefinition(
+	attribute *entity.AttributeDefinition,
+	categoryID uint) error {
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+        // Step 1: Create the new attribute definition.
+        // GORM will automatically populate the 'ID' field of the 'attribute' object upon successful creation.
+        if err := tx.Create(attribute).Error; err != nil {
+            // If creation fails, rollback the transaction.
+            return err
+        }
+
+        // Step 2: Create the association in the join table (category_attributes).
+        categoryAttribute := entity.CategoryAttribute{
+            CategoryID:            categoryID,
+            AttributeDefinitionID: attribute.ID,
+        }
+
+        if err := tx.Create(&categoryAttribute).Error; err != nil {
+            // If association fails, rollback the transaction.
+            return err
+        }
+
+        // If both operations succeed, the transaction will be committed.
+        return nil
+    })
 }

@@ -89,7 +89,6 @@ func (s *ProductServiceImpl) CreateProduct(req model.ProductCreateRequest) (*mod
 		Images:           req.Images,
 		InStock:          true,
 		IsPopular:        req.IsPopular,
-		IsActive:         true,
 		Discount:         req.Discount,
 		Tags:             req.Tags,
 		BaseEntity: commonEntity.BaseEntity{
@@ -186,7 +185,7 @@ func (s *ProductServiceImpl) UpdateProduct(id uint, req model.ProductUpdateReque
 
 // DeleteProduct soft deletes a product
 func (s *ProductServiceImpl) DeleteProduct(id uint) error {
-	return s.productRepo.SoftDelete(id)
+	return s.productRepo.Delete(id)
 }
 
 // GetAllProducts gets all products with pagination and filters
