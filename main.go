@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Println("No .env file found")
 	}
-
+// test
 	/* Connect Database */
 	common.ConnectDB()
 
