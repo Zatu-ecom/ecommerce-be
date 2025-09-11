@@ -204,9 +204,7 @@ func (th *TestHelper) CreateTestAttribute(t *testing.T, key, name, dataType, uni
 	attribute := &entity.AttributeDefinition{
 		Key:           key,
 		Name:          name,
-		DataType:      dataType,
 		Unit:          unit,
-		Description:   description,
 		AllowedValues: allowedValues,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
@@ -274,7 +272,6 @@ func (th *TestHelper) CreateTestProductAttribute(t *testing.T, productID, attrib
 	prodAttr := &entity.ProductAttribute{
 		ProductID:             productID,
 		AttributeDefinitionID: attributeID,
-		Key:                   key,
 		Value:                 value,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
@@ -442,7 +439,6 @@ func AssertAttributeResponse(t *testing.T, response *model.AttributeDefinitionRe
 	assert.NotZero(t, response.ID, "Expected non-zero attribute ID")
 	assert.Equal(t, expectedKey, response.Key, "Expected attribute key %s, got %s", expectedKey, response.Key)
 	assert.Equal(t, expectedName, response.Name, "Expected attribute name %s, got %s", expectedName, response.Name)
-	assert.Equal(t, expectedDataType, response.DataType, "Expected attribute data type %s, got %s", expectedDataType, response.DataType)
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 }
 
@@ -476,7 +472,6 @@ func BuildAttributeCreateRequest(key, name, dataType, unit, description string, 
 	return model.AttributeDefinitionCreateRequest{
 		Key:           key,
 		Name:          name,
-		DataType:      dataType,
 		Unit:          unit,
 		Description:   description,
 		AllowedValues: allowedValues,
@@ -486,7 +481,6 @@ func BuildAttributeCreateRequest(key, name, dataType, unit, description string, 
 func BuildAttributeUpdateRequest(key, name, dataType, unit, description string, allowedValues []string) model.AttributeDefinitionUpdateRequest {
 	return model.AttributeDefinitionUpdateRequest{
 		Name:          name,
-		DataType:      dataType,
 		Unit:          unit,
 		Description:   description,
 		AllowedValues: allowedValues,

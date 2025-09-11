@@ -3,6 +3,7 @@ package utils
 import (
 	"time"
 
+	commonEntity "ecommerce-be/common/entity"
 	"ecommerce-be/product_management/entity"
 	"ecommerce-be/product_management/model"
 )
@@ -48,29 +49,39 @@ func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.Catego
 }
 
 // ConvertAttributeDefinitionToResponse converts AttributeDefinition entity to AttributeDefinitionResponse model
-func ConvertAttributeDefinitionToResponse(attribute *entity.AttributeDefinition) *model.AttributeDefinitionResponse {
+func ConvertAttributeDefinitionToResponse(
+	attribute *entity.AttributeDefinition,
+) *model.AttributeDefinitionResponse {
 	return &model.AttributeDefinitionResponse{
 		ID:            attribute.ID,
 		Key:           attribute.Key,
 		Name:          attribute.Name,
-		DataType:      attribute.DataType,
 		Unit:          attribute.Unit,
-		Description:   attribute.Description,
 		AllowedValues: attribute.AllowedValues,
 		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
 	}
 }
 
-// ConvertProductToResponse converts Product entity to ProductResponse model
-func ConvertProductToResponse(product *entity.Product) *model.ProductResponse {
-	var categoryInfo model.CategoryInfo
-	if product.Category != nil && product.Category.ID != 0 {
-		categoryInfo = model.CategoryInfo{
-			ID:   product.Category.ID,
-			Name: product.Category.Name,
-		}
+func ConvertProductAttributeDefinitionToResponse(
+	productAttribute *entity.ProductAttribute,
+) *model.ProductAttributeResponse {
+	return &model.ProductAttributeResponse{
+		ID:        productAttribute.ID,
+		Key:       productAttribute.AttributeDefinition.Key,
+		Value:     productAttribute.Value,
+		Name:      productAttribute.AttributeDefinition.Name,
+		Unit:      productAttribute.AttributeDefinition.Unit,
+		SortOrder: productAttribute.SortOrder,
 	}
+}
 
+// ConvertProductToDetailResponse converts Product entity to ProductDetailResponse model
+func ConvertProductResponse(
+	product *entity.Product,
+	categoryInfo model.CategoryHierarchyInfo,
+	attribute []model.ProductAttributeResponse,
+	packageOption []model.PackageOptionResponse,
+) *model.ProductResponse {
 	return &model.ProductResponse{
 		ID:               product.ID,
 		Name:             product.Name,
@@ -87,33 +98,8 @@ func ConvertProductToResponse(product *entity.Product) *model.ProductResponse {
 		IsPopular:        product.IsPopular,
 		Discount:         product.Discount,
 		Tags:             product.Tags,
-		Attributes:       make(map[string]string),
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
-}
-
-// ConvertProductToDetailResponse converts Product entity to ProductDetailResponse model
-func ConvertProductToDetailResponse(product *entity.Product, categoryInfo model.CategoryHierarchyInfo) *model.ProductDetailResponse {
-	return &model.ProductDetailResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         categoryInfo,
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       []model.ProductAttributeResponse{},
-		PackageOptions:   []model.PackageOptionResponse{},
+		Attributes:       attribute,
+		PackageOptions:   packageOption,
 		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 	}
@@ -176,4 +162,64 @@ func ConvertCategoryToHierarchyInfo(category *entity.Category, parentCategory *e
 		Name:   category.Name,
 		Parent: parentInfo,
 	}
+}
+
+func ConvertPackageOptionToResponse(packageOption *entity.PackageOption) *model.PackageOptionResponse {
+	return &model.PackageOptionResponse{
+		ID:          packageOption.ID,
+		Name:        packageOption.Name,
+		Description: packageOption.Description,
+		Price:       packageOption.Price,
+		Quantity:    packageOption.Quantity,
+		CreatedAt:   packageOption.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   packageOption.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func ConvertProductCreateRequestToEntity(req model.ProductCreateRequest) *entity.Product {
+	// TODO: This is not the correct way to set currency.
+	// In the future, we will create separate tables for Currency and Country.
+	currency := req.Currency
+	if currency == "" {
+		currency = "USD"
+	}
+	return &entity.Product{
+		Name:             req.Name,
+		CategoryID:       req.CategoryID,
+		Brand:            req.Brand,
+		SKU:              req.SKU,
+		Price:            req.Price,
+		Currency:         currency,
+		ShortDescription: req.ShortDescription,
+		LongDescription:  req.LongDescription,
+		Images:           req.Images,
+		InStock:          true,
+		IsPopular:        req.IsPopular,
+		Discount:         req.Discount,
+		Tags:             req.Tags,
+		BaseEntity: commonEntity.BaseEntity{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+}
+
+func ConvertProductAttributesEntityToResponse(
+	productAttributes []entity.ProductAttribute,
+) []model.ProductAttributeResponse {
+	var attribute []model.ProductAttributeResponse
+	for _, productAttribute := range productAttributes {
+		attribute = append(attribute, *ConvertProductAttributeDefinitionToResponse(&productAttribute))
+	}
+	return attribute
+}
+
+func ConvertPackageOptionsEntityToResponse(
+	packageOptions []entity.PackageOption,
+) []model.PackageOptionResponse {
+	var options []model.PackageOptionResponse
+	for _, option := range packageOptions {
+		options = append(options, *ConvertPackageOptionToResponse(&option))
+	}
+	return options
 }

@@ -4,7 +4,6 @@ package model
 type AttributeDefinitionCreateRequest struct {
 	Key           string   `json:"key" binding:"required,min=3,max=50"`
 	Name          string   `json:"name" binding:"required,min=3,max=100"`
-	DataType      string   `json:"dataType" binding:"required,oneof=string number boolean array"`
 	Unit          string   `json:"unit" binding:"max=20"`
 	Description   string   `json:"description" binding:"max=500"`
 	AllowedValues []string `json:"allowedValues"`
@@ -13,7 +12,6 @@ type AttributeDefinitionCreateRequest struct {
 // AttributeDefinitionUpdateRequest represents the request body for updating an attribute definition
 type AttributeDefinitionUpdateRequest struct {
 	Name          string   `json:"name" binding:"required,min=3,max=100"`
-	DataType      string   `json:"dataType" binding:"required,oneof=string number boolean array"`
 	Unit          string   `json:"unit" binding:"max=20"`
 	Description   string   `json:"description" binding:"max=500"`
 	AllowedValues []string `json:"allowedValues"`
@@ -24,7 +22,6 @@ type AttributeDefinitionResponse struct {
 	ID            uint     `json:"id"`
 	Key           string   `json:"key"`
 	Name          string   `json:"name"`
-	DataType      string   `json:"dataType"`
 	Unit          string   `json:"unit"`
 	Description   string   `json:"description"`
 	AllowedValues []string `json:"allowedValues"`

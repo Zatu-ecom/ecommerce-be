@@ -20,6 +20,9 @@ type ProductRepository interface {
 	Delete(id uint) error
 	UpdateStock(id uint, inStock bool) error
 	FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error)
+	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
+	CreatePackageOptions(option []entity.PackageOption) error
+	UpdatePackageOptions(option []entity.PackageOption) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -131,8 +134,12 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 
 	// Apply search query
 	if query != "" {
-		dbQuery = dbQuery.Where("name LIKE ? OR short_description LIKE ? OR tags LIKE ?",
-			"%"+query+"%", "%"+query+"%", "%"+query+"%")
+		dbQuery = dbQuery.Where(
+			`name ILIKE ? OR short_description ILIKE ? OR EXISTS (
+				SELECT 1
+				FROM unnest(tags) AS tag
+				WHERE tag ILIKE ?
+			)`, "%"+query+"%", "%"+query+"%", "%"+query+"%")
 	}
 
 	// Apply filters
@@ -148,7 +155,7 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 	if maxPrice, exists := filters["maxPrice"]; exists {
 		dbQuery = dbQuery.Where("price <= ?", maxPrice)
 	}
-
+	
 	// Count total
 	if err := dbQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -188,4 +195,21 @@ func (r *ProductRepositoryImpl) FindRelated(categoryID, excludeProductID uint, l
 		return nil, result.Error
 	}
 	return products, nil
+}
+
+func (r *ProductRepositoryImpl) FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error) {
+	var packageOptions []entity.PackageOption
+	result := r.db.Where("product_id = ?", productID).Find(&packageOptions)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return packageOptions, nil
+}
+
+func (r *ProductRepositoryImpl) CreatePackageOptions(options []entity.PackageOption) error {
+	return r.db.Create(options).Error
+}
+
+func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOption) error {
+	return r.db.Save(options).Error
 }

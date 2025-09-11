@@ -61,16 +61,9 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(id uint, req model.Attr
 		return nil, err
 	}
 
-	// Validate data type
-	if !s.isValidDataType(req.DataType) {
-		return nil, errors.New(utils.ATTRIBUTE_DATA_TYPE_INVALID_MSG)
-	}
-
 	// Update attribute fields
 	attribute.Name = req.Name
-	attribute.DataType = req.DataType
 	attribute.Unit = req.Unit
-	attribute.Description = req.Description
 	attribute.AllowedValues = req.AllowedValues
 	attribute.UpdatedAt = time.Now()
 
@@ -180,18 +173,11 @@ func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
 		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_EXISTS_MSG)
 	}
 
-	// Validate data type
-	if !s.isValidDataType(req.DataType) {
-		return nil, errors.New(utils.ATTRIBUTE_DATA_TYPE_INVALID_MSG)
-	}
-
 	// Create attribute definition entity
 	attribute := &entity.AttributeDefinition{
 		Key:           req.Key,
 		Name:          req.Name,
-		DataType:      req.DataType,
 		Unit:          req.Unit,
-		Description:   req.Description,
 		AllowedValues: req.AllowedValues,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),

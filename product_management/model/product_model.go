@@ -37,15 +37,21 @@ type ProductUpdateRequest struct {
 
 // ProductAttributeRequest represents a product attribute in requests
 type ProductAttributeRequest struct {
-	Key   string `json:"key" binding:"required"`
-	Value string `json:"value" binding:"required"`
+	Key       string `json:"key" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	Value     string `json:"value" binding:"required"`
+	Unit      string `json:"unit"`
+	SortOrder uint   `json:"sortOrder"`
 }
 
 // ProductAttributeResponse represents a product attribute in responses
 type ProductAttributeResponse struct {
-	Key        string                      `json:"key"`
-	Value      string                      `json:"value"`
-	Definition AttributeDefinitionResponse `json:"definition"`
+	ID        uint   `json:"id"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	Name      string `json:"name"`
+	Unit      string `json:"unit"`
+	SortOrder uint   `json:"sortOrder"`
 }
 
 // PackageOptionRequest represents a package option in requests
@@ -69,29 +75,6 @@ type PackageOptionResponse struct {
 
 // ProductResponse represents the product data returned in API responses
 type ProductResponse struct {
-	ID               uint                    `json:"id"`
-	Name             string                  `json:"name"`
-	CategoryID       uint                    `json:"categoryId"`
-	Category         CategoryInfo            `json:"category"`
-	Brand            string                  `json:"brand"`
-	SKU              string                  `json:"sku"`
-	Price            float64                 `json:"price"`
-	Currency         string                  `json:"currency"`
-	ShortDescription string                  `json:"shortDescription"`
-	LongDescription  string                  `json:"longDescription"`
-	Images           []string                `json:"images"`
-	InStock          bool                    `json:"inStock"`
-	IsPopular        bool                    `json:"isPopular"`
-	Discount         int                     `json:"discount"`
-	Tags             []string                `json:"tags"`
-	Attributes       map[string]string       `json:"attributes"`
-	PackageOptions   []PackageOptionResponse `json:"packageOptions"`
-	CreatedAt        string                  `json:"createdAt"`
-	UpdatedAt        string                  `json:"updatedAt"`
-}
-
-// ProductDetailResponse represents detailed product information
-type ProductDetailResponse struct {
 	ID               uint                       `json:"id"`
 	Name             string                     `json:"name"`
 	CategoryID       uint                       `json:"categoryId"`

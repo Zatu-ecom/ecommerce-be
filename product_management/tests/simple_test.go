@@ -80,14 +80,12 @@ func TestBuilders(t *testing.T) {
 		createReq := BuildAttributeCreateRequest("test_key", "Test Attribute", "string", "unit", "Test Description", []string{"value1", "value2"})
 		assert.Equal(t, "test_key", createReq.Key)
 		assert.Equal(t, "Test Attribute", createReq.Name)
-		assert.Equal(t, "string", createReq.DataType)
 		assert.Equal(t, "unit", createReq.Unit)
 		assert.Equal(t, "Test Description", createReq.Description)
 		assert.Len(t, createReq.AllowedValues, 2)
 
 		updateReq := BuildAttributeUpdateRequest("updated_key", "Updated Attribute", "number", "kg", "Updated Description", []string{"value3"})
 		assert.Equal(t, "Updated Attribute", updateReq.Name)
-		assert.Equal(t, "number", updateReq.DataType)
 		assert.Equal(t, "kg", updateReq.Unit)
 		assert.Equal(t, "Updated Description", updateReq.Description)
 		assert.Len(t, updateReq.AllowedValues, 1)
@@ -158,25 +156,21 @@ func TestModelValidation(t *testing.T) {
 		validCreateReq := model.AttributeDefinitionCreateRequest{
 			Key:           "valid_key",
 			Name:          "Valid Attribute",
-			DataType:      "string",
 			Unit:          "unit",
 			Description:   "Valid Description",
 			AllowedValues: []string{"value1", "value2"},
 		}
 		assert.NotEmpty(t, validCreateReq.Key, "Attribute key should not be empty")
 		assert.NotEmpty(t, validCreateReq.Name, "Attribute name should not be empty")
-		assert.NotEmpty(t, validCreateReq.DataType, "Attribute data type should not be empty")
 
 		// Test valid attribute update request
 		validUpdateReq := model.AttributeDefinitionUpdateRequest{
 			Name:          "Updated Attribute",
-			DataType:      "number",
 			Unit:          "kg",
 			Description:   "Updated Description",
 			AllowedValues: []string{"value3"},
 		}
 		assert.NotEmpty(t, validUpdateReq.Name, "Updated attribute name should not be empty")
-		assert.NotEmpty(t, validUpdateReq.DataType, "Updated attribute data type should not be empty")
 	})
 
 	t.Run("Product Models", func(t *testing.T) {
