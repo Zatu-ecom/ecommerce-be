@@ -14,13 +14,21 @@ import (
 
 // AttributeDefinitionService defines the interface for attribute definition business logic
 type AttributeDefinitionService interface {
-	CreateAttribute(req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error)
-	UpdateAttribute(id uint, req model.AttributeDefinitionUpdateRequest) (*model.AttributeDefinitionResponse, error)
+	CreateAttribute(
+		req model.AttributeDefinitionCreateRequest,
+	) (*model.AttributeDefinitionResponse, error)
+	UpdateAttribute(
+		id uint,
+		req model.AttributeDefinitionUpdateRequest,
+	) (*model.AttributeDefinitionResponse, error)
 	DeleteAttribute(id uint) error
 	GetAllAttributes() (*model.AttributeDefinitionsResponse, error)
 	GetAttributeByID(id uint) (*model.AttributeDefinitionResponse, error)
 	GetAttributeByKey(key string) (*model.AttributeDefinitionResponse, error)
-	CreateCategoryAttributeDefinition(categoryID uint, req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error)
+	CreateCategoryAttributeDefinition(
+		categoryID uint,
+		req model.AttributeDefinitionCreateRequest,
+	) (*model.AttributeDefinitionResponse, error)
 }
 
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
@@ -29,16 +37,19 @@ type AttributeDefinitionServiceImpl struct {
 }
 
 // NewAttributeDefinitionService creates a new instance of AttributeDefinitionService
-func NewAttributeDefinitionService(attributeRepo repositories.AttributeDefinitionRepository) AttributeDefinitionService {
+func NewAttributeDefinitionService(
+	attributeRepo repositories.AttributeDefinitionRepository,
+) AttributeDefinitionService {
 	return &AttributeDefinitionServiceImpl{
 		attributeRepo: attributeRepo,
 	}
 }
 
 // CreateAttribute creates a new attribute definition
-func (s *AttributeDefinitionServiceImpl) CreateAttribute(req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error) {
+func (s *AttributeDefinitionServiceImpl) CreateAttribute(
+	req model.AttributeDefinitionCreateRequest,
+) (*model.AttributeDefinitionResponse, error) {
 	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +65,10 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(req model.AttributeDefi
 }
 
 // UpdateAttribute updates an existing attribute definition
-func (s *AttributeDefinitionServiceImpl) UpdateAttribute(id uint, req model.AttributeDefinitionUpdateRequest) (*model.AttributeDefinitionResponse, error) {
+func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
+	id uint,
+	req model.AttributeDefinitionUpdateRequest,
+) (*model.AttributeDefinitionResponse, error) {
 	// Find existing attribute
 	attribute, err := s.attributeRepo.FindByID(id)
 	if err != nil {
@@ -101,7 +115,9 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDef
 }
 
 // GetAttributeByID gets an attribute definition by ID
-func (s *AttributeDefinitionServiceImpl) GetAttributeByID(id uint) (*model.AttributeDefinitionResponse, error) {
+func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
+	id uint,
+) (*model.AttributeDefinitionResponse, error) {
 	attribute, err := s.attributeRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -112,7 +128,9 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByID(id uint) (*model.Attri
 }
 
 // GetAttributeByKey gets an attribute definition by key
-func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(key string) (*model.AttributeDefinitionResponse, error) {
+func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
+	key string,
+) (*model.AttributeDefinitionResponse, error) {
 	attribute, err := s.attributeRepo.FindByKey(key)
 	if err != nil {
 		return nil, err
@@ -125,9 +143,11 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(key string) (*model.A
 	return attributeResponse, nil
 }
 
-func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(categoryID uint, req model.AttributeDefinitionCreateRequest) (*model.AttributeDefinitionResponse, error) {
+func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
+	categoryID uint,
+	req model.AttributeDefinitionCreateRequest,
+) (*model.AttributeDefinitionResponse, error) {
 	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +178,9 @@ func (s *AttributeDefinitionServiceImpl) isValidDataType(dataType string) bool {
 	return false
 }
 
-func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(req model.AttributeDefinitionCreateRequest) (*entity.AttributeDefinition, error) {
+func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
+	req model.AttributeDefinitionCreateRequest,
+) (*entity.AttributeDefinition, error) {
 	// Validate attribute key format
 	if !s.isValidAttributeKey(req.Key) {
 		return nil, errors.New(utils.ATTRIBUTE_KEY_FORMAT_MSG)

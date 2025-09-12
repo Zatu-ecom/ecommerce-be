@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"ecommerce-be/common"
+	commonEntity "ecommerce-be/common/entity"
 	"ecommerce-be/user_management/entity"
 	"ecommerce-be/user_management/model"
 	"ecommerce-be/user_management/repositories"
 	"ecommerce-be/user_management/utils"
-	commonEntity "ecommerce-be/common/entity" 
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,7 +32,10 @@ type UserServiceImpl struct {
 }
 
 // NewUserService creates a new instance of UserService
-func NewUserService(userRepo repositories.UserRepository, addressService AddressService) UserService {
+func NewUserService(
+	userRepo repositories.UserRepository,
+	addressService AddressService,
+) UserService {
 	return &UserServiceImpl{
 		userRepo:       userRepo,
 		addressService: addressService,
@@ -204,7 +207,10 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 }
 
 // UpdateProfile updates user profile information
-func (s *UserServiceImpl) UpdateProfile(userID uint, req model.UserUpdateRequest) (*model.UserResponse, error) {
+func (s *UserServiceImpl) UpdateProfile(
+	userID uint,
+	req model.UserUpdateRequest,
+) (*model.UserResponse, error) {
 	// Find user by ID
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {

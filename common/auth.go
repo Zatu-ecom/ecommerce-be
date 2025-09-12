@@ -47,14 +47,17 @@ func GenerateToken(userID uint, email string, secret string) (string, error) {
 // ParseToken parses a JWT token
 func ParseToken(tokenString string, secret string) (*Claims, error) {
 	// Parse the token
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate the signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(secret), nil
-	})
-
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&Claims{},
+		func(token *jwt.Token) (interface{}, error) {
+			// Validate the signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(secret), nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +76,12 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Get the Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			ErrorWithCode(c, http.StatusUnauthorized, AUTHENTICATION_REQUIRED_MSG, AUTH_REQUIRED_CODE)
+			ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				AUTHENTICATION_REQUIRED_MSG,
+				AUTH_REQUIRED_CODE,
+			)
 			c.Abort()
 			return
 		}
@@ -81,7 +89,12 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Check if the header has the Bearer prefix
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != BEARER_PREFIX {
-			ErrorWithCode(c, http.StatusUnauthorized, INVALID_AUTH_FORMAT_MSG, INVALID_AUTH_FORMAT_CODE)
+			ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				INVALID_AUTH_FORMAT_MSG,
+				INVALID_AUTH_FORMAT_CODE,
+			)
 			c.Abort()
 			return
 		}

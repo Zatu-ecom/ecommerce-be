@@ -23,7 +23,11 @@ type ProductService interface {
 	GetAllProducts(page, limit int, filters map[string]interface{}) (*model.ProductsResponse, error)
 	GetProductByID(id uint) (*model.ProductResponse, error)
 	UpdateProductStock(id uint, req model.ProductStockUpdateRequest) error
-	SearchProducts(query string, filters map[string]interface{}, page, limit int) (*model.SearchResponse, error)
+	SearchProducts(
+		query string,
+		filters map[string]interface{},
+		page, limit int,
+	) (*model.SearchResponse, error)
 	GetProductFilters(categoryID *uint) (*model.ProductFilters, error)
 	GetRelatedProducts(productID uint, limit int) (*model.RelatedProductsResponse, error)
 }
@@ -83,7 +87,6 @@ func (s *ProductServiceImpl) CreateProduct(
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +122,16 @@ func (s *ProductServiceImpl) buildProductCreateResponse(
 ) *model.ProductResponse {
 	category, _ := s.categoryRepo.FindByID(categoryID)
 	categoryInfo := model.CategoryHierarchyInfo{ID: category.ID, Name: category.Name}
-	attributeResponses := utils.ConvertProductAttributesEntityToResponse(flattenAttributes(attributes))
+	attributeResponses := utils.ConvertProductAttributesEntityToResponse(
+		flattenAttributes(attributes),
+	)
 	packageOptionResponses := utils.ConvertPackageOptionsEntityToResponse(packageOptions)
-	return utils.ConvertProductResponse(product, categoryInfo, attributeResponses, packageOptionResponses)
+	return utils.ConvertProductResponse(
+		product,
+		categoryInfo,
+		attributeResponses,
+		packageOptionResponses,
+	)
 }
 
 // Helper to flatten []*entity.ProductAttribute to []entity.ProductAttribute
@@ -157,7 +167,9 @@ func (s *ProductServiceImpl) createProductAttributes(
 }
 
 // extractUniqueKeys extracts unique keys from attribute requests
-func (s *ProductServiceImpl) extractUniqueKeys(attributes []model.ProductAttributeRequest) []string {
+func (s *ProductServiceImpl) extractUniqueKeys(
+	attributes []model.ProductAttributeRequest,
+) []string {
 	keys := make([]string, 0, len(attributes))
 	keySet := make(map[string]bool)
 	for _, attr := range attributes {
@@ -206,7 +218,10 @@ func (s *ProductServiceImpl) processAttributesForBulkOperations(
 			SortOrder:             attr.SortOrder,
 			AttributeDefinition:   attribute,
 		}
-		operations.productAttributesToCreate = append(operations.productAttributesToCreate, productAttribute)
+		operations.productAttributesToCreate = append(
+			operations.productAttributesToCreate,
+			productAttribute,
+		)
 	}
 
 	return operations
@@ -341,7 +356,10 @@ func (s *ProductServiceImpl) updateProductCategory(product *entity.Product, cate
 }
 
 // Helper to update product fields
-func (s *ProductServiceImpl) updateProductFields(product *entity.Product, req model.ProductUpdateRequest) {
+func (s *ProductServiceImpl) updateProductFields(
+	product *entity.Product,
+	req model.ProductUpdateRequest,
+) {
 	if req.Name != "" {
 		product.Name = req.Name
 	}

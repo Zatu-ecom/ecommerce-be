@@ -2,18 +2,18 @@ package model
 
 // AttributeDefinitionCreateRequest represents the request body for creating an attribute definition
 type AttributeDefinitionCreateRequest struct {
-	Key           string   `json:"key" binding:"required,min=3,max=50"`
-	Name          string   `json:"name" binding:"required,min=3,max=100"`
-	Unit          string   `json:"unit" binding:"max=20"`
-	Description   string   `json:"description" binding:"max=500"`
+	Key           string   `json:"key"           binding:"required,min=3,max=50"`
+	Name          string   `json:"name"          binding:"required,min=3,max=100"`
+	Unit          string   `json:"unit"          binding:"max=20"`
+	Description   string   `json:"description"   binding:"max=500"`
 	AllowedValues []string `json:"allowedValues"`
 }
 
 // AttributeDefinitionUpdateRequest represents the request body for updating an attribute definition
 type AttributeDefinitionUpdateRequest struct {
-	Name          string   `json:"name" binding:"required,min=3,max=100"`
-	Unit          string   `json:"unit" binding:"max=20"`
-	Description   string   `json:"description" binding:"max=500"`
+	Name          string   `json:"name"          binding:"required,min=3,max=100"`
+	Unit          string   `json:"unit"          binding:"max=20"`
+	Description   string   `json:"description"   binding:"max=500"`
 	AllowedValues []string `json:"allowedValues"`
 }
 

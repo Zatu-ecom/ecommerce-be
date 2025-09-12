@@ -26,7 +26,9 @@ func ConvertCategoryToResponse(category *entity.Category) *model.CategoryRespons
 }
 
 // ConvertCategoryToHierarchyResponse converts Category entity to CategoryHierarchyResponse model
-func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.CategoryHierarchyResponse {
+func ConvertCategoryToHierarchyResponse(
+	category *entity.Category,
+) *model.CategoryHierarchyResponse {
 	var responseParentID *uint
 	if category.ParentID != nil && *category.ParentID != 0 {
 		responseParentID = category.ParentID
@@ -148,7 +150,10 @@ func ConvertCategoryToInfo(category *entity.Category) *model.CategoryInfo {
 }
 
 // ConvertCategoryToHierarchyInfo converts Category entity to CategoryHierarchyInfo model
-func ConvertCategoryToHierarchyInfo(category *entity.Category, parentCategory *entity.Category) *model.CategoryHierarchyInfo {
+func ConvertCategoryToHierarchyInfo(
+	category *entity.Category,
+	parentCategory *entity.Category,
+) *model.CategoryHierarchyInfo {
 	var parentInfo *model.CategoryInfo
 	if parentCategory != nil {
 		parentInfo = &model.CategoryInfo{
@@ -164,7 +169,9 @@ func ConvertCategoryToHierarchyInfo(category *entity.Category, parentCategory *e
 	}
 }
 
-func ConvertPackageOptionToResponse(packageOption *entity.PackageOption) *model.PackageOptionResponse {
+func ConvertPackageOptionToResponse(
+	packageOption *entity.PackageOption,
+) *model.PackageOptionResponse {
 	return &model.PackageOptionResponse{
 		ID:          packageOption.ID,
 		Name:        packageOption.Name,
@@ -209,7 +216,10 @@ func ConvertProductAttributesEntityToResponse(
 ) []model.ProductAttributeResponse {
 	var attribute []model.ProductAttributeResponse
 	for _, productAttribute := range productAttributes {
-		attribute = append(attribute, *ConvertProductAttributeDefinitionToResponse(&productAttribute))
+		attribute = append(
+			attribute,
+			*ConvertProductAttributeDefinitionToResponse(&productAttribute),
+		)
 	}
 	return attribute
 }

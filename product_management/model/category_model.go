@@ -2,14 +2,14 @@ package model
 
 // CategoryCreateRequest represents the request body for creating a category
 type CategoryCreateRequest struct {
-	Name        string `json:"name" binding:"required,min=3,max=100"`
+	Name        string `json:"name"        binding:"required,min=3,max=100"`
 	ParentID    *uint  `json:"parentId"`
 	Description string `json:"description" binding:"max=500"`
 }
 
 // CategoryUpdateRequest represents the request body for updating a category
 type CategoryUpdateRequest struct {
-	Name        string `json:"name" binding:"required,min=3,max=100"`
+	Name        string `json:"name"        binding:"required,min=3,max=100"`
 	ParentID    *uint  `json:"parentId"`
 	Description string `json:"description" binding:"max=500"`
 }

@@ -2,10 +2,10 @@ package model
 
 // UserRegisterRequest represents the request body for user registration
 type UserRegisterRequest struct {
-	FirstName       string `json:"firstName" binding:"required"`
-	LastName        string `json:"lastName" binding:"required"`
-	Email           string `json:"email" binding:"required,email"`
-	Password        string `json:"password" binding:"required,min=6"`
+	FirstName       string `json:"firstName"       binding:"required"`
+	LastName        string `json:"lastName"        binding:"required"`
+	Email           string `json:"email"           binding:"required,email"`
+	Password        string `json:"password"        binding:"required,min=6"`
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
 	Phone           string `json:"phone"`
 	DateOfBirth     string `json:"dateOfBirth"`
@@ -14,14 +14,14 @@ type UserRegisterRequest struct {
 
 // UserLoginRequest represents the request body for user login
 type UserLoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Email    string `json:"email"    binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
 // UserUpdateRequest represents the request body for updating user profile
 type UserUpdateRequest struct {
-	FirstName   string `json:"firstName" binding:"required"`
-	LastName    string `json:"lastName" binding:"required"`
+	FirstName   string `json:"firstName"   binding:"required"`
+	LastName    string `json:"lastName"    binding:"required"`
 	Phone       string `json:"phone"`
 	DateOfBirth string `json:"dateOfBirth"`
 	Gender      string `json:"gender"`
@@ -30,7 +30,7 @@ type UserUpdateRequest struct {
 // UserPasswordChangeRequest represents the request body for changing user password
 type UserPasswordChangeRequest struct {
 	CurrentPassword string `json:"currentPassword" binding:"required"`
-	NewPassword     string `json:"newPassword" binding:"required,min=6"`
+	NewPassword     string `json:"newPassword"     binding:"required,min=6"`
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
 }
 

@@ -42,6 +42,10 @@ func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
 		categoryRoutes.POST("", auth, m.categoryHandler.CreateCategory)
 		categoryRoutes.PUT("/:categoryId", auth, m.categoryHandler.UpdateCategory)
 		categoryRoutes.DELETE("/:categoryId", auth, m.categoryHandler.DeleteCategory)
-		categoryRoutes.GET("/:categoryId/attributes", auth, m.categoryHandler.GetAttributesByCategoryIDWithInheritance)
+		categoryRoutes.GET(
+			"/:categoryId/attributes",
+			auth,
+			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
+		)
 	}
 }

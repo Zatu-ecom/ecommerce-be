@@ -4,7 +4,7 @@ import "time"
 
 // BaseEntity contains common fields for all entities
 type BaseEntity struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
+	ID        uint      `json:"id"        gorm:"primaryKey"`
 	CreatedAt time.Time `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt time.Time `json:"updatedAt" gorm:"column:updated_at"`
 }

@@ -45,7 +45,13 @@ func SuccessResponse(c *gin.Context, statusCode int, message string, data interf
 }
 
 // ErrorWithValidation sends an error response with validation errors
-func ErrorWithValidation(c *gin.Context, statusCode int, message string, errors []ValidationError, code string) {
+func ErrorWithValidation(
+	c *gin.Context,
+	statusCode int,
+	message string,
+	errors []ValidationError,
+	code string,
+) {
 	c.JSON(statusCode, ErrorResponse{
 		Success: false,
 		Message: message,

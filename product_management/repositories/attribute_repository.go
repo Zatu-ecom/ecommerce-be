@@ -44,7 +44,9 @@ func (r *AttributeDefinitionRepositoryImpl) Create(attribute *entity.AttributeDe
 }
 
 // CreateBulk creates multiple attribute definitions in a single transaction
-func (r *AttributeDefinitionRepositoryImpl) CreateBulk(attributes []*entity.AttributeDefinition) error {
+func (r *AttributeDefinitionRepositoryImpl) CreateBulk(
+	attributes []*entity.AttributeDefinition,
+) error {
 	if len(attributes) == 0 {
 		return nil
 	}
@@ -65,7 +67,9 @@ func (r *AttributeDefinitionRepositoryImpl) FindByID(id uint) (*entity.Attribute
 }
 
 // FindByKey finds an attribute definition by key
-func (r *AttributeDefinitionRepositoryImpl) FindByKey(key string) (*entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindByKey(
+	key string,
+) (*entity.AttributeDefinition, error) {
 	var attribute entity.AttributeDefinition
 	result := r.db.Where("key = ?", key).First(&attribute)
 	if result.Error != nil {
@@ -78,7 +82,9 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKey(key string) (*entity.Attri
 }
 
 // FindByKeys finds multiple attribute definitions by keys in a single query
-func (r *AttributeDefinitionRepositoryImpl) FindByKeys(keys []string) (map[string]*entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindByKeys(
+	keys []string,
+) (map[string]*entity.AttributeDefinition, error) {
 	if len(keys) == 0 {
 		return make(map[string]*entity.AttributeDefinition), nil
 	}
@@ -114,7 +120,9 @@ func (r *AttributeDefinitionRepositoryImpl) Update(attribute *entity.AttributeDe
 }
 
 // UpdateBulk updates multiple attribute definitions in a single transaction
-func (r *AttributeDefinitionRepositoryImpl) UpdateBulk(attributes []*entity.AttributeDefinition) error {
+func (r *AttributeDefinitionRepositoryImpl) UpdateBulk(
+	attributes []*entity.AttributeDefinition,
+) error {
 	if len(attributes) == 0 {
 		return nil
 	}
@@ -135,8 +143,8 @@ func (r *AttributeDefinitionRepositoryImpl) Delete(id uint) error {
 
 func (s *AttributeDefinitionRepositoryImpl) CreateCategoryAttributeDefinition(
 	attribute *entity.AttributeDefinition,
-	categoryID uint) error {
-
+	categoryID uint,
+) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Step 1: Create the new attribute definition.
 		// GORM will automatically populate the 'ID' field of the 'attribute' object upon successful creation.
@@ -161,21 +169,30 @@ func (s *AttributeDefinitionRepositoryImpl) CreateCategoryAttributeDefinition(
 	})
 }
 
-func (r *AttributeDefinitionRepositoryImpl) CreateProductAttribute(attribute *entity.ProductAttribute) error {
+func (r *AttributeDefinitionRepositoryImpl) CreateProductAttribute(
+	attribute *entity.ProductAttribute,
+) error {
 	return r.db.Create(attribute).Error
 }
 
 // CreateProductAttributesBulk creates multiple product attributes in a single transaction
-func (r *AttributeDefinitionRepositoryImpl) CreateProductAttributesBulk(attributes []*entity.ProductAttribute) error {
+func (r *AttributeDefinitionRepositoryImpl) CreateProductAttributesBulk(
+	attributes []*entity.ProductAttribute,
+) error {
 	if len(attributes) == 0 {
 		return nil
 	}
 	return r.db.CreateInBatches(attributes, 100).Error
 }
 
-func (r *AttributeDefinitionRepositoryImpl) FindProductAttributeByProductID(productID uint) ([]entity.ProductAttribute, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindProductAttributeByProductID(
+	productID uint,
+) ([]entity.ProductAttribute, error) {
 	var attributes []entity.ProductAttribute
-	result := r.db.Preload("AttributeDefinition").Where("product_id = ?", productID).Order("sort_order ASC").Find(&attributes)
+	result := r.db.Preload("AttributeDefinition").
+		Where("product_id = ?", productID).
+		Order("sort_order ASC").
+		Find(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
 	}
