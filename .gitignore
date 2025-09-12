@@ -20,3 +20,5 @@ go.work.sum
 
 # Environment file
 .env
+
+.vscode
