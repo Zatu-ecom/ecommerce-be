@@ -8,6 +8,7 @@ import (
 	"ecommerce-be/common"
 	commonEntity "ecommerce-be/common/entity"
 	"ecommerce-be/product_management/entity"
+	"ecommerce-be/product_management/mapper"
 	"ecommerce-be/product_management/model"
 	"ecommerce-be/product_management/repositories"
 	"ecommerce-be/product_management/utils"
@@ -28,7 +29,7 @@ type ProductService interface {
 		filters map[string]interface{},
 		page, limit int,
 	) (*model.SearchResponse, error)
-	GetProductFilters(categoryID *uint) (*model.ProductFilters, error)
+	GetProductFilters() (*model.ProductFilters, error)
 	GetRelatedProducts(productID uint, limit int) (*model.RelatedProductsResponse, error)
 }
 
@@ -313,6 +314,7 @@ func (s *ProductServiceImpl) createPackageOption(
 /********************************************************
  *		UpdateProduct updates an existing product 		*
  ********************************************************/
+// TODO: Implement product attributes update and package options update as well
 func (s *ProductServiceImpl) UpdateProduct(
 	id uint,
 	req model.ProductUpdateRequest,
@@ -341,7 +343,10 @@ func (s *ProductServiceImpl) UpdateProduct(
 }
 
 // Helper to validate and update category
-func (s *ProductServiceImpl) updateProductCategory(product *entity.Product, categoryID uint) error {
+func (s *ProductServiceImpl) updateProductCategory(
+	product *entity.Product,
+	categoryID uint,
+) error {
 	if categoryID != 0 {
 		category, err := s.categoryRepo.FindByID(categoryID)
 		if err != nil {
@@ -574,20 +579,54 @@ func (s *ProductServiceImpl) SearchProducts(
 /****************************************************************************
 *        GetProductFilters gets available filters for product search		*
 *****************************************************************************/
-// TODO: Implement actual filter fetching logic
-func (s *ProductServiceImpl) GetProductFilters(
-	categoryID *uint,
-) (*model.ProductFilters, error) {
-	// This is a placeholder implementation
-	// In a real implementation, you would query the database for actual filter data
+func (s *ProductServiceImpl) GetProductFilters() (*model.ProductFilters, error) {
+	brands, categories, attributes, err := s.productRepo.GetProductFilters()
+	if err != nil {
+		return nil, err
+	}
 	filters := &model.ProductFilters{
-		Categories:  []model.CategoryFilter{},
-		Brands:      []model.BrandFilter{},
-		PriceRanges: []model.PriceRangeFilter{},
-		Attributes:  []model.AttributeFilter{},
+		Brands:     utils.ConvertBrandsToFilters(brands),
+		Categories: s.convertCategoriesToFilters(categories),
+		Attributes: utils.ConvertAttributesToFilters(attributes),
 	}
 
 	return filters, nil
+}
+
+func (s *ProductServiceImpl) convertCategoriesToFilters(
+	categories []mapper.CategoryWithProductCount,
+) []model.CategoryFilter {
+	mp := make(map[uint]model.CategoryFilter)
+	var categoryFilter []model.CategoryFilter
+	for _, category := range categories {
+		mp[category.CategoryID] = utils.ConvertCategoriesToFilters(category)
+
+		if category.ParentID == nil || *category.ParentID == 0 {
+			categoryFilter = append(
+				categoryFilter,
+				utils.ConvertCategoriesToFilters(category),
+			)
+		}
+	}
+
+	for _, category := range categories {
+		if category.ParentID != nil && *category.ParentID != 0 {
+			parentFilter, exist := mp[*category.ParentID]
+			if exist {
+				parentFilter.Children = append(
+					parentFilter.Children,
+					utils.ConvertCategoriesToFilters(category),
+				)
+			} else {
+				categoryFilter = append(
+					categoryFilter,
+					utils.ConvertCategoriesToFilters(category),
+				)
+			}
+		}
+	}
+
+	return categoryFilter
 }
 
 /*****************************************************************************

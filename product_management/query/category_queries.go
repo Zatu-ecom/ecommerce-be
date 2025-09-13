@@ -10,6 +10,5 @@ const (
 			)
 			SELECT DISTINCT ad.* FROM attribute_definition ad
 			JOIN category_attribute ca ON ad.id = ca.attribute_definition_id
-			WHERE ca.category_id IN (SELECT id FROM category_hierarchy)
-	`
+			WHERE ca.category_id IN (SELECT id FROM category_hierarchy)`
 )

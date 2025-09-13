@@ -339,15 +339,8 @@ func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
 
 // GetProductFilters handles getting available product filters
 func (h *ProductHandler) GetProductFilters(c *gin.Context) {
-	var categoryID *uint
-	if categoryIDStr := c.Query("categoryId"); categoryIDStr != "" {
-		if parsedID, err := strconv.ParseUint(categoryIDStr, 10, 32); err == nil {
-			parsed := uint(parsedID)
-			categoryID = &parsed
-		}
-	}
 
-	filters, err := h.productService.GetProductFilters(categoryID)
+	filters, err := h.productService.GetProductFilters()
 	if err != nil {
 		common.ErrorResp(
 			c,

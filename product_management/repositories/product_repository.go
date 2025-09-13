@@ -2,8 +2,11 @@ package repositories
 
 import (
 	"errors"
+	"fmt"
 
 	"ecommerce-be/product_management/entity"
+	"ecommerce-be/product_management/mapper"
+	"ecommerce-be/product_management/query"
 	"ecommerce-be/product_management/utils"
 
 	"gorm.io/gorm"
@@ -27,6 +30,12 @@ type ProductRepository interface {
 	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
 	CreatePackageOptions(option []entity.PackageOption) error
 	UpdatePackageOptions(option []entity.PackageOption) error
+	GetProductFilters() (
+		[]mapper.BrandWithProductCount,
+		[]mapper.CategoryWithProductCount,
+		[]mapper.AttributeWithProductCount,
+		error,
+	)
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -239,4 +248,38 @@ func (r *ProductRepositoryImpl) CreatePackageOptions(options []entity.PackageOpt
 
 func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOption) error {
 	return r.db.Save(options).Error
+}
+
+// GetProductFilters fetches all filter data in optimized queries
+func (r *ProductRepositoryImpl) GetProductFilters() (
+	[]mapper.BrandWithProductCount,
+	[]mapper.CategoryWithProductCount,
+	[]mapper.AttributeWithProductCount,
+	error,
+) {
+	var brands []mapper.BrandWithProductCount
+	var categories []mapper.CategoryWithProductCount
+	var attributes []mapper.AttributeWithProductCount
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Raw(query.FIND_BRANDS_WITH_PRODUCT_COUNT_QUERY).Scan(&brands).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Raw(query.FIND_CATEGORIES_WITH_PRODUCT_COUNT_QUERY).Scan(&categories).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Raw(query.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_QUERY).Scan(&attributes).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	fmt.Println("categories : ", categories)
+	fmt.Println("attributes : ", attributes)
+	fmt.Println("brands : ", brands)
+
+	return brands, categories, attributes, err
 }

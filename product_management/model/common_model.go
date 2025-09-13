@@ -29,35 +29,34 @@ type FilterOption struct {
 type AttributeFilter struct {
 	Key           string   `json:"key"`
 	Name          string   `json:"name"`
-	DataType      string   `json:"dataType"`
 	AllowedValues []string `json:"allowedValues"`
-	Count         int      `json:"count"`
+	ProductCount  uint     `json:"productCount"`
 }
 
 // ProductFilters represents available filters for product search
 type ProductFilters struct {
-	Categories  []CategoryFilter   `json:"categories"`
-	Brands      []BrandFilter      `json:"brands"`
-	PriceRanges []PriceRangeFilter `json:"priceRanges"`
-	Attributes  []AttributeFilter  `json:"attributes"`
+	Categories []CategoryFilter  `json:"categories"`
+	Brands     []BrandFilter     `json:"brands"`
+	Attributes []AttributeFilter `json:"attributes"`
 }
 
 // CategoryFilter represents category filter option
 type CategoryFilter struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	ProductCount int    `json:"productCount"`
+	ID           uint             `json:"id"`
+	Name         string           `json:"name"`
+	ProductCount uint             `json:"productCount"`
+	Children     []CategoryFilter `json:"children"`
 }
 
 // BrandFilter represents brand filter option
 type BrandFilter struct {
 	Brand        string `json:"brand"`
-	ProductCount int    `json:"productCount"`
+	ProductCount uint   `json:"productCount"`
 }
 
 // PriceRangeFilter represents price range filter option
 type PriceRangeFilter struct {
 	Min          float64 `json:"min"`
 	Max          float64 `json:"max"`
-	ProductCount int     `json:"productCount"`
+	ProductCount uint    `json:"productCount"`
 }

@@ -5,6 +5,7 @@ import (
 
 	commonEntity "ecommerce-be/common/entity"
 	"ecommerce-be/product_management/entity"
+	"ecommerce-be/product_management/mapper"
 	"ecommerce-be/product_management/model"
 )
 
@@ -132,23 +133,6 @@ func ConvertProductToRelatedProduct(product *entity.Product) *model.RelatedProdu
 	}
 }
 
-// ConvertCategoryToFilter converts Category entity to CategoryFilter model
-func ConvertCategoryToFilter(category *entity.Category, productCount int) *model.CategoryFilter {
-	return &model.CategoryFilter{
-		ID:           category.ID,
-		Name:         category.Name,
-		ProductCount: productCount,
-	}
-}
-
-// ConvertCategoryToInfo converts Category entity to CategoryInfo model
-func ConvertCategoryToInfo(category *entity.Category) *model.CategoryInfo {
-	return &model.CategoryInfo{
-		ID:   category.ID,
-		Name: category.Name,
-	}
-}
-
 // ConvertCategoryToHierarchyInfo converts Category entity to CategoryHierarchyInfo model
 func ConvertCategoryToHierarchyInfo(
 	category *entity.Category,
@@ -232,4 +216,46 @@ func ConvertPackageOptionsEntityToResponse(
 		options = append(options, *ConvertPackageOptionToResponse(&option))
 	}
 	return options
+}
+
+func ConvertCategoriesToFilters(category mapper.CategoryWithProductCount) model.CategoryFilter {
+	return model.CategoryFilter{
+		ID:           category.CategoryID,
+		Name:         category.CategoryName,
+		ProductCount: category.ProductCount,
+	}
+}
+
+func ConvertBrandsToFilters(brands []mapper.BrandWithProductCount) []model.BrandFilter {
+	var brandFilters []model.BrandFilter
+	for _, brand := range brands {
+		brandFilters = append(brandFilters, ConvertBrandsToFilter(brand))
+	}
+	return brandFilters
+}
+
+func ConvertAttributesToFilters(
+	attributes []mapper.AttributeWithProductCount,
+) []model.AttributeFilter {
+	var attributeFilters []model.AttributeFilter
+	for _, attribute := range attributes {
+		attributeFilters = append(attributeFilters, ConvertAttributesToFilter(attribute))
+	}
+	return attributeFilters
+}
+
+func ConvertBrandsToFilter(brand mapper.BrandWithProductCount) model.BrandFilter {
+	return model.BrandFilter{
+		Brand:        brand.Brand,
+		ProductCount: brand.ProductCount,
+	}
+}
+
+func ConvertAttributesToFilter(attribute mapper.AttributeWithProductCount) model.AttributeFilter {
+	return model.AttributeFilter{
+		Key:           attribute.Key,
+		Name:          attribute.Name,
+		AllowedValues: attribute.AllowedValues,
+		ProductCount:  attribute.ProductCount,
+	}
 }
