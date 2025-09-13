@@ -27,7 +27,6 @@ func TestAttributeBasics(t *testing.T) {
 		createReq := BuildAttributeCreateRequest("test_key", "Test Attribute", "string", "unit", "Test Description", []string{"value1", "value2"})
 		assert.Equal(t, "test_key", createReq.Key)
 		assert.Equal(t, "Test Attribute", createReq.Name)
-		assert.Equal(t, "string", createReq.DataType)
 		assert.Equal(t, "unit", createReq.Unit)
 		assert.Equal(t, "Test Description", createReq.Description)
 		assert.Len(t, createReq.AllowedValues, 2)
@@ -35,7 +34,6 @@ func TestAttributeBasics(t *testing.T) {
 		// Test attribute update request builder
 		updateReq := BuildAttributeUpdateRequest("updated_key", "Updated Attribute", "number", "kg", "Updated Description", []string{"value3"})
 		assert.Equal(t, "Updated Attribute", updateReq.Name)
-		assert.Equal(t, "number", updateReq.DataType)
 		assert.Equal(t, "kg", updateReq.Unit)
 		assert.Equal(t, "Updated Description", updateReq.Description)
 		assert.Len(t, updateReq.AllowedValues, 1)
@@ -44,30 +42,6 @@ func TestAttributeBasics(t *testing.T) {
 	t.Log("✅ Basic attribute tests completed")
 }
 
-// TestAttributeValidation tests attribute validation rules
-func TestAttributeValidation(t *testing.T) {
-	t.Log("🧪 Testing attribute validation rules...")
-
-	t.Run("Required Fields", func(t *testing.T) {
-		// Test that required fields are properly handled
-		createReq := BuildAttributeCreateRequest("test_key", "Test Name", "string", "", "Test Description", nil)
-		// Verify that the request is properly built
-		assert.NotEmpty(t, createReq.Key, "Key should be set")
-		assert.NotEmpty(t, createReq.Name, "Name should be set")
-		assert.NotEmpty(t, createReq.DataType, "DataType should be set")
-	})
-
-	t.Run("Data Type Validation", func(t *testing.T) {
-		// Test that data types are properly validated
-		validTypes := []string{"string", "number", "boolean", "array"}
-		for _, dataType := range validTypes {
-			createReq := BuildAttributeCreateRequest("test", "Test", dataType, "", "", nil)
-			assert.Equal(t, dataType, createReq.DataType, "Data type should be %s", dataType)
-		}
-	})
-
-	t.Log("✅ Attribute validation tests completed")
-}
 
 // TestAttributeBusinessRules tests business logic for attributes
 func TestAttributeBusinessRules(t *testing.T) {

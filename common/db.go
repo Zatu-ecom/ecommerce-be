@@ -10,6 +10,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -31,6 +32,7 @@ func ConnectDB() {
 
 	/* Initialize database */
 	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // Use singular table names
 		},
@@ -58,7 +60,14 @@ func GetDB() *gorm.DB {
 	return db
 }
 
+func Atomic(fn func(tx *gorm.DB) error) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		return fn(tx)
+	})
+}
+
 // CloseDB closes the database connection
+// TODO: We are not use this function anywhere. we can remove this function
 func CloseDB() {
 	sqlDB, err := db.DB()
 	if err != nil {

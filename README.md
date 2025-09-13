@@ -2,24 +2,6 @@
 
 This project implements the backend API for the Datun e-commerce platform as specified in the PRD document.
 
-## Completed Features (up to PRD section 3.3)
-
-### Authentication APIs
-- User Registration: `POST /api/auth/register`
-- User Login: `POST /api/auth/login`
-- Token Refresh: `POST /api/auth/refresh`
-- User Logout: `POST /api/auth/logout`
-
-### User Management APIs
-- Get User Profile: `GET /api/users/profile`
-- Update User Profile: `PUT /api/users/profile`
-- Get User Addresses: `GET /api/users/addresses`
-- Add Address: `POST /api/users/addresses`
-- Update Address: `PUT /api/users/addresses/:id`
-- Delete Address: `DELETE /api/users/addresses/:id`
-- Set Default Address: `PATCH /api/users/addresses/:id/default`
-- Change Password: `PATCH /api/users/password`
-
 ## Project Structure
 
 The project follows a modular structure to support future microservices:
@@ -72,18 +54,26 @@ datun-site-db/
    - Repositories handle data access
    - Services handle business logic
    - Handlers handle HTTP requests/responses
-   
 2. **Open/Closed Principle**: Components can be extended without modification
    - New repository implementations can be created without changing existing code
-   
 3. **Liskov Substitution Principle**: Interface implementations are interchangeable
    - Repository implementations can be swapped without affecting services
-   
 4. **Interface Segregation Principle**: Small, focused interfaces
    - Each repository and service has its own specific interface
-   
 5. **Dependency Inversion Principle**: High-level modules depend on abstractions
    - Services depend on repository interfaces, not concrete implementations
+
+## Development Dependencies
+
+To maintain consistent code formatting and linting, install the following tools:
+
+```bash
+# Code formatting tools
+go install mvdan.cc/gofumpt@latest
+go install github.com/segmentio/golines@latest
+```
+
+These tools are configured in `.vscode/settings.json` and `.golangci.yml` to ensure consistent code style across the project.
 
 ## Running the Application
 
@@ -94,6 +84,7 @@ datun-site-db/
 ## Next Steps (Phase 2)
 
 The next phase will implement from section 3.3 of the PRD, including:
+
 - Product APIs
 - Cart APIs
 - Order APIs

@@ -3,7 +3,9 @@ package utils
 import (
 	"time"
 
+	commonEntity "ecommerce-be/common/entity"
 	"ecommerce-be/product_management/entity"
+	"ecommerce-be/product_management/mapper"
 	"ecommerce-be/product_management/model"
 )
 
@@ -25,7 +27,9 @@ func ConvertCategoryToResponse(category *entity.Category) *model.CategoryRespons
 }
 
 // ConvertCategoryToHierarchyResponse converts Category entity to CategoryHierarchyResponse model
-func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.CategoryHierarchyResponse {
+func ConvertCategoryToHierarchyResponse(
+	category *entity.Category,
+) *model.CategoryHierarchyResponse {
 	var responseParentID *uint
 	if category.ParentID != nil && *category.ParentID != 0 {
 		responseParentID = category.ParentID
@@ -48,29 +52,39 @@ func ConvertCategoryToHierarchyResponse(category *entity.Category) *model.Catego
 }
 
 // ConvertAttributeDefinitionToResponse converts AttributeDefinition entity to AttributeDefinitionResponse model
-func ConvertAttributeDefinitionToResponse(attribute *entity.AttributeDefinition) *model.AttributeDefinitionResponse {
+func ConvertAttributeDefinitionToResponse(
+	attribute *entity.AttributeDefinition,
+) *model.AttributeDefinitionResponse {
 	return &model.AttributeDefinitionResponse{
 		ID:            attribute.ID,
 		Key:           attribute.Key,
 		Name:          attribute.Name,
-		DataType:      attribute.DataType,
 		Unit:          attribute.Unit,
-		Description:   attribute.Description,
 		AllowedValues: attribute.AllowedValues,
 		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
 	}
 }
 
-// ConvertProductToResponse converts Product entity to ProductResponse model
-func ConvertProductToResponse(product *entity.Product) *model.ProductResponse {
-	var categoryInfo model.CategoryInfo
-	if product.Category != nil && product.Category.ID != 0 {
-		categoryInfo = model.CategoryInfo{
-			ID:   product.Category.ID,
-			Name: product.Category.Name,
-		}
+func ConvertProductAttributeDefinitionToResponse(
+	productAttribute *entity.ProductAttribute,
+) *model.ProductAttributeResponse {
+	return &model.ProductAttributeResponse{
+		ID:        productAttribute.ID,
+		Key:       productAttribute.AttributeDefinition.Key,
+		Value:     productAttribute.Value,
+		Name:      productAttribute.AttributeDefinition.Name,
+		Unit:      productAttribute.AttributeDefinition.Unit,
+		SortOrder: productAttribute.SortOrder,
 	}
+}
 
+// ConvertProductToDetailResponse converts Product entity to ProductDetailResponse model
+func ConvertProductResponse(
+	product *entity.Product,
+	categoryInfo model.CategoryHierarchyInfo,
+	attribute []model.ProductAttributeResponse,
+	packageOption []model.PackageOptionResponse,
+) *model.ProductResponse {
 	return &model.ProductResponse{
 		ID:               product.ID,
 		Name:             product.Name,
@@ -87,33 +101,8 @@ func ConvertProductToResponse(product *entity.Product) *model.ProductResponse {
 		IsPopular:        product.IsPopular,
 		Discount:         product.Discount,
 		Tags:             product.Tags,
-		Attributes:       make(map[string]string),
-		PackageOptions:   []model.PackageOptionResponse{},
-		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-	}
-}
-
-// ConvertProductToDetailResponse converts Product entity to ProductDetailResponse model
-func ConvertProductToDetailResponse(product *entity.Product, categoryInfo model.CategoryHierarchyInfo) *model.ProductDetailResponse {
-	return &model.ProductDetailResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		CategoryID:       product.CategoryID,
-		Category:         categoryInfo,
-		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
-		ShortDescription: product.ShortDescription,
-		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		Discount:         product.Discount,
-		Tags:             product.Tags,
-		Attributes:       []model.ProductAttributeResponse{},
-		PackageOptions:   []model.PackageOptionResponse{},
+		Attributes:       attribute,
+		PackageOptions:   packageOption,
 		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 	}
@@ -144,25 +133,11 @@ func ConvertProductToRelatedProduct(product *entity.Product) *model.RelatedProdu
 	}
 }
 
-// ConvertCategoryToFilter converts Category entity to CategoryFilter model
-func ConvertCategoryToFilter(category *entity.Category, productCount int) *model.CategoryFilter {
-	return &model.CategoryFilter{
-		ID:           category.ID,
-		Name:         category.Name,
-		ProductCount: productCount,
-	}
-}
-
-// ConvertCategoryToInfo converts Category entity to CategoryInfo model
-func ConvertCategoryToInfo(category *entity.Category) *model.CategoryInfo {
-	return &model.CategoryInfo{
-		ID:   category.ID,
-		Name: category.Name,
-	}
-}
-
 // ConvertCategoryToHierarchyInfo converts Category entity to CategoryHierarchyInfo model
-func ConvertCategoryToHierarchyInfo(category *entity.Category, parentCategory *entity.Category) *model.CategoryHierarchyInfo {
+func ConvertCategoryToHierarchyInfo(
+	category *entity.Category,
+	parentCategory *entity.Category,
+) *model.CategoryHierarchyInfo {
 	var parentInfo *model.CategoryInfo
 	if parentCategory != nil {
 		parentInfo = &model.CategoryInfo{
@@ -175,5 +150,112 @@ func ConvertCategoryToHierarchyInfo(category *entity.Category, parentCategory *e
 		ID:     category.ID,
 		Name:   category.Name,
 		Parent: parentInfo,
+	}
+}
+
+func ConvertPackageOptionToResponse(
+	packageOption *entity.PackageOption,
+) *model.PackageOptionResponse {
+	return &model.PackageOptionResponse{
+		ID:          packageOption.ID,
+		Name:        packageOption.Name,
+		Description: packageOption.Description,
+		Price:       packageOption.Price,
+		Quantity:    packageOption.Quantity,
+		CreatedAt:   packageOption.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   packageOption.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func ConvertProductCreateRequestToEntity(req model.ProductCreateRequest) *entity.Product {
+	// TODO: This is not the correct way to set currency.
+	// In the future, we will create separate tables for Currency and Country.
+	currency := req.Currency
+	if currency == "" {
+		currency = "USD"
+	}
+	return &entity.Product{
+		Name:             req.Name,
+		CategoryID:       req.CategoryID,
+		Brand:            req.Brand,
+		SKU:              req.SKU,
+		Price:            req.Price,
+		Currency:         currency,
+		ShortDescription: req.ShortDescription,
+		LongDescription:  req.LongDescription,
+		Images:           req.Images,
+		InStock:          true,
+		IsPopular:        req.IsPopular,
+		Discount:         req.Discount,
+		Tags:             req.Tags,
+		BaseEntity: commonEntity.BaseEntity{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+}
+
+func ConvertProductAttributesEntityToResponse(
+	productAttributes []entity.ProductAttribute,
+) []model.ProductAttributeResponse {
+	var attribute []model.ProductAttributeResponse
+	for _, productAttribute := range productAttributes {
+		attribute = append(
+			attribute,
+			*ConvertProductAttributeDefinitionToResponse(&productAttribute),
+		)
+	}
+	return attribute
+}
+
+func ConvertPackageOptionsEntityToResponse(
+	packageOptions []entity.PackageOption,
+) []model.PackageOptionResponse {
+	var options []model.PackageOptionResponse
+	for _, option := range packageOptions {
+		options = append(options, *ConvertPackageOptionToResponse(&option))
+	}
+	return options
+}
+
+func ConvertCategoriesToFilters(category mapper.CategoryWithProductCount) model.CategoryFilter {
+	return model.CategoryFilter{
+		ID:           category.CategoryID,
+		Name:         category.CategoryName,
+		ProductCount: category.ProductCount,
+	}
+}
+
+func ConvertBrandsToFilters(brands []mapper.BrandWithProductCount) []model.BrandFilter {
+	var brandFilters []model.BrandFilter
+	for _, brand := range brands {
+		brandFilters = append(brandFilters, ConvertBrandsToFilter(brand))
+	}
+	return brandFilters
+}
+
+func ConvertAttributesToFilters(
+	attributes []mapper.AttributeWithProductCount,
+) []model.AttributeFilter {
+	var attributeFilters []model.AttributeFilter
+	for _, attribute := range attributes {
+		attributeFilters = append(attributeFilters, ConvertAttributesToFilter(attribute))
+	}
+	return attributeFilters
+}
+
+func ConvertBrandsToFilter(brand mapper.BrandWithProductCount) model.BrandFilter {
+	return model.BrandFilter{
+		Brand:        brand.Brand,
+		ProductCount: brand.ProductCount,
+	}
+}
+
+func ConvertAttributesToFilter(attribute mapper.AttributeWithProductCount) model.AttributeFilter {
+	return model.AttributeFilter{
+		Key:           attribute.Key,
+		Name:          attribute.Name,
+		AllowedValues: attribute.AllowedValues,
+		ProductCount:  attribute.ProductCount,
 	}
 }

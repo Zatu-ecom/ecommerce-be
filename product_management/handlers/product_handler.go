@@ -33,7 +33,13 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 			Field:   utils.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.VALIDATION_FAILED_MSG, validationErrors, utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.VALIDATION_FAILED_MSG,
+			validationErrors,
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -44,10 +50,19 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.PRODUCT_CATEGORY_INVALID_MSG {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.PRODUCT_CATEGORY_INVALID_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				err.Error(),
+				utils.PRODUCT_CATEGORY_INVALID_CODE,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_CREATE_PRODUCT_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_CREATE_PRODUCT_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -60,7 +75,12 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid product ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid product ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -71,7 +91,13 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 			Field:   utils.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.VALIDATION_FAILED_MSG, validationErrors, utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.VALIDATION_FAILED_MSG,
+			validationErrors,
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -86,10 +112,19 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.PRODUCT_CATEGORY_INVALID_MSG {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.PRODUCT_CATEGORY_INVALID_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				err.Error(),
+				utils.PRODUCT_CATEGORY_INVALID_CODE,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_UPDATE_PRODUCT_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_UPDATE_PRODUCT_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -102,7 +137,12 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid product ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid product ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -112,7 +152,11 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.PRODUCT_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_DELETE_PRODUCT_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_DELETE_PRODUCT_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -158,7 +202,11 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 
 	productsResponse, err := h.productService.GetAllProducts(page, limit, filters)
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_PRODUCTS_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_PRODUCTS_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -169,7 +217,12 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid product ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid product ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -179,7 +232,11 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.PRODUCT_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_PRODUCT_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_PRODUCT_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -192,7 +249,12 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 func (h *ProductHandler) SearchProducts(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Search query is required", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Search query is required",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -201,7 +263,8 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	// Parse additional filters
 	filters := make(map[string]interface{})
-	if categoryID, err := strconv.ParseUint(c.Query("categoryId"), 10, 32); err == nil && categoryID > 0 {
+	if categoryID, err := strconv.ParseUint(c.Query("categoryId"), 10, 32); err == nil &&
+		categoryID > 0 {
 		filters["categoryId"] = uint(categoryID)
 	}
 	if brand := c.Query("brand"); brand != "" {
@@ -216,7 +279,11 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 	searchResponse, err := h.productService.SearchProducts(query, filters, page, limit)
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_SEARCH_PRODUCTS_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_SEARCH_PRODUCTS_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -227,7 +294,12 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid product ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid product ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -238,7 +310,13 @@ func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
 			Field:   utils.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.VALIDATION_FAILED_MSG, validationErrors, utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.VALIDATION_FAILED_MSG,
+			validationErrors,
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -248,7 +326,11 @@ func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.PRODUCT_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_UPDATE_STOCK_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_UPDATE_STOCK_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -257,17 +339,14 @@ func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
 
 // GetProductFilters handles getting available product filters
 func (h *ProductHandler) GetProductFilters(c *gin.Context) {
-	var categoryID *uint
-	if categoryIDStr := c.Query("categoryId"); categoryIDStr != "" {
-		if parsedID, err := strconv.ParseUint(categoryIDStr, 10, 32); err == nil {
-			parsed := uint(parsedID)
-			categoryID = &parsed
-		}
-	}
 
-	filters, err := h.productService.GetProductFilters(categoryID)
+	filters, err := h.productService.GetProductFilters()
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_FILTERS_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_FILTERS_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -280,7 +359,12 @@ func (h *ProductHandler) GetProductFilters(c *gin.Context) {
 func (h *ProductHandler) GetRelatedProducts(c *gin.Context) {
 	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid product ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid product ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -292,9 +376,18 @@ func (h *ProductHandler) GetRelatedProducts(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.PRODUCT_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG+": "+err.Error(),
+		)
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, utils.RELATED_PRODUCTS_RETRIEVED_MSG, relatedProductsResponse)
+	common.SuccessResponse(
+		c,
+		http.StatusOK,
+		utils.RELATED_PRODUCTS_RETRIEVED_MSG,
+		relatedProductsResponse,
+	)
 }

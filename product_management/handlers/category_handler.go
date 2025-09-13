@@ -33,7 +33,13 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 			Field:   utils.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.VALIDATION_FAILED_MSG, validationErrors, utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.VALIDATION_FAILED_MSG,
+			validationErrors,
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -44,23 +50,42 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.INVALID_PARENT_CATEGORY_MSG {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.INVALID_PARENT_CATEGORY_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				err.Error(),
+				utils.INVALID_PARENT_CATEGORY_CODE,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_CREATE_CATEGORY_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_CREATE_CATEGORY_MSG+": "+err.Error(),
+		)
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusCreated, utils.CATEGORY_CREATED_MSG, map[string]interface{}{
-		utils.CATEGORY_FIELD_NAME: categoryResponse,
-	})
+	common.SuccessResponse(
+		c,
+		http.StatusCreated,
+		utils.CATEGORY_CREATED_MSG,
+		map[string]interface{}{
+			utils.CATEGORY_FIELD_NAME: categoryResponse,
+		},
+	)
 }
 
 // UpdateCategory handles category updates
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	categoryID, err := strconv.ParseUint(c.Param("categoryId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid category ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid category ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -71,7 +96,13 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 			Field:   utils.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.VALIDATION_FAILED_MSG, validationErrors, utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.VALIDATION_FAILED_MSG,
+			validationErrors,
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -86,10 +117,19 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.INVALID_PARENT_CATEGORY_MSG {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), utils.INVALID_PARENT_CATEGORY_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				err.Error(),
+				utils.INVALID_PARENT_CATEGORY_CODE,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_UPDATE_CATEGORY_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_UPDATE_CATEGORY_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -102,7 +142,12 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 	categoryID, err := strconv.ParseUint(c.Param("categoryId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid category ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid category ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -113,14 +158,28 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.CATEGORY_HAS_PRODUCTS_MSG {
-			common.ErrorWithCode(c, http.StatusConflict, err.Error(), utils.CATEGORY_HAS_PRODUCTS_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusConflict,
+				err.Error(),
+				utils.CATEGORY_HAS_PRODUCTS_CODE,
+			)
 			return
 		}
 		if err.Error() == utils.CATEGORY_HAS_CHILDREN_MSG {
-			common.ErrorWithCode(c, http.StatusConflict, err.Error(), utils.CATEGORY_HAS_CHILDREN_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusConflict,
+				err.Error(),
+				utils.CATEGORY_HAS_CHILDREN_CODE,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_DELETE_CATEGORY_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_DELETE_CATEGORY_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -131,7 +190,11 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 	categoriesResponse, err := h.categoryService.GetAllCategories()
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -142,7 +205,12 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 	categoryID, err := strconv.ParseUint(c.Param("categoryId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid category ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid category ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
@@ -152,7 +220,11 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.CATEGORY_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -169,7 +241,12 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 	if parentIDStr != "" {
 		parsedID, err := strconv.ParseUint(parentIDStr, 10, 32)
 		if err != nil {
-			common.ErrorWithCode(c, http.StatusBadRequest, "Invalid parent ID", utils.VALIDATION_ERROR_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				"Invalid parent ID",
+				utils.VALIDATION_ERROR_CODE,
+			)
 			return
 		}
 		parentID = new(uint)
@@ -178,7 +255,11 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 
 	categoriesResponse, err := h.categoryService.GetCategoriesByParent(parentID)
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_CATEGORIES_MSG+": "+err.Error(),
+		)
 		return
 	}
 
@@ -188,19 +269,35 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 func (h *CategoryHandler) GetAttributesByCategoryIDWithInheritance(c *gin.Context) {
 	categoryID, err := strconv.ParseUint(c.Param("categoryId"), 10, 32)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, "Invalid category ID", utils.VALIDATION_ERROR_CODE)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			"Invalid category ID",
+			utils.VALIDATION_ERROR_CODE,
+		)
 		return
 	}
 
-	attributesResponse, err := h.categoryService.GetAttributesByCategoryIDWithInheritance(uint(categoryID))
+	attributesResponse, err := h.categoryService.GetAttributesByCategoryIDWithInheritance(
+		uint(categoryID),
+	)
 	if err != nil {
 		if err.Error() == utils.CATEGORY_NOT_FOUND_MSG {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.CATEGORY_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FAILED_TO_GET_CATEGORY_ATTRIBUTES_MSG+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FAILED_TO_GET_CATEGORY_ATTRIBUTES_MSG+": "+err.Error(),
+		)
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, utils.CATEGORY_ATTRIBUTES_RETRIEVED_MSG, attributesResponse)
+	common.SuccessResponse(
+		c,
+		http.StatusOK,
+		utils.CATEGORY_ATTRIBUTES_RETRIEVED_MSG,
+		attributesResponse,
+	)
 }
