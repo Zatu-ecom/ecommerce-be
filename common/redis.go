@@ -9,8 +9,10 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-var redisClient *redis.Client
-var ctx = context.Background()
+var (
+	redisClient *redis.Client
+	ctx         = context.Background()
+)
 
 // InitializeRedis initializes the Redis client
 func InitializeRedis() error {

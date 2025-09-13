@@ -2,58 +2,64 @@ package model
 
 // ProductCreateRequest represents the request body for creating a product
 type ProductCreateRequest struct {
-	Name             string                    `json:"name" binding:"required,min=3,max=200"`
-	CategoryID       uint                      `json:"categoryId" binding:"required"`
-	Brand            string                    `json:"brand" binding:"max=100"`
-	SKU              string                    `json:"sku" binding:"required,min=3,max=50"`
-	Price            float64                   `json:"price" binding:"required,gt=0"`
-	Currency         string                    `json:"currency" binding:"len=3"`
+	Name             string                    `json:"name"             binding:"required,min=3,max=200"`
+	CategoryID       uint                      `json:"categoryId"       binding:"required"`
+	Brand            string                    `json:"brand"            binding:"max=100"`
+	SKU              string                    `json:"sku"              binding:"required,min=3,max=50"`
+	Price            float64                   `json:"price"            binding:"required,gt=0"`
+	Currency         string                    `json:"currency"         binding:"len=3"`
 	ShortDescription string                    `json:"shortDescription" binding:"max=500"`
-	LongDescription  string                    `json:"longDescription" binding:"max=5000"`
-	Images           []string                  `json:"images" binding:"max=10"`
+	LongDescription  string                    `json:"longDescription"  binding:"max=5000"`
+	Images           []string                  `json:"images"           binding:"max=10"`
 	IsPopular        bool                      `json:"isPopular"`
-	Discount         int                       `json:"discount" binding:"min=0,max=100"`
-	Tags             []string                  `json:"tags" binding:"max=20"`
-	Attributes       []ProductAttributeRequest `json:"attributes" binding:"required"`
+	Discount         int                       `json:"discount"         binding:"min=0,max=100"`
+	Tags             []string                  `json:"tags"             binding:"max=20"`
+	Attributes       []ProductAttributeRequest `json:"attributes"       binding:"required"`
 	PackageOptions   []PackageOptionRequest    `json:"packageOptions"`
 }
 
 // ProductUpdateRequest represents the request body for updating a product
 type ProductUpdateRequest struct {
-	Name             string                    `json:"name" binding:"min=3,max=200"`
+	Name             string                    `json:"name"             binding:"min=3,max=200"`
 	CategoryID       uint                      `json:"categoryId"`
-	Brand            string                    `json:"brand" binding:"max=100"`
-	Price            float64                   `json:"price" binding:"gt=0"`
-	Currency         string                    `json:"currency" binding:"len=3"`
+	Brand            string                    `json:"brand"            binding:"max=100"`
+	Price            float64                   `json:"price"            binding:"gt=0"`
+	Currency         string                    `json:"currency"         binding:"len=3"`
 	ShortDescription string                    `json:"shortDescription" binding:"max=500"`
-	LongDescription  string                    `json:"longDescription" binding:"max=5000"`
-	Images           []string                  `json:"images" binding:"max=10"`
+	LongDescription  string                    `json:"longDescription"  binding:"max=5000"`
+	Images           []string                  `json:"images"           binding:"max=10"`
 	IsPopular        bool                      `json:"isPopular"`
-	Discount         int                       `json:"discount" binding:"min=0,max=100"`
-	Tags             []string                  `json:"tags" binding:"max=20"`
+	Discount         int                       `json:"discount"         binding:"min=0,max=100"`
+	Tags             []string                  `json:"tags"             binding:"max=20"`
 	Attributes       []ProductAttributeRequest `json:"attributes"`
 	PackageOptions   []PackageOptionRequest    `json:"packageOptions"`
 }
 
 // ProductAttributeRequest represents a product attribute in requests
 type ProductAttributeRequest struct {
-	Key   string `json:"key" binding:"required"`
-	Value string `json:"value" binding:"required"`
+	Key       string `json:"key"       binding:"required"`
+	Name      string `json:"name"      binding:"required"`
+	Value     string `json:"value"     binding:"required"`
+	Unit      string `json:"unit"`
+	SortOrder uint   `json:"sortOrder"`
 }
 
 // ProductAttributeResponse represents a product attribute in responses
 type ProductAttributeResponse struct {
-	Key        string                      `json:"key"`
-	Value      string                      `json:"value"`
-	Definition AttributeDefinitionResponse `json:"definition"`
+	ID        uint   `json:"id"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	Name      string `json:"name"`
+	Unit      string `json:"unit"`
+	SortOrder uint   `json:"sortOrder"`
 }
 
 // PackageOptionRequest represents a package option in requests
 type PackageOptionRequest struct {
-	Name        string  `json:"name" binding:"required"`
+	Name        string  `json:"name"        binding:"required"`
 	Description string  `json:"description"`
-	Price       float64 `json:"price" binding:"required,gt=0"`
-	Quantity    int     `json:"quantity" binding:"required,gt=0"`
+	Price       float64 `json:"price"       binding:"required,gt=0"`
+	Quantity    int     `json:"quantity"    binding:"required,gt=0"`
 }
 
 // PackageOptionResponse represents a package option in responses
@@ -69,29 +75,6 @@ type PackageOptionResponse struct {
 
 // ProductResponse represents the product data returned in API responses
 type ProductResponse struct {
-	ID               uint                    `json:"id"`
-	Name             string                  `json:"name"`
-	CategoryID       uint                    `json:"categoryId"`
-	Category         CategoryInfo            `json:"category"`
-	Brand            string                  `json:"brand"`
-	SKU              string                  `json:"sku"`
-	Price            float64                 `json:"price"`
-	Currency         string                  `json:"currency"`
-	ShortDescription string                  `json:"shortDescription"`
-	LongDescription  string                  `json:"longDescription"`
-	Images           []string                `json:"images"`
-	InStock          bool                    `json:"inStock"`
-	IsPopular        bool                    `json:"isPopular"`
-	Discount         int                     `json:"discount"`
-	Tags             []string                `json:"tags"`
-	Attributes       map[string]string       `json:"attributes"`
-	PackageOptions   []PackageOptionResponse `json:"packageOptions"`
-	CreatedAt        string                  `json:"createdAt"`
-	UpdatedAt        string                  `json:"updatedAt"`
-}
-
-// ProductDetailResponse represents detailed product information
-type ProductDetailResponse struct {
 	ID               uint                       `json:"id"`
 	Name             string                     `json:"name"`
 	CategoryID       uint                       `json:"categoryId"`
@@ -173,18 +156,18 @@ type RelatedProductsResponse struct {
 
 // PackageOptionCreateRequest represents the request body for creating a package option
 type PackageOptionCreateRequest struct {
-	Name        string  `json:"name" binding:"required"`
+	Name        string  `json:"name"        binding:"required"`
 	Description string  `json:"description"`
-	Price       float64 `json:"price" binding:"required,gt=0"`
-	Quantity    int     `json:"quantity" binding:"required,gt=0"`
+	Price       float64 `json:"price"       binding:"required,gt=0"`
+	Quantity    int     `json:"quantity"    binding:"required,gt=0"`
 }
 
 // PackageOptionUpdateRequest represents the request body for updating a package option
 type PackageOptionUpdateRequest struct {
-	Name        string  `json:"name" binding:"required"`
+	Name        string  `json:"name"        binding:"required"`
 	Description string  `json:"description"`
-	Price       float64 `json:"price" binding:"required,gt=0"`
-	Quantity    int     `json:"quantity" binding:"required,gt=0"`
+	Price       float64 `json:"price"       binding:"required,gt=0"`
+	Quantity    int     `json:"quantity"    binding:"required,gt=0"`
 }
 
 // PackageOptionsResponse represents the response for getting package options

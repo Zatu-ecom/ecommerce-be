@@ -19,7 +19,9 @@ type CategoryService interface {
 	GetAllCategories() (*model.CategoriesResponse, error)
 	GetCategoryByID(id uint) (*model.CategoryResponse, error)
 	GetCategoriesByParent(parentID *uint) (*model.CategoriesResponse, error)
-	GetAttributesByCategoryIDWithInheritance(catagoryID uint) (model.AttributeDefinitionsResponse, error)
+	GetAttributesByCategoryIDWithInheritance(
+		catagoryID uint,
+	) (model.AttributeDefinitionsResponse, error)
 }
 
 // CategoryServiceImpl implements the CategoryService interface
@@ -35,7 +37,9 @@ func NewCategoryService(categoryRepo repositories.CategoryRepository) CategorySe
 }
 
 // CreateCategory creates a new category
-func (s *CategoryServiceImpl) CreateCategory(req model.CategoryCreateRequest) (*model.CategoryResponse, error) {
+func (s *CategoryServiceImpl) CreateCategory(
+	req model.CategoryCreateRequest,
+) (*model.CategoryResponse, error) {
 	// Check if category with same name exists in the same parent
 
 	existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
@@ -80,7 +84,10 @@ func (s *CategoryServiceImpl) CreateCategory(req model.CategoryCreateRequest) (*
 }
 
 // UpdateCategory updates an existing category
-func (s *CategoryServiceImpl) UpdateCategory(id uint, req model.CategoryUpdateRequest) (*model.CategoryResponse, error) {
+func (s *CategoryServiceImpl) UpdateCategory(
+	id uint,
+	req model.CategoryUpdateRequest,
+) (*model.CategoryResponse, error) {
 	// Find existing category
 	category, err := s.categoryRepo.FindByID(id)
 	if err != nil {
@@ -210,7 +217,9 @@ func (s *CategoryServiceImpl) GetCategoryByID(id uint) (*model.CategoryResponse,
 }
 
 // GetCategoriesByParent gets categories by parent ID
-func (s *CategoryServiceImpl) GetCategoriesByParent(parentID *uint) (*model.CategoriesResponse, error) {
+func (s *CategoryServiceImpl) GetCategoriesByParent(
+	parentID *uint,
+) (*model.CategoriesResponse, error) {
 	categories, err := s.categoryRepo.FindByParentID(parentID)
 	if err != nil {
 		return nil, err
@@ -227,7 +236,9 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(parentID *uint) (*model.Cate
 	}, nil
 }
 
-func  (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(catagoryID uint) (model.AttributeDefinitionsResponse, error) {
+func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
+	catagoryID uint,
+) (model.AttributeDefinitionsResponse, error) {
 	attributes, err := s.categoryRepo.FindAttributesByCategoryIDWithInheritance(catagoryID)
 	if err != nil {
 		return model.AttributeDefinitionsResponse{}, err

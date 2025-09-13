@@ -16,10 +16,17 @@ type ProductRepository interface {
 	FindByID(id uint) (*entity.Product, error)
 	FindBySKU(sku string) (*entity.Product, error)
 	FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
-	Search(query string, filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
+	Search(
+		query string,
+		filters map[string]interface{},
+		page, limit int,
+	) ([]entity.Product, int64, error)
 	Delete(id uint) error
 	UpdateStock(id uint, inStock bool) error
 	FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error)
+	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
+	CreatePackageOptions(option []entity.PackageOption) error
+	UpdatePackageOptions(option []entity.PackageOption) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -45,7 +52,10 @@ func (r *ProductRepositoryImpl) Update(product *entity.Product) error {
 // FindByID finds a product by ID with eager loading
 func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 	var product entity.Product
-	result := r.db.Preload("Category").Preload("Category.Parent").Where("id = ?", id).First(&product)
+	result := r.db.Preload("Category").
+		Preload("Category.Parent").
+		Where("id = ?", id).
+		First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
@@ -69,7 +79,10 @@ func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
 }
 
 // FindAll finds all products with filtering and pagination
-func (r *ProductRepositoryImpl) FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error) {
+func (r *ProductRepositoryImpl) FindAll(
+	filters map[string]interface{},
+	page, limit int,
+) ([]entity.Product, int64, error) {
 	var products []entity.Product
 	var total int64
 
@@ -113,7 +126,11 @@ func (r *ProductRepositoryImpl) FindAll(filters map[string]interface{}, page, li
 	}
 
 	// Use eager loading to avoid N+1 queries
-	query = query.Preload("Category").Preload("Category.Parent").Offset(offset).Limit(limit).Order(sortBy + " " + sortOrder)
+	query = query.Preload("Category").
+		Preload("Category.Parent").
+		Offset(offset).
+		Limit(limit).
+		Order(sortBy + " " + sortOrder)
 
 	if err := query.Find(&products).Error; err != nil {
 		return nil, 0, err
@@ -123,7 +140,11 @@ func (r *ProductRepositoryImpl) FindAll(filters map[string]interface{}, page, li
 }
 
 // Search searches products with query and filters
-func (r *ProductRepositoryImpl) Search(query string, filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error) {
+func (r *ProductRepositoryImpl) Search(
+	query string,
+	filters map[string]interface{},
+	page, limit int,
+) ([]entity.Product, int64, error) {
 	var products []entity.Product
 	var total int64
 
@@ -131,8 +152,12 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 
 	// Apply search query
 	if query != "" {
-		dbQuery = dbQuery.Where("name LIKE ? OR short_description LIKE ? OR tags LIKE ?",
-			"%"+query+"%", "%"+query+"%", "%"+query+"%")
+		dbQuery = dbQuery.Where(
+			`name ILIKE ? OR short_description ILIKE ? OR EXISTS (
+				SELECT 1
+				FROM unnest(tags) AS tag
+				WHERE tag ILIKE ?
+			)`, "%"+query+"%", "%"+query+"%", "%"+query+"%")
 	}
 
 	// Apply filters
@@ -156,7 +181,11 @@ func (r *ProductRepositoryImpl) Search(query string, filters map[string]interfac
 
 	// Apply pagination and eager loading
 	offset := (page - 1) * limit
-	dbQuery = dbQuery.Preload("Category").Preload("Category.Parent").Offset(offset).Limit(limit).Order("created_at DESC")
+	dbQuery = dbQuery.Preload("Category").
+		Preload("Category.Parent").
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC")
 
 	if err := dbQuery.Find(&products).Error; err != nil {
 		return nil, 0, err
@@ -176,7 +205,10 @@ func (r *ProductRepositoryImpl) UpdateStock(id uint, inStock bool) error {
 }
 
 // FindRelated finds related products in the same category
-func (r *ProductRepositoryImpl) FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error) {
+func (r *ProductRepositoryImpl) FindRelated(
+	categoryID, excludeProductID uint,
+	limit int,
+) ([]entity.Product, error) {
 	var products []entity.Product
 	result := r.db.Preload("Category").
 		Where("category_id = ? AND id != ?", categoryID, excludeProductID).
@@ -188,4 +220,23 @@ func (r *ProductRepositoryImpl) FindRelated(categoryID, excludeProductID uint, l
 		return nil, result.Error
 	}
 	return products, nil
+}
+
+func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
+	productID uint,
+) ([]entity.PackageOption, error) {
+	var packageOptions []entity.PackageOption
+	result := r.db.Where("product_id = ?", productID).Find(&packageOptions)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return packageOptions, nil
+}
+
+func (r *ProductRepositoryImpl) CreatePackageOptions(options []entity.PackageOption) error {
+	return r.db.Create(options).Error
+}
+
+func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOption) error {
+	return r.db.Save(options).Error
 }

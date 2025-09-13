@@ -9,7 +9,6 @@ import (
 
 /* NewContainer initializes dependencies dynamically */
 func NewContainer(router *gin.Engine) *common.Container {
-
 	/* Initialize Container */
 	c := &common.Container{}
 

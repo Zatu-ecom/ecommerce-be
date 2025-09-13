@@ -10,7 +10,11 @@ import (
 type AddressService interface {
 	GetAddresses(userID uint) ([]model.AddressResponse, error)
 	AddAddress(userID uint, req model.AddressRequest) (*model.AddressResponse, error)
-	UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*model.AddressResponse, error)
+	UpdateAddress(
+		addressID uint,
+		userID uint,
+		req model.AddressRequest,
+	) (*model.AddressResponse, error)
 	DeleteAddress(addressID uint, userID uint) error
 	SetDefaultAddress(addressID uint, userID uint) (*model.AddressResponse, error)
 }
@@ -52,7 +56,10 @@ func (s *AddressServiceImpl) GetAddresses(userID uint) ([]model.AddressResponse,
 }
 
 // AddAddress adds a new address for a user
-func (s *AddressServiceImpl) AddAddress(userID uint, req model.AddressRequest) (*model.AddressResponse, error) {
+func (s *AddressServiceImpl) AddAddress(
+	userID uint,
+	req model.AddressRequest,
+) (*model.AddressResponse, error) {
 	address := &entity.Address{
 		UserID:    userID,
 		Street:    req.Street,
@@ -82,7 +89,11 @@ func (s *AddressServiceImpl) AddAddress(userID uint, req model.AddressRequest) (
 }
 
 // UpdateAddress updates an existing address
-func (s *AddressServiceImpl) UpdateAddress(addressID uint, userID uint, req model.AddressRequest) (*model.AddressResponse, error) {
+func (s *AddressServiceImpl) UpdateAddress(
+	addressID uint,
+	userID uint,
+	req model.AddressRequest,
+) (*model.AddressResponse, error) {
 	// Find the address by ID and user ID
 	address, err := s.addressRepo.FindByID(addressID, userID)
 	if err != nil {
@@ -122,7 +133,10 @@ func (s *AddressServiceImpl) DeleteAddress(addressID uint, userID uint) error {
 }
 
 // SetDefaultAddress sets an address as the default address
-func (s *AddressServiceImpl) SetDefaultAddress(addressID uint, userID uint) (*model.AddressResponse, error) {
+func (s *AddressServiceImpl) SetDefaultAddress(
+	addressID uint,
+	userID uint,
+) (*model.AddressResponse, error) {
 	if err := s.addressRepo.SetDefault(addressID, userID); err != nil {
 		return nil, err
 	}

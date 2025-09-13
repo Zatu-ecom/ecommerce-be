@@ -59,7 +59,10 @@ func (r *CategoryRepositoryImpl) FindByID(id uint) (*entity.Category, error) {
 }
 
 // FindByNameAndParent finds a category by name and parent ID
-func (r *CategoryRepositoryImpl) FindByNameAndParent(name string, parentID *uint) (*entity.Category, error) {
+func (r *CategoryRepositoryImpl) FindByNameAndParent(
+	name string,
+	parentID *uint,
+) (*entity.Category, error) {
 	var category entity.Category
 	var query *gorm.DB
 
@@ -147,9 +150,12 @@ func (r *CategoryRepositoryImpl) Exists(id uint) error {
 
 // This method will return all attributes associated with a category,
 // including inherited attributes from parent categories
-func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(catagoryID uint) ([]entity.AttributeDefinition, error) {
+func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(
+	catagoryID uint,
+) ([]entity.AttributeDefinition, error) {
 	var attributes []entity.AttributeDefinition
-	result := r.db.Raw(query.FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY, catagoryID).Scan(&attributes)
+	result := r.db.Raw(query.FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY, catagoryID).
+		Scan(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
 	}

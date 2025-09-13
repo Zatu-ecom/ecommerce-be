@@ -29,14 +29,23 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
 		return
 	}
 
 	// Get addresses
 	addresses, err := h.addressService.GetAddresses(userID.(uint))
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToGetAddressesMsg+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FailedToGetAddressesMsg+": "+err.Error(),
+		)
 		return
 	}
 
@@ -50,7 +59,12 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
 		return
 	}
 
@@ -61,14 +75,24 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 			Field:   utils.RequestFieldName,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.ValidationFailedMsg, validationErrors, utils.ValidationErrorCode)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.ValidationFailedMsg,
+			validationErrors,
+			utils.ValidationErrorCode,
+		)
 		return
 	}
 
 	// Add address
 	address, err := h.addressService.AddAddress(userID.(uint), req)
 	if err != nil {
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToAddAddressMsg+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FailedToAddAddressMsg+": "+err.Error(),
+		)
 		return
 	}
 
@@ -82,14 +106,24 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
 		return
 	}
 
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidAddressIDMsg, utils.InvalidIDCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			utils.InvalidAddressIDMsg,
+			utils.InvalidIDCode,
+		)
 		return
 	}
 
@@ -100,7 +134,13 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 			Field:   utils.RequestFieldName,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(c, http.StatusBadRequest, utils.ValidationFailedMsg, validationErrors, utils.ValidationErrorCode)
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			utils.ValidationFailedMsg,
+			validationErrors,
+			utils.ValidationErrorCode,
+		)
 		return
 	}
 
@@ -111,7 +151,12 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.AddressNotFoundCode)
 			return
 		}
-		common.ErrorWithCode(c, http.StatusForbidden, utils.PermissionDeniedMsg, utils.PermissionDeniedCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusForbidden,
+			utils.PermissionDeniedMsg,
+			utils.PermissionDeniedCode,
+		)
 		return
 	}
 
@@ -125,14 +170,24 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
 		return
 	}
 
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidAddressIDMsg, utils.InvalidIDCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			utils.InvalidAddressIDMsg,
+			utils.InvalidIDCode,
+		)
 		return
 	}
 
@@ -144,10 +199,19 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 			return
 		}
 		if err.Error() == utils.CannotDeleteOnlyDefaultAddressMsg {
-			common.ErrorWithCode(c, http.StatusBadRequest, utils.CannotDeleteDefaultMsg, utils.CannotDeleteDefaultCode)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				utils.CannotDeleteDefaultMsg,
+				utils.CannotDeleteDefaultCode,
+			)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToDeleteAddressMsg+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FailedToDeleteAddressMsg+": "+err.Error(),
+		)
 		return
 	}
 
@@ -159,14 +223,24 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(utils.UserIDKey)
 	if !exists {
-		common.ErrorWithCode(c, http.StatusUnauthorized, utils.AuthenticationRequiredMsg, utils.AuthRequiredCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
 		return
 	}
 
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(c, http.StatusBadRequest, utils.InvalidAddressIDMsg, utils.InvalidIDCode)
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			utils.InvalidAddressIDMsg,
+			utils.InvalidIDCode,
+		)
 		return
 	}
 
@@ -177,7 +251,11 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.AddressNotFoundCode)
 			return
 		}
-		common.ErrorResp(c, http.StatusInternalServerError, utils.FailedToSetDefaultAddressMsg+": "+err.Error())
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FailedToSetDefaultAddressMsg+": "+err.Error(),
+		)
 		return
 	}
 

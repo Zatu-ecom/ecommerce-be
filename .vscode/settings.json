@@ -1,0 +1,19 @@
+{
+  // Enable format on save
+  "editor.formatOnSave": true,
+
+  // Use Go extension's formatter
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
+  },
+
+  // Run golines (with gofumpt) on save
+  "go.formatTool": "golines",
+  "go.alternateTools": {
+    "golines": "golines"
+  },
+  "go.formatFlags": [
+    "--max-len=100",
+    "--base-formatter=gofumpt"
+  ]
+}
