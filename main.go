@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	productManagement "ecommerce-be/product_management"
 	userManagement "ecommerce-be/user_management"
@@ -19,9 +20,9 @@ func main() {
 	if err != nil {
 		log.Println("No .env file found")
 	}
-	
+
 	/* Connect Database */
-	common.ConnectDB()
+	db.ConnectDB(autoMigrations())
 
 	/* Connect Redis */
 	common.ConnectRedis()
@@ -49,4 +50,11 @@ func main() {
 func registerContainer(router *gin.Engine) {
 	_ = userManagement.NewContainer(router)
 	_ = productManagement.NewContainer(router)
+}
+
+func autoMigrations() []db.AutoMigrate {
+	return []db.AutoMigrate{
+		userManagement.NewUserAutoMigrate(),
+		productManagement.NewProductAutoMigrate(),
+	}
 }

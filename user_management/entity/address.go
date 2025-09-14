@@ -1,9 +1,9 @@
 package entity
 
-import "ecommerce-be/common/entity"
+import "ecommerce-be/common/db"
 
 type Address struct {
-	entity.BaseEntity
+	db.BaseEntity
 	UserID    uint   `json:"userId"`
 	Street    string `json:"street"    binding:"required"`
 	City      string `json:"city"      binding:"required"`

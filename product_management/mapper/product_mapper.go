@@ -1,6 +1,6 @@
 package mapper
 
-import "ecommerce-be/common/entity"
+import "ecommerce-be/common/db"
 
 type CategoryWithProductCount struct {
 	CategoryID   uint   `json:"category_id"`
@@ -12,7 +12,7 @@ type CategoryWithProductCount struct {
 type AttributeWithProductCount struct {
 	Name          string             `json:"name"`
 	Key           string             `json:"key"`
-	AllowedValues entity.StringArray `json:"allowed_values"`
+	AllowedValues db.StringArray `json:"allowed_values"`
 	ProductCount  uint               `json:"product_count"`
 }
 

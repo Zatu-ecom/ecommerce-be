@@ -1,12 +1,12 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 // TODO : Remove isActive field remove all
 type Product struct {
-	entity.BaseEntity
+	db.BaseEntity
 	Name             string             `json:"name"             binding:"required" gorm:"column:name"`
 	CategoryID       uint               `json:"categoryId"       binding:"required" gorm:"column:category_id"`
 	Brand            string             `json:"brand"                               gorm:"column:brand"`
@@ -15,11 +15,11 @@ type Product struct {
 	Currency         string             `json:"currency"                            gorm:"column:currency;default:USD"`
 	ShortDescription string             `json:"shortDescription"                    gorm:"column:short_description"`
 	LongDescription  string             `json:"longDescription"                     gorm:"column:long_description"`
-	Images           entity.StringArray `json:"images"                              gorm:"column:images;type:text[]"`
+	Images           db.StringArray `json:"images"                              gorm:"column:images;type:text[]"`
 	InStock          bool               `json:"inStock"                             gorm:"column:in_stock;default:true"`
 	IsPopular        bool               `json:"isPopular"                           gorm:"column:is_popular;default:false"`
 	Discount         int                `json:"discount"                            gorm:"column:discount;default:0"`
-	Tags             entity.StringArray `json:"tags"                                gorm:"column:tags;type:text[]"`
+	Tags             db.StringArray `json:"tags"                                gorm:"column:tags;type:text[]"`
 
 	// Relationships - use pointers to avoid N+1 queries
 	Category *Category `json:"category,omitempty" gorm:"foreignKey:category_id;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`

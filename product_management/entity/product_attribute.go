@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 type ProductAttribute struct {
-	entity.BaseEntity
+	db.BaseEntity
 	ProductID             uint   `json:"productId"             gorm:"column:product_id;not null"`
 	AttributeDefinitionID uint   `json:"attributeDefinitionId" gorm:"column:attribute_definition_id;not null"`
 	Value                 string `json:"value"                 gorm:"column:value;not null"`

@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"ecommerce-be/common"
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/user_management/handlers"
 	"ecommerce-be/user_management/repositories"
@@ -15,7 +15,7 @@ type AddressModule struct {
 }
 
 func NewAddressModule() *AddressModule {
-	addressRepo := repositories.NewAddressRepository(common.GetDB())
+	addressRepo := repositories.NewAddressRepository(db.GetDB())
 	addressService := service.NewAddressService(addressRepo)
 
 	return &AddressModule{

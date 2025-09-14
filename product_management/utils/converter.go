@@ -3,7 +3,7 @@ package utils
 import (
 	"time"
 
-	commonEntity "ecommerce-be/common/entity"
+	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product_management/entity"
 	"ecommerce-be/product_management/mapper"
 	"ecommerce-be/product_management/model"

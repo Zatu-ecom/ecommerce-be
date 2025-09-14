@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 type PackageOption struct {
-	entity.BaseEntity
+	db.BaseEntity
 	ProductID   uint    `json:"productId"   gorm:"column:product_id;not null"`
 	Name        string  `json:"name"        gorm:"column:name"                binding:"required"`
 	Description string  `json:"description" gorm:"column:description"`

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	commonEntity "ecommerce-be/common/entity"
+	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product_management/entity"
 	"ecommerce-be/product_management/model"
 	"ecommerce-be/product_management/repositories"
