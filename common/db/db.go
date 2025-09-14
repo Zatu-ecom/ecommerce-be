@@ -1,12 +1,9 @@
-package common
+package db
 
 import (
 	"fmt"
 	"log"
 	"os"
-
-	productEntity "ecommerce-be/product_management/entity"
-	userEntity "ecommerce-be/user_management/entity"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -16,7 +13,7 @@ import (
 
 var db *gorm.DB
 
-func ConnectDB() {
+func ConnectDB(autoMigrations []AutoMigrate) {
 	/* PostgreSQL connection string */
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
@@ -44,16 +41,14 @@ func ConnectDB() {
 	db = _db
 	fmt.Println("🚀 Database connected successfully!")
 
-	/* Auto-migrate tables */
-	db.AutoMigrate(
-		// User Management
-		&userEntity.User{}, &userEntity.Address{},
-
-		// Product Management
-		&productEntity.Category{}, &productEntity.Product{},
-		&productEntity.AttributeDefinition{}, &productEntity.CategoryAttribute{},
-		&productEntity.ProductAttribute{}, &productEntity.PackageOption{},
-	)
+	
+	// /* Auto-migrate tables */
+	for _, migration := range autoMigrations {
+		err := db.AutoMigrate(migration.AutoMigrate()...)
+		if err != nil {
+			log.Fatal("Failed to migrate database: ", err)
+		}
+	}
 }
 
 func GetDB() *gorm.DB {
@@ -80,4 +75,8 @@ func CloseDB() {
 	} else {
 		log.Println("Database connection closed")
 	}
+}
+
+type AutoMigrate interface {
+	AutoMigrate() []interface{}
 }

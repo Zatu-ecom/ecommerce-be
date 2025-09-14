@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"ecommerce-be/common"
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product_management/handlers"
 	"ecommerce-be/product_management/repositories"
@@ -17,9 +17,9 @@ type ProductModule struct {
 
 // NewProductModule creates a new instance of ProductModule
 func NewProductModule() *ProductModule {
-	categoryRepo := repositories.NewCategoryRepository(common.GetDB())
-	attributeRepo := repositories.NewAttributeDefinitionRepository(common.GetDB())
-	productRepo := repositories.NewProductRepository(common.GetDB())
+	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
+	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
+	productRepo := repositories.NewProductRepository(db.GetDB())
 
 	productService := service.NewProductService(productRepo, categoryRepo, attributeRepo)
 

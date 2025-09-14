@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"ecommerce-be/common"
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/user_management/handlers"
 	"ecommerce-be/user_management/repositories"
@@ -17,10 +17,10 @@ type UserModule struct {
 
 // NewUserModule creates a new instance of UserModule
 func NewUserModule() *UserModule {
-	addressRepo := repositories.NewAddressRepository(common.GetDB())
+	addressRepo := repositories.NewAddressRepository(db.GetDB())
 	addressService := service.NewAddressService(addressRepo)
 
-	userRepo := repositories.NewUserRepository(common.GetDB())
+	userRepo := repositories.NewUserRepository(db.GetDB())
 	userService := service.NewUserService(userRepo, addressService)
 
 	return &UserModule{

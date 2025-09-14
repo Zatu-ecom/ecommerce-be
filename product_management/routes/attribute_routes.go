@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"ecommerce-be/common"
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product_management/handlers"
 	"ecommerce-be/product_management/repositories"
@@ -17,7 +17,7 @@ type AttributeModule struct {
 
 // NewAttributeModule creates a new instance of AttributeModule
 func NewAttributeModule() *AttributeModule {
-	attributeRepo := repositories.NewAttributeDefinitionRepository(common.GetDB())
+	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
 	attributeService := service.NewAttributeDefinitionService(attributeRepo)
 
 	return &AttributeModule{

@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 type Category struct {
-	entity.BaseEntity
+	db.BaseEntity
 	Name        string `json:"name"        binding:"required" gorm:"column:name"`
 	ParentID    *uint  `json:"parentId"                       gorm:"column:parent_id"`
 	Description string `json:"description"                    gorm:"column:description"`

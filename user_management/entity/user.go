@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 type User struct {
-	entity.BaseEntity
+	db.BaseEntity
 	FirstName   string `json:"firstName"   binding:"required"`
 	LastName    string `json:"lastName"    binding:"required"`
 	Email       string `json:"email"       binding:"required,email" gorm:"unique"`

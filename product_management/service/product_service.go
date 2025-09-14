@@ -5,8 +5,8 @@ import (
 	"math"
 	"time"
 
-	"ecommerce-be/common"
-	commonEntity "ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
+	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product_management/entity"
 	"ecommerce-be/product_management/mapper"
 	"ecommerce-be/product_management/model"
@@ -63,7 +63,7 @@ func (s *ProductServiceImpl) CreateProduct(
 	var attributes []*entity.ProductAttribute
 	var packageOptions []entity.PackageOption
 
-	err := common.Atomic(func(tx *gorm.DB) error {
+	err := db.Atomic(func(tx *gorm.DB) error {
 		// Validate request
 		if err := s.validateProductCreateRequest(req); err != nil {
 			return err

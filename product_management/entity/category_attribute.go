@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"ecommerce-be/common/entity"
+	"ecommerce-be/common/db"
 )
 
 type CategoryAttribute struct {
-	entity.BaseEntity
+	db.BaseEntity
 	CategoryID            uint   `json:"categoryId"            gorm:"column:category_id;not null"`
 	AttributeDefinitionID uint   `json:"attributeDefinitionId" gorm:"column:attribute_definition_id;not null"`
 	IsRequired            bool   `json:"isRequired"            gorm:"column:is_required;default:false"`

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"ecommerce-be/common"
-	commonEntity "ecommerce-be/common/entity"
+	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/user_management/entity"
 	"ecommerce-be/user_management/model"
 	"ecommerce-be/user_management/repositories"
