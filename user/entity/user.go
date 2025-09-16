@@ -14,4 +14,7 @@ type User struct {
 	DateOfBirth string `json:"dateOfBirth"`
 	Gender      string `json:"gender"`
 	IsActive    bool   `json:"isActive"                             gorm:"default:true"`
+
+	// --- Role and Profile Links ---
+	RoleID uint `json:"roleId" gorm:"not null"`
 }
