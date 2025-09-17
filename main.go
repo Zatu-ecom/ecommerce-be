@@ -8,8 +8,11 @@ import (
 	"ecommerce-be/common"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
-	productManagement "ecommerce-be/product_management"
-	userManagement "ecommerce-be/user_management"
+	"ecommerce-be/notification"
+	"ecommerce-be/order"
+	"ecommerce-be/payment"
+	product "ecommerce-be/product"
+	user "ecommerce-be/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -48,13 +51,16 @@ func main() {
 }
 
 func registerContainer(router *gin.Engine) {
-	_ = userManagement.NewContainer(router)
-	_ = productManagement.NewContainer(router)
+	_ = user.NewContainer(router)
+	_ = product.NewContainer(router)
+	_ = order.NewContainer(router)
+	_ = payment.NewContainer(router)
+	_ = notification.NewContainer(router)
 }
 
 func autoMigrations() []db.AutoMigrate {
 	return []db.AutoMigrate{
-		userManagement.NewUserAutoMigrate(),
-		productManagement.NewProductAutoMigrate(),
+		user.NewUserAutoMigrate(),
+		product.NewProductAutoMigrate(),
 	}
 }
