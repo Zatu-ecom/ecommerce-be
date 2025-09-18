@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"ecommerce-be/common"
+	"ecommerce-be/common/cache"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/notification"
@@ -28,7 +28,7 @@ func main() {
 	db.ConnectDB(autoMigrations())
 
 	/* Connect Redis */
-	common.ConnectRedis()
+	cache.ConnectRedis()
 
 	/* Initialize Gin Router */
 	gin.SetMode(gin.ReleaseMode) // Set to release mode for production

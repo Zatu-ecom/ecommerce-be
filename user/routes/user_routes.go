@@ -28,10 +28,13 @@ func NewUserModule() *UserModule {
 	}
 }
 
+// TODO: We have to reate different routes for Seller or can be use existing regester route
+// but in that case we have to add seller details in the register request
+
 // RegisterRoutes registers all user-related routes
 func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	auth := middleware.CustomerAuth()
 
 	// Authentication routes
 	authRoutes := router.Group("/api/auth")

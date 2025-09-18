@@ -24,6 +24,7 @@ func NewContainer(router *gin.Engine) *common.Container {
 }
 
 /* Register all modules (Users, Auth, etc.) */
+// TODO: we have to create different modules for subscription and plan
 func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewAddressModule())
 	c.RegisterModule(routes.NewUserModule())

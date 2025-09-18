@@ -16,5 +16,11 @@ type User struct {
 	IsActive    bool   `json:"isActive"                             gorm:"default:true"`
 
 	// --- Role and Profile Links ---
-	RoleID uint `json:"roleId" gorm:"not null"`
+	RoleID uint `json:"roleId" gorm:"not null;default:3"`
+
+	// --- Seller ID ---
+	// Each normal user will be associated with a seller,
+	// except for admin, super admin, and the seller themselves.
+	// so this can be null for admin, super admin, and the seller themselves.
+	SellerID uint `json:"sellerId"`
 }

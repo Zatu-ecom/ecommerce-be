@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/auth"
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
@@ -182,7 +183,11 @@ func NewTestHelper(router *gin.Engine, db *gorm.DB) *TestHelper {
 }
 
 // CreateTestCategory creates a test category in the database
-func (th *TestHelper) CreateTestCategory(t *testing.T, name, description string, parentID *uint) *entity.Category {
+func (th *TestHelper) CreateTestCategory(
+	t *testing.T,
+	name, description string,
+	parentID *uint,
+) *entity.Category {
 	category := &entity.Category{
 		Name:        name,
 		Description: description,
@@ -200,7 +205,11 @@ func (th *TestHelper) CreateTestCategory(t *testing.T, name, description string,
 }
 
 // CreateTestAttribute creates a test attribute definition in the database
-func (th *TestHelper) CreateTestAttribute(t *testing.T, key, name, dataType, unit, description string, allowedValues []string) *entity.AttributeDefinition {
+func (th *TestHelper) CreateTestAttribute(
+	t *testing.T,
+	key, name, dataType, unit, description string,
+	allowedValues []string,
+) *entity.AttributeDefinition {
 	attribute := &entity.AttributeDefinition{
 		Key:           key,
 		Name:          name,
@@ -219,7 +228,13 @@ func (th *TestHelper) CreateTestAttribute(t *testing.T, key, name, dataType, uni
 }
 
 // CreateTestProduct creates a test product in the database
-func (th *TestHelper) CreateTestProduct(t *testing.T, categoryID uint, name, brand, sku string, price float64, currency string) *entity.Product {
+func (th *TestHelper) CreateTestProduct(
+	t *testing.T,
+	categoryID uint,
+	name, brand, sku string,
+	price float64,
+	currency string,
+) *entity.Product {
 	product := &entity.Product{
 		Name:             name,
 		CategoryID:       categoryID,
@@ -247,7 +262,13 @@ func (th *TestHelper) CreateTestProduct(t *testing.T, categoryID uint, name, bra
 }
 
 // CreateTestCategoryAttribute creates a test category attribute association
-func (th *TestHelper) CreateTestCategoryAttribute(t *testing.T, categoryID, attributeID uint, isRequired, isSearchable, isFilterable bool, sortOrder int, defaultValue string) *entity.CategoryAttribute {
+func (th *TestHelper) CreateTestCategoryAttribute(
+	t *testing.T,
+	categoryID, attributeID uint,
+	isRequired, isSearchable, isFilterable bool,
+	sortOrder int,
+	defaultValue string,
+) *entity.CategoryAttribute {
 	catAttr := &entity.CategoryAttribute{
 		CategoryID:            categoryID,
 		AttributeDefinitionID: attributeID,
@@ -268,7 +289,11 @@ func (th *TestHelper) CreateTestCategoryAttribute(t *testing.T, categoryID, attr
 }
 
 // CreateTestProductAttribute creates a test product attribute value
-func (th *TestHelper) CreateTestProductAttribute(t *testing.T, productID, attributeID uint, key, value string) *entity.ProductAttribute {
+func (th *TestHelper) CreateTestProductAttribute(
+	t *testing.T,
+	productID, attributeID uint,
+	key, value string,
+) *entity.ProductAttribute {
 	prodAttr := &entity.ProductAttribute{
 		ProductID:             productID,
 		AttributeDefinitionID: attributeID,
@@ -286,7 +311,13 @@ func (th *TestHelper) CreateTestProductAttribute(t *testing.T, productID, attrib
 }
 
 // CreateTestPackageOption creates a test package option for a product
-func (th *TestHelper) CreateTestPackageOption(t *testing.T, productID uint, name, description string, price float64, quantity int) *entity.PackageOption {
+func (th *TestHelper) CreateTestPackageOption(
+	t *testing.T,
+	productID uint,
+	name, description string,
+	price float64,
+	quantity int,
+) *entity.PackageOption {
 	pkgOpt := &entity.PackageOption{
 		ProductID:   productID,
 		Name:        name,
@@ -331,7 +362,12 @@ func NewHTTPTestHelper(router *gin.Engine) *HTTPTestHelper {
 }
 
 // MakeRequest makes an HTTP request and returns the response
-func (hth *HTTPTestHelper) MakeRequest(t *testing.T, method, path string, body interface{}, headers map[string]string) *httptest.ResponseRecorder {
+func (hth *HTTPTestHelper) MakeRequest(
+	t *testing.T,
+	method, path string,
+	body interface{},
+	headers map[string]string,
+) *httptest.ResponseRecorder {
 	var reqBody []byte
 	var err error
 
@@ -362,8 +398,19 @@ func (hth *HTTPTestHelper) MakeRequest(t *testing.T, method, path string, body i
 }
 
 // AssertResponseSuccess asserts that the response indicates success
-func (hth *HTTPTestHelper) AssertResponseSuccess(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) {
-	assert.Equal(t, expectedStatus, w.Code, "Expected status code %d, got %d", expectedStatus, w.Code)
+func (hth *HTTPTestHelper) AssertResponseSuccess(
+	t *testing.T,
+	w *httptest.ResponseRecorder,
+	expectedStatus int,
+) {
+	assert.Equal(
+		t,
+		expectedStatus,
+		w.Code,
+		"Expected status code %d, got %d",
+		expectedStatus,
+		w.Code,
+	)
 
 	var response common.Response
 	err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -374,8 +421,20 @@ func (hth *HTTPTestHelper) AssertResponseSuccess(t *testing.T, w *httptest.Respo
 }
 
 // AssertResponseError asserts that the response indicates an error
-func (hth *HTTPTestHelper) AssertResponseError(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedCode string) {
-	assert.Equal(t, expectedStatus, w.Code, "Expected status code %d, got %d", expectedStatus, w.Code)
+func (hth *HTTPTestHelper) AssertResponseError(
+	t *testing.T,
+	w *httptest.ResponseRecorder,
+	expectedStatus int,
+	expectedCode string,
+) {
+	assert.Equal(
+		t,
+		expectedStatus,
+		w.Code,
+		"Expected status code %d, got %d",
+		expectedStatus,
+		w.Code,
+	)
 
 	var response common.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -384,13 +443,32 @@ func (hth *HTTPTestHelper) AssertResponseError(t *testing.T, w *httptest.Respons
 	assert.False(t, response.Success, "Expected error response")
 	assert.NotEmpty(t, response.Message, "Expected non-empty error message")
 	if expectedCode != "" {
-		assert.Equal(t, expectedCode, response.Code, "Expected error code %s, got %s", expectedCode, response.Code)
+		assert.Equal(
+			t,
+			expectedCode,
+			response.Code,
+			"Expected error code %s, got %s",
+			expectedCode,
+			response.Code,
+		)
 	}
 }
 
 // AssertValidationError asserts that the response indicates a validation error
-func (hth *HTTPTestHelper) AssertValidationError(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedCode string) {
-	assert.Equal(t, expectedStatus, w.Code, "Expected status code %d, got %d", expectedStatus, w.Code)
+func (hth *HTTPTestHelper) AssertValidationError(
+	t *testing.T,
+	w *httptest.ResponseRecorder,
+	expectedStatus int,
+	expectedCode string,
+) {
+	assert.Equal(
+		t,
+		expectedStatus,
+		w.Code,
+		"Expected status code %d, got %d",
+		expectedStatus,
+		w.Code,
+	)
 
 	var response common.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -400,13 +478,23 @@ func (hth *HTTPTestHelper) AssertValidationError(t *testing.T, w *httptest.Respo
 	assert.NotEmpty(t, response.Message, "Expected non-empty validation message")
 	assert.NotNil(t, response.Errors, "Expected validation errors")
 	if expectedCode != "" {
-		assert.Equal(t, expectedCode, response.Code, "Expected validation error code %s, got %s", expectedCode, response.Code)
+		assert.Equal(
+			t,
+			expectedCode,
+			response.Code,
+			"Expected validation error code %s, got %s",
+			expectedCode,
+			response.Code,
+		)
 	}
 }
 
 // GenerateTestToken generates a test JWT token for authentication
 func (hth *HTTPTestHelper) GenerateTestToken(t *testing.T, userID uint, email string) string {
-	token, err := common.GenerateToken(userID, email, os.Getenv("JWT_SECRET"))
+	token, err := auth.GenerateToken(
+		auth.TokenUserInfo{UserID: userID, Email: email},
+		os.Getenv("JWT_SECRET"),
+	)
 	require.NoError(t, err, "Failed to generate test token")
 	return token
 }
@@ -419,7 +507,11 @@ func generateTestToken() string {
 }
 
 // GetAuthHeaders returns headers with authentication token
-func (hth *HTTPTestHelper) GetAuthHeaders(t *testing.T, userID uint, email string) map[string]string {
+func (hth *HTTPTestHelper) GetAuthHeaders(
+	t *testing.T,
+	userID uint,
+	email string,
+) map[string]string {
 	token := hth.GenerateTestToken(t, userID, email)
 	return map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", token),
@@ -427,32 +519,97 @@ func (hth *HTTPTestHelper) GetAuthHeaders(t *testing.T, userID uint, email strin
 }
 
 // Test utilities for common assertions
-func AssertCategoryResponse(t *testing.T, response *model.CategoryResponse, expectedName, expectedDescription string) {
+func AssertCategoryResponse(
+	t *testing.T,
+	response *model.CategoryResponse,
+	expectedName, expectedDescription string,
+) {
 	assert.NotZero(t, response.ID, "Expected non-zero category ID")
-	assert.Equal(t, expectedName, response.Name, "Expected category name %s, got %s", expectedName, response.Name)
-	assert.Equal(t, expectedDescription, response.Description, "Expected category description %s, got %s", expectedDescription, response.Description)
+	assert.Equal(
+		t,
+		expectedName,
+		response.Name,
+		"Expected category name %s, got %s",
+		expectedName,
+		response.Name,
+	)
+	assert.Equal(
+		t,
+		expectedDescription,
+		response.Description,
+		"Expected category description %s, got %s",
+		expectedDescription,
+		response.Description,
+	)
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 	assert.NotEmpty(t, response.UpdatedAt, "Expected non-empty updated at")
 }
 
-func AssertAttributeResponse(t *testing.T, response *model.AttributeDefinitionResponse, expectedKey, expectedName, expectedDataType string) {
+func AssertAttributeResponse(
+	t *testing.T,
+	response *model.AttributeDefinitionResponse,
+	expectedKey, expectedName, expectedDataType string,
+) {
 	assert.NotZero(t, response.ID, "Expected non-zero attribute ID")
-	assert.Equal(t, expectedKey, response.Key, "Expected attribute key %s, got %s", expectedKey, response.Key)
-	assert.Equal(t, expectedName, response.Name, "Expected attribute name %s, got %s", expectedName, response.Name)
+	assert.Equal(
+		t,
+		expectedKey,
+		response.Key,
+		"Expected attribute key %s, got %s",
+		expectedKey,
+		response.Key,
+	)
+	assert.Equal(
+		t,
+		expectedName,
+		response.Name,
+		"Expected attribute name %s, got %s",
+		expectedName,
+		response.Name,
+	)
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 }
 
-func AssertProductResponse(t *testing.T, response *model.ProductResponse, expectedName, expectedSKU string, expectedPrice float64) {
+func AssertProductResponse(
+	t *testing.T,
+	response *model.ProductResponse,
+	expectedName, expectedSKU string,
+	expectedPrice float64,
+) {
 	assert.NotZero(t, response.ID, "Expected non-zero product ID")
-	assert.Equal(t, expectedName, response.Name, "Expected product name %s, got %s", expectedName, response.Name)
-	assert.Equal(t, expectedSKU, response.SKU, "Expected product SKU %s, got %s", expectedSKU, response.SKU)
-	assert.Equal(t, expectedPrice, response.Price, "Expected product price %f, got %f", expectedPrice, response.Price)
+	assert.Equal(
+		t,
+		expectedName,
+		response.Name,
+		"Expected product name %s, got %s",
+		expectedName,
+		response.Name,
+	)
+	assert.Equal(
+		t,
+		expectedSKU,
+		response.SKU,
+		"Expected product SKU %s, got %s",
+		expectedSKU,
+		response.SKU,
+	)
+	assert.Equal(
+		t,
+		expectedPrice,
+		response.Price,
+		"Expected product price %f, got %f",
+		expectedPrice,
+		response.Price,
+	)
 	assert.NotEmpty(t, response.CreatedAt, "Expected non-empty created at")
 	assert.NotEmpty(t, response.UpdatedAt, "Expected non-empty updated at")
 }
 
 // Test data builders
-func BuildCategoryCreateRequest(name, description string, parentID *uint) model.CategoryCreateRequest {
+func BuildCategoryCreateRequest(
+	name, description string,
+	parentID *uint,
+) model.CategoryCreateRequest {
 	return model.CategoryCreateRequest{
 		Name:        name,
 		Description: description,
@@ -460,7 +617,10 @@ func BuildCategoryCreateRequest(name, description string, parentID *uint) model.
 	}
 }
 
-func BuildCategoryUpdateRequest(name, description string, parentID *uint) model.CategoryUpdateRequest {
+func BuildCategoryUpdateRequest(
+	name, description string,
+	parentID *uint,
+) model.CategoryUpdateRequest {
 	return model.CategoryUpdateRequest{
 		Name:        name,
 		Description: description,
@@ -468,7 +628,10 @@ func BuildCategoryUpdateRequest(name, description string, parentID *uint) model.
 	}
 }
 
-func BuildAttributeCreateRequest(key, name, dataType, unit, description string, allowedValues []string) model.AttributeDefinitionCreateRequest {
+func BuildAttributeCreateRequest(
+	key, name, dataType, unit, description string,
+	allowedValues []string,
+) model.AttributeDefinitionCreateRequest {
 	return model.AttributeDefinitionCreateRequest{
 		Key:           key,
 		Name:          name,
@@ -478,7 +641,10 @@ func BuildAttributeCreateRequest(key, name, dataType, unit, description string, 
 	}
 }
 
-func BuildAttributeUpdateRequest(key, name, dataType, unit, description string, allowedValues []string) model.AttributeDefinitionUpdateRequest {
+func BuildAttributeUpdateRequest(
+	key, name, dataType, unit, description string,
+	allowedValues []string,
+) model.AttributeDefinitionUpdateRequest {
 	return model.AttributeDefinitionUpdateRequest{
 		Name:          name,
 		Unit:          unit,
@@ -487,7 +653,14 @@ func BuildAttributeUpdateRequest(key, name, dataType, unit, description string, 
 	}
 }
 
-func BuildProductCreateRequest(name string, categoryID uint, brand, sku string, price float64, currency string, shortDescription, longDescription string) model.ProductCreateRequest {
+func BuildProductCreateRequest(
+	name string,
+	categoryID uint,
+	brand, sku string,
+	price float64,
+	currency string,
+	shortDescription, longDescription string,
+) model.ProductCreateRequest {
 	return model.ProductCreateRequest{
 		Name:             name,
 		CategoryID:       categoryID,
@@ -511,7 +684,14 @@ func BuildProductCreateRequest(name string, categoryID uint, brand, sku string, 
 	}
 }
 
-func BuildProductUpdateRequest(name string, categoryID uint, brand, sku string, price float64, currency string, shortDescription, longDescription string) model.ProductUpdateRequest {
+func BuildProductUpdateRequest(
+	name string,
+	categoryID uint,
+	brand, sku string,
+	price float64,
+	currency string,
+	shortDescription, longDescription string,
+) model.ProductUpdateRequest {
 	return model.ProductUpdateRequest{
 		Name:             name,
 		CategoryID:       categoryID,
@@ -527,7 +707,13 @@ func BuildProductUpdateRequest(name string, categoryID uint, brand, sku string, 
 	}
 }
 
-func BuildSearchQuery(query string, categoryID *uint, minPrice, maxPrice *float64, attributes map[string]string, page, limit int) model.SearchQuery {
+func BuildSearchQuery(
+	query string,
+	categoryID *uint,
+	minPrice, maxPrice *float64,
+	attributes map[string]string,
+	page, limit int,
+) model.SearchQuery {
 	filters := make(map[string]interface{})
 	if categoryID != nil {
 		filters["categoryId"] = *categoryID

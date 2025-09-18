@@ -28,7 +28,7 @@ func NewAttributeModule() *AttributeModule {
 // RegisterRoutes registers all attribute-related routes
 func (m *AttributeModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	auth := middleware.SellerAuth()
 
 	// Attribute routes
 	attributeRoutes := router.Group("/api/attributes")

@@ -31,7 +31,7 @@ func NewProductModule() *ProductModule {
 // RegisterRoutes registers all product-related routes
 func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	auth := middleware.SellerAuth()
 
 	// Product routes
 	productRoutes := router.Group("/api/products")

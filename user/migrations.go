@@ -10,6 +10,10 @@ func (u *UserAutoMigrate) AutoMigrate() []interface{} {
 	return []interface{}{
 		&entity.User{},
 		&entity.Address{},
+		&entity.Plan{},
+		&entity.Subscription{},
+		&entity.Role{},
+		&entity.SellerProfile{},
 	}
 }
 

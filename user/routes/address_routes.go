@@ -26,7 +26,7 @@ func NewAddressModule() *AddressModule {
 // RegisterRoutes registers all user-related routes
 func (m *AddressModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	auth := middleware.CustomerAuth()
 
 	// Address routes (protected)
 	userRoutes := router.Group("/api/users")

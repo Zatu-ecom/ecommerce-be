@@ -28,7 +28,7 @@ func NewCategoryModule() *CategoryModule {
 // RegisterRoutes registers all category-related routes
 func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	auth := middleware.SellerAuth()
 
 	// Category routes
 	categoryRoutes := router.Group("/api/categories")
