@@ -1,10 +1,12 @@
-package common
+package cache
 
 import (
 	"context"
 	"errors"
 	"os"
 	"time"
+
+	"ecommerce-be/common/constants"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -37,7 +39,7 @@ func ConnectRedis() error {
 // GetRedisClient returns the Redis client instance
 func GetRedisClient() (*redis.Client, error) {
 	if redisClient == nil {
-		return nil, errors.New(REDIS_NOT_INITIALIZED_MSG)
+		return nil, errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient, nil
 }
@@ -45,7 +47,7 @@ func GetRedisClient() (*redis.Client, error) {
 // SetKey sets a key-value pair in Redis with expiration
 func SetKey(key string, value interface{}, expiration time.Duration) error {
 	if redisClient == nil {
-		return errors.New(REDIS_NOT_INITIALIZED_MSG)
+		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
@@ -53,7 +55,7 @@ func SetKey(key string, value interface{}, expiration time.Duration) error {
 // GetKey retrieves a value from Redis
 func GetKey(key string) (string, error) {
 	if redisClient == nil {
-		return "", errors.New(REDIS_NOT_INITIALIZED_MSG)
+		return "", errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Get(ctx, key).Result()
 }
@@ -61,7 +63,7 @@ func GetKey(key string) (string, error) {
 // DelKey deletes a key from Redis
 func DelKey(key string) error {
 	if redisClient == nil {
-		return errors.New(REDIS_NOT_INITIALIZED_MSG)
+		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Del(ctx, key).Err()
 }

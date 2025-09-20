@@ -5,7 +5,7 @@ import (
 )
 
 // SellerProfile holds all business-specific data for a User whose role is SELLER.
-type SellerDetails struct {
+type SellerProfile struct {
 	db.BaseEntityWithoutID
 	UserID uint `json:"userId" gorm:"primaryKey"`
 
