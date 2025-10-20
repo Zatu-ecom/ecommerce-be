@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
-	"ecommerce-be/common"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -14,12 +13,14 @@ import (
 
 // ProductOptionHandler handles HTTP requests related to product options
 type ProductOptionHandler struct {
+	*BaseHandler
 	optionService service.ProductOptionService
 }
 
 // NewProductOptionHandler creates a new instance of ProductOptionHandler
 func NewProductOptionHandler(optionService service.ProductOptionService) *ProductOptionHandler {
 	return &ProductOptionHandler{
+		BaseHandler:   NewBaseHandler(),
 		optionService: optionService,
 	}
 }
@@ -27,257 +28,93 @@ func NewProductOptionHandler(optionService service.ProductOptionService) *Produc
 // CreateOption handles product option creation
 func (h *ProductOptionHandler) CreateOption(c *gin.Context) {
 	// Parse product ID from URL
-	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
+	productID, err := h.ParseUintParam(c, "productId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_PRODUCT_ID_MSG,
-			utils.INVALID_PRODUCT_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid product ID")
 		return
 	}
 
 	// Bind request body
 	var req model.ProductOptionCreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
-			Field:   utils.REQUEST_FIELD_NAME,
-			Message: err.Error(),
-		})
-		common.ErrorWithValidation(
-			c,
-			http.StatusBadRequest,
-			utils.VALIDATION_FAILED_MSG,
-			validationErrors,
-			utils.VALIDATION_ERROR_CODE,
-		)
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
 		return
 	}
 
 	// Create option
-	optionResponse, err := h.optionService.CreateOption(uint(productID), req)
+	optionResponse, err := h.optionService.CreateOption(productID, req)
 	if err != nil {
-		// Handle specific errors
-		if err.Error() == utils.PRODUCT_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				err.Error(),
-				utils.PRODUCT_NOT_FOUND_CODE,
-			)
-			return
-		}
-		if err.Error() == utils.PRODUCT_OPTION_NAME_EXISTS_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusConflict,
-				err.Error(),
-				utils.PRODUCT_OPTION_NAME_EXISTS_CODE,
-			)
-			return
-		}
-		common.ErrorResp(
-			c,
-			http.StatusInternalServerError,
-			utils.FAILED_TO_CREATE_PRODUCT_OPTION_MSG+": "+err.Error(),
-		)
+		h.HandleError(c, err, utils.FAILED_TO_CREATE_PRODUCT_OPTION_MSG)
 		return
 	}
 
-	common.SuccessResponse(
-		c,
-		http.StatusCreated,
-		utils.PRODUCT_OPTION_CREATED_MSG,
-		map[string]interface{}{
-			utils.PRODUCT_OPTION_FIELD_NAME: optionResponse,
-		},
-	)
+	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_OPTION_CREATED_MSG, 
+		utils.PRODUCT_OPTION_FIELD_NAME, optionResponse)
 }
 
 // UpdateOption handles product option updates
 func (h *ProductOptionHandler) UpdateOption(c *gin.Context) {
 	// Parse product ID from URL
-	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
+	productID, err := h.ParseUintParam(c, "productId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_PRODUCT_ID_MSG,
-			utils.INVALID_PRODUCT_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid product ID")
 		return
 	}
 
 	// Parse option ID from URL
-	optionID, err := strconv.ParseUint(c.Param("optionId"), 10, 32)
+	optionID, err := h.ParseUintParam(c, "optionId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_OPTION_ID_MSG,
-			utils.INVALID_OPTION_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid option ID")
 		return
 	}
 
 	// Bind request body
 	var req model.ProductOptionUpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
-			Field:   utils.REQUEST_FIELD_NAME,
-			Message: err.Error(),
-		})
-		common.ErrorWithValidation(
-			c,
-			http.StatusBadRequest,
-			utils.VALIDATION_FAILED_MSG,
-			validationErrors,
-			utils.VALIDATION_ERROR_CODE,
-		)
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
 		return
 	}
 
 	// Update option
-	optionResponse, err := h.optionService.UpdateOption(uint(productID), uint(optionID), req)
+	optionResponse, err := h.optionService.UpdateOption(productID, optionID, req)
 	if err != nil {
-		// Handle specific errors
-		if err.Error() == utils.PRODUCT_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				err.Error(),
-				utils.PRODUCT_NOT_FOUND_CODE,
-			)
-			return
-		}
-		if err.Error() == utils.PRODUCT_OPTION_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				err.Error(),
-				utils.PRODUCT_OPTION_NOT_FOUND_CODE,
-			)
-			return
-		}
-		if err.Error() == utils.PRODUCT_OPTION_PRODUCT_MISMATCH_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusBadRequest,
-				err.Error(),
-				utils.PRODUCT_OPTION_PRODUCT_MISMATCH_CODE,
-			)
-			return
-		}
-		common.ErrorResp(
-			c,
-			http.StatusInternalServerError,
-			utils.FAILED_TO_UPDATE_PRODUCT_OPTION_MSG+": "+err.Error(),
-		)
+		h.HandleError(c, err, utils.FAILED_TO_UPDATE_PRODUCT_OPTION_MSG)
 		return
 	}
 
-	common.SuccessResponse(
-		c,
-		http.StatusOK,
-		utils.PRODUCT_OPTION_UPDATED_MSG,
-		map[string]interface{}{
-			utils.PRODUCT_OPTION_FIELD_NAME: optionResponse,
-		},
-	)
+	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_OPTION_UPDATED_MSG, 
+		utils.PRODUCT_OPTION_FIELD_NAME, optionResponse)
 }
 
 // DeleteOption handles product option deletion
 func (h *ProductOptionHandler) DeleteOption(c *gin.Context) {
 	// Parse product ID from URL
-	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
+	productID, err := h.ParseUintParam(c, "productId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_PRODUCT_ID_MSG,
-			utils.INVALID_PRODUCT_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid product ID")
 		return
 	}
 
 	// Parse option ID from URL
-	optionID, err := strconv.ParseUint(c.Param("optionId"), 10, 32)
+	optionID, err := h.ParseUintParam(c, "optionId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_OPTION_ID_MSG,
-			utils.INVALID_OPTION_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid option ID")
 		return
 	}
 
 	// Delete option
-	err = h.optionService.DeleteOption(uint(productID), uint(optionID))
+	err = h.optionService.DeleteOption(productID, optionID)
 	if err != nil {
-		// Handle specific errors
-		if err.Error() == utils.PRODUCT_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				err.Error(),
-				utils.PRODUCT_NOT_FOUND_CODE,
-			)
+		// Check for OptionInUseError (special handling)
+		if optInUseErr, ok := err.(*service.OptionInUseError); ok {
+			h.HandleValidationError(c, prodErrors.ErrProductOptionInUse.WithMessage(optInUseErr.Error()))
 			return
 		}
-		if err.Error() == utils.PRODUCT_OPTION_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				err.Error(),
-				utils.PRODUCT_OPTION_NOT_FOUND_CODE,
-			)
-			return
-		}
-		if err.Error() == utils.PRODUCT_OPTION_PRODUCT_MISMATCH_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusBadRequest,
-				err.Error(),
-				utils.PRODUCT_OPTION_PRODUCT_MISMATCH_CODE,
-			)
-			return
-		}
-
-		// Check for OptionInUseError
-		if _, ok := err.(*service.OptionInUseError); ok {
-			var validationErrors []common.ValidationError
-			validationErrors = append(validationErrors, common.ValidationError{
-				Field:   "optionId",
-				Message: err.Error(),
-			})
-			common.ErrorWithValidation(
-				c,
-				http.StatusBadRequest,
-				err.Error(),
-				validationErrors,
-				utils.PRODUCT_OPTION_IN_USE_CODE,
-			)
-			return
-		}
-
-		common.ErrorResp(
-			c,
-			http.StatusInternalServerError,
-			utils.FAILED_TO_DELETE_PRODUCT_OPTION_MSG+": "+err.Error(),
-		)
+		h.HandleError(c, err, utils.FAILED_TO_DELETE_PRODUCT_OPTION_MSG)
 		return
 	}
 
-	common.SuccessResponse(
-		c,
-		http.StatusOK,
-		utils.PRODUCT_OPTION_DELETED_MSG,
-		nil,
-	)
+	h.Success(c, http.StatusOK, utils.PRODUCT_OPTION_DELETED_MSG, nil)
 }
 
 /***********************************************
@@ -287,47 +124,20 @@ func (h *ProductOptionHandler) DeleteOption(c *gin.Context) {
 // GET /api/products/:productId/options
 func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 	// Parse and validate product ID
-	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
+	productID, err := h.ParseUintParam(c, "productId")
 	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			utils.INVALID_PRODUCT_ID_MSG,
-			utils.INVALID_PRODUCT_ID_CODE,
-		)
+		h.HandleError(c, err, "Invalid product ID")
 		return
 	}
 
 	// Call service
-	optionsResponse, err := h.optionService.GetAvailableOptions(uint(productID))
+	optionsResponse, err := h.optionService.GetAvailableOptions(productID)
 	if err != nil {
-		// Check for product not found
-		if err.Error() == utils.PRODUCT_NOT_FOUND_MSG {
-			common.ErrorWithCode(
-				c,
-				http.StatusNotFound,
-				utils.PRODUCT_NOT_FOUND_MSG,
-				utils.PRODUCT_NOT_FOUND_CODE,
-			)
-			return
-		}
-
-		// Internal server error
-		common.ErrorResp(
-			c,
-			http.StatusInternalServerError,
-			"Failed to retrieve available options: "+err.Error(),
-		)
+		h.HandleError(c, err, "Failed to retrieve available options")
 		return
 	}
 
 	// Send success response
-	common.SuccessResponse(
-		c,
-		http.StatusOK,
-		"Available options retrieved successfully",
-		map[string]interface{}{
-			"options": optionsResponse,
-		},
-	)
+	h.SuccessWithData(c, http.StatusOK, "Available options retrieved successfully", 
+		"options", optionsResponse)
 }

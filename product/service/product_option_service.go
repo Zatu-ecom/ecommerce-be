@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
@@ -258,7 +259,7 @@ func (s *ProductOptionServiceImpl) validateProductExists(productID uint) (*entit
 	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrProductNotFound
 		}
 		return nil, err
 	}
@@ -277,7 +278,7 @@ func (s *ProductOptionServiceImpl) checkOptionNameUniqueness(
 
 	for _, opt := range existingOptions {
 		if opt.Name == normalizedName {
-			return errors.New(utils.PRODUCT_OPTION_NAME_EXISTS_MSG)
+			return prodErrors.ErrProductOptionNameExists
 		}
 	}
 	return nil
@@ -313,14 +314,14 @@ func (s *ProductOptionServiceImpl) validateAndCreateOptionValues(
 
 		// Check if value already exists in DB
 		if existingValueMap[optionValue.Value] {
-			return errors.New(utils.PRODUCT_OPTION_VALUE_EXISTS_MSG + ": " + optionValue.Value)
+			return prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
+				utils.PRODUCT_OPTION_VALUE_EXISTS_MSG, optionValue.Value)
 		}
 
 		// Check for duplicate values in the same request
 		if valueSet[optionValue.Value] {
-			return errors.New(
-				utils.PRODUCT_OPTION_VALUE_DUPLICATE_IN_BATCH_MSG + ": " + optionValue.Value,
-			)
+			return prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
+				utils.PRODUCT_OPTION_VALUE_DUPLICATE_IN_BATCH_MSG, optionValue.Value)
 		}
 		valueSet[optionValue.Value] = true
 
@@ -338,13 +339,13 @@ func (s *ProductOptionServiceImpl) validateOptionBelongsToProduct(
 	option, err := s.optionRepo.FindOptionByID(optionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_OPTION_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrProductOptionNotFound
 		}
 		return nil, err
 	}
 
 	if option.ProductID != productID {
-		return nil, errors.New(utils.PRODUCT_OPTION_PRODUCT_MISMATCH_MSG)
+		return nil, prodErrors.ErrProductOptionMismatch
 	}
 
 	return option, nil

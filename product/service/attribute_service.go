@@ -1,12 +1,12 @@
 package service
 
 import (
-	"errors"
 	"regexp"
 	"time"
 
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
@@ -136,7 +136,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
 		return nil, err
 	}
 	if attribute == nil {
-		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_NOT_FOUND_MSG)
+		return nil, prodErrors.ErrAttributeNotFound
 	}
 
 	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
@@ -183,7 +183,7 @@ func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
 ) (*entity.AttributeDefinition, error) {
 	// Validate attribute key format
 	if !s.isValidAttributeKey(req.Key) {
-		return nil, errors.New(utils.ATTRIBUTE_KEY_FORMAT_MSG)
+		return nil, prodErrors.ErrInvalidAttributeKey
 	}
 
 	// Check if attribute with same key already exists
@@ -192,7 +192,7 @@ func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
 		return nil, err
 	}
 	if existingAttribute != nil {
-		return nil, errors.New(utils.ATTRIBUTE_DEFINITION_EXISTS_MSG)
+		return nil, prodErrors.ErrAttributeExists
 	}
 
 	// Create attribute definition entity

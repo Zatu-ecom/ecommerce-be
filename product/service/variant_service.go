@@ -1,9 +1,8 @@
 package service
 
 import (
-	"errors"
-
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
@@ -220,7 +219,7 @@ func (s *VariantServiceImpl) CreateVariant(
 	// Check if variant with these options already exists
 	existingVariant, _ := s.variantRepo.FindVariantByOptions(productID, optionsMap)
 	if existingVariant != nil {
-		return nil, errors.New(utils.VARIANT_OPTION_COMBINATION_EXISTS_MSG)
+		return nil, prodErrors.ErrVariantCombinationExists
 	}
 
 	// Set default values
@@ -352,7 +351,7 @@ func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint) error {
 	}
 
 	if count <= 1 {
-		return errors.New(utils.LAST_VARIANT_DELETE_NOT_ALLOWED_MSG)
+		return prodErrors.ErrLastVariantDeleteNotAllowed
 	}
 
 	// Delete variant option values first (foreign key constraint)
@@ -390,11 +389,11 @@ func (s *VariantServiceImpl) UpdateVariantStock(
 		variant.Stock += request.Stock
 	case "subtract":
 		if variant.Stock < request.Stock {
-			return nil, errors.New(utils.INSUFFICIENT_STOCK_FOR_OPERATION_MSG)
+			return nil, prodErrors.ErrInsufficientStockForOperation
 		}
 		variant.Stock -= request.Stock
 	default:
-		return nil, errors.New(utils.INVALID_STOCK_OPERATION_MSG)
+		return nil, prodErrors.ErrInvalidStockOperation
 	}
 
 	// Update InStock status based on new stock value
@@ -428,7 +427,7 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 
 	// Validate variants list is not empty
 	if len(request.Variants) == 0 {
-		return nil, errors.New(utils.BULK_UPDATE_EMPTY_LIST_MSG)
+		return nil, prodErrors.ErrBulkUpdateEmptyList
 	}
 
 	// Extract all variant IDs from the request
@@ -448,7 +447,7 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 
 	// Validate that all variants belong to the specified product
 	if len(existingVariants) != len(variantIDs) {
-		return nil, errors.New(utils.BULK_UPDATE_VARIANT_NOT_FOUND_MSG)
+		return nil, prodErrors.ErrBulkUpdateVariantNotFound
 	}
 
 	// Create a map for quick lookup and validate product ownership
@@ -458,7 +457,7 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 
 		// Validate that this variant belongs to the specified product
 		if variant.ProductID != productID {
-			return nil, errors.New(utils.BULK_UPDATE_VARIANT_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrBulkUpdateVariantNotFound
 		}
 
 		// Get the update data for this variant

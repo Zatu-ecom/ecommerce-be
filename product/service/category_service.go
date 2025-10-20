@@ -1,11 +1,11 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
@@ -47,7 +47,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 		return nil, err
 	}
 	if existingCategory != nil {
-		return nil, errors.New(utils.CATEGORY_EXISTS_MSG)
+		return nil, prodErrors.ErrCategoryExists
 	}
 
 	// Validate parent category if provided
@@ -57,7 +57,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 			return nil, err
 		}
 		if parentCategory == nil {
-			return nil, errors.New(utils.INVALID_PARENT_CATEGORY_MSG)
+			return nil, prodErrors.ErrInvalidParentCategory
 		}
 	}
 
@@ -101,7 +101,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 			return nil, err
 		}
 		if existingCategory != nil && existingCategory.ID != id {
-			return nil, errors.New(utils.CATEGORY_EXISTS_MSG)
+			return nil, prodErrors.ErrCategoryExists
 		}
 	}
 
@@ -109,7 +109,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	if req.ParentID != nil && *req.ParentID != 0 {
 		// Prevent circular reference
 		if *req.ParentID == id {
-			return nil, errors.New("Category cannot be its own parent")
+			return nil, prodErrors.ErrInvalidParentCategory.WithMessage("Category cannot be its own parent")
 		}
 
 		parentCategory, err := s.categoryRepo.FindByID(*req.ParentID)
@@ -117,7 +117,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 			return nil, err
 		}
 		if parentCategory == nil {
-			return nil, errors.New(utils.INVALID_PARENT_CATEGORY_MSG)
+			return nil, prodErrors.ErrInvalidParentCategory
 		}
 	}
 
@@ -146,7 +146,7 @@ func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
 		return err
 	}
 	if hasProducts {
-		return errors.New(utils.CATEGORY_HAS_PRODUCTS_MSG)
+		return prodErrors.ErrCategoryHasProducts
 	}
 
 	// Check if category has active child categories
@@ -155,7 +155,7 @@ func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
 		return err
 	}
 	if hasChildren {
-		return errors.New(utils.CATEGORY_HAS_CHILDREN_MSG)
+		return prodErrors.ErrCategoryHasChildren
 	}
 
 	// Soft delete category

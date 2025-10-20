@@ -1,13 +1,12 @@
 package service
 
 import (
-	"errors"
 	"math"
 	"time"
 
 	"ecommerce-be/common/db"
-	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
@@ -136,7 +135,7 @@ func (s *ProductServiceImpl) validateProductCreateRequest(req model.ProductCreat
 		return err
 	}
 	if existingProduct != nil {
-		return errors.New(utils.PRODUCT_EXISTS_MSG)
+		return prodErrors.ErrProductExists
 	}
 
 	// Validate category exists
@@ -145,23 +144,21 @@ func (s *ProductServiceImpl) validateProductCreateRequest(req model.ProductCreat
 		return err
 	}
 	if category == nil {
-		return errors.New(utils.PRODUCT_CATEGORY_INVALID_MSG)
+		return prodErrors.ErrInvalidCategory
 	}
 
 	// Validate variants are provided (PRD: at least one variant required)
 	if !req.AutoGenerateVariants && len(req.Variants) == 0 {
-		return errors.New("at least one variant is required or enable autoGenerateVariants")
+		return prodErrors.ErrValidation.WithMessage("at least one variant is required or enable autoGenerateVariants")
 	}
 
 	// If auto-generating, validate default settings
 	if req.AutoGenerateVariants {
 		if len(req.Options) == 0 {
-			return errors.New("options are required when autoGenerateVariants is true")
+			return prodErrors.ErrValidation.WithMessage("options are required when autoGenerateVariants is true")
 		}
 		if req.DefaultVariantSettings == nil {
-			return errors.New(
-				"defaultVariantSettings is required when autoGenerateVariants is true",
-			)
+			return prodErrors.ErrValidation.WithMessage("defaultVariantSettings is required when autoGenerateVariants is true")
 		}
 	}
 
@@ -170,7 +167,7 @@ func (s *ProductServiceImpl) validateProductCreateRequest(req model.ProductCreat
 		skuMap := make(map[string]bool)
 		for _, variant := range req.Variants {
 			if skuMap[variant.SKU] {
-				return errors.New("duplicate variant SKU: " + variant.SKU)
+				return prodErrors.ErrValidation.WithMessagef("duplicate variant SKU: %s", variant.SKU)
 			}
 			skuMap[variant.SKU] = true
 		}
@@ -360,7 +357,7 @@ func (s *ProductServiceImpl) createManualVariants(
 	// Get all product options to map option names to IDs
 	productOptions, err := s.optionRepo.FindOptionsByProductID(productID)
 	if err != nil && len(variantReqs) > 0 && len(variantReqs[0].Options) > 0 {
-		return errors.New("product options not found, but variants require options")
+		return prodErrors.ErrValidation.WithMessage("product options not found, but variants require options")
 	}
 
 	optionMap := make(map[string]*entity.ProductOption)
@@ -410,7 +407,7 @@ func (s *ProductServiceImpl) createManualVariants(
 		for _, optInput := range variantReq.Options {
 			option, exists := optionMap[optInput.OptionName]
 			if !exists {
-				return errors.New("option not found: " + optInput.OptionName)
+				return prodErrors.ErrValidation.WithMessagef("option not found: %s", optInput.OptionName)
 			}
 
 			// Find the option value ID
@@ -422,9 +419,8 @@ func (s *ProductServiceImpl) createManualVariants(
 				}
 			}
 			if valueID == 0 {
-				return errors.New(
-					"option value not found: " + optInput.Value + " for option: " + optInput.OptionName,
-				)
+				return prodErrors.ErrValidation.WithMessagef("option value not found: %s for option: %s", 
+					optInput.Value, optInput.OptionName)
 			}
 
 			vovs = append(vovs, entity.VariantOptionValue{
@@ -773,7 +769,7 @@ func (s *ProductServiceImpl) createPackageOption(
 			Price:       option.Price,
 			Quantity:    option.Quantity,
 			ProductID:   parentID,
-			BaseEntity: commonEntity.BaseEntity{
+			BaseEntity: db.BaseEntity{
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
@@ -804,7 +800,7 @@ func (s *ProductServiceImpl) UpdateProduct(
 			return nil, err
 		}
 		if category == nil {
-			return nil, errors.New(utils.PRODUCT_CATEGORY_INVALID_MSG)
+			return nil, prodErrors.ErrInvalidCategory
 		}
 		product.CategoryID = req.CategoryID
 	}
@@ -857,7 +853,7 @@ func (s *ProductServiceImpl) DeleteProduct(id uint) error {
 		return err
 	}
 	if product == nil {
-		return errors.New(utils.PRODUCT_NOT_FOUND_MSG)
+		return prodErrors.ErrProductNotFound
 	}
 
 	// Use atomic transaction to delete everything

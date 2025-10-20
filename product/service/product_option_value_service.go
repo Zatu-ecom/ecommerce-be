@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
@@ -72,7 +73,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	normalizedValue := utils.ToLowerTrimmed(req.Value)
 	for _, val := range existingValues {
 		if val.Value == normalizedValue {
-			return nil, errors.New(utils.PRODUCT_OPTION_VALUE_EXISTS_MSG)
+			return nil, prodErrors.ErrProductOptionValueExists
 		}
 	}
 
@@ -217,7 +218,8 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 
 		// Check for duplicates in existing values
 		if existingValueMap[normalizedValue] {
-			return nil, errors.New(utils.PRODUCT_OPTION_VALUE_EXISTS_MSG + ": " + normalizedValue)
+			return nil, prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
+				utils.PRODUCT_OPTION_VALUE_EXISTS_MSG, normalizedValue)
 		}
 
 		// Check for duplicates within the current batch
@@ -230,9 +232,8 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 		}
 
 		if isDuplicate {
-			return nil, errors.New(
-				utils.PRODUCT_OPTION_VALUE_DUPLICATE_IN_BATCH_MSG + ": " + normalizedValue,
-			)
+			return nil, prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
+				utils.PRODUCT_OPTION_VALUE_DUPLICATE_IN_BATCH_MSG, normalizedValue)
 		}
 
 		normalizedValues = append(normalizedValues, normalizedValue)
@@ -289,7 +290,7 @@ func validateProductAndOption(
 	_, err := productRepo.FindByID(productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrProductNotFound
 		}
 		return nil, err
 	}
@@ -298,14 +299,14 @@ func validateProductAndOption(
 	option, err := optionRepo.FindOptionByID(optionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_OPTION_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrProductOptionNotFound
 		}
 		return nil, err
 	}
 
 	// Verify option belongs to product
 	if option.ProductID != productID {
-		return nil, errors.New(utils.PRODUCT_OPTION_PRODUCT_MISMATCH_MSG)
+		return nil, prodErrors.ErrProductOptionMismatch
 	}
 
 	return option, nil
@@ -321,14 +322,14 @@ func validateOptionValue(
 	optionValue, err := optionRepo.FindOptionValueByID(valueID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_OPTION_VALUE_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrProductOptionValueNotFound
 		}
 		return nil, err
 	}
 
 	// Verify value belongs to option
 	if optionValue.OptionID != optionID {
-		return nil, errors.New(utils.PRODUCT_OPTION_VALUE_OPTION_MISMATCH_MSG)
+		return nil, prodErrors.ErrProductOptionValueMismatch
 	}
 
 	return optionValue, nil
