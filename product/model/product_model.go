@@ -1,35 +1,43 @@
 package model
 
 // ProductCreateRequest represents the request body for creating a product
+// Note: Product now requires at least one variant with price, images, stock
 type ProductCreateRequest struct {
-	Name             string                    `json:"name"             binding:"required,min=3,max=200"`
-	CategoryID       uint                      `json:"categoryId"       binding:"required"`
-	Brand            string                    `json:"brand"            binding:"max=100"`
-	SKU              string                    `json:"sku"              binding:"required,min=3,max=50"`
-	Price            float64                   `json:"price"            binding:"required,gt=0"`
-	Currency         string                    `json:"currency"         binding:"len=3"`
-	ShortDescription string                    `json:"shortDescription" binding:"max=500"`
-	LongDescription  string                    `json:"longDescription"  binding:"max=5000"`
-	Images           []string                  `json:"images"           binding:"max=10"`
-	IsPopular        bool                      `json:"isPopular"`
-	Discount         int                       `json:"discount"         binding:"min=0,max=100"`
-	Tags             []string                  `json:"tags"             binding:"max=20"`
-	Attributes       []ProductAttributeRequest `json:"attributes"       binding:"required"`
-	PackageOptions   []PackageOptionRequest    `json:"packageOptions"`
+	Name             string   `json:"name"             binding:"required,min=3,max=200"`
+	CategoryID       uint     `json:"categoryId"       binding:"required"`
+	Brand            string   `json:"brand"            binding:"max=100"`
+	BaseSKU          string   `json:"baseSku"          binding:"required,min=3,max=50"`
+	ShortDescription string   `json:"shortDescription" binding:"max=500"`
+	LongDescription  string   `json:"longDescription"  binding:"max=5000"`
+	Tags             []string `json:"tags"             binding:"max=20"`
+
+	// Options and Variants (PRD Section 3.1.3)
+	Options                []ProductOptionCreateRequest `json:"options"`                          // Product options (color, size, etc.)
+	Variants               []CreateVariantRequest       `json:"variants"`                         // Manual variant definitions
+	AutoGenerateVariants   bool                         `json:"autoGenerateVariants"`             // Auto-generate all combinations
+	DefaultVariantSettings *DefaultVariantSettings      `json:"defaultVariantSettings,omitempty"` // Settings for auto-generated variants
+
+	// Product attributes and package options
+	Attributes     []ProductAttributeRequest `json:"attributes"`
+	PackageOptions []PackageOptionRequest    `json:"packageOptions"`
+}
+
+// DefaultVariantSettings represents default settings when auto-generating variants
+type DefaultVariantSettings struct {
+	Price     float64 `json:"price"     binding:"required,gt=0"`
+	Stock     int     `json:"stock"     binding:"required,gte=0"`
+	Currency  string  `json:"currency"  binding:"required,len=3"`
+	IsPopular bool    `json:"isPopular"`
 }
 
 // ProductUpdateRequest represents the request body for updating a product
+// Note: Price, images, stock are managed at variant level
 type ProductUpdateRequest struct {
 	Name             string                    `json:"name"             binding:"min=3,max=200"`
 	CategoryID       uint                      `json:"categoryId"`
 	Brand            string                    `json:"brand"            binding:"max=100"`
-	Price            float64                   `json:"price"            binding:"gt=0"`
-	Currency         string                    `json:"currency"         binding:"len=3"`
 	ShortDescription string                    `json:"shortDescription" binding:"max=500"`
 	LongDescription  string                    `json:"longDescription"  binding:"max=5000"`
-	Images           []string                  `json:"images"           binding:"max=10"`
-	IsPopular        bool                      `json:"isPopular"`
-	Discount         int                       `json:"discount"         binding:"min=0,max=100"`
 	Tags             []string                  `json:"tags"             binding:"max=20"`
 	Attributes       []ProductAttributeRequest `json:"attributes"`
 	PackageOptions   []PackageOptionRequest    `json:"packageOptions"`
@@ -74,26 +82,35 @@ type PackageOptionResponse struct {
 }
 
 // ProductResponse represents the product data returned in API responses
+// Now includes variant information since products always have variants
 type ProductResponse struct {
-	ID               uint                       `json:"id"`
-	Name             string                     `json:"name"`
-	CategoryID       uint                       `json:"categoryId"`
-	Category         CategoryHierarchyInfo      `json:"category"`
-	Brand            string                     `json:"brand"`
-	SKU              string                     `json:"sku"`
-	Price            float64                    `json:"price"`
-	Currency         string                     `json:"currency"`
-	ShortDescription string                     `json:"shortDescription"`
-	LongDescription  string                     `json:"longDescription"`
-	Images           []string                   `json:"images"`
-	InStock          bool                       `json:"inStock"`
-	IsPopular        bool                       `json:"isPopular"`
-	Discount         int                        `json:"discount"`
-	Tags             []string                   `json:"tags"`
-	Attributes       []ProductAttributeResponse `json:"attributes"`
-	PackageOptions   []PackageOptionResponse    `json:"packageOptions"`
-	CreatedAt        string                     `json:"createdAt"`
-	UpdatedAt        string                     `json:"updatedAt"`
+	ID               uint                  `json:"id"`
+	Name             string                `json:"name"`
+	CategoryID       uint                  `json:"categoryId"`
+	Category         CategoryHierarchyInfo `json:"category"`
+	Brand            string                `json:"brand"`
+	SKU              string                `json:"sku"` // Base SKU (PRD Section 3.1)
+	ShortDescription string                `json:"shortDescription"`
+	LongDescription  string                `json:"longDescription"`
+	Tags             []string              `json:"tags"`
+	SellerID         uint                  `json:"sellerId"`
+
+	// Variant information (from aggregated variants) - PRD Section 3.1.1
+	HasVariants    bool            `json:"hasVariants"`              // Product has variants
+	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
+	TotalStock     int             `json:"totalStock"`               // Total stock across all variants
+	InStock        bool            `json:"inStock"`                  // Any variant in stock
+	Images         []string        `json:"images"`                   // Main product images
+	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
+
+	// Additional product info - PRD Section 3.1.2
+	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
+	PackageOptions []PackageOptionResponse       `json:"packageOptions,omitempty"`
+	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)
+	Variants       []VariantDetailResponse       `json:"variants,omitempty"` // Full variants with selected options (detail view)
+
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 // CategoryInfo represents basic category information
@@ -173,4 +190,23 @@ type PackageOptionUpdateRequest struct {
 // PackageOptionsResponse represents the response for getting package options
 type PackageOptionsResponse struct {
 	PackageOptions []PackageOptionResponse `json:"packageOptions"`
+}
+
+// PriceRange represents the minimum and maximum price for a product's variants
+type PriceRange struct {
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
+// OptionPreview represents basic option information for variant preview
+type OptionPreview struct {
+	Name            string   `json:"name"`
+	DisplayName     string   `json:"displayName"`
+	AvailableValues []string `json:"availableValues"`
+}
+
+// VariantPreview represents summarized variant information for product listings
+type VariantPreview struct {
+	TotalVariants int             `json:"totalVariants"`
+	Options       []OptionPreview `json:"options"`
 }

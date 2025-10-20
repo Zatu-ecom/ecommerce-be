@@ -78,57 +78,57 @@ func ConvertProductAttributeDefinitionToResponse(
 	}
 }
 
-// ConvertProductToDetailResponse converts Product entity to ProductDetailResponse model
+// ConvertProductToDetailResponse - DEPRECATED
+// Products now require variant data. Use service layer methods instead.
+// This converter is kept for backward compatibility but should not be used.
 func ConvertProductResponse(
 	product *entity.Product,
 	categoryInfo model.CategoryHierarchyInfo,
 	attribute []model.ProductAttributeResponse,
 	packageOption []model.PackageOptionResponse,
 ) *model.ProductResponse {
+	// Return minimal response - actual implementation in service layer
 	return &model.ProductResponse{
 		ID:               product.ID,
 		Name:             product.Name,
 		CategoryID:       product.CategoryID,
 		Category:         categoryInfo,
 		Brand:            product.Brand,
-		SKU:              product.SKU,
-		Price:            product.Price,
-		Currency:         product.Currency,
+		SKU:              product.BaseSKU,
 		ShortDescription: product.ShortDescription,
 		LongDescription:  product.LongDescription,
-		Images:           product.Images,
-		InStock:          product.InStock,
-		IsPopular:        product.IsPopular,
-		Discount:         product.Discount,
 		Tags:             product.Tags,
 		Attributes:       attribute,
 		PackageOptions:   packageOption,
 		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+		// Variant fields must be populated by service layer
 	}
 }
 
-// ConvertProductToSearchResult converts Product entity to SearchResult model
+// ConvertProductToSearchResult - DEPRECATED
+// Use service layer method that includes variant data
 func ConvertProductToSearchResult(product *entity.Product) *model.SearchResult {
 	return &model.SearchResult{
 		ID:               product.ID,
 		Name:             product.Name,
-		Price:            product.Price,
+		Price:            0, // Must be fetched from variants
 		ShortDescription: product.ShortDescription,
-		Images:           product.Images,
-		RelevanceScore:   0.8,                             // Placeholder - implement actual relevance scoring
-		MatchedFields:    []string{"name", "description"}, // Placeholder
+		Images:           []string{}, // Must be fetched from variants
+		RelevanceScore:   0.8,
+		MatchedFields:    []string{"name", "description"},
 	}
 }
 
-// ConvertProductToRelatedProduct converts Product entity to RelatedProductResponse model
+// ConvertProductToRelatedProduct - DEPRECATED
+// Use service layer method that includes variant data
 func ConvertProductToRelatedProduct(product *entity.Product) *model.RelatedProductResponse {
 	return &model.RelatedProductResponse{
 		ID:               product.ID,
 		Name:             product.Name,
-		Price:            product.Price,
+		Price:            0, // Must be fetched from variants
 		ShortDescription: product.ShortDescription,
-		Images:           product.Images,
+		Images:           []string{}, // Must be fetched from variants
 		RelationReason:   "Same category",
 	}
 }
@@ -167,26 +167,17 @@ func ConvertPackageOptionToResponse(
 	}
 }
 
+// ConvertProductCreateRequestToEntity - DEPRECATED
+// Product creation now handled in service layer with variant creation
+// This function is kept for backward compatibility but should not be used
 func ConvertProductCreateRequestToEntity(req model.ProductCreateRequest) *entity.Product {
-	// TODO: This is not the correct way to set currency.
-	// In the future, we will create separate tables for Currency and Country.
-	currency := req.Currency
-	if currency == "" {
-		currency = "USD"
-	}
 	return &entity.Product{
 		Name:             req.Name,
 		CategoryID:       req.CategoryID,
 		Brand:            req.Brand,
-		SKU:              req.SKU,
-		Price:            req.Price,
-		Currency:         currency,
+		BaseSKU:          req.BaseSKU,
 		ShortDescription: req.ShortDescription,
 		LongDescription:  req.LongDescription,
-		Images:           req.Images,
-		InStock:          true,
-		IsPopular:        req.IsPopular,
-		Discount:         req.Discount,
 		Tags:             req.Tags,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
@@ -258,4 +249,172 @@ func ConvertAttributesToFilter(attribute mapper.AttributeWithProductCount) model
 		AllowedValues: attribute.AllowedValues,
 		ProductCount:  attribute.ProductCount,
 	}
+}
+
+// ConvertProductOptionToResponse converts ProductOption entity to ProductOptionResponse model
+func ConvertProductOptionToResponse(
+	option *entity.ProductOption,
+	productID uint,
+) *model.ProductOptionResponse {
+	response := &model.ProductOptionResponse{
+		ID:          option.ID,
+		ProductID:   productID,
+		Name:        option.Name,
+		DisplayName: option.DisplayName,
+		Position:    option.Position,
+		CreatedAt:   option.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   option.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Convert values
+	if len(option.Values) > 0 {
+		values := make([]model.ProductOptionValueResponse, 0, len(option.Values))
+		for _, val := range option.Values {
+			valueResp := ConvertProductOptionValueToResponse(&val)
+			values = append(values, *valueResp)
+		}
+		response.Values = values
+	}
+
+	return response
+}
+
+// ConvertProductOptionValueToResponse converts ProductOptionValue entity to ProductOptionValueResponse model
+func ConvertProductOptionValueToResponse(
+	value *entity.ProductOptionValue,
+) *model.ProductOptionValueResponse {
+	return &model.ProductOptionValueResponse{
+		ID:          value.ID,
+		OptionID:    value.OptionID,
+		Value:       value.Value,
+		DisplayName: value.DisplayName,
+		ColorCode:   value.ColorCode,
+		Position:    value.Position,
+		CreatedAt:   value.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   value.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// ConvertProductOptionValueRequestToEntity converts ProductOptionValueRequest to ProductOptionValue entity
+func ConvertProductOptionValueRequestToEntity(
+	req model.ProductOptionValueRequest,
+	optionID uint,
+) entity.ProductOptionValue {
+	return entity.ProductOptionValue{
+		OptionID:    optionID,
+		Value:       req.Value,
+		DisplayName: req.DisplayName,
+		ColorCode:   req.ColorCode,
+		Position:    req.Position,
+	}
+}
+
+/***********************************************
+ *    Variant Converters                        *
+ ***********************************************/
+
+// ConvertVariantToDetailResponse converts a variant entity to a detailed response
+func ConvertVariantToDetailResponse(
+	variant *entity.ProductVariant,
+	product *entity.Product,
+	selectedOptions []model.VariantOptionResponse,
+) *model.VariantDetailResponse {
+	images := []string{}
+	if variant.Images != nil {
+		images = variant.Images
+	}
+
+	response := &model.VariantDetailResponse{
+		ID:              variant.ID,
+		ProductID:       variant.ProductID,
+		SKU:             variant.SKU,
+		Price:           variant.Price,
+		Stock:           variant.Stock,
+		InStock:         variant.InStock,
+		Images:          images,
+		IsDefault:       variant.IsDefault,
+		IsPopular:       variant.IsPopular,
+		SelectedOptions: selectedOptions,
+		CreatedAt:       variant.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       variant.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Add product basic info
+	if product != nil {
+		response.Product = model.ProductBasicInfo{
+			ID:    product.ID,
+			Name:  product.Name,
+			Brand: product.Brand,
+		}
+	}
+
+	return response
+}
+
+// ConvertVariantToResponse converts a variant entity to a basic response
+func ConvertVariantToResponse(
+	variant *entity.ProductVariant,
+	selectedOptions []model.VariantOptionResponse,
+) *model.VariantResponse {
+	images := []string{}
+	if variant.Images != nil {
+		images = variant.Images
+	}
+
+	return &model.VariantResponse{
+		ID:              variant.ID,
+		SKU:             variant.SKU,
+		Price:           variant.Price,
+		Stock:           variant.Stock,
+		InStock:         variant.InStock,
+		Images:          images,
+		IsDefault:       variant.IsDefault,
+		IsPopular:       variant.IsPopular,
+		SelectedOptions: selectedOptions,
+	}
+}
+
+// ConvertVariantOptionValues converts variant option values to response objects
+func ConvertVariantOptionValues(
+	variantOptionValues []entity.VariantOptionValue,
+	productOptions []entity.ProductOption,
+	optionValues []entity.ProductOptionValue,
+) []model.VariantOptionResponse {
+	optionResponses := []model.VariantOptionResponse{}
+
+	// Create maps for quick lookup
+	optionMap := make(map[uint]entity.ProductOption)
+	for _, opt := range productOptions {
+		optionMap[opt.ID] = opt
+	}
+
+	valueMap := make(map[uint]entity.ProductOptionValue)
+	for _, val := range optionValues {
+		valueMap[val.ID] = val
+	}
+
+	for _, vov := range variantOptionValues {
+		option, optionExists := optionMap[vov.OptionID]
+		value, valueExists := valueMap[vov.OptionValueID]
+
+		if optionExists && valueExists {
+			optionResponse := model.VariantOptionResponse{
+				OptionID:          option.ID,
+				OptionName:        option.Name,
+				OptionDisplayName: GetDisplayNameOrDefault(option.DisplayName, option.Name),
+				ValueID:           value.ID,
+				Value:             value.Value,
+				ValueDisplayName:  GetDisplayNameOrDefault(value.DisplayName, value.Value),
+			}
+
+			// Add color code if it exists
+			if value.ColorCode != "" {
+				optionResponse.ColorCode = value.ColorCode
+			}
+
+			optionResponses = append(optionResponses, optionResponse)
+		}
+	}
+
+	return optionResponses
 }

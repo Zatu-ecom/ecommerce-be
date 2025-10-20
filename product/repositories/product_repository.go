@@ -36,6 +36,9 @@ type ProductRepository interface {
 		[]mapper.AttributeWithProductCount,
 		error,
 	)
+	
+	// Bulk deletion methods for product cleanup
+	DeletePackageOptionsByProductID(productID uint) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -282,4 +285,13 @@ func (r *ProductRepositoryImpl) GetProductFilters() (
 	fmt.Println("brands : ", brands)
 
 	return brands, categories, attributes, err
+}
+
+/***********************************************
+ *    Bulk Deletion Methods for Product Cleanup
+ ***********************************************/
+
+// DeletePackageOptionsByProductID deletes all package options for a given product
+func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(productID uint) error {
+	return r.db.Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
 }

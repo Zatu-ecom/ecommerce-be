@@ -20,8 +20,16 @@ func NewProductModule() *ProductModule {
 	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
 	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
 	productRepo := repositories.NewProductRepository(db.GetDB())
+	variantRepo := repositories.NewVariantRepository(db.GetDB())
+	optionRepo := repositories.NewProductOptionRepository(db.GetDB())
 
-	productService := service.NewProductService(productRepo, categoryRepo, attributeRepo)
+	productService := service.NewProductService(
+		productRepo,
+		categoryRepo,
+		attributeRepo,
+		variantRepo,
+		optionRepo,
+	)
 
 	return &ProductModule{
 		productHandler: handlers.NewProductHandler(productService),
@@ -47,6 +55,5 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 		productRoutes.POST("", auth, m.productHandler.CreateProduct)
 		productRoutes.PUT("/:productId", auth, m.productHandler.UpdateProduct)
 		productRoutes.DELETE("/:productId", auth, m.productHandler.DeleteProduct)
-		productRoutes.PATCH("/:productId/stock", auth, m.productHandler.UpdateProductStock)
 	}
 }

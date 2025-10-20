@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/auth"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -43,7 +44,19 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	productResponse, err := h.productService.CreateProduct(req)
+	// Get seller ID from context
+    sellerID, exists := auth.GetSellerIDFromContext(c)
+    if !exists {
+        common.ErrorWithCode(
+            c,
+            http.StatusForbidden,
+            "Seller ID not found in context",
+            "SELLER_ID_REQUIRED",
+        )
+        return
+    }
+
+	productResponse, err := h.productService.CreateProduct(req,sellerID)
 	if err != nil {
 		if err.Error() == utils.PRODUCT_EXISTS_MSG {
 			common.ErrorWithCode(c, http.StatusConflict, err.Error(), utils.PRODUCT_EXISTS_CODE)
@@ -290,56 +303,8 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 	common.SuccessResponse(c, http.StatusOK, utils.PRODUCTS_FOUND_MSG, searchResponse)
 }
 
-// UpdateProductStock handles product stock updates
-func (h *ProductHandler) UpdateProductStock(c *gin.Context) {
-	productID, err := strconv.ParseUint(c.Param("productId"), 10, 32)
-	if err != nil {
-		common.ErrorWithCode(
-			c,
-			http.StatusBadRequest,
-			"Invalid product ID",
-			utils.VALIDATION_ERROR_CODE,
-		)
-		return
-	}
-
-	var req model.ProductStockUpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
-			Field:   utils.REQUEST_FIELD_NAME,
-			Message: err.Error(),
-		})
-		common.ErrorWithValidation(
-			c,
-			http.StatusBadRequest,
-			utils.VALIDATION_FAILED_MSG,
-			validationErrors,
-			utils.VALIDATION_ERROR_CODE,
-		)
-		return
-	}
-
-	err = h.productService.UpdateProductStock(uint(productID), req)
-	if err != nil {
-		if err.Error() == utils.PRODUCT_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.PRODUCT_NOT_FOUND_CODE)
-			return
-		}
-		common.ErrorResp(
-			c,
-			http.StatusInternalServerError,
-			utils.FAILED_TO_UPDATE_STOCK_MSG+": "+err.Error(),
-		)
-		return
-	}
-
-	common.SuccessResponse(c, http.StatusOK, utils.STOCK_UPDATED_MSG, nil)
-}
-
 // GetProductFilters handles getting available product filters
 func (h *ProductHandler) GetProductFilters(c *gin.Context) {
-
 	filters, err := h.productService.GetProductFilters()
 	if err != nil {
 		common.ErrorResp(
