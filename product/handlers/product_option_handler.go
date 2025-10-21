@@ -47,7 +47,7 @@ func (h *ProductOptionHandler) CreateOption(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_OPTION_CREATED_MSG, 
+	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_OPTION_CREATED_MSG,
 		utils.PRODUCT_OPTION_FIELD_NAME, optionResponse)
 }
 
@@ -81,7 +81,7 @@ func (h *ProductOptionHandler) UpdateOption(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_OPTION_UPDATED_MSG, 
+	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_OPTION_UPDATED_MSG,
 		utils.PRODUCT_OPTION_FIELD_NAME, optionResponse)
 }
 
@@ -132,6 +132,6 @@ func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 	}
 
 	// Send success response
-	h.SuccessWithData(c, http.StatusOK, "Available options retrieved successfully", 
+	h.SuccessWithData(c, http.StatusOK, "Available options retrieved successfully",
 		"options", optionsResponse)
 }

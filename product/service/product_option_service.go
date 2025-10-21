@@ -193,8 +193,9 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 			valueResponse := model.OptionValueResponse{
 				ValueID:          value.ID,
 				Value:            value.Value,
-				ValueDisplayName: utils.GetDisplayNameOrDefault(value.DisplayName, value.Value),
+				DisplayName: utils.GetDisplayNameOrDefault(value.DisplayName, value.Value),
 				VariantCount:     variantCounts[value.ID],
+				Position:         value.Position,
 			}
 
 			// Add color code if it exists

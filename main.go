@@ -60,7 +60,7 @@ func registerContainer(router *gin.Engine) {
 
 func autoMigrations() []db.AutoMigrate {
 	return []db.AutoMigrate{
-		user.NewUserAutoMigrate(),
-		product.NewProductAutoMigrate(),
+		// user.NewUserAutoMigrate(),
+		// product.NewProductAutoMigrate(),
 	}
 }

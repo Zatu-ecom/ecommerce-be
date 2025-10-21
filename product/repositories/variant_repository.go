@@ -94,7 +94,6 @@ type VariantAggregation struct {
 	MaxPrice      float64
 	TotalStock    int
 	InStock       bool
-	Currency      string
 	MainImage     string
 	OptionNames   []string
 	OptionValues  map[string][]string // optionName -> []values
@@ -473,7 +472,6 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 		MaxPrice   float64
 		TotalStock int
 		InStock    bool
-		Currency   string
 		MainImage  string
 	}
 
@@ -483,8 +481,7 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 			MAX(price) as max_price,
 			SUM(stock) as total_stock,
 			BOOL_OR(in_stock) as in_stock,
-			MAX(currency) as currency,
-			(SELECT images FROM product_variants WHERE product_id = ? AND is_default = true AND images IS NOT NULL AND images != '{}' LIMIT 1) as main_image
+			(SELECT images FROM product_variant WHERE product_id = ? AND is_default = true AND images IS NOT NULL AND images != '{}' LIMIT 1) as main_image
 		`, productID).
 		Where("product_id = ?", productID).
 		Scan(&priceAgg).Error
@@ -496,7 +493,6 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	aggregation.MaxPrice = priceAgg.MaxPrice
 	aggregation.TotalStock = priceAgg.TotalStock
 	aggregation.InStock = priceAgg.InStock
-	aggregation.Currency = priceAgg.Currency
 	if priceAgg.MainImage != "" {
 		aggregation.MainImage = priceAgg.MainImage
 	}
@@ -507,11 +503,11 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 		OptionValue string
 	}
 
-	err = r.db.Table("variant_option_values vov").
+	err = r.db.Table("variant_option_value vov").
 		Select("po.name as option_name, pov.value as option_value").
-		Joins("JOIN product_option_values pov ON vov.option_value_id = pov.id").
-		Joins("JOIN product_options po ON pov.option_id = po.id").
-		Joins("JOIN product_variants pv ON vov.variant_id = pv.id").
+		Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
+		Joins("JOIN product_option po ON pov.option_id = po.id").
+		Joins("JOIN product_variant pv ON vov.variant_id = pv.id").
 		Where("pv.product_id = ?", productID).
 		Group("po.name, pov.value").
 		Order("po.name, pov.value").
@@ -606,7 +602,6 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 			MaxPrice   float64
 			TotalStock int
 			InStock    bool
-			Currency   string
 		}
 
 		variantProductIDs := make([]uint, 0, len(productsWithVariants))
@@ -620,8 +615,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 				MIN(price) as min_price,
 				MAX(price) as max_price,
 				SUM(stock) as total_stock,
-				BOOL_OR(in_stock) as in_stock,
-				MAX(currency) as currency
+				BOOL_OR(in_stock) as in_stock
 			`).
 			Where("product_id IN ?", variantProductIDs).
 			Group("product_id").
@@ -636,7 +630,6 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 				result[agg.ProductID].MaxPrice = agg.MaxPrice
 				result[agg.ProductID].TotalStock = agg.TotalStock
 				result[agg.ProductID].InStock = agg.InStock
-				result[agg.ProductID].Currency = agg.Currency
 			}
 		}
 
@@ -667,11 +660,11 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 			OptionValue string
 		}
 
-		err = r.db.Table("variant_option_values vov").
+		err = r.db.Table("variant_option_value vov").
 			Select("pv.product_id as product_id, po.name as option_name, pov.value as option_value").
-			Joins("JOIN product_option_values pov ON vov.option_value_id = pov.id").
-			Joins("JOIN product_options po ON pov.option_id = po.id").
-			Joins("JOIN product_variants pv ON vov.variant_id = pv.id").
+			Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
+			Joins("JOIN product_option po ON pov.option_id = po.id").
+			Joins("JOIN product_variant pv ON vov.variant_id = pv.id").
 			Where("pv.product_id IN ?", variantProductIDs).
 			Group("pv.product_id, po.name, pov.value").
 			Order("pv.product_id, po.name, pov.value").
@@ -821,7 +814,9 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
  ***********************************************/
 
 // FindVariantsByProductID retrieves all variants for a product
-func (r *VariantRepositoryImpl) FindVariantsByProductID(productID uint) ([]entity.ProductVariant, error) {
+func (r *VariantRepositoryImpl) FindVariantsByProductID(
+	productID uint,
+) ([]entity.ProductVariant, error) {
 	var variants []entity.ProductVariant
 	err := r.db.Where("product_id = ?", productID).Find(&variants).Error
 	return variants, err

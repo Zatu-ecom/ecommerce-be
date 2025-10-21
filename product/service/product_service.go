@@ -341,7 +341,6 @@ func (s *ProductServiceImpl) buildProductResponseFromEntity(
 		return nil, err
 	}
 
-	// Build base response (PRD Section 3.1.2)
 	response := &model.ProductResponse{
 		ID:               product.ID,
 		Name:             product.Name,
@@ -411,11 +410,12 @@ func (s *ProductServiceImpl) buildProductOptionsResponse(
 		// Convert option values
 		for _, value := range option.Values {
 			optionResp.Values = append(optionResp.Values, model.OptionValueResponse{
-				ValueID:          value.ID,
-				Value:            value.Value,
-				ValueDisplayName: value.DisplayName,
-				ColorCode:        value.ColorCode,
-				VariantCount:     0, // Can be populated from variant counts map if needed
+				ValueID:     value.ID,
+				Value:       value.Value,
+				DisplayName: value.DisplayName,
+				ColorCode:   value.ColorCode,
+				Position:    value.Position,
+				// VariantCount:     0, // Can be populated from variant counts map if needed
 			})
 		}
 
@@ -758,7 +758,6 @@ func (s *ProductServiceImpl) GetAllProducts(
 			continue
 		}
 
-		// Build response according to PRD Section 3.1.1
 		productResp := model.ProductResponse{
 			ID:               product.ID,
 			Name:             product.Name,

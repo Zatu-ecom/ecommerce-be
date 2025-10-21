@@ -13,39 +13,39 @@ type VariantOptionResponse struct {
 
 // ProductBasicInfo represents basic product information in variant response
 type ProductBasicInfo struct {
-	ID    uint   `json:"id"`
-	Name  string `json:"name"`
-	Brand string `json:"brand"`
+	ID    uint   `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Brand string `json:"brand,omitempty"`
 }
 
 // VariantDetailResponse represents detailed variant information
 type VariantDetailResponse struct {
-	ID              uint                     `json:"id"`
-	ProductID       uint                     `json:"productId"`
-	Product         ProductBasicInfo         `json:"product,omitempty"`
-	SKU             string                   `json:"sku"`
-	Price           float64                  `json:"price"`
-	Images          []string                 `json:"images"`
-	InStock         bool                     `json:"inStock"`
-	IsPopular       bool                     `json:"isPopular"`
-	Stock           int                      `json:"stock"`
-	IsDefault       bool                     `json:"isDefault"`
-	SelectedOptions []VariantOptionResponse  `json:"selectedOptions"`
-	CreatedAt       string                   `json:"createdAt"`
-	UpdatedAt       string                   `json:"updatedAt"`
+	ID              uint                    `json:"id"`
+	ProductID       uint                    `json:"productId,omitempty"`
+	Product         ProductBasicInfo        `json:"product,omitzero"`
+	SKU             string                  `json:"sku"`
+	Price           float64                 `json:"price"`
+	Images          []string                `json:"images"`
+	InStock         bool                    `json:"inStock"`
+	IsPopular       bool                    `json:"isPopular"`
+	Stock           int                     `json:"stock"`
+	IsDefault       bool                    `json:"isDefault"`
+	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
+	CreatedAt       string                  `json:"createdAt"`
+	UpdatedAt       string                  `json:"updatedAt"`
 }
 
 // VariantResponse represents simplified variant information
 type VariantResponse struct {
-	ID              uint                     `json:"id"`
-	SKU             string                   `json:"sku"`
-	Price           float64                  `json:"price"`
-	Images          []string                 `json:"images"`
-	InStock         bool                     `json:"inStock"`
-	IsPopular       bool                     `json:"isPopular"`
-	Stock           int                      `json:"stock"`
-	IsDefault       bool                     `json:"isDefault"`
-	SelectedOptions []VariantOptionResponse  `json:"selectedOptions"`
+	ID              uint                    `json:"id"`
+	SKU             string                  `json:"sku"`
+	Price           float64                 `json:"price"`
+	Images          []string                `json:"images"`
+	InStock         bool                    `json:"inStock"`
+	IsPopular       bool                    `json:"isPopular"`
+	Stock           int                     `json:"stock"`
+	IsDefault       bool                    `json:"isDefault"`
+	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 }
 
 // FindVariantByOptionsRequest represents the request to find a variant by options
@@ -61,11 +61,12 @@ type VariantNotFoundErrorDetails struct {
 
 // OptionValueResponse represents an option value with variant count
 type OptionValueResponse struct {
-	ValueID          uint   `json:"valueId"`
-	Value            string `json:"value"`
-	ValueDisplayName string `json:"valueDisplayName"`
-	ColorCode        string `json:"colorCode,omitempty"`
-	VariantCount     int    `json:"variantCount"`
+	ValueID      uint   `json:"valueId"`
+	Value        string `json:"value"`
+	DisplayName  string `json:"DisplayName"`
+	ColorCode    string `json:"colorCode,omitempty"`
+	VariantCount int    `json:"variantCount"`
+	Position     int    `json:"position"`
 }
 
 // ProductOptionDetailResponse represents a product option with its values
@@ -86,26 +87,26 @@ type GetAvailableOptionsResponse struct {
 // VariantOptionInput represents an option selection for variant creation
 type VariantOptionInput struct {
 	OptionName string `json:"optionName" binding:"required"`
-	Value      string `json:"value" binding:"required"`
+	Value      string `json:"value"      binding:"required"`
 }
 
 // CreateVariantRequest represents the request to create a new variant
 type CreateVariantRequest struct {
-	SKU       string               `json:"sku" binding:"required"`
-	Price     float64              `json:"price" binding:"required,gt=0"`
-	Stock     int                  `json:"stock" binding:"required,gte=0"`
+	SKU       string               `json:"sku"       binding:"required"`
+	Price     float64              `json:"price"     binding:"required,gt=0"`
+	Stock     int                  `json:"stock"     binding:"required,gte=0"`
 	Images    []string             `json:"images"`
 	InStock   *bool                `json:"inStock"`
 	IsPopular *bool                `json:"isPopular"`
 	IsDefault *bool                `json:"isDefault"`
-	Options   []VariantOptionInput `json:"options" binding:"required,min=1,dive"`
+	Options   []VariantOptionInput `json:"options"   binding:"required,min=1,dive"`
 }
 
 // UpdateVariantRequest represents the request to update an existing variant
 type UpdateVariantRequest struct {
 	SKU       *string  `json:"sku"`
-	Price     *float64 `json:"price" binding:"omitempty,gt=0"`
-	Stock     *int     `json:"stock" binding:"omitempty,gte=0"`
+	Price     *float64 `json:"price"     binding:"omitempty,gt=0"`
+	Stock     *int     `json:"stock"     binding:"omitempty,gte=0"`
 	Images    []string `json:"images"`
 	InStock   *bool    `json:"inStock"`
 	IsPopular *bool    `json:"isPopular"`
@@ -114,7 +115,7 @@ type UpdateVariantRequest struct {
 
 // UpdateVariantStockRequest represents the request to update variant stock
 type UpdateVariantStockRequest struct {
-	Stock     int    `json:"stock" binding:"required,gte=0"`
+	Stock     int    `json:"stock"     binding:"required,gte=0"`
 	Operation string `json:"operation" binding:"required,oneof=set add subtract"`
 }
 
@@ -128,10 +129,10 @@ type UpdateVariantStockResponse struct {
 
 // BulkUpdateVariantItem represents a single variant update in bulk operation
 type BulkUpdateVariantItem struct {
-	ID        uint     `json:"id" binding:"required"`
+	ID        uint     `json:"id"                  binding:"required"`
 	SKU       *string  `json:"sku,omitempty"`
-	Price     *float64 `json:"price,omitempty" binding:"omitempty,gt=0"`
-	Stock     *int     `json:"stock,omitempty" binding:"omitempty,gte=0"`
+	Price     *float64 `json:"price,omitempty"     binding:"omitempty,gt=0"`
+	Stock     *int     `json:"stock,omitempty"     binding:"omitempty,gte=0"`
 	Images    []string `json:"images,omitempty"`
 	InStock   *bool    `json:"inStock,omitempty"`
 	IsPopular *bool    `json:"isPopular,omitempty"`

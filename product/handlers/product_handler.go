@@ -35,11 +35,11 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	}
 
 	// Get seller ID from context
-    sellerID, exists := auth.GetSellerIDFromContext(c)
-    if !exists {
-        h.HandleError(c, nil, "Seller ID not found in context")
-        return
-    }
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, nil, "Seller ID not found in context")
+		return
+	}
 
 	productResponse, err := h.productService.CreateProduct(req, sellerID)
 	if err != nil {
@@ -47,7 +47,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_CREATED_MSG, 
+	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_CREATED_MSG,
 		utils.PRODUCT_FIELD_NAME, productResponse)
 }
 
@@ -71,7 +71,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_UPDATED_MSG, 
+	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_UPDATED_MSG,
 		utils.PRODUCT_FIELD_NAME, productResponse)
 }
 
@@ -103,7 +103,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	maxPrice, _ := strconv.ParseFloat(c.Query("maxPrice"), 64)
 	inStock, _ := strconv.ParseBool(c.Query("inStock"))
 	isPopular, _ := strconv.ParseBool(c.Query("isPopular"))
-	sortBy := c.DefaultQuery("sortBy", "createdAt")
+	sortBy := c.DefaultQuery("sortBy", "created_at")
 	sortOrder := c.DefaultQuery("sortOrder", "desc")
 
 	// Build filters
@@ -152,7 +152,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_RETRIEVED_MSG, 
+	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_RETRIEVED_MSG,
 		utils.PRODUCT_FIELD_NAME, productResponse)
 }
 
@@ -200,7 +200,7 @@ func (h *ProductHandler) GetProductFilters(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusOK, utils.FILTERS_RETRIEVED_MSG, 
+	h.SuccessWithData(c, http.StatusOK, utils.FILTERS_RETRIEVED_MSG,
 		utils.FILTERS_FIELD_NAME, filters)
 }
 

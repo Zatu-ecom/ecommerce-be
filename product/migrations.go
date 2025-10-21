@@ -9,12 +9,15 @@ type ProductAutoMigrate struct{}
 func (p *ProductAutoMigrate) AutoMigrate() []interface{} {
 	return []interface{}{
 		&entity.Category{},
-		&entity.Product{},
 		&entity.AttributeDefinition{},
 		&entity.CategoryAttribute{},
-		&entity.ProductAttribute{},
-		&entity.PackageOption{},
 		&entity.Product{},
+		&entity.ProductAttribute{},
+		&entity.ProductOption{},
+		&entity.ProductOptionValue{},
+		&entity.ProductVariant{},
+		&entity.VariantOptionValue{},
+		&entity.PackageOption{},
 	}
 }
 
