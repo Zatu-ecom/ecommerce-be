@@ -2,10 +2,10 @@ package service
 
 import (
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
 )
 
 // VariantService defines the interface for variant-related business logic
@@ -39,6 +39,8 @@ type VariantService interface {
 type VariantServiceImpl struct {
 	variantRepo repositories.VariantRepository
 	productRepo repositories.ProductRepository
+	validator   *validator.VariantValidator
+	factory     *factory.VariantFactory
 }
 
 // NewVariantService creates a new instance of VariantService
@@ -49,6 +51,8 @@ func NewVariantService(
 	return &VariantServiceImpl{
 		variantRepo: variantRepo,
 		productRepo: productRepo,
+		validator:   validator.NewVariantValidator(variantRepo, productRepo),
+		factory:     factory.NewVariantFactory(),
 	}
 }
 
@@ -59,13 +63,23 @@ func (s *VariantServiceImpl) GetVariantByID(
 	productID, variantID uint,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	product, err := s.productRepo.FindByID(productID)
+	if err := s.validator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	// Validate variant belongs to product
+	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
+		return nil, err
+	}
+
+	// Find the variant
+	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find the variant by product ID and variant ID
-	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
+	// Get product
+	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +97,7 @@ func (s *VariantServiceImpl) GetVariantByID(
 	}
 
 	// Map to detailed response
-	response := utils.ConvertVariantToDetailResponse(variant, product, selectedOptions)
+	response := s.factory.BuildVariantDetailResponse(variant, product, selectedOptions)
 
 	return response, nil
 }
@@ -96,13 +110,12 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 	optionValues map[string]string,
 ) (*model.VariantResponse, error) {
 	// Validate input
-	if err := utils.ValidateVariantOptions(optionValues); err != nil {
+	if err := s.validator.ValidateVariantOptions(optionValues); err != nil {
 		return nil, err
 	}
 
 	// Validate that the product exists
-	_, err := s.productRepo.FindByID(productID)
-	if err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +140,7 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 	}
 
 	// Map to response
-	response := utils.ConvertVariantToResponse(variant, selectedOptions)
+	response := s.factory.BuildVariantResponse(variant, selectedOptions)
 
 	return response, nil
 }
@@ -174,7 +187,7 @@ func (s *VariantServiceImpl) buildVariantOptions(
 	}
 
 	// Map to response
-	return utils.ConvertVariantOptionValues(variantOptionValues, productOptions, optionValues), nil
+	return s.factory.BuildVariantOptionResponses(variantOptionValues, productOptions, optionValues), nil
 }
 
 /***********************************************
@@ -185,84 +198,46 @@ func (s *VariantServiceImpl) CreateVariant(
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	_, err := s.productRepo.FindByID(productID)
-	if err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
 		return nil, err
 	}
-
-	// Check if SKU already exists
-	_ , _ = s.variantRepo.FindVariantByID(0) // Check by SKU needed
-	// TODO: Add check for duplicate SKU in actual implementation
 
 	// Validate options and get option value IDs
 	optionValueIDs := make(map[uint]uint) // optionID -> optionValueID
 	optionsMap := make(map[string]string) // For checking duplicate combination
-	variantOptionValues := []entity.VariantOptionValue{}
 
 	for _, optionInput := range request.Options {
-		// Get option by name
-		option, err := s.variantRepo.GetProductOptionByName(productID, optionInput.OptionName)
+		// Validate option exists and get option ID
+		optionID, err := s.validator.ValidateOptionExists(productID, optionInput.OptionName)
 		if err != nil {
 			return nil, err
 		}
 
-		// Get option value by value string
-		optionValue, err := s.variantRepo.GetProductOptionValueByValue(option.ID, optionInput.Value)
+		// Validate option value exists and get option value ID
+		optionValueID, err := s.validator.ValidateOptionValueExists(*optionID, optionInput.Value)
 		if err != nil {
 			return nil, err
 		}
 
-		optionValueIDs[option.ID] = optionValue.ID
+		optionValueIDs[*optionID] = *optionValueID
 		optionsMap[optionInput.OptionName] = optionInput.Value
 	}
 
 	// Check if variant with these options already exists
-	existingVariant, _ := s.variantRepo.FindVariantByOptions(productID, optionsMap)
-	if existingVariant != nil {
-		return nil, prodErrors.ErrVariantCombinationExists
+	if err := s.validator.ValidateVariantCombinationUnique(productID, optionsMap); err != nil {
+		return nil, err
 	}
 
-	// Set default values
-	inStock := true
-	if request.InStock != nil {
-		inStock = *request.InStock
-	}
-
-	isPopular := false
-	if request.IsPopular != nil {
-		isPopular = *request.IsPopular
-	}
-
-	isDefault := false
-	if request.IsDefault != nil {
-		isDefault = *request.IsDefault
-	}
-
-	// Create variant entity
-	variant := &entity.ProductVariant{
-		ProductID: productID,
-		SKU:       request.SKU,
-		Price:     request.Price,
-		Stock:     request.Stock,
-		Images:    request.Images,
-		InStock:   inStock,
-		IsPopular: isPopular,
-		IsDefault: isDefault,
-	}
+	// Create variant entity using factory
+	variant := s.factory.CreateVariantFromRequest(productID, request)
 
 	// Save variant
 	if err := s.variantRepo.CreateVariant(variant); err != nil {
 		return nil, err
 	}
 
-	// Create variant option value associations
-	for optionID, optionValueID := range optionValueIDs {
-		variantOptionValues = append(variantOptionValues, entity.VariantOptionValue{
-			VariantID:     variant.ID,
-			OptionID:      optionID,
-			OptionValueID: optionValueID,
-		})
-	}
+	// Create variant option value associations using factory
+	variantOptionValues := s.factory.CreateVariantOptionValues(variant.ID, optionValueIDs)
 
 	if err := s.variantRepo.CreateVariantOptionValues(variantOptionValues); err != nil {
 		return nil, err
@@ -280,8 +255,12 @@ func (s *VariantServiceImpl) UpdateVariant(
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	_, err := s.productRepo.FindByID(productID)
-	if err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	// Validate variant belongs to product
+	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
 		return nil, err
 	}
 
@@ -291,34 +270,8 @@ func (s *VariantServiceImpl) UpdateVariant(
 		return nil, err
 	}
 
-	// Update fields if provided
-	if request.SKU != nil {
-		variant.SKU = *request.SKU
-	}
-
-	if request.Price != nil {
-		variant.Price = *request.Price
-	}
-
-	if request.Stock != nil {
-		variant.Stock = *request.Stock
-	}
-
-	if request.Images != nil {
-		variant.Images = request.Images
-	}
-
-	if request.InStock != nil {
-		variant.InStock = *request.InStock
-	}
-
-	if request.IsPopular != nil {
-		variant.IsPopular = *request.IsPopular
-	}
-
-	if request.IsDefault != nil {
-		variant.IsDefault = *request.IsDefault
-	}
+	// Update variant using factory
+	variant = s.factory.UpdateVariantEntity(variant, request)
 
 	// Save updated variant
 	if err := s.variantRepo.UpdateVariant(variant); err != nil {
@@ -334,33 +287,27 @@ func (s *VariantServiceImpl) UpdateVariant(
  ***********************************************/
 func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint) error {
 	// Validate that the product exists
-	if err := s.validateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
 		return err
 	}
 
-	// Get existing variant to ensure it belongs to the product
-	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
-	if err != nil {
+	// Validate variant belongs to product
+	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
 		return err
 	}
 
 	// Check if this is the last variant - cannot delete
-	count, err := s.variantRepo.CountVariantsByProductID(productID)
-	if err != nil {
+	if err := s.validator.ValidateCanDeleteVariant(productID); err != nil {
 		return err
 	}
 
-	if count <= 1 {
-		return prodErrors.ErrLastVariantDeleteNotAllowed
-	}
-
 	// Delete variant option values first (foreign key constraint)
-	if err := s.variantRepo.DeleteVariantOptionValues(variant.ID); err != nil {
+	if err := s.variantRepo.DeleteVariantOptionValues(variantID); err != nil {
 		return err
 	}
 
 	// Delete the variant
-	return s.variantRepo.DeleteVariant(variant.ID)
+	return s.variantRepo.DeleteVariant(variantID)
 }
 
 /***********************************************
@@ -371,7 +318,12 @@ func (s *VariantServiceImpl) UpdateVariantStock(
 	request *model.UpdateVariantStockRequest,
 ) (*model.UpdateVariantStockResponse, error) {
 	// Validate that the product exists
-	if err := s.validateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	// Validate variant belongs to product
+	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
 		return nil, err
 	}
 
@@ -381,23 +333,13 @@ func (s *VariantServiceImpl) UpdateVariantStock(
 		return nil, err
 	}
 
-	// Apply stock operation
-	switch request.Operation {
-	case "set":
-		variant.Stock = request.Stock
-	case "add":
-		variant.Stock += request.Stock
-	case "subtract":
-		if variant.Stock < request.Stock {
-			return nil, prodErrors.ErrInsufficientStockForOperation
-		}
-		variant.Stock -= request.Stock
-	default:
-		return nil, prodErrors.ErrInvalidStockOperation
+	// Validate stock operation
+	if err := s.validator.ValidateStockOperation(request, variant.Stock); err != nil {
+		return nil, err
 	}
 
-	// Update InStock status based on new stock value
-	variant.InStock = variant.Stock > 0
+	// Apply stock operation using factory
+	variant = s.factory.ApplyStockOperation(variant, request.Operation, request.Stock)
 
 	// Save updated variant
 	if err := s.variantRepo.UpdateVariant(variant); err != nil {
@@ -421,13 +363,13 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
 	// Validate that the product exists
-	if err := s.validateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductExists(productID); err != nil {
 		return nil, err
 	}
 
-	// Validate variants list is not empty
-	if len(request.Variants) == 0 {
-		return nil, prodErrors.ErrBulkUpdateEmptyList
+	// Validate bulk update request
+	if err := s.validator.ValidateBulkUpdateRequest(request); err != nil {
+		return nil, err
 	}
 
 	// Extract all variant IDs from the request
@@ -439,59 +381,25 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 		updateMap[request.Variants[i].ID] = &request.Variants[i]
 	}
 
-	// Fetch all variants by IDs to validate they exist and belong to this product
+	// Validate all variants exist and belong to product
+	if err := s.validator.ValidateBulkVariantsExist(productID, variantIDs); err != nil {
+		return nil, err
+	}
+
+	// Fetch all variants by IDs
 	existingVariants, err := s.variantRepo.FindVariantsByIDs(variantIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate that all variants belong to the specified product
-	if len(existingVariants) != len(variantIDs) {
-		return nil, prodErrors.ErrBulkUpdateVariantNotFound
-	}
-
-	// Create a map for quick lookup and validate product ownership
+	// Update variants using factory
 	variantsToUpdate := make([]*entity.ProductVariant, 0, len(existingVariants))
 	for i := range existingVariants {
 		variant := &existingVariants[i]
-
-		// Validate that this variant belongs to the specified product
-		if variant.ProductID != productID {
-			return nil, prodErrors.ErrBulkUpdateVariantNotFound
-		}
-
-		// Get the update data for this variant
 		updateData := updateMap[variant.ID]
-
-		// Update only the fields that are provided (not nil)
-		if updateData.SKU != nil {
-			variant.SKU = *updateData.SKU
-		}
-
-		if updateData.Price != nil {
-			variant.Price = *updateData.Price
-		}
-
-		if updateData.Stock != nil {
-			variant.Stock = *updateData.Stock
-		}
-
-		if updateData.Images != nil {
-			variant.Images = updateData.Images
-		}
-
-		if updateData.InStock != nil {
-			variant.InStock = *updateData.InStock
-		}
-
-		if updateData.IsPopular != nil {
-			variant.IsPopular = *updateData.IsPopular
-		}
-
-		if updateData.IsDefault != nil {
-			variant.IsDefault = *updateData.IsDefault
-		}
-
+		
+		// Update variant using factory
+		variant = s.factory.BulkUpdateVariantEntity(variant, updateData)
 		variantsToUpdate = append(variantsToUpdate, variant)
 	}
 
@@ -516,13 +424,4 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 		UpdatedCount: len(variantsToUpdate),
 		Variants:     summaries,
 	}, nil
-}
-
-/***********************************************
- *              Helper Methods                 *
- ***********************************************/
-// validateProductExists validates that a product exists
-func (s *VariantServiceImpl) validateProductExists(productID uint) error {
-	_, err := s.productRepo.FindByID(productID)
-	return err
 }

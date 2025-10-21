@@ -1,15 +1,10 @@
 package service
 
 import (
-	"errors"
-
-	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
-
-	"gorm.io/gorm"
+	"ecommerce-be/product/validator"
 )
 
 // ProductOptionValueService defines the interface for product option value-related business logic
@@ -37,6 +32,8 @@ type ProductOptionValueService interface {
 type ProductOptionValueServiceImpl struct {
 	optionRepo  repositories.ProductOptionRepository
 	productRepo repositories.ProductRepository
+	validator   *validator.ProductOptionValueValidator
+	factory     *factory.ProductOptionValueFactory
 }
 
 // NewProductOptionValueService creates a new instance of ProductOptionValueService
@@ -47,6 +44,8 @@ func NewProductOptionValueService(
 	return &ProductOptionValueServiceImpl{
 		optionRepo:  optionRepo,
 		productRepo: productRepo,
+		validator:   validator.NewProductOptionValueValidator(optionRepo, productRepo),
+		factory:     factory.NewProductOptionValueFactory(),
 	}
 }
 
@@ -59,35 +58,25 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	req model.ProductOptionValueRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	_, err := validateProductAndOption(s.productRepo, s.optionRepo, productID, optionID)
-	if err != nil {
+	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
 		return nil, err
 	}
 
-	// Check if value already exists for this option
-	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
-	if err != nil {
+	// Validate value uniqueness
+	if err := s.validator.ValidateOptionValueUniqueness(optionID, req.Value); err != nil {
 		return nil, err
 	}
 
-	normalizedValue := utils.ToLowerTrimmed(req.Value)
-	for _, val := range existingValues {
-		if val.Value == normalizedValue {
-			return nil, prodErrors.ErrProductOptionValueExists
-		}
-	}
-
-	// Create option value entity
-	optionValue := utils.ConvertProductOptionValueRequestToEntity(req, optionID)
-	optionValue.Value = normalizedValue
+	// Create option value entity using factory
+	optionValue := s.factory.CreateOptionValueFromRequest(optionID, req)
 
 	// Create option value
-	if err := s.optionRepo.CreateOptionValue(&optionValue); err != nil {
+	if err := s.optionRepo.CreateOptionValue(optionValue); err != nil {
 		return nil, err
 	}
 
 	// Convert to response
-	response := utils.ConvertProductOptionValueToResponse(&optionValue)
+	response := s.factory.BuildProductOptionValueResponse(optionValue)
 	return response, nil
 }
 
@@ -101,41 +90,31 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	req model.ProductOptionValueUpdateRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	_, err := validateProductAndOption(s.productRepo, s.optionRepo, productID, optionID)
+	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+		return nil, err
+	}
+
+	// Validate option value belongs to option
+	if err := s.validator.ValidateOptionValueBelongsToOption(valueID, optionID); err != nil {
+		return nil, err
+	}
+
+	// Fetch option value to update
+	optionValue, err := s.optionRepo.FindOptionValueByID(valueID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate option value
-	optionValue, err := validateOptionValue(s.optionRepo, optionID, valueID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update fields
-	if req.DisplayName != "" {
-		optionValue.DisplayName = req.DisplayName
-	}
-	if req.ColorCode != "" {
-		optionValue.ColorCode = req.ColorCode
-	}
-	if req.Position != 0 {
-		optionValue.Position = req.Position
-	}
+	// Update entity using factory
+	s.factory.UpdateOptionValueEntity(optionValue, req)
 
 	// Update option value
 	if err := s.optionRepo.UpdateOptionValue(optionValue); err != nil {
 		return nil, err
 	}
 
-	// Fetch updated option value
-	updatedValue, err := s.optionRepo.FindOptionValueByID(valueID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Convert to response
-	response := utils.ConvertProductOptionValueToResponse(updatedValue)
+	response := s.factory.BuildProductOptionValueResponse(optionValue)
 	return response, nil
 }
 
@@ -148,39 +127,22 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	valueID uint,
 ) error {
 	// Validate product and option
-	_, err := validateProductAndOption(s.productRepo, s.optionRepo, productID, optionID)
-	if err != nil {
+	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
 		return err
 	}
 
-	// Validate option value
-	optionValue, err := validateOptionValue(s.optionRepo, optionID, valueID)
-	if err != nil {
+	// Validate option value belongs to option
+	if err := s.validator.ValidateOptionValueBelongsToOption(valueID, optionID); err != nil {
 		return err
 	}
 
 	// Check if value is being used by any variants
-	inUse, variantIDs, err := s.optionRepo.CheckOptionValueInUse(valueID)
-	if err != nil {
+	if err := s.validator.ValidateOptionValueNotInUse(valueID); err != nil {
 		return err
-	}
-
-	if inUse {
-		// Return error with details about affected variants
-		return &OptionValueInUseError{
-			OptionValueID:    valueID,
-			OptionValue:      optionValue.Value,
-			VariantCount:     len(variantIDs),
-			AffectedVariants: variantIDs,
-		}
 	}
 
 	// Delete option value
-	if err := s.optionRepo.DeleteOptionValue(valueID); err != nil {
-		return err
-	}
-
-	return nil
+	return s.optionRepo.DeleteOptionValue(valueID)
 }
 
 /***********************************************
@@ -192,56 +154,23 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	req model.ProductOptionValueBulkAddRequest,
 ) ([]model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	_, err := validateProductAndOption(s.productRepo, s.optionRepo, productID, optionID)
-	if err != nil {
+	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
 		return nil, err
 	}
 
-	// Get existing values for duplicate check
-	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
-	if err != nil {
+	// Extract values for validation
+	values := make([]string, len(req.Values))
+	for i, v := range req.Values {
+		values[i] = v.Value
+	}
+
+	// Validate bulk uniqueness (checks both existing values and within batch)
+	if err := s.validator.ValidateBulkOptionValuesUniqueness(optionID, values); err != nil {
 		return nil, err
 	}
 
-	// Create a map of existing values for quick lookup
-	existingValueMap := make(map[string]bool)
-	for _, val := range existingValues {
-		existingValueMap[val.Value] = true
-	}
-
-	// Prepare values to create
-	var valuesToCreate []entity.ProductOptionValue
-	var normalizedValues []string
-
-	for _, valueReq := range req.Values {
-		normalizedValue := utils.ToLowerTrimmed(valueReq.Value)
-
-		// Check for duplicates in existing values
-		if existingValueMap[normalizedValue] {
-			return nil, prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
-				utils.PRODUCT_OPTION_VALUE_EXISTS_MSG, normalizedValue)
-		}
-
-		// Check for duplicates within the current batch
-		isDuplicate := false
-		for _, nv := range normalizedValues {
-			if nv == normalizedValue {
-				isDuplicate = true
-				break
-			}
-		}
-
-		if isDuplicate {
-			return nil, prodErrors.ErrProductOptionValueExists.WithMessagef("%s: %s",
-				utils.PRODUCT_OPTION_VALUE_DUPLICATE_IN_BATCH_MSG, normalizedValue)
-		}
-
-		normalizedValues = append(normalizedValues, normalizedValue)
-
-		optionValue := utils.ConvertProductOptionValueRequestToEntity(valueReq, optionID)
-		optionValue.Value = normalizedValue
-		valuesToCreate = append(valuesToCreate, optionValue)
-	}
+	// Create option values using factory
+	valuesToCreate := s.factory.CreateOptionValuesFromRequests(optionID, req.Values)
 
 	// Bulk create option values
 	if err := s.optionRepo.CreateOptionValues(valuesToCreate); err != nil {
@@ -251,86 +180,9 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	// Convert to response
 	var responses []model.ProductOptionValueResponse
 	for i := range valuesToCreate {
-		response := utils.ConvertProductOptionValueToResponse(&valuesToCreate[i])
+		response := s.factory.BuildProductOptionValueResponse(&valuesToCreate[i])
 		responses = append(responses, *response)
 	}
 
 	return responses, nil
-}
-
-/***********************************************
- *    Custom Errors                             *
- ***********************************************/
-
-// OptionValueInUseError represents an error when trying to delete a value that's in use
-type OptionValueInUseError struct {
-	OptionValueID    uint
-	OptionValue      string
-	VariantCount     int
-	AffectedVariants []uint
-}
-
-func (e *OptionValueInUseError) Error() string {
-	return utils.PRODUCT_OPTION_VALUE_IN_USE_MSG
-}
-
-
-/***********************************************
- *    Helper Functions                         *
- ***********************************************/
-
- // validateProductAndOption validates that product and option exist and belong together
-func validateProductAndOption(
-	productRepo repositories.ProductRepository,
-	optionRepo repositories.ProductOptionRepository,
-	productID uint,
-	optionID uint,
-) (*entity.ProductOption, error) {
-	// Validate product exists
-	_, err := productRepo.FindByID(productID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, prodErrors.ErrProductNotFound
-		}
-		return nil, err
-	}
-
-	// Fetch existing option
-	option, err := optionRepo.FindOptionByID(optionID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, prodErrors.ErrProductOptionNotFound
-		}
-		return nil, err
-	}
-
-	// Verify option belongs to product
-	if option.ProductID != productID {
-		return nil, prodErrors.ErrProductOptionMismatch
-	}
-
-	return option, nil
-}
-
-// validateOptionValue validates that an option value exists and belongs to the given option
-func validateOptionValue(
-	optionRepo repositories.ProductOptionRepository,
-	optionID uint,
-	valueID uint,
-) (*entity.ProductOptionValue, error) {
-	// Fetch existing option value
-	optionValue, err := optionRepo.FindOptionValueByID(valueID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, prodErrors.ErrProductOptionValueNotFound
-		}
-		return nil, err
-	}
-
-	// Verify value belongs to option
-	if optionValue.OptionID != optionID {
-		return nil, prodErrors.ErrProductOptionValueMismatch
-	}
-
-	return optionValue, nil
 }

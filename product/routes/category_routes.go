@@ -18,7 +18,8 @@ type CategoryModule struct {
 // NewCategoryModule creates a new instance of CategoryModule
 func NewCategoryModule() *CategoryModule {
 	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
-	categoryService := service.NewCategoryService(categoryRepo)
+	productRepo := repositories.NewProductRepository(db.GetDB())
+	categoryService := service.NewCategoryService(categoryRepo, productRepo)
 
 	return &CategoryModule{
 		categoryHandler: handlers.NewCategoryHandler(categoryService),

@@ -1,15 +1,11 @@
 package service
 
 import (
-	"regexp"
-	"time"
-
-	commonEntity "ecommerce-be/common/db"
-	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
 )
 
 // AttributeDefinitionService defines the interface for attribute definition business logic
@@ -34,6 +30,8 @@ type AttributeDefinitionService interface {
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
 type AttributeDefinitionServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
+	validator     *validator.AttributeValidator
+	factory       *factory.AttributeFactory
 }
 
 // NewAttributeDefinitionService creates a new instance of AttributeDefinitionService
@@ -42,6 +40,8 @@ func NewAttributeDefinitionService(
 ) AttributeDefinitionService {
 	return &AttributeDefinitionServiceImpl{
 		attributeRepo: attributeRepo,
+		validator:     validator.NewAttributeValidator(),
+		factory:       factory.NewAttributeFactory(),
 	}
 }
 
@@ -49,10 +49,29 @@ func NewAttributeDefinitionService(
 func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
-	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
+	// Validate attribute key format
+	if err := s.validator.ValidateKey(req.Key); err != nil {
+		return nil, err
+	}
+
+	// Validate allowed values if provided
+	if len(req.AllowedValues) > 0 {
+		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+			return nil, err
+		}
+	}
+
+	// Check if attribute with same key already exists
+	existingAttribute, err := s.attributeRepo.FindByKey(req.Key)
 	if err != nil {
 		return nil, err
 	}
+	if existingAttribute != nil {
+		return nil, prodErrors.ErrAttributeExists
+	}
+
+	// Create attribute entity using factory
+	attribute := s.factory.CreateFromRequest(req)
 
 	// Save attribute to database
 	if err := s.attributeRepo.Create(attribute); err != nil {
@@ -60,7 +79,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	}
 
 	// Build response using converter
-	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
+	attributeResponse := s.factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -75,11 +94,15 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 		return nil, err
 	}
 
-	// Update attribute fields
-	attribute.Name = req.Name
-	attribute.Unit = req.Unit
-	attribute.AllowedValues = req.AllowedValues
-	attribute.UpdatedAt = time.Now()
+	// Validate allowed values if provided
+	if len(req.AllowedValues) > 0 {
+		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+			return nil, err
+		}
+	}
+
+	// Update attribute using factory
+	attribute = s.factory.UpdateEntity(attribute, req)
 
 	// Save updated attribute
 	if err := s.attributeRepo.Update(attribute); err != nil {
@@ -87,7 +110,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 	}
 
 	// Build response using converter
-	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
+	attributeResponse := s.factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -105,7 +128,7 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDef
 
 	var attributesResponse []model.AttributeDefinitionResponse
 	for _, attribute := range attributes {
-		ar := utils.ConvertAttributeDefinitionToResponse(&attribute)
+		ar := s.factory.BuildAttributeResponse(&attribute)
 		attributesResponse = append(attributesResponse, *ar)
 	}
 
@@ -123,7 +146,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
 		return nil, err
 	}
 
-	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
+	attributeResponse := s.factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -139,7 +162,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
 		return nil, prodErrors.ErrAttributeNotFound
 	}
 
-	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
+	attributeResponse := s.factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -147,43 +170,16 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	categoryID uint,
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
-	attribute, err := s.validateAttributeKeyAndConvertToEntity(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.attributeRepo.CreateCategoryAttributeDefinition(attribute, categoryID); err != nil {
-		return nil, err
-	}
-
-	attributeResponse := utils.ConvertAttributeDefinitionToResponse(attribute)
-	return attributeResponse, nil
-}
-
-// isValidAttributeKey validates the attribute key format
-func (s *AttributeDefinitionServiceImpl) isValidAttributeKey(key string) bool {
-	// Key must contain only lowercase letters, numbers, and underscores
-	matched, _ := regexp.MatchString(`^[a-z0-9_]+$`, key)
-	return matched
-}
-
-// isValidDataType validates the data type
-func (s *AttributeDefinitionServiceImpl) isValidDataType(dataType string) bool {
-	validTypes := []string{"string", "number", "boolean", "array"}
-	for _, validType := range validTypes {
-		if dataType == validType {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
-	req model.AttributeDefinitionCreateRequest,
-) (*entity.AttributeDefinition, error) {
 	// Validate attribute key format
-	if !s.isValidAttributeKey(req.Key) {
-		return nil, prodErrors.ErrInvalidAttributeKey
+	if err := s.validator.ValidateKey(req.Key); err != nil {
+		return nil, err
+	}
+
+	// Validate allowed values if provided
+	if len(req.AllowedValues) > 0 {
+		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if attribute with same key already exists
@@ -195,17 +191,13 @@ func (s *AttributeDefinitionServiceImpl) validateAttributeKeyAndConvertToEntity(
 		return nil, prodErrors.ErrAttributeExists
 	}
 
-	// Create attribute definition entity
-	attribute := &entity.AttributeDefinition{
-		Key:           req.Key,
-		Name:          req.Name,
-		Unit:          req.Unit,
-		AllowedValues: req.AllowedValues,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
+	// Create attribute entity using factory
+	attribute := s.factory.CreateFromRequest(req)
+
+	if err := s.attributeRepo.CreateCategoryAttributeDefinition(attribute, categoryID); err != nil {
+		return nil, err
 	}
 
-	return attribute, nil
+	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	return attributeResponse, nil
 }

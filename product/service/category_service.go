@@ -1,14 +1,10 @@
 package service
 
 import (
-	"time"
-
-	commonEntity "ecommerce-be/common/db"
-	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
 )
 
 // CategoryService defines the interface for category-related business logic
@@ -26,13 +22,24 @@ type CategoryService interface {
 
 // CategoryServiceImpl implements the CategoryService interface
 type CategoryServiceImpl struct {
-	categoryRepo repositories.CategoryRepository
+	categoryRepo     repositories.CategoryRepository
+	productRepo      repositories.ProductRepository
+	validator        *validator.CategoryValidator
+	factory          *factory.CategoryFactory
+	attributeFactory *factory.AttributeFactory
 }
 
 // NewCategoryService creates a new instance of CategoryService
-func NewCategoryService(categoryRepo repositories.CategoryRepository) CategoryService {
+func NewCategoryService(
+	categoryRepo repositories.CategoryRepository,
+	productRepo repositories.ProductRepository,
+) CategoryService {
 	return &CategoryServiceImpl{
-		categoryRepo: categoryRepo,
+		categoryRepo:     categoryRepo,
+		productRepo:      productRepo,
+		validator:        validator.NewCategoryValidator(categoryRepo),
+		factory:          factory.NewCategoryFactory(),
+		attributeFactory: factory.NewAttributeFactory(),
 	}
 }
 
@@ -40,37 +47,18 @@ func NewCategoryService(categoryRepo repositories.CategoryRepository) CategorySe
 func (s *CategoryServiceImpl) CreateCategory(
 	req model.CategoryCreateRequest,
 ) (*model.CategoryResponse, error) {
-	// Check if category with same name exists in the same parent
-
-	existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
-	if err != nil {
+	// Validate unique name within the same parent
+	if err := s.validator.ValidateUniqueName(req.Name, req.ParentID, nil); err != nil {
 		return nil, err
-	}
-	if existingCategory != nil {
-		return nil, prodErrors.ErrCategoryExists
 	}
 
 	// Validate parent category if provided
-	if req.ParentID != nil {
-		parentCategory, err := s.categoryRepo.FindByID(*req.ParentID)
-		if err != nil {
-			return nil, err
-		}
-		if parentCategory == nil {
-			return nil, prodErrors.ErrInvalidParentCategory
-		}
+	if err := s.validator.ValidateParentCategory(req.ParentID); err != nil {
+		return nil, err
 	}
 
-	// Create category entity
-	category := &entity.Category{
-		Name:        req.Name,
-		ParentID:    req.ParentID,
-		Description: req.Description,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
+	// Create category entity using factory
+	category := s.factory.CreateFromRequest(req)
 
 	// Save category to database
 	if err := s.categoryRepo.Create(category); err != nil {
@@ -78,7 +66,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	}
 
 	// Create response using converter utility
-	categoryResponse := utils.ConvertCategoryToResponse(category)
+	categoryResponse := s.factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
@@ -94,38 +82,23 @@ func (s *CategoryServiceImpl) UpdateCategory(
 		return nil, err
 	}
 
-	// Check if category with same name exists in the same parent (excluding current category)
-	if req.Name != category.Name {
-		existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
-		if err != nil {
-			return nil, err
-		}
-		if existingCategory != nil && existingCategory.ID != id {
-			return nil, prodErrors.ErrCategoryExists
-		}
+	// Validate name change (check uniqueness within same parent)
+	if err := s.validator.ValidateNameChange(category.Name, req.Name, req.ParentID, id); err != nil {
+		return nil, err
+	}
+
+	// Validate circular reference
+	if err := s.validator.ValidateCircularReference(id, req.ParentID); err != nil {
+		return nil, err
 	}
 
 	// Validate parent category if provided
-	if req.ParentID != nil && *req.ParentID != 0 {
-		// Prevent circular reference
-		if *req.ParentID == id {
-			return nil, prodErrors.ErrInvalidParentCategory.WithMessage("Category cannot be its own parent")
-		}
-
-		parentCategory, err := s.categoryRepo.FindByID(*req.ParentID)
-		if err != nil {
-			return nil, err
-		}
-		if parentCategory == nil {
-			return nil, prodErrors.ErrInvalidParentCategory
-		}
+	if err := s.validator.ValidateParentCategory(req.ParentID); err != nil {
+		return nil, err
 	}
 
-	// Update category fields
-	category.Name = req.Name
-	category.ParentID = req.ParentID
-	category.Description = req.Description
-	category.UpdatedAt = time.Now()
+	// Update category using factory
+	category = s.factory.UpdateEntity(category, req)
 
 	// Save updated category
 	if err := s.categoryRepo.Update(category); err != nil {
@@ -133,29 +106,16 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	}
 
 	// Create response using converter utility
-	categoryResponse := utils.ConvertCategoryToResponse(category)
+	categoryResponse := s.factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
 
 // DeleteCategory soft deletes a category
 func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
-	// Check if category has active products
-	hasProducts, err := s.categoryRepo.CheckHasProducts(id)
-	if err != nil {
+	// Validate that category can be deleted
+	if err := s.validator.ValidateCanDelete(id); err != nil {
 		return err
-	}
-	if hasProducts {
-		return prodErrors.ErrCategoryHasProducts
-	}
-
-	// Check if category has active child categories
-	hasChildren, err := s.categoryRepo.CheckHasChildren(id)
-	if err != nil {
-		return err
-	}
-	if hasChildren {
-		return prodErrors.ErrCategoryHasChildren
 	}
 
 	// Soft delete category
@@ -174,7 +134,7 @@ func (s *CategoryServiceImpl) GetAllCategories() (*model.CategoriesResponse, err
 	var rootCategories []*model.CategoryHierarchyResponse
 
 	for _, category := range categories {
-		categoryResponse := utils.ConvertCategoryToHierarchyResponse(&category)
+		categoryResponse := s.factory.BuildCategoryHierarchyResponse(&category)
 		categoryMap[category.ID] = categoryResponse
 
 		if category.ParentID == nil || *category.ParentID == 0 {
@@ -211,7 +171,7 @@ func (s *CategoryServiceImpl) GetCategoryByID(id uint) (*model.CategoryResponse,
 	}
 
 	// Create response using converter utility
-	categoryResponse := utils.ConvertCategoryToResponse(category)
+	categoryResponse := s.factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
@@ -227,7 +187,7 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 
 	var categoriesResponse []model.CategoryHierarchyResponse
 	for _, category := range categories {
-		categoryResponse := utils.ConvertCategoryToHierarchyResponse(&category)
+		categoryResponse := s.factory.BuildCategoryHierarchyResponse(&category)
 		categoriesResponse = append(categoriesResponse, *categoryResponse)
 	}
 
@@ -246,7 +206,7 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 
 	var attributesResponse []model.AttributeDefinitionResponse
 	for _, attribute := range attributes {
-		ar := utils.ConvertAttributeDefinitionToResponse(&attribute)
+		ar := s.attributeFactory.BuildAttributeResponse(&attribute)
 		attributesResponse = append(attributesResponse, *ar)
 	}
 

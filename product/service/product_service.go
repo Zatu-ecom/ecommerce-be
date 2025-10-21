@@ -7,10 +7,11 @@ import (
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
 
 	"gorm.io/gorm"
 )
@@ -38,6 +39,8 @@ type ProductServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
 	variantRepo   repositories.VariantRepository
 	optionRepo    repositories.ProductOptionRepository
+	validator     *validator.ProductValidator
+	factory       *factory.ProductFactory
 }
 
 // NewProductService creates a new instance of ProductService
@@ -54,6 +57,8 @@ func NewProductService(
 		attributeRepo: attributeRepo,
 		variantRepo:   variantRepo,
 		optionRepo:    optionRepo,
+		validator:     validator.NewProductValidator(productRepo, categoryRepo, optionRepo),
+		factory:       factory.NewProductFactory(),
 	}
 }
 
@@ -68,22 +73,13 @@ func (s *ProductServiceImpl) CreateProduct(
 	var product *entity.Product
 
 	err := db.Atomic(func(tx *gorm.DB) error {
-		// Validate request
-		if err := s.validateProductCreateRequest(req); err != nil {
+		// Validate request using validator
+		if err := s.validator.ValidateProductCreateRequest(req); err != nil {
 			return err
 		}
 
-		// Create product entity
-		product = &entity.Product{
-			Name:             req.Name,
-			CategoryID:       req.CategoryID,
-			Brand:            req.Brand,
-			BaseSKU:          req.BaseSKU,
-			ShortDescription: req.ShortDescription,
-			LongDescription:  req.LongDescription,
-			Tags:             req.Tags,
-			SellerID:         sellerID,
-		}
+		// Create product entity using factory
+		product = s.factory.CreateProductFromRequest(req, sellerID)
 
 		if err := s.productRepo.Create(product); err != nil {
 			return err
@@ -127,91 +123,30 @@ func (s *ProductServiceImpl) CreateProduct(
 	return s.GetProductByID(product.ID)
 }
 
-// Helper to validate product creation request
-func (s *ProductServiceImpl) validateProductCreateRequest(req model.ProductCreateRequest) error {
-	// Check if base SKU already exists
-	existingProduct, err := s.productRepo.FindBySKU(req.BaseSKU)
-	if err != nil && err.Error() != utils.PRODUCT_NOT_FOUND_MSG {
-		return err
-	}
-	if existingProduct != nil {
-		return prodErrors.ErrProductExists
-	}
-
-	// Validate category exists
-	category, err := s.categoryRepo.FindByID(req.CategoryID)
-	if err != nil {
-		return err
-	}
-	if category == nil {
-		return prodErrors.ErrInvalidCategory
-	}
-
-	// Validate variants are provided (PRD: at least one variant required)
-	if !req.AutoGenerateVariants && len(req.Variants) == 0 {
-		return prodErrors.ErrValidation.WithMessage("at least one variant is required or enable autoGenerateVariants")
-	}
-
-	// If auto-generating, validate default settings
-	if req.AutoGenerateVariants {
-		if len(req.Options) == 0 {
-			return prodErrors.ErrValidation.WithMessage("options are required when autoGenerateVariants is true")
-		}
-		if req.DefaultVariantSettings == nil {
-			return prodErrors.ErrValidation.WithMessage("defaultVariantSettings is required when autoGenerateVariants is true")
-		}
-	}
-
-	// If variants provided, validate each variant SKU is unique
-	if len(req.Variants) > 0 {
-		skuMap := make(map[string]bool)
-		for _, variant := range req.Variants {
-			if skuMap[variant.SKU] {
-				return prodErrors.ErrValidation.WithMessagef("duplicate variant SKU: %s", variant.SKU)
-			}
-			skuMap[variant.SKU] = true
-		}
-	}
-
-	return nil
-}
-
-// Helper to create product options (PRD Section 3.1.3)
+// Helper to create product options (uses factory for entity creation)
 func (s *ProductServiceImpl) createProductOptions(
 	productID uint,
 	optionReqs []model.ProductOptionCreateRequest,
 ) error {
-	for i, optionReq := range optionReqs {
-		// Create product option
-		option := &entity.ProductOption{
-			ProductID:   productID,
-			Name:        optionReq.Name,
-			DisplayName: optionReq.DisplayName,
-			Position:    optionReq.Position,
-		}
-		if option.Position == 0 {
-			option.Position = i + 1
-		}
+	for _, optionReq := range optionReqs {
+		// Create product option using factory
+		options := s.factory.CreateProductOptionsFromRequests(
+			productID,
+			[]model.ProductOptionCreateRequest{optionReq},
+		)
+		option := options[0]
 
 		if err := s.optionRepo.CreateOption(option); err != nil {
 			return err
 		}
 
-		// Create option values
-		for j, valueReq := range optionReq.Values {
-			optionValue := &entity.ProductOptionValue{
-				OptionID:    option.ID,
-				Value:       valueReq.Value,
-				DisplayName: valueReq.DisplayName,
-				ColorCode:   valueReq.ColorCode,
-				Position:    valueReq.Position,
-			}
-			if optionValue.Position == 0 {
-				optionValue.Position = j + 1
-			}
-
-			if err := s.optionRepo.CreateOptionValue(optionValue); err != nil {
-				return err
+		// Create option values using factory
+		if len(optionReq.Values) > 0 {
+			values := s.factory.CreateOptionValuesFromRequests(option.ID, optionReq.Values)
+			for _, value := range values {
+				if err := s.optionRepo.CreateOptionValue(value); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -240,113 +175,32 @@ func (s *ProductServiceImpl) autoGenerateVariants(
 		return err
 	}
 
-	// Generate all combinations
-	combinations := s.generateOptionCombinations(productOptions)
+	// Generate all combinations using factory
+	combinations := s.factory.GenerateOptionCombinations(productOptions)
 
-	// Create a variant for each combination
+	// Create a variant for each combination using factory
 	for i, combo := range combinations {
-		// Generate SKU from combination
-		sku := req.BaseSKU
-		for _, opt := range combo {
-			sku += "-" + opt.Value
-		}
-
-		// Create variant
-		variant := &entity.ProductVariant{
-			ProductID: productID,
-			SKU:       sku,
-			Price:     req.DefaultVariantSettings.Price,
-			Stock:     req.DefaultVariantSettings.Stock,
-			InStock:   req.DefaultVariantSettings.Stock > 0,
-			IsPopular: req.DefaultVariantSettings.IsPopular,
-			IsDefault: i == 0, // First variant is default
-		}
+		// Create variant using factory
+		variant := s.factory.CreateAutoGeneratedVariant(
+			productID,
+			req.BaseSKU,
+			combo,
+			*req.DefaultVariantSettings,
+			i == 0, // First variant is default
+		)
 
 		if err := s.variantRepo.CreateVariant(variant); err != nil {
 			return err
 		}
 
-		// Link variant to option values
-		var vovs []entity.VariantOptionValue
-		for _, opt := range combo {
-			vovs = append(vovs, entity.VariantOptionValue{
-				VariantID:     variant.ID,
-				OptionID:      opt.OptionID,
-				OptionValueID: opt.ValueID,
-			})
-		}
+		// Create variant-option-value associations using factory
+		vovs := s.factory.CreateVariantOptionValues(variant.ID, combo)
 		if err := s.variantRepo.CreateVariantOptionValues(vovs); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-// Helper to generate all combinations of option values
-func (s *ProductServiceImpl) generateOptionCombinations(options []entity.ProductOption) [][]struct {
-	OptionID uint
-	ValueID  uint
-	Value    string
-} {
-	if len(options) == 0 {
-		return nil
-	}
-
-	// Start with first option's values
-	var result [][]struct {
-		OptionID uint
-		ValueID  uint
-		Value    string
-	}
-
-	for _, value := range options[0].Values {
-		result = append(result, []struct {
-			OptionID uint
-			ValueID  uint
-			Value    string
-		}{
-			{
-				OptionID: options[0].ID,
-				ValueID:  value.ID,
-				Value:    value.Value,
-			},
-		})
-	}
-
-	// Cartesian product with remaining options
-	for i := 1; i < len(options); i++ {
-		var newResult [][]struct {
-			OptionID uint
-			ValueID  uint
-			Value    string
-		}
-
-		for _, combo := range result {
-			for _, value := range options[i].Values {
-				newCombo := make([]struct {
-					OptionID uint
-					ValueID  uint
-					Value    string
-				}, len(combo)+1)
-				copy(newCombo, combo)
-				newCombo[len(combo)] = struct {
-					OptionID uint
-					ValueID  uint
-					Value    string
-				}{
-					OptionID: options[i].ID,
-					ValueID:  value.ID,
-					Value:    value.Value,
-				}
-				newResult = append(newResult, newCombo)
-			}
-		}
-
-		result = newResult
-	}
-
-	return result
 }
 
 // Helper to create manual variants
@@ -357,7 +211,9 @@ func (s *ProductServiceImpl) createManualVariants(
 	// Get all product options to map option names to IDs
 	productOptions, err := s.optionRepo.FindOptionsByProductID(productID)
 	if err != nil && len(variantReqs) > 0 && len(variantReqs[0].Options) > 0 {
-		return prodErrors.ErrValidation.WithMessage("product options not found, but variants require options")
+		return prodErrors.ErrValidation.WithMessage(
+			"product options not found, but variants require options",
+		)
 	}
 
 	optionMap := make(map[string]*entity.ProductOption)
@@ -407,7 +263,10 @@ func (s *ProductServiceImpl) createManualVariants(
 		for _, optInput := range variantReq.Options {
 			option, exists := optionMap[optInput.OptionName]
 			if !exists {
-				return prodErrors.ErrValidation.WithMessagef("option not found: %s", optInput.OptionName)
+				return prodErrors.ErrValidation.WithMessagef(
+					"option not found: %s",
+					optInput.OptionName,
+				)
 			}
 
 			// Find the option value ID
@@ -419,8 +278,11 @@ func (s *ProductServiceImpl) createManualVariants(
 				}
 			}
 			if valueID == 0 {
-				return prodErrors.ErrValidation.WithMessagef("option value not found: %s for option: %s", 
-					optInput.Value, optInput.OptionName)
+				return prodErrors.ErrValidation.WithMessagef(
+					"option value not found: %s for option: %s",
+					optInput.Value,
+					optInput.OptionName,
+				)
 			}
 
 			vovs = append(vovs, entity.VariantOptionValue{
@@ -440,15 +302,6 @@ func (s *ProductServiceImpl) createManualVariants(
 	return nil
 }
 
-// Helper to flatten []*entity.ProductAttribute to []entity.ProductAttribute
-func flattenAttributes(attrs []*entity.ProductAttribute) []entity.ProductAttribute {
-	var result []entity.ProductAttribute
-	for _, attr := range attrs {
-		result = append(result, *attr)
-	}
-	return result
-}
-
 // Helper to build product response from entity (fetches variant data)
 // Implements PRD Section 3.1.2 - Get Product by ID with full details
 func (s *ProductServiceImpl) buildProductResponseFromEntity(
@@ -466,20 +319,20 @@ func (s *ProductServiceImpl) buildProductResponseFromEntity(
 			parentCategory = pc
 		}
 	}
-	categoryInfo := utils.ConvertCategoryToHierarchyInfo(category, parentCategory)
+	categoryInfo := s.factory.BuildCategoryHierarchyInfo(category, parentCategory)
 
 	// Get product attributes
 	productAttributes, err := s.attributeRepo.FindProductAttributeByProductID(product.ID)
 	var attributes []model.ProductAttributeResponse
 	if err == nil {
-		attributes = utils.ConvertProductAttributesEntityToResponse(productAttributes)
+		attributes = s.factory.BuildProductAttributesResponse(productAttributes)
 	}
 
 	// Get package options
 	packageOptions, err := s.productRepo.FindPackageOptionByProductID(product.ID)
 	var packageOptionResponses []model.PackageOptionResponse
 	if err == nil {
-		packageOptionResponses = utils.ConvertPackageOptionsEntityToResponse(packageOptions)
+		packageOptionResponses = s.factory.BuildPackageOptionResponses(packageOptions)
 	}
 
 	// Get variant aggregation for summary info
@@ -658,7 +511,7 @@ type BulkOperations struct {
 	productAttributesToCreate []*entity.ProductAttribute
 }
 
-// processAttributesForBulkOperations processes attributes and prepares bulk operations
+// processAttributesForBulkOperations processes attributes and prepares bulk operations using factory
 func (s *ProductServiceImpl) processAttributesForBulkOperations(
 	productID uint,
 	attributes []model.ProductAttributeRequest,
@@ -674,61 +527,27 @@ func (s *ProductServiceImpl) processAttributesForBulkOperations(
 		attribute, exists := attributeMap[attr.Key]
 
 		if exists {
-			s.processExistingAttribute(attribute, attr.Value, operations)
+			// Update existing attribute using factory
+			if s.factory.UpdateAttributeDefinitionValues(attribute, attr.Value) {
+				operations.attributesToUpdate = append(operations.attributesToUpdate, attribute)
+			}
 		} else {
-			attribute = s.createNewAttributeDefinition(attr, operations)
+			// Create new attribute definition using factory
+			attribute = s.factory.CreateNewAttributeDefinition(attr)
+			operations.attributesToCreate = append(operations.attributesToCreate, attribute)
 			attributeMap[attr.Key] = attribute
 		}
-
-		// Prepare product attribute for bulk creation
-		productAttribute := &entity.ProductAttribute{
-			ProductID:             productID,
-			AttributeDefinitionID: attribute.ID,
-			Value:                 attr.Value,
-			SortOrder:             attr.SortOrder,
-			AttributeDefinition:   attribute,
-		}
-		operations.productAttributesToCreate = append(
-			operations.productAttributesToCreate,
-			productAttribute,
-		)
 	}
+
+	// Create product attributes using factory
+	productAttributes := s.factory.CreateProductAttributesFromRequests(
+		productID,
+		attributes,
+		attributeMap,
+	)
+	operations.productAttributesToCreate = productAttributes
 
 	return operations
-}
-
-// processExistingAttribute processes an existing attribute definition
-func (s *ProductServiceImpl) processExistingAttribute(
-	attribute *entity.AttributeDefinition,
-	value string,
-	operations *BulkOperations,
-) {
-	// Check if value already exists using map for O(1) lookup
-	valueMap := make(map[string]bool)
-	for _, val := range attribute.AllowedValues {
-		valueMap[val] = true
-	}
-
-	// Only add if value doesn't exist
-	if !valueMap[value] {
-		attribute.AllowedValues = append(attribute.AllowedValues, value)
-		operations.attributesToUpdate = append(operations.attributesToUpdate, attribute)
-	}
-}
-
-// createNewAttributeDefinition creates a new attribute definition
-func (s *ProductServiceImpl) createNewAttributeDefinition(
-	attr model.ProductAttributeRequest,
-	operations *BulkOperations,
-) *entity.AttributeDefinition {
-	attribute := &entity.AttributeDefinition{
-		Key:           attr.Key,
-		Name:          attr.Name,
-		Unit:          attr.Unit,
-		AllowedValues: []string{attr.Value},
-	}
-	operations.attributesToCreate = append(operations.attributesToCreate, attribute)
-	return attribute
 }
 
 // executeBulkOperations executes all bulk database operations
@@ -757,26 +576,13 @@ func (s *ProductServiceImpl) executeBulkOperations(operations *BulkOperations) e
 	return nil
 }
 
+// createPackageOption creates package options using factory
 func (s *ProductServiceImpl) createPackageOption(
 	parentID uint,
 	options []model.PackageOptionRequest,
 ) ([]entity.PackageOption, error) {
-	var packageOptions []entity.PackageOption
-	for _, option := range options {
-		packageOption := entity.PackageOption{
-			Name:        option.Name,
-			Description: option.Description,
-			Price:       option.Price,
-			Quantity:    option.Quantity,
-			ProductID:   parentID,
-			BaseEntity: db.BaseEntity{
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-		}
-		packageOptions = append(packageOptions, packageOption)
-	}
-
+	// Create package options using factory
+	packageOptions := s.factory.CreatePackageOptionsFromRequests(parentID, options)
 	return packageOptions, s.productRepo.CreatePackageOptions(packageOptions)
 }
 
@@ -788,41 +594,14 @@ func (s *ProductServiceImpl) UpdateProduct(
 	id uint,
 	req model.ProductUpdateRequest,
 ) (*model.ProductResponse, error) {
-	product, err := s.productRepo.FindByID(id)
+	// Validate product exists and category if provided
+	product, err := s.validator.ValidateProductUpdateRequest(id, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate and update category
-	if req.CategoryID != 0 {
-		category, err := s.categoryRepo.FindByID(req.CategoryID)
-		if err != nil {
-			return nil, err
-		}
-		if category == nil {
-			return nil, prodErrors.ErrInvalidCategory
-		}
-		product.CategoryID = req.CategoryID
-	}
-
-	// Update basic product fields only
-	if req.Name != "" {
-		product.Name = req.Name
-	}
-	if req.Brand != "" {
-		product.Brand = req.Brand
-	}
-	if req.ShortDescription != "" {
-		product.ShortDescription = req.ShortDescription
-	}
-	if req.LongDescription != "" {
-		product.LongDescription = req.LongDescription
-	}
-	if len(req.Tags) > 0 {
-		product.Tags = req.Tags
-	}
-
-	product.UpdatedAt = time.Now()
+	// Update product entity using factory
+	product = s.factory.UpdateProductEntity(product, req)
 
 	// Save updated product
 	if err := s.productRepo.Update(product); err != nil {
@@ -848,12 +627,10 @@ func (s *ProductServiceImpl) UpdateProduct(
 ***********************************************************/
 func (s *ProductServiceImpl) DeleteProduct(id uint) error {
 	// Verify product exists
-	product, err := s.productRepo.FindByID(id)
+	// Verify product exists using validator
+	_, err := s.validator.ValidateProductExists(id)
 	if err != nil {
 		return err
-	}
-	if product == nil {
-		return prodErrors.ErrProductNotFound
 	}
 
 	// Use atomic transaction to delete everything
@@ -1096,7 +873,7 @@ func (s *ProductServiceImpl) SearchProducts(
 	// Convert to search results
 	var searchResults []model.SearchResult
 	for _, product := range products {
-		result := utils.ConvertProductToSearchResult(&product)
+		result := s.factory.BuildSearchResultResponse(&product)
 		searchResults = append(searchResults, *result)
 	}
 
@@ -1129,9 +906,9 @@ func (s *ProductServiceImpl) GetProductFilters() (*model.ProductFilters, error) 
 		return nil, err
 	}
 	filters := &model.ProductFilters{
-		Brands:     utils.ConvertBrandsToFilters(brands),
+		Brands:     s.factory.BuildBrandFilters(brands),
 		Categories: s.convertCategoriesToFilters(categories),
-		Attributes: utils.ConvertAttributesToFilters(attributes),
+		Attributes: s.factory.BuildAttributeFilters(attributes),
 	}
 
 	return filters, nil
@@ -1143,12 +920,12 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 	mp := make(map[uint]model.CategoryFilter)
 	var categoryFilter []model.CategoryFilter
 	for _, category := range categories {
-		mp[category.CategoryID] = utils.ConvertCategoriesToFilters(category)
+		mp[category.CategoryID] = s.factory.BuildCategoryFilter(category)
 
 		if category.ParentID == nil || *category.ParentID == 0 {
 			categoryFilter = append(
 				categoryFilter,
-				utils.ConvertCategoriesToFilters(category),
+				s.factory.BuildCategoryFilter(category),
 			)
 		}
 	}
@@ -1159,12 +936,12 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 			if exist {
 				parentFilter.Children = append(
 					parentFilter.Children,
-					utils.ConvertCategoriesToFilters(category),
+					s.factory.BuildCategoryFilter(category),
 				)
 			} else {
 				categoryFilter = append(
 					categoryFilter,
-					utils.ConvertCategoriesToFilters(category),
+					s.factory.BuildCategoryFilter(category),
 				)
 			}
 		}
@@ -1203,7 +980,7 @@ func (s *ProductServiceImpl) GetRelatedProducts(
 	// Convert to response models
 	var relatedProductsResponse []model.RelatedProductResponse
 	for _, relatedProduct := range relatedProducts {
-		r := utils.ConvertProductToRelatedProduct(&relatedProduct)
+		r := s.factory.BuildRelatedProductResponse(&relatedProduct)
 		relatedProductsResponse = append(relatedProductsResponse, *r)
 	}
 

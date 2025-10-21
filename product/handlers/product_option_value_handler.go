@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -123,11 +122,6 @@ func (h *ProductOptionValueHandler) DeleteOptionValue(c *gin.Context) {
 	// Delete option value
 	err = h.valueService.DeleteOptionValue(productID, optionID, valueID)
 	if err != nil {
-		// Check for OptionValueInUseError (special handling)
-		if optValueInUseErr, ok := err.(*service.OptionValueInUseError); ok {
-			h.HandleValidationError(c, prodErrors.ErrProductOptionValueInUse.WithMessage(optValueInUseErr.Error()))
-			return
-		}
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_OPTION_VALUE_MSG)
 		return
 	}
