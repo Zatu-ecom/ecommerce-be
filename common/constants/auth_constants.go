@@ -28,6 +28,17 @@ const (
 	ROLE_LEVEL_KEY = "role_level"
 	SELLER_ID_KEY  = "seller_id"
 
+	// Header keys
+	SELLER_ID_HEADER = "X-Seller-ID"
+
+	// Seller validation messages
+	SELLER_ID_REQUIRED_MSG = "Seller ID is required in X-Seller-ID header"
+	SELLER_ID_INVALID_MSG  = "Invalid seller ID provided"
+
+	// Seller validation error codes
+	SELLER_ID_REQUIRED_CODE = "SELLER_ID_REQUIRED"
+	SELLER_ID_INVALID_CODE  = "SELLER_ID_INVALID"
+
 	// Bearer token constants
 	BEARER_PREFIX = "Bearer"
 

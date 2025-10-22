@@ -16,8 +16,8 @@ type CategoryRepository interface {
 	Update(category *entity.Category) error
 	FindByID(id uint) (*entity.Category, error)
 	FindByNameAndParent(name string, parentID *uint) (*entity.Category, error)
-	FindAllHierarchical() ([]entity.Category, error)
-	FindByParentID(parentID *uint) ([]entity.Category, error)
+	FindAllHierarchical(sellerID *uint) ([]entity.Category, error)
+	FindByParentID(parentID *uint, sellerID *uint) ([]entity.Category, error)
 	Delete(id uint) error
 	CheckHasProducts(id uint) (bool, error)
 	CheckHasChildren(id uint) (bool, error)
@@ -83,9 +83,19 @@ func (r *CategoryRepositoryImpl) FindByNameAndParent(
 }
 
 // FindAllHierarchical finds all categories with hierarchical structure
-func (r *CategoryRepositoryImpl) FindAllHierarchical() ([]entity.Category, error) {
+// Multi-tenant: Returns global categories + seller-specific categories
+// If sellerID is nil (admin), returns all categories
+func (r *CategoryRepositoryImpl) FindAllHierarchical(sellerID *uint) ([]entity.Category, error) {
 	var categories []entity.Category
-	result := r.db.Order("name ASC").Find(&categories)
+	query := r.db.Model(&entity.Category{})
+
+	// Multi-tenant filter: Return global categories + seller-specific categories
+	if sellerID != nil {
+		query = query.Where("is_global = ? OR seller_id = ?", true, *sellerID)
+	}
+	// If sellerID is nil (admin), no filter applied - get all categories
+
+	result := query.Order("name ASC").Find(&categories)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -93,7 +103,7 @@ func (r *CategoryRepositoryImpl) FindAllHierarchical() ([]entity.Category, error
 }
 
 // FindByParentID finds categories by parent ID
-func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint) ([]entity.Category, error) {
+func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint, sellerID *uint) ([]entity.Category, error) {
 	var categories []entity.Category
 	var query *gorm.DB
 
@@ -101,6 +111,11 @@ func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint) ([]entity.Catego
 		query = r.db.Preload("Parent").Preload("Children").Where("parent_id = ?", *parentID)
 	} else {
 		query = r.db.Preload("Parent").Preload("Children").Where("parent_id IS NULL")
+	}
+
+	// Apply seller filter: categories are accessible if global OR owned by seller
+	if sellerID != nil {
+		query = query.Where("is_global = ? OR seller_id = ?", true, *sellerID)
 	}
 
 	result := query.Order("name ASC").Find(&categories)

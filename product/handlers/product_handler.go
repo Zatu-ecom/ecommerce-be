@@ -129,6 +129,13 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	filters["sortBy"] = sortBy
 	filters["sortOrder"] = sortOrder
 
+	// Add seller ID filter if present in context (for multi-tenant isolation)
+	// Seller ID will be present from PublicAPIAuth or Auth middleware
+	// If not present (admin without seller context), don't filter by seller
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		filters["sellerId"] = sellerID
+	}
+
 	productsResponse, err := h.productService.GetAllProducts(page, limit, filters)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCTS_MSG)
@@ -146,7 +153,15 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		return
 	}
 
-	productResponse, err := h.productService.GetProductByID(productID)
+	// Get seller ID from context if available (for multi-tenant isolation)
+	// If seller ID exists, verify product belongs to that seller
+	// If not present (admin), allow access to any product
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	productResponse, err := h.productService.GetProductByID(productID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_MSG)
 		return
@@ -183,6 +198,11 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		filters["maxPrice"] = maxPrice
 	}
 
+	// Add seller ID filter if present in context (for multi-tenant isolation)
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		filters["sellerId"] = sellerID
+	}
+
 	searchResponse, err := h.productService.SearchProducts(query, filters, page, limit)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_SEARCH_PRODUCTS_MSG)
@@ -194,7 +214,15 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 
 // GetProductFilters handles getting available product filters
 func (h *ProductHandler) GetProductFilters(c *gin.Context) {
-	filters, err := h.productService.GetProductFilters()
+	// Get seller ID from context if available (for multi-tenant isolation)
+	// If seller ID exists, get filters for that seller's products only
+	// If not present (admin), get all filters
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	filters, err := h.productService.GetProductFilters(sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_FILTERS_MSG)
 		return
@@ -214,7 +242,13 @@ func (h *ProductHandler) GetRelatedProducts(c *gin.Context) {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
 
-	relatedProductsResponse, err := h.productService.GetRelatedProducts(productID, limit)
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
+	relatedProductsResponse, err := h.productService.GetRelatedProducts(productID, limit, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG)
 		return

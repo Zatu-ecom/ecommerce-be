@@ -1,6 +1,7 @@
 package service
 
 import (
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
@@ -22,7 +23,7 @@ type ProductOptionService interface {
 	DeleteOption(productID uint, optionID uint) error
 
 	// GetAvailableOptions retrieves all available options and their values for a product
-	GetAvailableOptions(productID uint) (*model.GetAvailableOptionsResponse, error)
+	GetAvailableOptions(productID uint, sellerID *uint) (*model.GetAvailableOptionsResponse, error)
 }
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
@@ -170,11 +171,17 @@ func (s *ProductOptionServiceImpl) DeleteOption(
  ***********************************************/
 func (s *ProductOptionServiceImpl) GetAvailableOptions(
 	productID uint,
+	sellerID *uint,
 ) (*model.GetAvailableOptionsResponse, error) {
-	// Validate that the product exists
-	_, err := s.productRepo.FindByID(productID)
+	// Validate that the product exists and validate seller access
+	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate seller access: if sellerID is provided (non-admin), check ownership
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Get all options with variant counts

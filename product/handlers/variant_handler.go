@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/auth"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
@@ -45,8 +46,14 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 		return
 	}
 
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
 	// Call service
-	variantResponse, err := h.variantService.GetVariantByID(productID, variantID)
+	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -85,8 +92,14 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 		return
 	}
 
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
 	// Call service
-	variantResponse, err := h.variantService.FindVariantByOptions(productID, optionValues)
+	variantResponse, err := h.variantService.FindVariantByOptions(productID, optionValues, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_FIND_VARIANT_MSG)
 		return

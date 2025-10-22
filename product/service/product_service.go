@@ -22,14 +22,14 @@ type ProductService interface {
 	UpdateProduct(id uint, req model.ProductUpdateRequest) (*model.ProductResponse, error)
 	DeleteProduct(id uint) error
 	GetAllProducts(page, limit int, filters map[string]interface{}) (*model.ProductsResponse, error)
-	GetProductByID(id uint) (*model.ProductResponse, error)
+	GetProductByID(id uint, sellerID *uint) (*model.ProductResponse, error)
 	SearchProducts(
 		query string,
 		filters map[string]interface{},
 		page, limit int,
 	) (*model.SearchResponse, error)
-	GetProductFilters() (*model.ProductFilters, error)
-	GetRelatedProducts(productID uint, limit int) (*model.RelatedProductsResponse, error)
+	GetProductFilters(sellerID *uint) (*model.ProductFilters, error)
+	GetRelatedProducts(productID uint, limit int, sellerID *uint) (*model.RelatedProductsResponse, error)
 }
 
 // ProductServiceImpl implements the ProductService interface
@@ -120,7 +120,8 @@ func (s *ProductServiceImpl) CreateProduct(
 	}
 
 	// Return created product with full details
-	return s.GetProductByID(product.ID)
+	// No seller check needed here since we just created it with this sellerID
+	return s.GetProductByID(product.ID, nil)
 }
 
 // Helper to create product options (uses factory for entity creation)
@@ -834,11 +835,19 @@ func (s *ProductServiceImpl) GetAllProducts(
 /*****************************************************************************
 *        GetProductByID gets a product by ID with detailed information       *
 *        Now includes complete variant data                                  *
+*        Multi-tenant: If sellerID is provided, verify product belongs to    *
+*        that seller. If nil (admin), allow access to any product.           *
 ******************************************************************************/
-func (s *ProductServiceImpl) GetProductByID(id uint) (*model.ProductResponse, error) {
+func (s *ProductServiceImpl) GetProductByID(id uint, sellerID *uint) (*model.ProductResponse, error) {
 	product, err := s.productRepo.FindByID(id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Multi-tenant check: If seller ID is provided, verify product belongs to that seller
+	// If sellerID is nil (admin role or no seller context), skip this check
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Use the helper method that fetches variant data
@@ -898,9 +907,11 @@ func (s *ProductServiceImpl) SearchProducts(
 
 /****************************************************************************
 *        GetProductFilters gets available filters for product search		*
+*        Multi-tenant: If sellerID is provided, get filters for that       *
+*        seller's products only. If nil (admin), get all filters.          *
 *****************************************************************************/
-func (s *ProductServiceImpl) GetProductFilters() (*model.ProductFilters, error) {
-	brands, categories, attributes, err := s.productRepo.GetProductFilters()
+func (s *ProductServiceImpl) GetProductFilters(sellerID *uint) (*model.ProductFilters, error) {
+	brands, categories, attributes, err := s.productRepo.GetProductFilters(sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -955,11 +966,17 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 func (s *ProductServiceImpl) GetRelatedProducts(
 	productID uint,
 	limit int,
+	sellerID *uint,
 ) (*model.RelatedProductsResponse, error) {
-	// Get the product to find its category
+	// Get the product to find its category and validate seller access
 	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate seller access: if sellerID is provided (non-admin), check ownership
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Set default limit
@@ -970,8 +987,8 @@ func (s *ProductServiceImpl) GetRelatedProducts(
 		limit = 20
 	}
 
-	// Find related products in the same category
-	relatedProducts, err := s.productRepo.FindRelated(product.CategoryID, productID, limit)
+	// Find related products in the same category (with seller filtering)
+	relatedProducts, err := s.productRepo.FindRelated(product.CategoryID, productID, limit, sellerID)
 	if err != nil {
 		return nil, err
 	}

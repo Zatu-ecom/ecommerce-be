@@ -1,6 +1,7 @@
 package service
 
 import (
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
@@ -12,11 +13,12 @@ type CategoryService interface {
 	CreateCategory(req model.CategoryCreateRequest) (*model.CategoryResponse, error)
 	UpdateCategory(id uint, req model.CategoryUpdateRequest) (*model.CategoryResponse, error)
 	DeleteCategory(id uint) error
-	GetAllCategories() (*model.CategoriesResponse, error)
-	GetCategoryByID(id uint) (*model.CategoryResponse, error)
-	GetCategoriesByParent(parentID *uint) (*model.CategoriesResponse, error)
+	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
+	GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error)
+	GetCategoriesByParent(parentID *uint, sellerID *uint) (*model.CategoriesResponse, error)
 	GetAttributesByCategoryIDWithInheritance(
 		catagoryID uint,
+		sellerID *uint,
 	) (model.AttributeDefinitionsResponse, error)
 }
 
@@ -123,8 +125,10 @@ func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
 }
 
 // GetAllCategories gets all categories in hierarchical structure
-func (s *CategoryServiceImpl) GetAllCategories() (*model.CategoriesResponse, error) {
-	categories, err := s.categoryRepo.FindAllHierarchical()
+// Multi-tenant: Returns global categories + seller-specific categories
+// If sellerID is nil (admin), returns all categories
+func (s *CategoryServiceImpl) GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error) {
+	categories, err := s.categoryRepo.FindAllHierarchical(sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,10 +168,25 @@ func (s *CategoryServiceImpl) GetAllCategories() (*model.CategoriesResponse, err
 }
 
 // GetCategoryByID gets a category by ID
-func (s *CategoryServiceImpl) GetCategoryByID(id uint) (*model.CategoryResponse, error) {
+// Multi-tenant: If sellerID is provided, verify category is accessible
+// (global or belongs to seller). If nil (admin), allow access to any.
+func (s *CategoryServiceImpl) GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error) {
 	category, err := s.categoryRepo.FindByID(id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Multi-tenant check: If seller ID is provided, verify category is accessible
+	// Category is accessible if:
+	// 1. IsGlobal = true (available to all sellers)
+	// 2. SellerID matches the requesting seller
+	if sellerID != nil {
+		isAccessible := category.IsGlobal || 
+			(category.SellerID != nil && *category.SellerID == *sellerID)
+		
+		if !isAccessible {
+			return nil, err // Return category not found error
+		}
 	}
 
 	// Create response using converter utility
@@ -179,8 +198,9 @@ func (s *CategoryServiceImpl) GetCategoryByID(id uint) (*model.CategoryResponse,
 // GetCategoriesByParent gets categories by parent ID
 func (s *CategoryServiceImpl) GetCategoriesByParent(
 	parentID *uint,
+	sellerID *uint,
 ) (*model.CategoriesResponse, error) {
-	categories, err := s.categoryRepo.FindByParentID(parentID)
+	categories, err := s.categoryRepo.FindByParentID(parentID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +218,19 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 
 func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 	catagoryID uint,
+	sellerID *uint,
 ) (model.AttributeDefinitionsResponse, error) {
+	// Validate category exists and seller has access
+	category, err := s.categoryRepo.FindByID(catagoryID)
+	if err != nil {
+		return model.AttributeDefinitionsResponse{}, err
+	}
+
+	// Validate seller access: categories are accessible if global OR owned by seller
+	if sellerID != nil && !category.IsGlobal && (category.SellerID == nil || *category.SellerID != *sellerID) {
+		return model.AttributeDefinitionsResponse{}, prodErrors.ErrCategoryNotFound
+	}
+
 	attributes, err := s.categoryRepo.FindAttributesByCategoryIDWithInheritance(catagoryID)
 	if err != nil {
 		return model.AttributeDefinitionsResponse{}, err

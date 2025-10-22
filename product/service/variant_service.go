@@ -2,6 +2,7 @@ package service
 
 import (
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
@@ -11,12 +12,13 @@ import (
 // VariantService defines the interface for variant-related business logic
 type VariantService interface {
 	// GetVariantByID retrieves detailed information about a specific variant
-	GetVariantByID(productID, variantID uint) (*model.VariantDetailResponse, error)
+	GetVariantByID(productID, variantID uint, sellerID *uint) (*model.VariantDetailResponse, error)
 
 	// FindVariantByOptions finds a variant based on selected options
 	FindVariantByOptions(
 		productID uint,
 		optionValues map[string]string,
+		sellerID *uint,
 	) (*model.VariantResponse, error)
 
 	// CreateVariant creates a new variant for a product
@@ -61,10 +63,22 @@ func NewVariantService(
  ***********************************************/
 func (s *VariantServiceImpl) GetVariantByID(
 	productID, variantID uint,
+	sellerID *uint,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
 	if err := s.validator.ValidateProductExists(productID); err != nil {
 		return nil, err
+	}
+
+	// Get product to validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate seller access: if sellerID is provided (non-admin), check ownership
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Validate variant belongs to product
@@ -74,12 +88,6 @@ func (s *VariantServiceImpl) GetVariantByID(
 
 	// Find the variant
 	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get product
-	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,15 +116,22 @@ func (s *VariantServiceImpl) GetVariantByID(
 func (s *VariantServiceImpl) FindVariantByOptions(
 	productID uint,
 	optionValues map[string]string,
+	sellerID *uint,
 ) (*model.VariantResponse, error) {
 	// Validate input
 	if err := s.validator.ValidateVariantOptions(optionValues); err != nil {
 		return nil, err
 	}
 
-	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	// Validate that the product exists and validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
 		return nil, err
+	}
+
+	// Validate seller access: if sellerID is provided (non-admin), check ownership
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Find the variant by options
@@ -243,8 +258,8 @@ func (s *VariantServiceImpl) CreateVariant(
 		return nil, err
 	}
 
-	// Return the created variant details
-	return s.GetVariantByID(productID, variant.ID)
+	// Return the created variant details (no seller validation needed for create response)
+	return s.GetVariantByID(productID, variant.ID, nil)
 }
 
 /***********************************************
@@ -278,8 +293,8 @@ func (s *VariantServiceImpl) UpdateVariant(
 		return nil, err
 	}
 
-	// Return updated variant details
-	return s.GetVariantByID(productID, variant.ID)
+	// Return updated variant details (no seller validation needed for update response)
+	return s.GetVariantByID(productID, variant.ID, nil)
 }
 
 /***********************************************

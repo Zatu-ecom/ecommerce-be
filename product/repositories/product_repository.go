@@ -26,17 +26,21 @@ type ProductRepository interface {
 	) ([]entity.Product, int64, error)
 	Delete(id uint) error
 	UpdateStock(id uint, inStock bool) error
-	FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error)
+	FindRelated(
+		categoryID, excludeProductID uint,
+		limit int,
+		sellerID *uint,
+	) ([]entity.Product, error)
 	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
 	CreatePackageOptions(option []entity.PackageOption) error
 	UpdatePackageOptions(option []entity.PackageOption) error
-	GetProductFilters() (
+	GetProductFilters(sellerID *uint) (
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
 		[]mapper.AttributeWithProductCount,
 		error,
 	)
-	
+
 	// Bulk deletion methods for product cleanup
 	DeletePackageOptionsByProductID(productID uint) error
 }
@@ -101,6 +105,10 @@ func (r *ProductRepositoryImpl) FindAll(
 	query := r.db.Model(&entity.Product{})
 
 	// Apply filters
+	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
+	if sellerID, exists := filters["sellerId"]; exists {
+		query = query.Where("seller_id = ?", sellerID)
+	}
 	if categoryID, exists := filters["categoryId"]; exists {
 		query = query.Where("category_id = ?", categoryID)
 	}
@@ -173,6 +181,10 @@ func (r *ProductRepositoryImpl) Search(
 	}
 
 	// Apply filters
+	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
+	if sellerID, exists := filters["sellerId"]; exists {
+		dbQuery = dbQuery.Where("seller_id = ?", sellerID)
+	}
 	if categoryID, exists := filters["categoryId"]; exists {
 		dbQuery = dbQuery.Where("category_id = ?", categoryID)
 	}
@@ -220,11 +232,18 @@ func (r *ProductRepositoryImpl) UpdateStock(id uint, inStock bool) error {
 func (r *ProductRepositoryImpl) FindRelated(
 	categoryID, excludeProductID uint,
 	limit int,
+	sellerID *uint,
 ) ([]entity.Product, error) {
 	var products []entity.Product
-	result := r.db.Preload("Category").
-		Where("category_id = ? AND id != ?", categoryID, excludeProductID).
-		Order("created_at DESC").
+	query := r.db.Preload("Category").
+		Where("category_id = ? AND id != ?", categoryID, excludeProductID)
+
+	// Apply seller filter if sellerID is provided (non-admin)
+	if sellerID != nil {
+		query = query.Where("seller_id = ?", *sellerID)
+	}
+
+	result := query.Order("created_at DESC").
 		Limit(limit).
 		Find(&products)
 
@@ -254,7 +273,8 @@ func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOpt
 }
 
 // GetProductFilters fetches all filter data in optimized queries
-func (r *ProductRepositoryImpl) GetProductFilters() (
+// Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
+func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 	[]mapper.BrandWithProductCount,
 	[]mapper.CategoryWithProductCount,
 	[]mapper.AttributeWithProductCount,
@@ -265,16 +285,49 @@ func (r *ProductRepositoryImpl) GetProductFilters() (
 	var attributes []mapper.AttributeWithProductCount
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Raw(query.FIND_BRANDS_WITH_PRODUCT_COUNT_QUERY).Scan(&brands).Error; err != nil {
-			return err
+		// Brands query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Filter by seller_id
+			if err := tx.Raw(query.FIND_BRANDS_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID).
+				Scan(&brands).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all brands
+			if err := tx.Raw(query.FIND_BRANDS_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&brands).Error; err != nil {
+				return err
+			}
 		}
 
-		if err := tx.Raw(query.FIND_CATEGORIES_WITH_PRODUCT_COUNT_QUERY).Scan(&categories).Error; err != nil {
-			return err
+		// Categories query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Global categories + seller-specific categories
+			if err := tx.Raw(query.FIND_CATEGORIES_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID, *sellerID).
+				Scan(&categories).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all categories
+			if err := tx.Raw(query.FIND_CATEGORIES_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&categories).Error; err != nil {
+				return err
+			}
 		}
 
-		if err := tx.Raw(query.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_QUERY).Scan(&attributes).Error; err != nil {
-			return err
+		// Attributes query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Filter by seller's products
+			if err := tx.Raw(query.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID).
+				Scan(&attributes).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all attributes
+			if err := tx.Raw(query.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&attributes).Error; err != nil {
+				return err
+			}
 		}
 
 		return nil

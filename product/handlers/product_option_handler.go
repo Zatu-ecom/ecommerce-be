@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"ecommerce-be/common/auth"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -124,8 +125,14 @@ func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 		return
 	}
 
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
 	// Call service
-	optionsResponse, err := h.optionService.GetAvailableOptions(productID)
+	optionsResponse, err := h.optionService.GetAvailableOptions(productID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, "Failed to retrieve available options")
 		return

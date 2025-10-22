@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"ecommerce-be/common/auth"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -97,7 +98,15 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 
 // GetAllCategories handles getting all categories
 func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
-	categoriesResponse, err := h.categoryService.GetAllCategories()
+	// Get seller ID from context if available (for multi-tenant isolation)
+	// Returns global categories + seller-specific categories
+	// If not present (admin), returns all categories
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	categoriesResponse, err := h.categoryService.GetAllCategories(sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -114,7 +123,15 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	categoryResponse, err := h.categoryService.GetCategoryByID(categoryID)
+	// Get seller ID from context if available (for multi-tenant isolation)
+	// Verify category is accessible (global or belongs to seller)
+	// If not present (admin), allow access to any category
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	categoryResponse, err := h.categoryService.GetCategoryByID(categoryID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -148,7 +165,13 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 		parentID = &parsedID
 	}
 
-	categoriesResponse, err := h.categoryService.GetCategoriesByParent(parentID)
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
+	categoriesResponse, err := h.categoryService.GetCategoriesByParent(parentID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -164,8 +187,15 @@ func (h *CategoryHandler) GetAttributesByCategoryIDWithInheritance(c *gin.Contex
 		return
 	}
 
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
 	attributesResponse, err := h.categoryService.GetAttributesByCategoryIDWithInheritance(
 		categoryID,
+		sellerID,
 	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORY_ATTRIBUTES_MSG)
