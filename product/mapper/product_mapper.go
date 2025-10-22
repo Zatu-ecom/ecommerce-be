@@ -20,3 +20,27 @@ type BrandWithProductCount struct {
 	Brand        string `json:"brand"`
 	ProductCount uint   `json:"product_count"`
 }
+
+// Variant filter mappers
+type PriceRangeData struct {
+	MinPrice     float64 `json:"min_price"`
+	MaxPrice     float64 `json:"max_price"`
+	ProductCount uint    `json:"product_count"`
+}
+
+type VariantOptionData struct {
+	OptionID          uint   `json:"option_id"`
+	OptionName        string `json:"option_name"`
+	OptionDisplayName string `json:"option_display_name"`
+	ValueID           uint   `json:"value_id"`
+	OptionValue       string `json:"option_value"`
+	ValueDisplayName  string `json:"value_display_name"`
+	ColorCode         string `json:"color_code"`
+	ProductCount      uint   `json:"product_count"`
+}
+
+type StockStatusData struct {
+	InStock       uint `json:"in_stock"`
+	OutOfStock    uint `json:"out_of_stock"`
+	TotalProducts uint `json:"total_products"`
+}

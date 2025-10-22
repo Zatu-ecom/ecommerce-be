@@ -700,6 +700,120 @@ func (s *ProductServiceImpl) DeleteProduct(id uint) error {
 	})
 }
 
+/*****************************************************************************
+*                         HELPER FUNCTIONS                                   *
+******************************************************************************/
+
+// buildProductResponse builds a ProductResponse from product entity and variant aggregation
+// This is a shared helper to ensure consistency across GetAllProducts, GetRelatedProducts, etc.
+func (s *ProductServiceImpl) buildProductResponse(
+	product *entity.Product,
+	variantAgg *repositories.VariantAggregation,
+) model.ProductResponse {
+	// Build category hierarchy
+	categoryInfo := model.CategoryHierarchyInfo{
+		ID:   product.Category.ID,
+		Name: product.Category.Name,
+	}
+	if product.Category.Parent != nil {
+		categoryInfo.Parent = &model.CategoryInfo{
+			ID:   product.Category.Parent.ID,
+			Name: product.Category.Parent.Name,
+		}
+	}
+
+	// Build base product response
+	productResp := model.ProductResponse{
+		ID:               product.ID,
+		Name:             product.Name,
+		CategoryID:       product.CategoryID,
+		Category:         categoryInfo,
+		Brand:            product.Brand,
+		SKU:              product.BaseSKU,
+		ShortDescription: product.ShortDescription,
+		LongDescription:  product.LongDescription,
+		Tags:             product.Tags,
+		SellerID:         product.SellerID,
+		HasVariants:      variantAgg.HasVariants,
+		TotalStock:       variantAgg.TotalStock,
+		InStock:          variantAgg.InStock,
+		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Set price range
+	if variantAgg.HasVariants {
+		productResp.PriceRange = &model.PriceRange{
+			Min: variantAgg.MinPrice,
+			Max: variantAgg.MaxPrice,
+		}
+	}
+
+	// Add images if available
+	if variantAgg.MainImage != "" {
+		productResp.Images = []string{variantAgg.MainImage}
+	}
+
+	// Add variant preview
+	if variantAgg.TotalVariants > 0 {
+		variantPreview := &model.VariantPreview{
+			TotalVariants: variantAgg.TotalVariants,
+			Options:       []model.OptionPreview{},
+		}
+
+		for _, optionName := range variantAgg.OptionNames {
+			optionValues := variantAgg.OptionValues[optionName]
+			variantPreview.Options = append(variantPreview.Options, model.OptionPreview{
+				Name:            optionName,
+				DisplayName:     optionName,
+				AvailableValues: optionValues,
+			})
+		}
+
+		productResp.VariantPreview = variantPreview
+	}
+
+	return productResp
+}
+
+// buildProductResponsesWithVariants builds ProductResponse list from products with variant data
+// Performs batch variant aggregation for optimal performance
+func (s *ProductServiceImpl) buildProductResponsesWithVariants(
+	products []entity.Product,
+) ([]model.ProductResponse, error) {
+	if len(products) == 0 {
+		return []model.ProductResponse{}, nil
+	}
+
+	// Extract product IDs for batch variant aggregation
+	productIDs := make([]uint, len(products))
+	for i, product := range products {
+		productIDs[i] = product.ID
+	}
+
+	// Get variant aggregations for all products in one query (performance optimization)
+	variantAggs, err := s.variantRepo.GetProductsVariantAggregations(productIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response models with variant data
+	productsResponse := make([]model.ProductResponse, 0, len(products))
+	for _, product := range products {
+		// Get variant aggregation for this product
+		variantAgg := variantAggs[product.ID]
+		if variantAgg == nil {
+			// Skip products without variants (shouldn't happen)
+			continue
+		}
+
+		productResp := s.buildProductResponse(&product, variantAgg)
+		productsResponse = append(productsResponse, productResp)
+	}
+
+	return productsResponse, nil
+}
+
 /*************************************************************************
 *       GetAllProducts gets all products with pagination and filters     *
 *       Now includes variant data for each product                      *
@@ -725,91 +839,10 @@ func (s *ProductServiceImpl) GetAllProducts(
 		return nil, err
 	}
 
-	// Extract product IDs for batch variant aggregation
-	productIDs := make([]uint, len(products))
-	for i, product := range products {
-		productIDs[i] = product.ID
-	}
-
-	// Get variant aggregations for all products
-	variantAggs, err := s.variantRepo.GetProductsVariantAggregations(productIDs)
+	// Build product responses with variant data using shared helper
+	productsResponse, err := s.buildProductResponsesWithVariants(products)
 	if err != nil {
 		return nil, err
-	}
-
-	// Convert to response models with variant data
-	productsResponse := make([]model.ProductResponse, 0, len(products))
-	for _, product := range products {
-		// Build category hierarchy
-		categoryInfo := model.CategoryHierarchyInfo{
-			ID:   product.Category.ID,
-			Name: product.Category.Name,
-		}
-		if product.Category.Parent != nil {
-			categoryInfo.Parent = &model.CategoryInfo{
-				ID:   product.Category.Parent.ID,
-				Name: product.Category.Parent.Name,
-			}
-		}
-
-		// Get variant aggregation for this product
-		variantAgg := variantAggs[product.ID]
-		if variantAgg == nil {
-			// Skip products without variants (shouldn't happen)
-			continue
-		}
-
-		productResp := model.ProductResponse{
-			ID:               product.ID,
-			Name:             product.Name,
-			CategoryID:       product.CategoryID,
-			Category:         categoryInfo,
-			Brand:            product.Brand,
-			SKU:              product.BaseSKU,
-			ShortDescription: product.ShortDescription,
-			LongDescription:  product.LongDescription,
-			Tags:             product.Tags,
-			SellerID:         product.SellerID,
-			HasVariants:      variantAgg.HasVariants,
-			TotalStock:       variantAgg.TotalStock,
-			InStock:          variantAgg.InStock,
-			CreatedAt:        product.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
-		}
-
-		// Set price range (PRD Section 3.1.1)
-		if variantAgg.HasVariants {
-			productResp.PriceRange = &model.PriceRange{
-				Min: variantAgg.MinPrice,
-				Max: variantAgg.MaxPrice,
-			}
-		}
-
-		// Add images if available
-		if variantAgg.MainImage != "" {
-			productResp.Images = []string{variantAgg.MainImage}
-		}
-
-		// Add variant preview (PRD Section 3.1.1)
-		if variantAgg.TotalVariants > 0 {
-			variantPreview := &model.VariantPreview{
-				TotalVariants: variantAgg.TotalVariants,
-				Options:       []model.OptionPreview{},
-			}
-
-			for _, optionName := range variantAgg.OptionNames {
-				optionValues := variantAgg.OptionValues[optionName]
-				variantPreview.Options = append(variantPreview.Options, model.OptionPreview{
-					Name:            optionName,
-					DisplayName:     optionName,
-					AvailableValues: optionValues,
-				})
-			}
-
-			productResp.VariantPreview = variantPreview
-		}
-
-		productsResponse = append(productsResponse, productResp)
 	}
 
 	// Calculate pagination
@@ -856,6 +889,7 @@ func (s *ProductServiceImpl) GetProductByID(id uint, sellerID *uint) (*model.Pro
 
 /**********************************************************************************
 *     SearchProducts searches for products with the given query and filters       *
+*     Now includes variant data in search results                                 *
 ***********************************************************************************/
 func (s *ProductServiceImpl) SearchProducts(
 	query string,
@@ -878,11 +912,21 @@ func (s *ProductServiceImpl) SearchProducts(
 		return nil, err
 	}
 
-	// Convert to search results
-	var searchResults []model.SearchResult
-	for _, product := range products {
-		result := s.factory.BuildSearchResultResponse(&product)
-		searchResults = append(searchResults, *result)
+	// Build product responses with variant data using shared helper
+	productsResponse, err := s.buildProductResponsesWithVariants(products)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to search results with additional search metadata
+	searchResults := make([]model.SearchResult, 0, len(productsResponse))
+	for _, productResp := range productsResponse {
+		searchResult := model.SearchResult{
+			ProductResponse: productResp,
+			RelevanceScore:  0.8, // TODO: Implement actual relevance scoring
+			MatchedFields:   []string{"name"}, // TODO: Track which fields matched
+		}
+		searchResults = append(searchResults, searchResult)
 	}
 
 	// Calculate pagination
@@ -909,16 +953,21 @@ func (s *ProductServiceImpl) SearchProducts(
 *        GetProductFilters gets available filters for product search		*
 *        Multi-tenant: If sellerID is provided, get filters for that       *
 *        seller's products only. If nil (admin), get all filters.          *
+*        Now includes variant-based filters (price, options, stock)        *
 *****************************************************************************/
 func (s *ProductServiceImpl) GetProductFilters(sellerID *uint) (*model.ProductFilters, error) {
-	brands, categories, attributes, err := s.productRepo.GetProductFilters(sellerID)
+	brands, categories, attributes, priceRange, variantOptions, stockStatus, err := s.productRepo.GetProductFilters(sellerID)
 	if err != nil {
 		return nil, err
 	}
+	
 	filters := &model.ProductFilters{
-		Brands:     s.factory.BuildBrandFilters(brands),
-		Categories: s.convertCategoriesToFilters(categories),
-		Attributes: s.factory.BuildAttributeFilters(attributes),
+		Brands:       s.factory.BuildBrandFilters(brands),
+		Categories:   s.convertCategoriesToFilters(categories),
+		Attributes:   s.factory.BuildAttributeFilters(attributes),
+		PriceRange:   s.factory.BuildPriceRangeFilter(priceRange),
+		VariantTypes: s.factory.BuildVariantTypeFilters(variantOptions),
+		StockStatus:  s.factory.BuildStockStatusFilter(stockStatus),
 	}
 
 	return filters, nil
@@ -962,6 +1011,7 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 
 /*****************************************************************************
 *      GetRelatedProducts gets products related to a specific product        *
+*      Now includes variant data similar to GetAllProducts                  *
 ******************************************************************************/
 func (s *ProductServiceImpl) GetRelatedProducts(
 	productID uint,
@@ -993,11 +1043,35 @@ func (s *ProductServiceImpl) GetRelatedProducts(
 		return nil, err
 	}
 
-	// Convert to response models
-	var relatedProductsResponse []model.RelatedProductResponse
-	for _, relatedProduct := range relatedProducts {
-		r := s.factory.BuildRelatedProductResponse(&relatedProduct)
-		relatedProductsResponse = append(relatedProductsResponse, *r)
+	// If no related products found, return empty response
+	if len(relatedProducts) == 0 {
+		return &model.RelatedProductsResponse{
+			RelatedProducts: []model.RelatedProductItem{},
+		}, nil
+	}
+
+	// Build product responses with variant data using shared helper
+	productsResponse, err := s.buildProductResponsesWithVariants(relatedProducts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to RelatedProductItem and add relation reason
+	relatedProductsResponse := make([]model.RelatedProductItem, 0, len(productsResponse))
+	for i, productResp := range productsResponse {
+		// Determine relation reason based on product similarity
+		relationReason := "Same category"
+		if relatedProducts[i].Brand == product.Brand && relatedProducts[i].Brand != "" {
+			relationReason = "Same brand and category"
+		}
+
+		// Create RelatedProductItem by embedding ProductResponse and adding relationReason
+		relatedItem := model.RelatedProductItem{
+			ProductResponse: productResp,
+			RelationReason:  relationReason,
+		}
+
+		relatedProductsResponse = append(relatedProductsResponse, relatedItem)
 	}
 
 	return &model.RelatedProductsResponse{

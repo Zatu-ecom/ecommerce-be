@@ -138,14 +138,11 @@ type ProductStockUpdateRequest struct {
 }
 
 // SearchResult represents a product search result
+// Uses struct embedding to extend ProductResponse with search-specific fields
 type SearchResult struct {
-	ID               uint     `json:"id"`
-	Name             string   `json:"name"`
-	Price            float64  `json:"price"`
-	ShortDescription string   `json:"shortDescription"`
-	Images           []string `json:"images"`
-	RelevanceScore   float64  `json:"relevanceScore"`
-	MatchedFields    []string `json:"matchedFields"`
+	ProductResponse          // Embedded - includes all product fields with variants
+	RelevanceScore  float64  `json:"relevanceScore"`
+	MatchedFields   []string `json:"matchedFields"`
 }
 
 // SearchResponse represents the response for product search
@@ -156,19 +153,17 @@ type SearchResponse struct {
 	SearchTime string             `json:"searchTime"`
 }
 
-// RelatedProductResponse represents a related product
-type RelatedProductResponse struct {
-	ID               uint     `json:"id"`
-	Name             string   `json:"name"`
-	Price            float64  `json:"price"`
-	ShortDescription string   `json:"shortDescription"`
-	Images           []string `json:"images"`
-	RelationReason   string   `json:"relationReason"`
+// RelatedProductItem represents a related product with relation reason
+// Uses struct embedding to extend ProductResponse with additional field
+// Any changes to ProductResponse will automatically be available here
+type RelatedProductItem struct {
+	ProductResponse        // Embedded struct - all fields promoted to top level
+	RelationReason  string `json:"relationReason"` // Additional field for relation reason
 }
 
 // RelatedProductsResponse represents the response for getting related products
 type RelatedProductsResponse struct {
-	RelatedProducts []RelatedProductResponse `json:"relatedProducts"`
+	RelatedProducts []RelatedProductItem `json:"relatedProducts"`
 }
 
 // PackageOptionCreateRequest represents the request body for creating a package option

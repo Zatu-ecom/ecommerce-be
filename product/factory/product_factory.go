@@ -332,31 +332,6 @@ func (f *ProductFactory) BuildPackageOptionResponses(
 	return responses
 }
 
-// BuildSearchResultResponse builds SearchResult from product entity
-func (f *ProductFactory) BuildSearchResultResponse(product *entity.Product) *model.SearchResult {
-	return &model.SearchResult{
-		ID:               product.ID,
-		Name:             product.Name,
-		Price:            0, // Must be fetched from variants in service
-		ShortDescription: product.ShortDescription,
-		Images:           []string{}, // Must be fetched from variants in service
-		RelevanceScore:   0.8,
-		MatchedFields:    []string{"name", "description"},
-	}
-}
-
-// BuildRelatedProductResponse builds RelatedProductResponse from product entity
-func (f *ProductFactory) BuildRelatedProductResponse(product *entity.Product) *model.RelatedProductResponse {
-	return &model.RelatedProductResponse{
-		ID:               product.ID,
-		Name:             product.Name,
-		Price:            0, // Must be fetched from variants in service
-		ShortDescription: product.ShortDescription,
-		Images:           []string{}, // Must be fetched from variants in service
-		RelationReason:   "Same category",
-	}
-}
-
 // BuildCategoryFilter builds CategoryFilter from mapper data
 func (f *ProductFactory) BuildCategoryFilter(category mapper.CategoryWithProductCount) model.CategoryFilter {
 	return model.CategoryFilter{
@@ -400,6 +375,69 @@ func (f *ProductFactory) BuildAttributeFilters(attributes []mapper.AttributeWith
 		filters = append(filters, f.BuildAttributeFilter(attribute))
 	}
 	return filters
+}
+
+// BuildPriceRangeFilter builds PriceRangeFilter from mapper data
+func (f *ProductFactory) BuildPriceRangeFilter(data *mapper.PriceRangeData) *model.PriceRangeFilter {
+	if data == nil || data.ProductCount == 0 {
+		return nil
+	}
+	return &model.PriceRangeFilter{
+		Min:          data.MinPrice,
+		Max:          data.MaxPrice,
+		ProductCount: data.ProductCount,
+	}
+}
+
+// BuildVariantTypeFilters builds VariantTypeFilter list from variant options data
+func (f *ProductFactory) BuildVariantTypeFilters(variantOptions []mapper.VariantOptionData) []model.VariantTypeFilter {
+	// Group by option ID to create VariantTypeFilter
+	optionMap := make(map[uint]*model.VariantTypeFilter)
+	optionOrder := []uint{} // Preserve order
+
+	for _, vo := range variantOptions {
+		if _, exists := optionMap[vo.OptionID]; !exists {
+			// First time seeing this option
+			optionMap[vo.OptionID] = &model.VariantTypeFilter{
+				Name:         vo.OptionName,
+				DisplayName:  vo.OptionDisplayName,
+				Values:       []model.VariantOptionFilter{},
+				ProductCount: 0,
+			}
+			optionOrder = append(optionOrder, vo.OptionID)
+		}
+
+		// Add value to this option
+		optionMap[vo.OptionID].Values = append(optionMap[vo.OptionID].Values, model.VariantOptionFilter{
+			Value:        vo.OptionValue,
+			DisplayName:  vo.ValueDisplayName,
+			ColorCode:    vo.ColorCode,
+			ProductCount: vo.ProductCount,
+		})
+
+		// Update product count for this option type
+		optionMap[vo.OptionID].ProductCount += vo.ProductCount
+	}
+
+	// Convert map to slice maintaining order
+	result := make([]model.VariantTypeFilter, 0, len(optionMap))
+	for _, optionID := range optionOrder {
+		result = append(result, *optionMap[optionID])
+	}
+
+	return result
+}
+
+// BuildStockStatusFilter builds StockStatusFilter from mapper data
+func (f *ProductFactory) BuildStockStatusFilter(data *mapper.StockStatusData) *model.StockStatusFilter {
+	if data == nil || data.TotalProducts == 0 {
+		return nil
+	}
+	return &model.StockStatusFilter{
+		InStock:       data.InStock,
+		OutOfStock:    data.OutOfStock,
+		TotalProducts: data.TotalProducts,
+	}
 }
 
 // BuildCategoryHierarchyInfo builds CategoryHierarchyInfo from category and parent

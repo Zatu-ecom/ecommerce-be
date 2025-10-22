@@ -38,6 +38,9 @@ type ProductRepository interface {
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
 		[]mapper.AttributeWithProductCount,
+		*mapper.PriceRangeData,
+		[]mapper.VariantOptionData,
+		*mapper.StockStatusData,
 		error,
 	)
 
@@ -95,6 +98,7 @@ func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
 }
 
 // FindAll finds all products with filtering and pagination
+// Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) FindAll(
 	filters map[string]interface{},
 	page, limit int,
@@ -115,17 +119,49 @@ func (r *ProductRepositoryImpl) FindAll(
 	if brand, exists := filters["brand"]; exists {
 		query = query.Where("brand = ?", brand)
 	}
+
+	// Price filters - now based on variants
 	if minPrice, exists := filters["minPrice"]; exists {
-		query = query.Where("price >= ?", minPrice)
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.price >= ?
+		)`, minPrice)
 	}
 	if maxPrice, exists := filters["maxPrice"]; exists {
-		query = query.Where("price <= ?", maxPrice)
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.price <= ?
+		)`, maxPrice)
 	}
+
+	// Stock filter - now based on variants
 	if inStock, exists := filters["inStock"]; exists {
-		query = query.Where("in_stock = ?", inStock)
+		if inStock.(bool) {
+			query = query.Where(`EXISTS (
+				SELECT 1 FROM product_variant pv 
+				WHERE pv.product_id = product.id 
+				AND pv.in_stock = true 
+				AND pv.stock > 0
+			)`)
+		} else {
+			query = query.Where(`NOT EXISTS (
+				SELECT 1 FROM product_variant pv 
+				WHERE pv.product_id = product.id 
+				AND pv.in_stock = true 
+				AND pv.stock > 0
+			)`)
+		}
 	}
+
+	// Popularity filter - now based on variants
 	if isPopular, exists := filters["isPopular"]; exists {
-		query = query.Where("is_popular = ?", isPopular)
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.is_popular = ?
+		)`, isPopular)
 	}
 
 	// Count total
@@ -160,6 +196,7 @@ func (r *ProductRepositoryImpl) FindAll(
 }
 
 // Search searches products with query and filters
+// Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) Search(
 	query string,
 	filters map[string]interface{},
@@ -191,11 +228,49 @@ func (r *ProductRepositoryImpl) Search(
 	if brand, exists := filters["brand"]; exists {
 		dbQuery = dbQuery.Where("brand = ?", brand)
 	}
+
+	// Price filters - now based on variants
 	if minPrice, exists := filters["minPrice"]; exists {
-		dbQuery = dbQuery.Where("price >= ?", minPrice)
+		dbQuery = dbQuery.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.price >= ?
+		)`, minPrice)
 	}
 	if maxPrice, exists := filters["maxPrice"]; exists {
-		dbQuery = dbQuery.Where("price <= ?", maxPrice)
+		dbQuery = dbQuery.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.price <= ?
+		)`, maxPrice)
+	}
+
+	// Stock filter - now based on variants
+	if inStock, exists := filters["inStock"]; exists {
+		if inStock.(bool) {
+			dbQuery = dbQuery.Where(`EXISTS (
+				SELECT 1 FROM product_variant pv 
+				WHERE pv.product_id = product.id 
+				AND pv.in_stock = true 
+				AND pv.stock > 0
+			)`)
+		} else {
+			dbQuery = dbQuery.Where(`NOT EXISTS (
+				SELECT 1 FROM product_variant pv 
+				WHERE pv.product_id = product.id 
+				AND pv.in_stock = true 
+				AND pv.stock > 0
+			)`)
+		}
+	}
+
+	// Popularity filter - now based on variants
+	if isPopular, exists := filters["isPopular"]; exists {
+		dbQuery = dbQuery.Where(`EXISTS (
+			SELECT 1 FROM product_variant pv 
+			WHERE pv.product_id = product.id 
+			AND pv.is_popular = ?
+		)`, isPopular)
 	}
 
 	// Count total
@@ -272,17 +347,23 @@ func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOpt
 	return r.db.Save(options).Error
 }
 
-// GetProductFilters fetches all filter data in optimized queries
+// GetProductFilters fetches all filter data in optimized queries including variant-based filters
 // Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
 func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 	[]mapper.BrandWithProductCount,
 	[]mapper.CategoryWithProductCount,
 	[]mapper.AttributeWithProductCount,
+	*mapper.PriceRangeData,
+	[]mapper.VariantOptionData,
+	*mapper.StockStatusData,
 	error,
 ) {
 	var brands []mapper.BrandWithProductCount
 	var categories []mapper.CategoryWithProductCount
 	var attributes []mapper.AttributeWithProductCount
+	var priceRange mapper.PriceRangeData
+	var variantOptions []mapper.VariantOptionData
+	var stockStatus mapper.StockStatusData
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Brands query with optional seller filter
@@ -330,14 +411,60 @@ func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 			}
 		}
 
+		// Price range query from variants
+		if sellerID != nil {
+			if err := tx.Raw(query.FIND_PRICE_RANGE_BY_SELLER_QUERY, *sellerID).
+				Scan(&priceRange).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(query.FIND_PRICE_RANGE_QUERY).
+				Scan(&priceRange).Error; err != nil {
+				return err
+			}
+		}
+
+		// Variant options query (Color, Size, etc.)
+		if sellerID != nil {
+			if err := tx.Raw(query.FIND_VARIANT_OPTIONS_BY_SELLER_QUERY, *sellerID).
+				Scan(&variantOptions).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(query.FIND_VARIANT_OPTIONS_QUERY).
+				Scan(&variantOptions).Error; err != nil {
+				return err
+			}
+		}
+
+		// Stock status query
+		if sellerID != nil {
+			if err := tx.Raw(query.FIND_STOCK_STATUS_BY_SELLER_QUERY, *sellerID).
+				Scan(&stockStatus).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(query.FIND_STOCK_STATUS_QUERY).
+				Scan(&stockStatus).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
+
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, err
+	}
 
 	fmt.Println("categories : ", categories)
 	fmt.Println("attributes : ", attributes)
 	fmt.Println("brands : ", brands)
+	fmt.Println("priceRange : ", priceRange)
+	fmt.Println("variantOptions : ", variantOptions)
+	fmt.Println("stockStatus : ", stockStatus)
 
-	return brands, categories, attributes, err
+	return brands, categories, attributes, &priceRange, variantOptions, &stockStatus, nil
 }
 
 /***********************************************
