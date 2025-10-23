@@ -1,7 +1,8 @@
 package model
 
 // ProductCreateRequest represents the request body for creating a product
-// Note: Product now requires at least one variant with price, images, stock
+// Note: Product requires at least one variant with price, images, stock
+// Frontend handles variant generation from options - backend only saves the final variants
 type ProductCreateRequest struct {
 	Name             string   `json:"name"             binding:"required,min=3,max=200"`
 	CategoryID       uint     `json:"categoryId"       binding:"required"`
@@ -11,23 +12,14 @@ type ProductCreateRequest struct {
 	LongDescription  string   `json:"longDescription"  binding:"max=5000"`
 	Tags             []string `json:"tags"             binding:"max=20"`
 
-	// Options and Variants (PRD Section 3.1.3)
-	Options                []ProductOptionCreateRequest `json:"options"`                          // Product options (color, size, etc.)
-	Variants               []CreateVariantRequest       `json:"variants"`                         // Manual variant definitions
-	AutoGenerateVariants   bool                         `json:"autoGenerateVariants"`             // Auto-generate all combinations
-	DefaultVariantSettings *DefaultVariantSettings      `json:"defaultVariantSettings,omitempty"` // Settings for auto-generated variants
+	// Options and Variants
+	// Frontend generates variant combinations from options and sends final variants
+	Options  []ProductOptionCreateRequest `json:"options"`  // Product options (color, size, etc.)
+	Variants []CreateVariantRequest       `json:"variants"` // Variants selected by seller (required, min=1)
 
 	// Product attributes and package options
 	Attributes     []ProductAttributeRequest `json:"attributes"`
 	PackageOptions []PackageOptionRequest    `json:"packageOptions"`
-}
-
-// DefaultVariantSettings represents default settings when auto-generating variants
-type DefaultVariantSettings struct {
-	Price     float64 `json:"price"     binding:"required,gt=0"`
-	Stock     int     `json:"stock"     binding:"required,gte=0"`
-	Currency  string  `json:"currency"  binding:"required,len=3"`
-	IsPopular bool    `json:"isPopular"`
 }
 
 // ProductUpdateRequest represents the request body for updating a product

@@ -30,7 +30,27 @@ import (
 func PublicAPIAuth() gin.HandlerFunc {
 	database := db.GetDB()
 
+	// Paths that should skip seller validation
+	// These are truly public APIs that don't need seller context
+	skipPaths := []string{
+		"/api/auth/register",
+		"/api/auth/login",
+		"/api/auth/refresh",
+		"/api/auth/logout",
+		"/health",
+		"/ping",
+	}
+
 	return func(c *gin.Context) {
+		// Check if current path should skip seller validation
+		currentPath := c.Request.URL.Path
+		for _, path := range skipPaths {
+			if currentPath == path {
+				c.Next()
+				return
+			}
+		}
+
 		// Check if Authorization header exists (JWT token)
 		authHeader := c.GetHeader("Authorization")
 

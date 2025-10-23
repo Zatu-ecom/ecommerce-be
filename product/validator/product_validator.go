@@ -65,22 +65,9 @@ func (v *ProductValidator) ValidateProductExists(productID uint) (*entity.Produc
 
 // ValidateVariantRequirements validates variant-related requirements for product creation
 func (v *ProductValidator) ValidateVariantRequirements(req model.ProductCreateRequest) error {
-	// At least one variant required (either manual or auto-generated)
-	hasManualVariants := len(req.Variants) > 0
-	hasAutoGenerate := req.AutoGenerateVariants
-
-	if !hasManualVariants && !hasAutoGenerate {
-		return prodErrors.ErrValidation.WithMessage("at least one variant is required or enable auto-generate variants")
-	}
-
-	// If auto-generate enabled, require options and default settings
-	if hasAutoGenerate {
-		if len(req.Options) == 0 {
-			return prodErrors.ErrValidation.WithMessage("options are required when auto-generating variants")
-		}
-		if req.DefaultVariantSettings == nil {
-			return prodErrors.ErrValidation.WithMessage("default variant settings are required when auto-generating variants")
-		}
+	// At least one variant is required
+	if len(req.Variants) == 0 {
+		return prodErrors.ErrValidation.WithMessage("at least one variant is required")
 	}
 
 	return nil

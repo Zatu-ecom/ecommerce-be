@@ -12,75 +12,32 @@ import (
 
 // VariantRepository defines the interface for variant-related database operations
 type VariantRepository interface {
-	// FindVariantByID retrieves a variant by its ID with all related data
 	FindVariantByID(variantID uint) (*entity.ProductVariant, error)
-
-	// FindVariantByProductIDAndVariantID retrieves a variant by product ID and variant ID
 	FindVariantByProductIDAndVariantID(productID, variantID uint) (*entity.ProductVariant, error)
-
-	// FindVariantByOptions finds a variant based on selected option values
 	FindVariantByOptions(
 		productID uint,
 		optionValues map[string]string,
 	) (*entity.ProductVariant, error)
-
-	// GetVariantOptionValues retrieves all option values for a specific variant
 	GetVariantOptionValues(variantID uint) ([]entity.VariantOptionValue, error)
-
-	// GetProductOptionByName retrieves a product option by name for a specific product
 	GetProductOptionByName(productID uint, optionName string) (*entity.ProductOption, error)
-
-	// GetProductOptionValueByValue retrieves an option value by its value string
 	GetProductOptionValueByValue(optionID uint, value string) (*entity.ProductOptionValue, error)
-
-	// GetAvailableOptionsForProduct retrieves all available options and their values for a product
 	GetAvailableOptionsForProduct(productID uint) (map[string][]string, error)
-
-	// GetProductOptionsWithVariantCounts retrieves detailed options with variant counts for each value
 	GetProductOptionsWithVariantCounts(productID uint) ([]entity.ProductOption, map[uint]int, error)
-
-	// GetProductOptionByID retrieves a product option by its ID
 	GetProductOptionByID(optionID uint) (*entity.ProductOption, error)
-
-	// GetOptionValueByID retrieves an option value by its ID
 	GetOptionValueByID(
 		optionValueID uint,
 	) (*entity.ProductOptionValue, error)
-
-	// CreateVariant creates a new variant for a product
 	CreateVariant(variant *entity.ProductVariant) error
-
-	// CreateVariantOptionValues creates variant option value associations
 	CreateVariantOptionValues(variantOptionValues []entity.VariantOptionValue) error
-
-	// UpdateVariant updates an existing variant
 	UpdateVariant(variant *entity.ProductVariant) error
-
-	// DeleteVariant deletes a variant by ID
 	DeleteVariant(variantID uint) error
-
-	// CountVariantsByProductID counts the number of variants for a product
 	CountVariantsByProductID(productID uint) (int64, error)
-
-	// DeleteVariantOptionValues deletes all option values for a variant
 	DeleteVariantOptionValues(variantID uint) error
-
-	// FindVariantsByIDs retrieves multiple variants by their IDs
 	FindVariantsByIDs(variantIDs []uint) ([]entity.ProductVariant, error)
-
-	// BulkUpdateVariants updates multiple variants in a transaction
 	BulkUpdateVariants(variants []*entity.ProductVariant) error
-
-	// GetProductVariantAggregation retrieves aggregated variant data for a product
 	GetProductVariantAggregation(productID uint) (*VariantAggregation, error)
-
-	// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 	GetProductsVariantAggregations(productIDs []uint) (map[uint]*VariantAggregation, error)
-
-	// GetProductVariantsWithOptions retrieves all variants for a product with their selected options
 	GetProductVariantsWithOptions(productID uint) ([]VariantWithOptions, error)
-
-	// Bulk deletion methods for product cleanup
 	FindVariantsByProductID(productID uint) ([]entity.ProductVariant, error)
 	DeleteVariantsByProductID(productID uint) error
 	DeleteVariantOptionValuesByVariantIDs(variantIDs []uint) error

@@ -31,8 +31,8 @@ type VariantDetailResponse struct {
 	Stock           int                     `json:"stock"`
 	IsDefault       bool                    `json:"isDefault"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
-	CreatedAt       string                  `json:"createdAt"`
-	UpdatedAt       string                  `json:"updatedAt"`
+	CreatedAt       string                  `json:"createdAt,omitempty"`
+	UpdatedAt       string                  `json:"updatedAt,omitempty"`
 }
 
 // VariantResponse represents simplified variant information

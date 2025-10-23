@@ -87,7 +87,7 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 // FindBySKU finds a product by SKU
 func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
 	var product entity.Product
-	result := r.db.Where("sku = ?", sku).First(&product)
+	result := r.db.Where("base_sku = ?", sku).First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil // Not found, but not an error
@@ -452,7 +452,6 @@ func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, err
 	}
