@@ -122,7 +122,8 @@ BEGIN
         ALTER TABLE "user" ADD CONSTRAINT fk_user_seller_id 
         FOREIGN KEY (seller_id) REFERENCES seller_profile(user_id) ON DELETE SET NULL;
     END IF;
-END $$;
+END 
+$$ language plpgsql;
 
 -- Create updated_at trigger function if not exists
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -131,7 +132,7 @@ BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ language plpgsql;
 
 -- Create triggers for updated_at on all tables
 DO $$
@@ -171,4 +172,5 @@ BEGIN
         CREATE TRIGGER update_seller_profile_updated_at BEFORE UPDATE ON seller_profile
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
-END $$;
+END 
+$$ language plpgsql;

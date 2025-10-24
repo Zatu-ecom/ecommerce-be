@@ -55,11 +55,22 @@ run_sql_file() {
     
     print_info "Running: $description"
     
-    if PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" > /dev/null 2>&1; then
+    # Create a temporary file to capture error output
+    local error_file=$(mktemp)
+    
+    if PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
         print_success "Completed: $description"
+        rm -f "$error_file"
         return 0
     else
         print_error "Failed: $description"
+        echo ""
+        echo -e "${RED}PostgreSQL Error Output:${NC}"
+        echo "----------------------------------------"
+        cat "$error_file"
+        echo "----------------------------------------"
+        echo ""
+        rm -f "$error_file"
         return 1
     fi
 }

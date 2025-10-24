@@ -41,7 +41,6 @@ func ConnectDB(autoMigrations []AutoMigrate) {
 	db = _db
 	fmt.Println("🚀 Database connected successfully!")
 
-	
 	// /* Auto-migrate tables */
 	for _, migration := range autoMigrations {
 		err := db.AutoMigrate(migration.AutoMigrate()...)
@@ -53,6 +52,10 @@ func ConnectDB(autoMigrations []AutoMigrate) {
 
 func GetDB() *gorm.DB {
 	return db
+}
+
+func SetDB(database *gorm.DB) {
+	db = database
 }
 
 func Atomic(fn func(tx *gorm.DB) error) error {
