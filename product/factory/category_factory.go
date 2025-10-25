@@ -47,7 +47,7 @@ func (f *CategoryFactory) UpdateEntity(
 	category.Name = req.Name
 	category.ParentID = req.ParentID
 	category.Description = req.Description
-	category.UpdatedAt = time.Now()
+	category.UpdatedAt = time.Now().UTC() // Force UTC
 
 	return category
 }
@@ -68,8 +68,8 @@ func (f *CategoryFactory) BuildCategoryResponse(
 		Description: category.Description,
 		IsGlobal:    category.IsGlobal,
 		SellerID:    category.SellerID,
-		CreatedAt:   category.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   category.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   category.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:   category.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 

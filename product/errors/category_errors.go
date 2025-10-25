@@ -44,4 +44,10 @@ var (
 		Message:    utils.INVALID_PARENT_CATEGORY_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrUnauthorizedCategoryUpdate = &commonerrors.AppError{
+		Code:       utils.UNAUTHORIZED_CATEGORY_UPDATE_CODE,
+		Message:    utils.UNAUTHORIZED_CATEGORY_UPDATE_MSG,
+		StatusCode: http.StatusForbidden,
+	}
 )

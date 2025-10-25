@@ -7,19 +7,21 @@ import (
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
 
+	"ecommerce-be/common/handler"
+
 	"github.com/gin-gonic/gin"
 )
 
 // AttributeHandler handles HTTP requests related to attribute definitions
 type AttributeHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	attributeService service.AttributeDefinitionService
 }
 
 // NewAttributeHandler creates a new instance of AttributeHandler
 func NewAttributeHandler(attributeService service.AttributeDefinitionService) *AttributeHandler {
 	return &AttributeHandler{
-		BaseHandler:      NewBaseHandler(),
+		BaseHandler:      handler.NewBaseHandler(),
 		attributeService: attributeService,
 	}
 }

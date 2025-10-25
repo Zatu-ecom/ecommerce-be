@@ -1,12 +1,12 @@
-package handlers
+package handler
 
 import (
 	"net/http"
 	"strconv"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
-	"ecommerce-be/product/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,16 +45,16 @@ func (h *BaseHandler) HandleError(c *gin.Context, err error, defaultMessage stri
 func (h *BaseHandler) HandleValidationError(c *gin.Context, err error) {
 	validationErrors := []common.ValidationError{
 		{
-			Field:   utils.REQUEST_FIELD_NAME,
+			Field:   constants.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		},
 	}
 	common.ErrorWithValidation(
 		c,
 		http.StatusBadRequest,
-		utils.VALIDATION_FAILED_MSG,
+		constants.VALIDATION_FAILED_MSG,
 		validationErrors,
-		utils.VALIDATION_ERROR_CODE,
+		constants.VALIDATION_ERROR_CODE,
 	)
 }
 

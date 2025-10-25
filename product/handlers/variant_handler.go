@@ -6,6 +6,7 @@ import (
 	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	commonError "ecommerce-be/common/error"
+	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -15,14 +16,14 @@ import (
 
 // VariantHandler handles HTTP requests related to product variants
 type VariantHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	variantService service.VariantService
 }
 
 // NewVariantHandler creates a new instance of VariantHandler
 func NewVariantHandler(variantService service.VariantService) *VariantHandler {
 	return &VariantHandler{
-		BaseHandler:    NewBaseHandler(),
+		BaseHandler:    handler.NewBaseHandler(),
 		variantService: variantService,
 	}
 }

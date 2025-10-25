@@ -16,8 +16,7 @@ func TestCreateCategory(t *testing.T) {
 	defer containers.Cleanup(t)
 
 	// Run migrations and seeds
-	containers.RunMigrations(t, "migrations/001_create_user_tables.sql")
-	containers.RunMigrations(t, "migrations/002_create_product_tables.sql")
+	containers.RunAllMigrations(t)
 	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
 
 	// Setup test server

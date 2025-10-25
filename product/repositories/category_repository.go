@@ -42,7 +42,15 @@ func (r *CategoryRepositoryImpl) Create(category *entity.Category) error {
 
 // Update updates an existing category
 func (r *CategoryRepositoryImpl) Update(category *entity.Category) error {
-	return r.db.Save(category).Error
+	// Use Updates with Select to handle pointer fields (ParentID) and force timestamp updates
+	return r.db.Model(category).
+		Select("Name", "Description", "ParentID", "UpdatedAt").
+		Updates(map[string]interface{}{
+			"name":        category.Name,
+			"description": category.Description,
+			"parent_id":   category.ParentID,
+			"updated_at":  category.UpdatedAt,
+		}).Error
 }
 
 // FindByID finds a category by ID with eager loading

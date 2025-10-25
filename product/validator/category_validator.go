@@ -32,13 +32,43 @@ func (v *CategoryValidator) ValidateParentCategory(parentID *uint) error {
 }
 
 // ValidateCircularReference validates that a category is not its own parent
+// and that setting this parent won't create a circular reference in the hierarchy
 func (v *CategoryValidator) ValidateCircularReference(categoryID uint, parentID *uint) error {
 	if parentID == nil || *parentID == 0 {
 		return nil
 	}
 
+	// Check if trying to set itself as parent
 	if *parentID == categoryID {
 		return prodErrors.ErrInvalidParentCategory.WithMessage("Category cannot be its own parent")
+	}
+
+	// Check if the new parent is a descendant of this category
+	// This prevents circular references like A->B->C->A
+	currentParentID := parentID
+	visited := make(map[uint]bool)
+	
+	for currentParentID != nil && *currentParentID != 0 {
+		// Prevent infinite loops in case of existing circular references
+		if visited[*currentParentID] {
+			break
+		}
+		visited[*currentParentID] = true
+		
+		// If we find the category in its own parent chain, it's circular
+		if *currentParentID == categoryID {
+			return prodErrors.ErrInvalidParentCategory.WithMessage("Cannot create circular reference in category hierarchy")
+		}
+		
+		// Get the parent category
+		parentCategory, err := v.categoryRepo.FindByID(*currentParentID)
+		if err != nil {
+			// If parent not found, break the loop
+			break
+		}
+		
+		// Move up the chain
+		currentParentID = parentCategory.ParentID
 	}
 
 	return nil

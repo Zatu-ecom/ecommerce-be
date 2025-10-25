@@ -38,7 +38,7 @@ var (
 	// ErrRoleDataMissing is returned when role data is missing in context
 	ErrRoleDataMissing = &AppError{
 		Code:       constants.ROLE_DATA_MISSING_CODE,
-		Message:    constants.ROLE_DATA_MISSING_MESSAGE,
+		Message:    constants.ROLE_DATA_MISSING_MSG,
 		StatusCode: http.StatusInternalServerError,
 	}
 

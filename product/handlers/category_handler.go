@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
+	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -16,14 +17,14 @@ import (
 
 // CategoryHandler handles HTTP requests related to categories
 type CategoryHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	categoryService service.CategoryService
 }
 
 // NewCategoryHandler creates a new instance of CategoryHandler
 func NewCategoryHandler(categoryService service.CategoryService) *CategoryHandler {
 	return &CategoryHandler{
-		BaseHandler:     NewBaseHandler(),
+		BaseHandler:     handler.NewBaseHandler(),
 		categoryService: categoryService,
 	}
 }
@@ -38,7 +39,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	}
 	roleLevel, exists := auth.GetUserRoleLevelFromContext(c)
 	if !exists {
-		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MESSAGE)
+		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MSG)
 		return
 	}
 	sellerId, sellerExists := auth.GetSellerIDFromContext(c)
@@ -74,8 +75,17 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		h.HandleValidationError(c, err)
 		return
 	}
-
-	categoryResponse, err := h.categoryService.UpdateCategory(categoryID, req)
+	roleLevel, exists := auth.GetUserRoleLevelFromContext(c)
+	if !exists {
+		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MSG)
+		return
+	}
+	sellerId, sellerExists := auth.GetSellerIDFromContext(c)
+	if !sellerExists && roleLevel >= constants.SELLER_ROLE_LEVEL {
+		h.HandleError(c, commonError.UnauthorizedError, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+	categoryResponse, err := h.categoryService.UpdateCategory(categoryID, req, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_CATEGORY_MSG)
 		return

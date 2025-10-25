@@ -16,7 +16,12 @@ type CategoryService interface {
 		roleLevel uint,
 		sellerId uint,
 	) (*model.CategoryResponse, error)
-	UpdateCategory(id uint, req model.CategoryUpdateRequest) (*model.CategoryResponse, error)
+	UpdateCategory(
+		id uint,
+		req model.CategoryUpdateRequest,
+		roleLevel uint,
+		sellerId uint,
+	) (*model.CategoryResponse, error)
 	DeleteCategory(id uint) error
 	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
 	GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error)
@@ -67,7 +72,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	}
 
 	global := roleLevel < constants.SELLER_ROLE_LEVEL
-	
+
 	// Create category entity using factory
 	category := s.factory.CreateFromRequest(req, global, &sellerId)
 
@@ -86,11 +91,22 @@ func (s *CategoryServiceImpl) CreateCategory(
 func (s *CategoryServiceImpl) UpdateCategory(
 	id uint,
 	req model.CategoryUpdateRequest,
+	roleLevel uint,
+	sellerId uint,
 ) (*model.CategoryResponse, error) {
 	// Find existing category
 	category, err := s.categoryRepo.FindByID(id)
 	if err != nil {
+		// Check if it's a "not found" error
+		if err.Error() == "Category not found" {
+			return nil, prodErrors.ErrCategoryNotFound
+		}
 		return nil, err
+	}
+
+	shouldGlobal := roleLevel < constants.SELLER_ROLE_LEVEL
+	if shouldGlobal != category.IsGlobal && category.SellerID != &sellerId {
+		return nil, prodErrors.ErrUnauthorizedCategoryUpdate
 	}
 
 	// Validate name change (check uniqueness within same parent)

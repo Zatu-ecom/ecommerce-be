@@ -2,6 +2,35 @@
 
 This directory contains integration tests for all services in the ecommerce backend.
 
+## Quick Start
+
+### Automatic Migration and Seed Discovery ✨
+
+The test framework **automatically discovers and runs** migration and seed files. No need to manually list each file!
+
+```go
+func TestYourFeature(t *testing.T) {
+    containers := setup.SetupTestContainers(t)
+    defer containers.Cleanup(t)
+
+    // All migrations and seeds run automatically
+    containers.RunAllMigrations(t)  // Scans migrations/*.sql
+    containers.RunAllSeeds(t)        // Scans migrations/seeds/*.sql
+
+    server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
+    client := helpers.NewAPIClient(server)
+
+    // Your tests here...
+}
+```
+
+**Benefits:**
+
+- ✅ Add new migration → runs automatically
+- ✅ Files execute in correct order (001, 002, 003...)
+- ✅ No need to update test files
+- ✅ Clear logs show which files run
+
 ## Structure
 
 ```

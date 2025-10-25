@@ -2,14 +2,15 @@ package utils
 
 // Category messages
 const (
-	CATEGORY_EXISTS_MSG             = "Category with this name already exists in the same parent"
-	CATEGORY_NOT_FOUND_MSG          = "Category not found"
-	CATEGORY_HAS_PRODUCTS_MSG       = "Cannot delete category with active products"
-	CATEGORY_HAS_CHILDREN_MSG       = "Cannot delete category with active child categories"
-	INVALID_PARENT_CATEGORY_MSG     = "Invalid parent category"
-	CATEGORY_NAME_REQUIRED_MSG      = "Category name is required"
-	CATEGORY_NAME_LENGTH_MSG        = "Category name must be between 3 and 100 characters"
-	CATEGORY_DESCRIPTION_LENGTH_MSG = "Category description must not exceed 500 characters"
+	CATEGORY_EXISTS_MSG              = "Category with this name already exists in the same parent"
+	CATEGORY_NOT_FOUND_MSG           = "Category not found"
+	CATEGORY_HAS_PRODUCTS_MSG        = "Cannot delete category with active products"
+	CATEGORY_HAS_CHILDREN_MSG        = "Cannot delete category with active child categories"
+	INVALID_PARENT_CATEGORY_MSG      = "Invalid parent category"
+	CATEGORY_NAME_REQUIRED_MSG       = "Category name is required"
+	CATEGORY_NAME_LENGTH_MSG         = "Category name must be between 3 and 100 characters"
+	CATEGORY_DESCRIPTION_LENGTH_MSG  = "Category description must not exceed 500 characters"
+	UNAUTHORIZED_CATEGORY_UPDATE_MSG = "You do not have permission to update this category"
 )
 
 // Attribute Definition messages
@@ -154,12 +155,6 @@ const (
 	PERMISSION_DENIED_MSG        = "You don't have permission to perform this action"
 	ADMIN_REQUIRED_MSG           = "Admin access required"
 	SELLER_OR_ADMIN_REQUIRED_MSG = "Seller or Admin access required"
-)
-
-// Validation messages
-const (
-	VALIDATION_FAILED_MSG      = "Validation failed"
-	INVALID_REQUEST_FORMAT_MSG = "Invalid request format"
 )
 
 // Business rule messages

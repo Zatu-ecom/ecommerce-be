@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -14,14 +15,14 @@ import (
 
 // ProductHandler handles HTTP requests related to products
 type ProductHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	productService service.ProductService
 }
 
 // NewProductHandler creates a new instance of ProductHandler
 func NewProductHandler(productService service.ProductService) *ProductHandler {
 	return &ProductHandler{
-		BaseHandler:    NewBaseHandler(),
+		BaseHandler:    handler.NewBaseHandler(),
 		productService: productService,
 	}
 }

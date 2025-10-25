@@ -61,7 +61,7 @@ func SetupTestContainers(t *testing.T) *TestContainers {
 	}
 
 	// Get Postgres connection string
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable&TimeZone=UTC")
 	if err != nil {
 		t.Fatalf("failed to get postgres connection string: %v", err)
 	}

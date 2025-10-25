@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -12,7 +13,7 @@ import (
 
 // ProductOptionValueHandler handles HTTP requests related to product option values
 type ProductOptionValueHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	valueService service.ProductOptionValueService
 }
 
@@ -21,7 +22,7 @@ func NewProductOptionValueHandler(
 	valueService service.ProductOptionValueService,
 ) *ProductOptionValueHandler {
 	return &ProductOptionValueHandler{
-		BaseHandler:  NewBaseHandler(),
+		BaseHandler:  handler.NewBaseHandler(),
 		valueService: valueService,
 	}
 }

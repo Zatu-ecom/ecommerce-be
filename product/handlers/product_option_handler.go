@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -13,14 +14,14 @@ import (
 
 // ProductOptionHandler handles HTTP requests related to product options
 type ProductOptionHandler struct {
-	*BaseHandler
+	*handler.BaseHandler
 	optionService service.ProductOptionService
 }
 
 // NewProductOptionHandler creates a new instance of ProductOptionHandler
 func NewProductOptionHandler(optionService service.ProductOptionService) *ProductOptionHandler {
 	return &ProductOptionHandler{
-		BaseHandler:   NewBaseHandler(),
+		BaseHandler:   handler.NewBaseHandler(),
 		optionService: optionService,
 	}
 }
