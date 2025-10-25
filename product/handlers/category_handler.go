@@ -6,7 +6,6 @@ import (
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
-	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
@@ -37,16 +36,13 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		h.HandleValidationError(c, err)
 		return
 	}
-	roleLevel, exists := auth.GetUserRoleLevelFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MSG)
+
+	roleLevel, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
-	sellerId, sellerExists := auth.GetSellerIDFromContext(c)
-	if !sellerExists && roleLevel >= constants.SELLER_ROLE_LEVEL {
-		h.HandleError(c, commonError.UnauthorizedError, constants.UNAUTHORIZED_ERROR_MSG)
-		return
-	}
+
 	categoryResponse, err := h.categoryService.CreateCategory(req, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_CATEGORY_MSG)
@@ -75,16 +71,13 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		h.HandleValidationError(c, err)
 		return
 	}
-	roleLevel, exists := auth.GetUserRoleLevelFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MSG)
+
+	roleLevel, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
-	sellerId, sellerExists := auth.GetSellerIDFromContext(c)
-	if !sellerExists && roleLevel >= constants.SELLER_ROLE_LEVEL {
-		h.HandleError(c, commonError.UnauthorizedError, constants.UNAUTHORIZED_ERROR_MSG)
-		return
-	}
+
 	categoryResponse, err := h.categoryService.UpdateCategory(categoryID, req, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_CATEGORY_MSG)
@@ -107,8 +100,12 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		h.HandleError(c, err, "Invalid category ID")
 		return
 	}
-
-	err = h.categoryService.DeleteCategory(categoryID)
+	roleLevel, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+	err = h.categoryService.DeleteCategory(categoryID, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_CATEGORY_MSG)
 		return

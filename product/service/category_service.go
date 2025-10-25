@@ -22,7 +22,11 @@ type CategoryService interface {
 		roleLevel uint,
 		sellerId uint,
 	) (*model.CategoryResponse, error)
-	DeleteCategory(id uint) error
+	DeleteCategory(
+		id uint,
+		roleLevel uint,
+		sellerId uint,
+	) error
 	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
 	GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error)
 	GetCategoriesByParent(parentID *uint, sellerID *uint) (*model.CategoriesResponse, error)
@@ -104,9 +108,12 @@ func (s *CategoryServiceImpl) UpdateCategory(
 		return nil, err
 	}
 
-	shouldGlobal := roleLevel < constants.SELLER_ROLE_LEVEL
-	if shouldGlobal != category.IsGlobal && category.SellerID != &sellerId {
-		return nil, prodErrors.ErrUnauthorizedCategoryUpdate
+	if err := s.validator.ValidateCategoryOwnershipOrAdminAccess(
+		roleLevel,
+		sellerId,
+		category,
+	); err != nil {
+		return nil, err
 	}
 
 	// Validate name change (check uniqueness within same parent)
@@ -139,9 +146,30 @@ func (s *CategoryServiceImpl) UpdateCategory(
 }
 
 // DeleteCategory soft deletes a category
-func (s *CategoryServiceImpl) DeleteCategory(id uint) error {
+func (s *CategoryServiceImpl) DeleteCategory(
+	id uint,
+	roleLevel uint,
+	sellerId uint,
+) error {
 	// Validate that category can be deleted
 	if err := s.validator.ValidateCanDelete(id); err != nil {
+		return err
+	}
+
+	category, err := s.categoryRepo.FindByID(id)
+	if err != nil {
+		// Check if it's a "not found" error
+		if err.Error() == "Category not found" {
+			return prodErrors.ErrCategoryNotFound
+		}
+		return err
+	}
+
+	if err := s.validator.ValidateCategoryOwnershipOrAdminAccess(
+		roleLevel,
+		sellerId,
+		category,
+	); err != nil {
 		return err
 	}
 
@@ -201,6 +229,10 @@ func (s *CategoryServiceImpl) GetCategoryByID(
 ) (*model.CategoryResponse, error) {
 	category, err := s.categoryRepo.FindByID(id)
 	if err != nil {
+		// Check if it's a "not found" error
+		if err.Error() == "Category not found" {
+			return nil, prodErrors.ErrCategoryNotFound
+		}
 		return nil, err
 	}
 
@@ -213,7 +245,7 @@ func (s *CategoryServiceImpl) GetCategoryByID(
 			(category.SellerID != nil && *category.SellerID == *sellerID)
 
 		if !isAccessible {
-			return nil, err // Return category not found error
+			return nil, prodErrors.ErrCategoryNotFound // Return proper 404 error
 		}
 	}
 

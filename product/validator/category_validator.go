@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"ecommerce-be/common/constants"
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/repositories"
 )
@@ -47,26 +49,28 @@ func (v *CategoryValidator) ValidateCircularReference(categoryID uint, parentID 
 	// This prevents circular references like A->B->C->A
 	currentParentID := parentID
 	visited := make(map[uint]bool)
-	
+
 	for currentParentID != nil && *currentParentID != 0 {
 		// Prevent infinite loops in case of existing circular references
 		if visited[*currentParentID] {
 			break
 		}
 		visited[*currentParentID] = true
-		
+
 		// If we find the category in its own parent chain, it's circular
 		if *currentParentID == categoryID {
-			return prodErrors.ErrInvalidParentCategory.WithMessage("Cannot create circular reference in category hierarchy")
+			return prodErrors.ErrInvalidParentCategory.WithMessage(
+				"Cannot create circular reference in category hierarchy",
+			)
 		}
-		
+
 		// Get the parent category
 		parentCategory, err := v.categoryRepo.FindByID(*currentParentID)
 		if err != nil {
 			// If parent not found, break the loop
 			break
 		}
-		
+
 		// Move up the chain
 		currentParentID = parentCategory.ParentID
 	}
@@ -125,4 +129,28 @@ func (v *CategoryValidator) ValidateNameChange(
 	}
 
 	return v.ValidateUniqueName(newName, parentID, &categoryID)
+}
+
+func (v *CategoryValidator) ValidateCategoryOwnershipOrAdminAccess(
+	roleLevel uint,
+	sellerId uint,
+	category *entity.Category,
+) error {
+	// Admin can delete any category (global or seller-specific)
+	if roleLevel <= constants.ADMIN_ROLE_LEVEL {
+		return nil
+	}
+
+	// Sellers can only delete their own seller-specific categories
+	// They cannot delete global categories
+	if category.IsGlobal {
+		return prodErrors.ErrUnauthorizedCategoryUpdate
+	}
+
+	// Check if seller owns this category
+	if category.SellerID == nil || *category.SellerID != sellerId {
+		return prodErrors.ErrUnauthorizedCategoryUpdate
+	}
+
+	return nil
 }

@@ -38,15 +38,14 @@ func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
 		categoryRoutes.GET("", m.categoryHandler.GetAllCategories)
 		categoryRoutes.GET("/:categoryId", m.categoryHandler.GetCategoryByID)
 		categoryRoutes.GET("/by-parent", m.categoryHandler.GetCategoriesByParent)
+		categoryRoutes.GET(
+			"/:categoryId/attributes",
+			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
+		)
 
 		// Admin routes (protected)
 		categoryRoutes.POST("", auth, m.categoryHandler.CreateCategory)
 		categoryRoutes.PUT("/:categoryId", auth, m.categoryHandler.UpdateCategory)
 		categoryRoutes.DELETE("/:categoryId", auth, m.categoryHandler.DeleteCategory)
-		categoryRoutes.GET(
-			"/:categoryId/attributes",
-			auth,
-			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
-		)
 	}
 }
