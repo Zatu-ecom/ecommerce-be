@@ -105,10 +105,10 @@ const (
 
 // Variant operation failure messages
 const (
-	FAILED_TO_RETRIEVE_VARIANT_MSG = "Failed to retrieve variant"
-	FAILED_TO_FIND_VARIANT_MSG     = "Failed to find variant"
-	FAILED_TO_CREATE_VARIANT_MSG   = "Failed to create variant"
-	FAILED_TO_UPDATE_VARIANT_MSG   = "Failed to update variant"
+	FAILED_TO_RETRIEVE_VARIANT_MSG     = "Failed to retrieve variant"
+	FAILED_TO_FIND_VARIANT_MSG         = "Failed to find variant"
+	FAILED_TO_CREATE_VARIANT_MSG       = "Failed to create variant"
+	FAILED_TO_UPDATE_VARIANT_MSG       = "Failed to update variant"
 	FAILED_TO_DELETE_VARIANT_MSG       = "Failed to delete variant"
 	FAILED_TO_UPDATE_VARIANT_STOCK_MSG = "Failed to update variant stock"
 	FAILED_TO_BULK_UPDATE_VARIANTS_MSG = "Failed to bulk update variants"

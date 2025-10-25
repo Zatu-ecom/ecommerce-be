@@ -22,19 +22,31 @@ type VariantService interface {
 	) (*model.VariantResponse, error)
 
 	// CreateVariant creates a new variant for a product
-	CreateVariant(productID uint, request *model.CreateVariantRequest) (*model.VariantDetailResponse, error)
+	CreateVariant(
+		productID uint,
+		request *model.CreateVariantRequest,
+	) (*model.VariantDetailResponse, error)
 
 	// UpdateVariant updates an existing variant
-	UpdateVariant(productID, variantID uint, request *model.UpdateVariantRequest) (*model.VariantDetailResponse, error)
+	UpdateVariant(
+		productID, variantID uint,
+		request *model.UpdateVariantRequest,
+	) (*model.VariantDetailResponse, error)
 
 	// DeleteVariant deletes a variant
 	DeleteVariant(productID, variantID uint) error
 
 	// UpdateVariantStock updates the stock for a variant
-	UpdateVariantStock(productID, variantID uint, request *model.UpdateVariantStockRequest) (*model.UpdateVariantStockResponse, error)
+	UpdateVariantStock(
+		productID, variantID uint,
+		request *model.UpdateVariantStockRequest,
+	) (*model.UpdateVariantStockResponse, error)
 
 	// BulkUpdateVariants updates multiple variants at once
-	BulkUpdateVariants(productID uint, request *model.BulkUpdateVariantsRequest) (*model.BulkUpdateVariantsResponse, error)
+	BulkUpdateVariants(
+		productID uint,
+		request *model.BulkUpdateVariantsRequest,
+	) (*model.BulkUpdateVariantsResponse, error)
 }
 
 // VariantServiceImpl implements the VariantService interface
@@ -202,7 +214,11 @@ func (s *VariantServiceImpl) buildVariantOptions(
 	}
 
 	// Map to response
-	return s.factory.BuildVariantOptionResponses(variantOptionValues, productOptions, optionValues), nil
+	return s.factory.BuildVariantOptionResponses(
+		variantOptionValues,
+		productOptions,
+		optionValues,
+	), nil
 }
 
 /***********************************************
@@ -412,7 +428,7 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	for i := range existingVariants {
 		variant := &existingVariants[i]
 		updateData := updateMap[variant.ID]
-		
+
 		// Update variant using factory
 		variant = s.factory.BulkUpdateVariantEntity(variant, updateData)
 		variantsToUpdate = append(variantsToUpdate, variant)

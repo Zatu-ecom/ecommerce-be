@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
@@ -166,7 +167,7 @@ func (s *ProductServiceImpl) createProductVariants(
 	// Get all product options to map option names to IDs
 	productOptions, err := s.optionRepo.FindOptionsByProductID(productID)
 	if err != nil && len(variantReqs) > 0 && len(variantReqs[0].Options) > 0 {
-		return prodErrors.ErrValidation.WithMessage(
+		return commonError.ErrValidation.WithMessage(
 			"product options not found, but variants require options",
 		)
 	}
@@ -218,7 +219,7 @@ func (s *ProductServiceImpl) createProductVariants(
 		for _, optInput := range variantReq.Options {
 			option, exists := optionMap[optInput.OptionName]
 			if !exists {
-				return prodErrors.ErrValidation.WithMessagef(
+				return commonError.ErrValidation.WithMessagef(
 					"option not found: %s",
 					optInput.OptionName,
 				)
@@ -233,7 +234,7 @@ func (s *ProductServiceImpl) createProductVariants(
 				}
 			}
 			if valueID == 0 {
-				return prodErrors.ErrValidation.WithMessagef(
+				return commonError.ErrValidation.WithMessagef(
 					"option value not found: %s for option: %s",
 					optInput.Value,
 					optInput.OptionName,

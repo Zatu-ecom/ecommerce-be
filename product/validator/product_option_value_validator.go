@@ -28,7 +28,10 @@ func NewProductOptionValueValidator(
 }
 
 // ValidateProductAndOption validates both product and option exist and belong together
-func (v *ProductOptionValueValidator) ValidateProductAndOption(productID uint, optionID uint) error {
+func (v *ProductOptionValueValidator) ValidateProductAndOption(
+	productID uint,
+	optionID uint,
+) error {
 	// Validate product exists
 	_, err := v.productRepo.FindByID(productID)
 	if err != nil {
@@ -55,9 +58,12 @@ func (v *ProductOptionValueValidator) ValidateProductAndOption(productID uint, o
 }
 
 // ValidateOptionValueUniqueness validates that option value is unique for an option
-func (v *ProductOptionValueValidator) ValidateOptionValueUniqueness(optionID uint, value string) error {
+func (v *ProductOptionValueValidator) ValidateOptionValueUniqueness(
+	optionID uint,
+	value string,
+) error {
 	normalizedValue := utils.ToLowerTrimmed(value)
-	
+
 	existingValues, err := v.optionRepo.FindOptionValuesByOptionID(optionID)
 	if err != nil {
 		return err
@@ -72,7 +78,10 @@ func (v *ProductOptionValueValidator) ValidateOptionValueUniqueness(optionID uin
 }
 
 // ValidateOptionValueBelongsToOption validates that a value belongs to an option
-func (v *ProductOptionValueValidator) ValidateOptionValueBelongsToOption(valueID uint, optionID uint) error {
+func (v *ProductOptionValueValidator) ValidateOptionValueBelongsToOption(
+	valueID uint,
+	optionID uint,
+) error {
 	optionValue, err := v.optionRepo.FindOptionValueByID(valueID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -107,7 +116,10 @@ func (v *ProductOptionValueValidator) ValidateOptionValueNotInUse(valueID uint) 
 }
 
 // ValidateBulkOptionValuesUniqueness validates bulk option values for duplicates
-func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(optionID uint, values []string) error {
+func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(
+	optionID uint,
+	values []string,
+) error {
 	// Get existing values
 	existingValues, err := v.optionRepo.FindOptionValuesByOptionID(optionID)
 	if err != nil {
@@ -123,7 +135,7 @@ func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(optionI
 	valueSet := make(map[string]bool)
 	for _, value := range values {
 		normalizedValue := utils.ToLowerTrimmed(value)
-		
+
 		// Check against existing values
 		if existingValueMap[normalizedValue] {
 			return prodErrors.ErrProductOptionValueExists.WithMessagef(
@@ -132,7 +144,7 @@ func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(optionI
 				normalizedValue,
 			)
 		}
-		
+
 		// Check for duplicates within batch
 		if valueSet[normalizedValue] {
 			return prodErrors.ErrProductOptionValueExists.WithMessagef(
@@ -141,7 +153,7 @@ func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(optionI
 				normalizedValue,
 			)
 		}
-		
+
 		valueSet[normalizedValue] = true
 	}
 

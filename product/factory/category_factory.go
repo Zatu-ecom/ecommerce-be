@@ -17,12 +17,21 @@ func NewCategoryFactory() *CategoryFactory {
 }
 
 // CreateFromRequest creates a Category entity from a create request
-func (f *CategoryFactory) CreateFromRequest(req model.CategoryCreateRequest) *entity.Category {
+func (f *CategoryFactory) CreateFromRequest(
+	req model.CategoryCreateRequest,
+	isGlobal bool,
+	sellerID *uint,
+) *entity.Category {
 	now := time.Now()
+	if isGlobal {
+		sellerID = nil
+	}
 	return &entity.Category{
 		Name:        req.Name,
 		ParentID:    req.ParentID,
 		Description: req.Description,
+		IsGlobal:    isGlobal,
+		SellerID:    sellerID,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -57,6 +66,8 @@ func (f *CategoryFactory) BuildCategoryResponse(
 		Name:        category.Name,
 		ParentID:    responseParentID,
 		Description: category.Description,
+		IsGlobal:    category.IsGlobal,
+		SellerID:    category.SellerID,
 		CreatedAt:   category.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   category.UpdatedAt.Format(time.RFC3339),
 	}

@@ -5,7 +5,7 @@ import (
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
-	prodErrors "ecommerce-be/product/errors"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -88,7 +88,7 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 
 	// Validate options
 	if len(optionValues) == 0 {
-		h.HandleError(c, prodErrors.ErrValidation.WithMessage(utils.OPTION_REQUIRED_MSG), "")
+		h.HandleError(c, commonError.ErrValidation.WithMessage(utils.OPTION_REQUIRED_MSG), "")
 		return
 	}
 

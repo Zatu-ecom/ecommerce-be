@@ -1,6 +1,7 @@
 package validator
 
 import (
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
@@ -67,7 +68,7 @@ func (v *ProductValidator) ValidateProductExists(productID uint) (*entity.Produc
 func (v *ProductValidator) ValidateVariantRequirements(req model.ProductCreateRequest) error {
 	// At least one variant is required
 	if len(req.Variants) == 0 {
-		return prodErrors.ErrValidation.WithMessage("at least one variant is required")
+		return commonError.ErrValidation.WithMessage("at least one variant is required")
 	}
 
 	return nil
@@ -78,7 +79,7 @@ func (v *ProductValidator) ValidateVariantSKUsUnique(variants []model.CreateVari
 	skuMap := make(map[string]bool)
 	for _, variant := range variants {
 		if skuMap[variant.SKU] {
-			return prodErrors.ErrValidation.WithMessagef("duplicate variant SKU: %s", variant.SKU)
+			return commonError.ErrValidation.WithMessagef("duplicate variant SKU: %s", variant.SKU)
 		}
 		skuMap[variant.SKU] = true
 	}
@@ -114,7 +115,10 @@ func (v *ProductValidator) ValidateProductCreateRequest(req model.ProductCreateR
 }
 
 // ValidateProductUpdateRequest validates product update request
-func (v *ProductValidator) ValidateProductUpdateRequest(productID uint, req model.ProductUpdateRequest) (*entity.Product, error) {
+func (v *ProductValidator) ValidateProductUpdateRequest(
+	productID uint,
+	req model.ProductUpdateRequest,
+) (*entity.Product, error) {
 	// Verify product exists
 	product, err := v.ValidateProductExists(productID)
 	if err != nil {

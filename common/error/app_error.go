@@ -1,11 +1,6 @@
-package errors
+package error
 
-import (
-	"fmt"
-	"net/http"
-
-	"ecommerce-be/product/utils"
-)
+import "fmt"
 
 // AppError represents a structured application error with HTTP status and error code
 type AppError struct {
@@ -57,21 +52,3 @@ func AsAppError(err error) (*AppError, bool) {
 	appErr, ok := err.(*AppError)
 	return appErr, ok
 }
-
-// Common/Validation Errors
-
-var (
-	// ErrValidation is a generic validation error
-	ErrValidation = &AppError{
-		Code:       utils.VALIDATION_ERROR_CODE,
-		Message:    utils.VALIDATION_FAILED_MSG,
-		StatusCode: http.StatusBadRequest,
-	}
-
-	// ErrInvalidID is returned when an ID parameter is invalid
-	ErrInvalidID = &AppError{
-		Code:       utils.VALIDATION_ERROR_CODE,
-		Message:    "Invalid ID parameter",
-		StatusCode: http.StatusBadRequest,
-	}
-)

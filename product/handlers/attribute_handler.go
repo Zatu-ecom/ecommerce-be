@@ -27,7 +27,7 @@ func NewAttributeHandler(attributeService service.AttributeDefinitionService) *A
 // CreateAttribute handles attribute definition creation
 func (h *AttributeHandler) CreateAttribute(c *gin.Context) {
 	var req model.AttributeDefinitionCreateRequest
-	
+
 	if err := h.BindJSON(c, &req); err != nil {
 		h.HandleValidationError(c, err)
 		return

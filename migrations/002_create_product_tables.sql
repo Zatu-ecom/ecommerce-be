@@ -74,8 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_product_category_id ON product(category_id);
 CREATE INDEX IF NOT EXISTS idx_product_seller_id ON product(seller_id);
 CREATE INDEX IF NOT EXISTS idx_product_base_sku ON product(base_sku);
 CREATE INDEX IF NOT EXISTS idx_product_brand ON product(brand);
-CREATE INDEX IF NOT EXISTS idx_product_name ON products USING gin(to_tsvector('english', name));
-CREATE INDEX IF NOT EXISTS idx_product_tags ON products USING gin(tags);
+CREATE INDEX IF NOT EXISTS idx_product_name ON product USING gin(to_tsvector('english', name));
+CREATE INDEX IF NOT EXISTS idx_product_tags ON product USING gin(tags);
 
 -- Create product_attributes table if not exists
 CREATE TABLE IF NOT EXISTS product_attribute (
@@ -182,37 +182,37 @@ DO $$
 BEGIN
     -- Categories
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_category_updated_at') THEN
-        CREATE TRIGGER update_category_updated_at BEFORE UPDATE ON categories
+        CREATE TRIGGER update_category_updated_at BEFORE UPDATE ON category
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Attribute Definitions
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_attribute_definition_updated_at') THEN
-        CREATE TRIGGER update_attribute_definition_updated_at BEFORE UPDATE ON attribute_definitions
+        CREATE TRIGGER update_attribute_definition_updated_at BEFORE UPDATE ON attribute_definition
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Category Attributes
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_category_attribute_updated_at') THEN
-        CREATE TRIGGER update_category_attribute_updated_at BEFORE UPDATE ON category_attributes
+        CREATE TRIGGER update_category_attribute_updated_at BEFORE UPDATE ON category_attribute
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Products
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_product_updated_at') THEN
-        CREATE TRIGGER update_product_updated_at BEFORE UPDATE ON products
+        CREATE TRIGGER update_product_updated_at BEFORE UPDATE ON product
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Product Attributes
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_product_attribute_updated_at') THEN
-        CREATE TRIGGER update_product_attribute_updated_at BEFORE UPDATE ON product_attributes
+        CREATE TRIGGER update_product_attribute_updated_at BEFORE UPDATE ON product_attribute
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Product Options
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_product_option_updated_at') THEN
-        CREATE TRIGGER update_product_option_updated_at BEFORE UPDATE ON product_options
+        CREATE TRIGGER update_product_option_updated_at BEFORE UPDATE ON product_option
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
@@ -224,19 +224,19 @@ BEGIN
 
     -- Product Variants
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_product_variant_updated_at') THEN
-        CREATE TRIGGER update_product_variant_updated_at BEFORE UPDATE ON product_variants
+        CREATE TRIGGER update_product_variant_updated_at BEFORE UPDATE ON product_variant
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Variant Option Values
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_variant_option_value_updated_at') THEN
-        CREATE TRIGGER update_variant_option_value_updated_at BEFORE UPDATE ON variant_option_values
+        CREATE TRIGGER update_variant_option_value_updated_at BEFORE UPDATE ON variant_option_value
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 
     -- Package Options
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_package_option_updated_at') THEN
-        CREATE TRIGGER update_package_option_updated_at BEFORE UPDATE ON package_options
+        CREATE TRIGGER update_package_option_updated_at BEFORE UPDATE ON package_option
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;

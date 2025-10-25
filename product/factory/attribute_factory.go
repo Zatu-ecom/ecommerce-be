@@ -17,7 +17,9 @@ func NewAttributeFactory() *AttributeFactory {
 }
 
 // CreateFromRequest creates an AttributeDefinition entity from a create request
-func (f *AttributeFactory) CreateFromRequest(req model.AttributeDefinitionCreateRequest) *entity.AttributeDefinition {
+func (f *AttributeFactory) CreateFromRequest(
+	req model.AttributeDefinitionCreateRequest,
+) *entity.AttributeDefinition {
 	now := time.Now()
 	return &entity.AttributeDefinition{
 		Key:           req.Key,
@@ -40,7 +42,7 @@ func (f *AttributeFactory) UpdateEntity(
 	attribute.Unit = req.Unit
 	attribute.AllowedValues = req.AllowedValues
 	attribute.UpdatedAt = time.Now()
-	
+
 	return attribute
 }
 

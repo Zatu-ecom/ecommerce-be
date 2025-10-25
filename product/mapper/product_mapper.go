@@ -10,10 +10,10 @@ type CategoryWithProductCount struct {
 }
 
 type AttributeWithProductCount struct {
-	Name          string             `json:"name"`
-	Key           string             `json:"key"`
+	Name          string         `json:"name"`
+	Key           string         `json:"key"`
 	AllowedValues db.StringArray `json:"allowed_values"`
-	ProductCount  uint               `json:"product_count"`
+	ProductCount  uint           `json:"product_count"`
 }
 
 type BrandWithProductCount struct {

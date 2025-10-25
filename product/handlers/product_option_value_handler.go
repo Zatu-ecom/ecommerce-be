@@ -55,7 +55,7 @@ func (h *ProductOptionValueHandler) AddOptionValue(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_OPTION_VALUE_ADDED_MSG, 
+	h.SuccessWithData(c, http.StatusCreated, utils.PRODUCT_OPTION_VALUE_ADDED_MSG,
 		utils.OPTION_VALUE_FIELD_NAME, valueResponse)
 }
 
@@ -94,7 +94,7 @@ func (h *ProductOptionValueHandler) UpdateOptionValue(c *gin.Context) {
 		return
 	}
 
-	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_OPTION_VALUE_UPDATED_MSG, 
+	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_OPTION_VALUE_UPDATED_MSG,
 		utils.OPTION_VALUE_FIELD_NAME, valueResponse)
 }
 

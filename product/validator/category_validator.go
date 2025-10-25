@@ -23,11 +23,8 @@ func (v *CategoryValidator) ValidateParentCategory(parentID *uint) error {
 		return nil // No parent is valid
 	}
 
-	parentCategory, err := v.categoryRepo.FindByID(*parentID)
+	_, err := v.categoryRepo.FindByID(*parentID)
 	if err != nil {
-		return err
-	}
-	if parentCategory == nil {
 		return prodErrors.ErrInvalidParentCategory
 	}
 
@@ -88,7 +85,11 @@ func (v *CategoryValidator) ValidateCanDelete(id uint) error {
 }
 
 // ValidateNameChange validates that the name change is allowed
-func (v *CategoryValidator) ValidateNameChange(currentName, newName string, parentID *uint, categoryID uint) error {
+func (v *CategoryValidator) ValidateNameChange(
+	currentName, newName string,
+	parentID *uint,
+	categoryID uint,
+) error {
 	if currentName == newName {
 		return nil // Name hasn't changed
 	}

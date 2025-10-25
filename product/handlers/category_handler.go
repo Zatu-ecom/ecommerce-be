@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -34,8 +36,17 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		h.HandleValidationError(c, err)
 		return
 	}
-
-	categoryResponse, err := h.categoryService.CreateCategory(req)
+	roleLevel, exists := auth.GetUserRoleLevelFromContext(c)
+	if !exists {
+		h.HandleError(c, commonError.ErrRoleDataMissing, constants.ROLE_DATA_MISSING_MESSAGE)
+		return
+	}
+	sellerId, sellerExists := auth.GetSellerIDFromContext(c)
+	if !sellerExists && roleLevel >= constants.SELLER_ROLE_LEVEL {
+		h.HandleError(c, commonError.UnauthorizedError, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+	categoryResponse, err := h.categoryService.CreateCategory(req, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_CATEGORY_MSG)
 		return

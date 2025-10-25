@@ -103,7 +103,10 @@ func (r *CategoryRepositoryImpl) FindAllHierarchical(sellerID *uint) ([]entity.C
 }
 
 // FindByParentID finds categories by parent ID
-func (r *CategoryRepositoryImpl) FindByParentID(parentID *uint, sellerID *uint) ([]entity.Category, error) {
+func (r *CategoryRepositoryImpl) FindByParentID(
+	parentID *uint,
+	sellerID *uint,
+) ([]entity.Category, error) {
 	var categories []entity.Category
 	var query *gorm.DB
 

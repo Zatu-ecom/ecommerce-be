@@ -20,6 +20,8 @@ type CategoryResponse struct {
 	Name        string             `json:"name"`
 	ParentID    *uint              `json:"parentId"`
 	Description string             `json:"description"`
+	IsGlobal    bool               `json:"isGlobal"`
+	SellerID    *uint              `json:"sellerId,omitempty"`
 	CreatedAt   string             `json:"createdAt"`
 	UpdatedAt   string             `json:"updatedAt"`
 	Children    []CategoryResponse `json:"children"`

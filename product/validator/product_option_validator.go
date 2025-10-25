@@ -42,7 +42,7 @@ func (v *ProductOptionValidator) ValidateProductExists(productID uint) error {
 // ValidateOptionNameUniqueness validates that option name is unique for a product
 func (v *ProductOptionValidator) ValidateOptionNameUniqueness(productID uint, name string) error {
 	normalizedName := utils.NormalizeToSnakeCase(name)
-	
+
 	existingOptions, err := v.optionRepo.FindOptionsByProductID(productID)
 	if err != nil {
 		return err
@@ -57,7 +57,10 @@ func (v *ProductOptionValidator) ValidateOptionNameUniqueness(productID uint, na
 }
 
 // ValidateOptionBelongsToProduct validates that an option belongs to a product
-func (v *ProductOptionValidator) ValidateOptionBelongsToProduct(productID uint, optionID uint) error {
+func (v *ProductOptionValidator) ValidateOptionBelongsToProduct(
+	productID uint,
+	optionID uint,
+) error {
 	option, err := v.optionRepo.FindOptionByID(optionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

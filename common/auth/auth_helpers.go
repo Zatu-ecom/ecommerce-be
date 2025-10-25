@@ -37,3 +37,11 @@ func GetSellerIDFromContext(c *gin.Context) (sellerID uint, exists bool) {
 	}
 	return sellerIDValue.(uint), true
 }
+
+func GetUserRoleLevelFromContext(c *gin.Context) (roleLevel uint, exists bool) {
+	roleLevelValue, exists := c.Get(constants.ROLE_LEVEL_KEY)
+	if !exists {
+		return 0, false
+	}
+	return roleLevelValue.(uint), true
+}

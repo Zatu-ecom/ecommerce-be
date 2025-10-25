@@ -83,12 +83,12 @@ func (s *ProductOptionServiceImpl) CreateOption(
 		for i, v := range req.Values {
 			values[i] = v.Value
 		}
-		
+
 		// Validate bulk values
 		if err := s.valueValidator.ValidateBulkOptionValuesUniqueness(option.ID, values); err != nil {
 			return nil, err
 		}
-		
+
 		// Create option values using factory
 		optionValues := s.valueFactory.CreateOptionValuesFromRequests(option.ID, req.Values)
 		if err := s.optionRepo.CreateOptionValues(optionValues); err != nil {
@@ -198,11 +198,11 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 
 		for _, value := range option.Values {
 			valueResponse := model.OptionValueResponse{
-				ValueID:          value.ID,
-				Value:            value.Value,
-				DisplayName: utils.GetDisplayNameOrDefault(value.DisplayName, value.Value),
-				VariantCount:     variantCounts[value.ID],
-				Position:         value.Position,
+				ValueID:      value.ID,
+				Value:        value.Value,
+				DisplayName:  utils.GetDisplayNameOrDefault(value.DisplayName, value.Value),
+				VariantCount: variantCounts[value.ID],
+				Position:     value.Position,
 			}
 
 			// Add color code if it exists

@@ -74,7 +74,7 @@ func (f *ProductFactory) CreateProductOptionsFromRequests(
 	optionReqs []model.ProductOptionCreateRequest,
 ) []*entity.ProductOption {
 	options := make([]*entity.ProductOption, 0, len(optionReqs))
-	
+
 	for i, optionReq := range optionReqs {
 		position := optionReq.Position
 		if position == 0 {
@@ -89,7 +89,7 @@ func (f *ProductFactory) CreateProductOptionsFromRequests(
 		}
 		options = append(options, option)
 	}
-	
+
 	return options
 }
 
@@ -99,7 +99,7 @@ func (f *ProductFactory) CreateOptionValuesFromRequests(
 	valueReqs []model.ProductOptionValueRequest,
 ) []*entity.ProductOptionValue {
 	values := make([]*entity.ProductOptionValue, 0, len(valueReqs))
-	
+
 	for j, valueReq := range valueReqs {
 		position := valueReq.Position
 		if position == 0 {
@@ -115,7 +115,7 @@ func (f *ProductFactory) CreateOptionValuesFromRequests(
 		}
 		values = append(values, value)
 	}
-	
+
 	return values
 }
 
@@ -126,10 +126,10 @@ func (f *ProductFactory) CreateProductAttributesFromRequests(
 	attributeMap map[string]*entity.AttributeDefinition,
 ) []*entity.ProductAttribute {
 	productAttributes := make([]*entity.ProductAttribute, 0, len(attributes))
-	
+
 	for _, attr := range attributes {
 		attributeDefinition := attributeMap[attr.Key]
-		
+
 		productAttribute := &entity.ProductAttribute{
 			ProductID:             productID,
 			AttributeDefinitionID: attributeDefinition.ID,
@@ -139,7 +139,7 @@ func (f *ProductFactory) CreateProductAttributesFromRequests(
 		}
 		productAttributes = append(productAttributes, productAttribute)
 	}
-	
+
 	return productAttributes
 }
 
@@ -182,7 +182,7 @@ func (f *ProductFactory) CreatePackageOptionsFromRequests(
 ) []entity.PackageOption {
 	packageOptions := make([]entity.PackageOption, 0, len(options))
 	now := time.Now()
-	
+
 	for _, option := range options {
 		packageOption := entity.PackageOption{
 			Name:        option.Name,
@@ -197,12 +197,14 @@ func (f *ProductFactory) CreatePackageOptionsFromRequests(
 		}
 		packageOptions = append(packageOptions, packageOption)
 	}
-	
+
 	return packageOptions
 }
 
 // FlattenProductAttributes converts []*entity.ProductAttribute to []entity.ProductAttribute
-func (f *ProductFactory) FlattenProductAttributes(attrs []*entity.ProductAttribute) []entity.ProductAttribute {
+func (f *ProductFactory) FlattenProductAttributes(
+	attrs []*entity.ProductAttribute,
+) []entity.ProductAttribute {
 	result := make([]entity.ProductAttribute, 0, len(attrs))
 	for _, attr := range attrs {
 		result = append(result, *attr)
@@ -241,7 +243,9 @@ func (f *ProductFactory) BuildPackageOptionResponses(
 }
 
 // BuildCategoryFilter builds CategoryFilter from mapper data
-func (f *ProductFactory) BuildCategoryFilter(category mapper.CategoryWithProductCount) model.CategoryFilter {
+func (f *ProductFactory) BuildCategoryFilter(
+	category mapper.CategoryWithProductCount,
+) model.CategoryFilter {
 	return model.CategoryFilter{
 		ID:           category.CategoryID,
 		Name:         category.CategoryName,
@@ -258,7 +262,9 @@ func (f *ProductFactory) BuildBrandFilter(brand mapper.BrandWithProductCount) mo
 }
 
 // BuildBrandFilters builds multiple BrandFilter from mapper data
-func (f *ProductFactory) BuildBrandFilters(brands []mapper.BrandWithProductCount) []model.BrandFilter {
+func (f *ProductFactory) BuildBrandFilters(
+	brands []mapper.BrandWithProductCount,
+) []model.BrandFilter {
 	filters := make([]model.BrandFilter, 0, len(brands))
 	for _, brand := range brands {
 		filters = append(filters, f.BuildBrandFilter(brand))
@@ -267,7 +273,9 @@ func (f *ProductFactory) BuildBrandFilters(brands []mapper.BrandWithProductCount
 }
 
 // BuildAttributeFilter builds AttributeFilter from mapper data
-func (f *ProductFactory) BuildAttributeFilter(attribute mapper.AttributeWithProductCount) model.AttributeFilter {
+func (f *ProductFactory) BuildAttributeFilter(
+	attribute mapper.AttributeWithProductCount,
+) model.AttributeFilter {
 	return model.AttributeFilter{
 		Key:           attribute.Key,
 		Name:          attribute.Name,
@@ -277,7 +285,9 @@ func (f *ProductFactory) BuildAttributeFilter(attribute mapper.AttributeWithProd
 }
 
 // BuildAttributeFilters builds multiple AttributeFilter from mapper data
-func (f *ProductFactory) BuildAttributeFilters(attributes []mapper.AttributeWithProductCount) []model.AttributeFilter {
+func (f *ProductFactory) BuildAttributeFilters(
+	attributes []mapper.AttributeWithProductCount,
+) []model.AttributeFilter {
 	filters := make([]model.AttributeFilter, 0, len(attributes))
 	for _, attribute := range attributes {
 		filters = append(filters, f.BuildAttributeFilter(attribute))
@@ -286,7 +296,9 @@ func (f *ProductFactory) BuildAttributeFilters(attributes []mapper.AttributeWith
 }
 
 // BuildPriceRangeFilter builds PriceRangeFilter from mapper data
-func (f *ProductFactory) BuildPriceRangeFilter(data *mapper.PriceRangeData) *model.PriceRangeFilter {
+func (f *ProductFactory) BuildPriceRangeFilter(
+	data *mapper.PriceRangeData,
+) *model.PriceRangeFilter {
 	if data == nil || data.ProductCount == 0 {
 		return nil
 	}
@@ -298,7 +310,9 @@ func (f *ProductFactory) BuildPriceRangeFilter(data *mapper.PriceRangeData) *mod
 }
 
 // BuildVariantTypeFilters builds VariantTypeFilter list from variant options data
-func (f *ProductFactory) BuildVariantTypeFilters(variantOptions []mapper.VariantOptionData) []model.VariantTypeFilter {
+func (f *ProductFactory) BuildVariantTypeFilters(
+	variantOptions []mapper.VariantOptionData,
+) []model.VariantTypeFilter {
 	// Group by option ID to create VariantTypeFilter
 	optionMap := make(map[uint]*model.VariantTypeFilter)
 	optionOrder := []uint{} // Preserve order
@@ -316,12 +330,15 @@ func (f *ProductFactory) BuildVariantTypeFilters(variantOptions []mapper.Variant
 		}
 
 		// Add value to this option
-		optionMap[vo.OptionID].Values = append(optionMap[vo.OptionID].Values, model.VariantOptionFilter{
-			Value:        vo.OptionValue,
-			DisplayName:  vo.ValueDisplayName,
-			ColorCode:    vo.ColorCode,
-			ProductCount: vo.ProductCount,
-		})
+		optionMap[vo.OptionID].Values = append(
+			optionMap[vo.OptionID].Values,
+			model.VariantOptionFilter{
+				Value:        vo.OptionValue,
+				DisplayName:  vo.ValueDisplayName,
+				ColorCode:    vo.ColorCode,
+				ProductCount: vo.ProductCount,
+			},
+		)
 
 		// Update product count for this option type
 		optionMap[vo.OptionID].ProductCount += vo.ProductCount
@@ -337,7 +354,9 @@ func (f *ProductFactory) BuildVariantTypeFilters(variantOptions []mapper.Variant
 }
 
 // BuildStockStatusFilter builds StockStatusFilter from mapper data
-func (f *ProductFactory) BuildStockStatusFilter(data *mapper.StockStatusData) *model.StockStatusFilter {
+func (f *ProductFactory) BuildStockStatusFilter(
+	data *mapper.StockStatusData,
+) *model.StockStatusFilter {
 	if data == nil || data.TotalProducts == 0 {
 		return nil
 	}

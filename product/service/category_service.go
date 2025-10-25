@@ -1,6 +1,7 @@
 package service
 
 import (
+	"ecommerce-be/common/constants"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -10,7 +11,11 @@ import (
 
 // CategoryService defines the interface for category-related business logic
 type CategoryService interface {
-	CreateCategory(req model.CategoryCreateRequest) (*model.CategoryResponse, error)
+	CreateCategory(
+		req model.CategoryCreateRequest,
+		roleLevel uint,
+		sellerId uint,
+	) (*model.CategoryResponse, error)
 	UpdateCategory(id uint, req model.CategoryUpdateRequest) (*model.CategoryResponse, error)
 	DeleteCategory(id uint) error
 	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
@@ -48,6 +53,8 @@ func NewCategoryService(
 // CreateCategory creates a new category
 func (s *CategoryServiceImpl) CreateCategory(
 	req model.CategoryCreateRequest,
+	roleLevel uint,
+	sellerId uint,
 ) (*model.CategoryResponse, error) {
 	// Validate unique name within the same parent
 	if err := s.validator.ValidateUniqueName(req.Name, req.ParentID, nil); err != nil {
@@ -59,8 +66,10 @@ func (s *CategoryServiceImpl) CreateCategory(
 		return nil, err
 	}
 
+	global := roleLevel < constants.SELLER_ROLE_LEVEL
+	
 	// Create category entity using factory
-	category := s.factory.CreateFromRequest(req)
+	category := s.factory.CreateFromRequest(req, global, &sellerId)
 
 	// Save category to database
 	if err := s.categoryRepo.Create(category); err != nil {
@@ -170,7 +179,10 @@ func (s *CategoryServiceImpl) GetAllCategories(sellerID *uint) (*model.Categorie
 // GetCategoryByID gets a category by ID
 // Multi-tenant: If sellerID is provided, verify category is accessible
 // (global or belongs to seller). If nil (admin), allow access to any.
-func (s *CategoryServiceImpl) GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error) {
+func (s *CategoryServiceImpl) GetCategoryByID(
+	id uint,
+	sellerID *uint,
+) (*model.CategoryResponse, error) {
 	category, err := s.categoryRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -181,9 +193,9 @@ func (s *CategoryServiceImpl) GetCategoryByID(id uint, sellerID *uint) (*model.C
 	// 1. IsGlobal = true (available to all sellers)
 	// 2. SellerID matches the requesting seller
 	if sellerID != nil {
-		isAccessible := category.IsGlobal || 
+		isAccessible := category.IsGlobal ||
 			(category.SellerID != nil && *category.SellerID == *sellerID)
-		
+
 		if !isAccessible {
 			return nil, err // Return category not found error
 		}
@@ -227,7 +239,8 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 	}
 
 	// Validate seller access: categories are accessible if global OR owned by seller
-	if sellerID != nil && !category.IsGlobal && (category.SellerID == nil || *category.SellerID != *sellerID) {
+	if sellerID != nil && !category.IsGlobal &&
+		(category.SellerID == nil || *category.SellerID != *sellerID) {
 		return model.AttributeDefinitionsResponse{}, prodErrors.ErrCategoryNotFound
 	}
 

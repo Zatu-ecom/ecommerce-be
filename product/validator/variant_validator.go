@@ -75,7 +75,10 @@ func (v *VariantValidator) ValidateVariantOptions(options map[string]string) err
 }
 
 // ValidateVariantCombinationUnique validates that variant combination doesn't already exist
-func (v *VariantValidator) ValidateVariantCombinationUnique(productID uint, optionsMap map[string]string) error {
+func (v *VariantValidator) ValidateVariantCombinationUnique(
+	productID uint,
+	optionsMap map[string]string,
+) error {
 	existingVariant, _ := v.variantRepo.FindVariantByOptions(productID, optionsMap)
 	if existingVariant != nil {
 		return prodErrors.ErrVariantCombinationExists
@@ -98,7 +101,10 @@ func (v *VariantValidator) ValidateCanDeleteVariant(productID uint) error {
 }
 
 // ValidateStockOperation validates the stock operation type and value
-func (v *VariantValidator) ValidateStockOperation(request *model.UpdateVariantStockRequest, currentStock int) error {
+func (v *VariantValidator) ValidateStockOperation(
+	request *model.UpdateVariantStockRequest,
+	currentStock int,
+) error {
 	switch request.Operation {
 	case "set", "add":
 		// Always valid
@@ -114,7 +120,9 @@ func (v *VariantValidator) ValidateStockOperation(request *model.UpdateVariantSt
 }
 
 // ValidateBulkUpdateRequest validates the bulk update request
-func (v *VariantValidator) ValidateBulkUpdateRequest(request *model.BulkUpdateVariantsRequest) error {
+func (v *VariantValidator) ValidateBulkUpdateRequest(
+	request *model.BulkUpdateVariantsRequest,
+) error {
 	if len(request.Variants) == 0 {
 		return prodErrors.ErrBulkUpdateEmptyList
 	}

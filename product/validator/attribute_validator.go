@@ -3,6 +3,7 @@ package validator
 import (
 	"regexp"
 
+	commonError "ecommerce-be/common/error"
 	prodErrors "ecommerce-be/product/errors"
 )
 
@@ -45,7 +46,7 @@ func (v *AttributeValidator) ValidateAllowedValues(allowedValues []string) error
 	seen := make(map[string]bool)
 	for _, value := range allowedValues {
 		if seen[value] {
-			return prodErrors.ErrValidation.WithMessage("Duplicate values found in allowedValues")
+			return commonError.ErrValidation.WithMessage("Duplicate values found in allowedValues")
 		}
 		seen[value] = true
 	}
@@ -58,7 +59,7 @@ func (v *AttributeValidator) ValidateUpdateRequest(
 	allowedValues []string,
 ) error {
 	if name == "" && unit == "" && len(allowedValues) == 0 {
-		return prodErrors.ErrValidation.WithMessage(
+		return commonError.ErrValidation.WithMessage(
 			"At least one field must be provided for update",
 		)
 	}

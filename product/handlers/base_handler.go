@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"ecommerce-be/common"
-	"ecommerce-be/product/errors"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/utils"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +23,7 @@ func NewBaseHandler() *BaseHandler {
 // It checks if the error is an AppError and responds accordingly
 func (h *BaseHandler) HandleError(c *gin.Context, err error, defaultMessage string) {
 	// Check if it's our custom AppError
-	if appErr, ok := errors.AsAppError(err); ok {
+	if appErr, ok := commonError.AsAppError(err); ok {
 		common.ErrorWithCode(
 			c,
 			appErr.StatusCode,
@@ -63,7 +63,7 @@ func (h *BaseHandler) ParseUintParam(c *gin.Context, paramName string) (uint, er
 	paramValue := c.Param(paramName)
 	id, err := strconv.ParseUint(paramValue, 10, 32)
 	if err != nil {
-		return 0, errors.ErrInvalidID.WithMessagef("Invalid %s", paramName)
+		return 0, commonError.ErrInvalidID.WithMessagef("Invalid %s", paramName)
 	}
 	return uint(id), nil
 }
@@ -82,7 +82,13 @@ func (h *BaseHandler) Success(c *gin.Context, statusCode int, message string, da
 }
 
 // SuccessWithData sends a success response with data wrapped in a key
-func (h *BaseHandler) SuccessWithData(c *gin.Context, statusCode int, message string, dataKey string, data interface{}) {
+func (h *BaseHandler) SuccessWithData(
+	c *gin.Context,
+	statusCode int,
+	message string,
+	dataKey string,
+	data interface{},
+) {
 	common.SuccessResponse(c, statusCode, message, map[string]interface{}{
 		dataKey: data,
 	})

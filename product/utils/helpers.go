@@ -46,7 +46,10 @@ func GetDisplayNameOrDefault(displayName, defaultName string) string {
 // ParseQueryParamsToMap parses query parameters into a map, excluding pagination and common filter params
 // Example: color=red&size=m becomes map[string]string{"color": "red", "size": "m"}
 // This is a generic function that can be used for any query parameters
-func ParseQueryParamsToMap(queryParams map[string][]string, excludeParams []string) map[string]string {
+func ParseQueryParamsToMap(
+	queryParams map[string][]string,
+	excludeParams []string,
+) map[string]string {
 	result := make(map[string]string)
 
 	// Create a map of excluded parameters for quick lookup
@@ -77,12 +80,12 @@ func ParseQueryParamsToMap(queryParams map[string][]string, excludeParams []stri
 func ParseOptionsFromQuery(queryParams map[string][]string) map[string]string {
 	// Common non-option query parameters to exclude
 	excludeParams := []string{
-		"page", "limit", "offset",                                 // Pagination
-		"sort", "sortBy", "sortOrder", "order",                    // Sorting
-		"search", "query", "q",                                    // Search
-		"filter", "filters",                                       // Generic filters
-		"minPrice", "maxPrice", "inStock", "isPopular", "brand",   // Product filters
-		"categoryId", "category",                                  // Category filters
+		"page", "limit", "offset", // Pagination
+		"sort", "sortBy", "sortOrder", "order", // Sorting
+		"search", "query", "q", // Search
+		"filter", "filters", // Generic filters
+		"minPrice", "maxPrice", "inStock", "isPopular", "brand", // Product filters
+		"categoryId", "category", // Category filters
 	}
 
 	return ParseQueryParamsToMap(queryParams, excludeParams)
