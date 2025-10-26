@@ -37,7 +37,6 @@ func main() {
 	/* Apply middleware */
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
-	router.Use(middleware.PublicAPIAuth())
 
 	/* Register modules */
 	registerContainer(router)

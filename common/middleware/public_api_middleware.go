@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -29,34 +30,38 @@ import (
 // Usage: Apply to public routes like GET /products, GET /categories, etc.
 func PublicAPIAuth() gin.HandlerFunc {
 	database := db.GetDB()
-
-	// Paths that should skip seller validation
-	// These are truly public APIs that don't need seller context
-	skipPaths := []string{
-		"/api/auth/register",
-		"/api/auth/login",
-		"/api/auth/refresh",
-		"/api/auth/logout",
-		"/health",
-		"/ping",
-	}
+	secret := os.Getenv("JWT_SECRET")
 
 	return func(c *gin.Context) {
-		// Check if current path should skip seller validation
-		currentPath := c.Request.URL.Path
-		for _, path := range skipPaths {
-			if currentPath == path {
-				c.Next()
-				return
-			}
-		}
-
 		// Check if Authorization header exists (JWT token)
 		authHeader := c.GetHeader("Authorization")
 
-		// If token exists, skip this middleware
-		// Auth middleware will handle token validation
+		// If token exists then check respective role middleware
 		if authHeader != "" {
+			authMiddleware := auth.AuthMiddleware(secret)
+			authMiddleware(c)
+
+			_, role, exists := auth.GetUserRoleFromContext(c)
+
+			if !exists {
+				common.ErrorWithCode(
+					c,
+					http.StatusForbidden,
+					constants.ROLE_NOT_FOUND_MSG,
+					constants.ROLE_NOT_FOUND_CODE,
+				)
+				c.Abort()
+				return
+			}
+
+			switch role {
+			case constants.CUSTOMER_ROLE_NAME:
+				CustomerAuth()
+			case constants.SELLER_ROLE_NAME:
+				SellerAuth()
+			case constants.ADMIN_ROLE_NAME:
+				AdminAuth()
+			}
 			c.Next()
 			return
 		}

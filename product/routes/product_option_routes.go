@@ -32,17 +32,18 @@ func NewProductOptionModule() *ProductOptionModule {
 
 // RegisterRoutes registers all product option-related routes
 func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
+	publicRoutesAuth := middleware.PublicAPIAuth()
 	// Public routes (reading options)
 	publicOptionRoutes := router.Group("/api/products/:productId/options")
 	{
-		publicOptionRoutes.GET("", m.optionHandler.GetAvailableOptions)
+		publicOptionRoutes.GET("", publicRoutesAuth, m.optionHandler.GetAvailableOptions)
 	}
 
 	// Auth middleware for protected routes
-	auth := middleware.SellerAuth()
+	sellerAuth := middleware.SellerAuth()
 
 	protectedOptionRoutes := router.Group("/api/products/:productId/options")
-	protectedOptionRoutes.Use(auth)
+	protectedOptionRoutes.Use(sellerAuth)
 	{
 		protectedOptionRoutes.POST("", m.optionHandler.CreateOption)
 		protectedOptionRoutes.PUT("/:optionId", m.optionHandler.UpdateOption)

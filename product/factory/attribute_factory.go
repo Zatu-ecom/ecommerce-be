@@ -55,10 +55,6 @@ func (f *AttributeFactory) CreateCategoryAttributeFromConfig(
 	return &entity.CategoryAttribute{
 		CategoryID:            categoryID,
 		AttributeDefinitionID: config.AttributeDefinitionID,
-		IsRequired:            config.IsRequired,
-		IsSearchable:          config.IsSearchable,
-		IsFilterable:          config.IsFilterable,
-		DefaultValue:          config.DefaultValue,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: now,
 			UpdatedAt: now,

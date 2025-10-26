@@ -6,6 +6,7 @@ import (
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/middleware"
 	"ecommerce-be/product"
 	"ecommerce-be/user"
 
@@ -30,9 +31,15 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 		cache.SetRedisClient(redisClient)
 	}
 
-	// Register modules
-	_ = user.NewContainer(router)
-	_ = product.NewContainer(router)
+	router.Use(middleware.Logger())
+	router.Use(middleware.CORS())
+
+	registerContainer(router)
 
 	return router
+}
+
+func registerContainer(router *gin.Engine) {
+	_ = user.NewContainer(router)
+	_ = product.NewContainer(router)
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"ecommerce-be/common/constants"
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -34,12 +35,25 @@ type CategoryService interface {
 		catagoryID uint,
 		sellerID *uint,
 	) (model.AttributeDefinitionsResponse, error)
+	LinkAttributeToCategory(
+		categoryID uint,
+		req model.LinkAttributeRequest,
+		roleLevel uint,
+		sellerID uint,
+	) (*model.LinkAttributeResponse, error)
+	UnlinkAttributeFromCategory(
+		categoryID uint,
+		attributeID uint,
+		roleLevel uint,
+		sellerID uint,
+	) error
 }
 
 // CategoryServiceImpl implements the CategoryService interface
 type CategoryServiceImpl struct {
 	categoryRepo     repositories.CategoryRepository
 	productRepo      repositories.ProductRepository
+	attributeRepo    repositories.AttributeDefinitionRepository
 	validator        *validator.CategoryValidator
 	factory          *factory.CategoryFactory
 	attributeFactory *factory.AttributeFactory
@@ -49,10 +63,12 @@ type CategoryServiceImpl struct {
 func NewCategoryService(
 	categoryRepo repositories.CategoryRepository,
 	productRepo repositories.ProductRepository,
+	attributeRepo repositories.AttributeDefinitionRepository,
 ) CategoryService {
 	return &CategoryServiceImpl{
 		categoryRepo:     categoryRepo,
 		productRepo:      productRepo,
+		attributeRepo:    attributeRepo,
 		validator:        validator.NewCategoryValidator(categoryRepo),
 		factory:          factory.NewCategoryFactory(),
 		attributeFactory: factory.NewAttributeFactory(),
@@ -306,4 +322,86 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 	return model.AttributeDefinitionsResponse{
 		Attributes: attributesResponse,
 	}, nil
+}
+
+// LinkAttributeToCategory links an existing attribute to a category
+func (s *CategoryServiceImpl) LinkAttributeToCategory(
+	categoryID uint,
+	req model.LinkAttributeRequest,
+	roleLevel uint,
+	sellerID uint,
+) (*model.LinkAttributeResponse, error) {
+	// Validate category exists
+	category, err := s.categoryRepo.FindByID(categoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate seller access (admin can link to any category, seller only to owned categories)
+	if roleLevel == constants.SELLER_ROLE_LEVEL {
+		if category.IsGlobal || category.SellerID == nil || *category.SellerID != sellerID {
+			return nil, prodErrors.ErrUnauthorizedCategoryUpdate
+		}
+	}
+
+	// Validate attribute exists
+	_, err = s.attributeRepo.FindByID(req.AttributeDefinitionID)
+	if err != nil {
+		return nil, prodErrors.ErrAttributeNotFound
+	}
+
+	// Check if already linked
+	existingLink, err := s.categoryRepo.CheckAttributeLinked(categoryID, req.AttributeDefinitionID)
+	if err != nil {
+		return nil, err
+	}
+	if existingLink != nil {
+		return nil, prodErrors.ErrAttributeAlreadyLinked
+	}
+
+	// Create the link
+	categoryAttribute := &entity.CategoryAttribute{
+		CategoryID:            categoryID,
+		AttributeDefinitionID: req.AttributeDefinitionID,
+	}
+
+	err = s.categoryRepo.LinkAttribute(categoryAttribute)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.LinkAttributeResponse{
+		CategoryID:            categoryID,
+		AttributeDefinitionID: req.AttributeDefinitionID,
+		CreatedAt:             categoryAttribute.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}, nil
+}
+
+// UnlinkAttributeFromCategory removes the link between an attribute and a category
+func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
+	categoryID uint,
+	attributeID uint,
+	roleLevel uint,
+	sellerID uint,
+) error {
+	// Validate category exists
+	category, err := s.categoryRepo.FindByID(categoryID)
+	if err != nil {
+		return err
+	}
+
+	// Validate seller access (admin can unlink from any category, seller only from owned categories)
+	if roleLevel == constants.SELLER_ROLE_LEVEL {
+		if category.IsGlobal || category.SellerID == nil || *category.SellerID != sellerID {
+			return prodErrors.ErrUnauthorizedCategoryUpdate
+		}
+	}
+
+	// Unlink the attribute
+	err = s.categoryRepo.UnlinkAttribute(categoryID, attributeID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

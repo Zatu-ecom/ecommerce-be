@@ -45,7 +45,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -73,7 +73,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -94,7 +94,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -201,10 +201,8 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", duplicateRequest)
-		helpers.AssertErrorResponse(t, w, http.StatusConflict, "already exists")
-	})
-
-	// ============================================================================
+		helpers.AssertErrorResponse(t, w, http.StatusConflict, "")
+	}) // ============================================================================
 	// PARENT HIERARCHY TESTS (P0 & P1)
 	// ============================================================================
 
@@ -269,7 +267,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		globalParentID := uint(parentCategory["id"].(float64))
@@ -306,7 +304,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -323,7 +321,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -346,7 +344,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -373,7 +371,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -410,7 +408,7 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 

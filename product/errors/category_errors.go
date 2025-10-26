@@ -50,4 +50,18 @@ var (
 		Message:    utils.UNAUTHORIZED_CATEGORY_UPDATE_MSG,
 		StatusCode: http.StatusForbidden,
 	}
+
+	// ErrAttributeAlreadyLinked is returned when attribute is already linked to category
+	ErrAttributeAlreadyLinked = &commonerrors.AppError{
+		Code:       "ATTRIBUTE_ALREADY_LINKED",
+		Message:    "Attribute is already linked to this category",
+		StatusCode: http.StatusConflict,
+	}
+
+	// ErrAttributeNotLinked is returned when trying to unlink attribute that is not linked
+	ErrAttributeNotLinked = &commonerrors.AppError{
+		Code:       "ATTRIBUTE_NOT_LINKED",
+		Message:    "Attribute is not linked to this category",
+		StatusCode: http.StatusNotFound,
+	}
 )

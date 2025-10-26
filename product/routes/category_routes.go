@@ -19,7 +19,8 @@ type CategoryModule struct {
 func NewCategoryModule() *CategoryModule {
 	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
 	productRepo := repositories.NewProductRepository(db.GetDB())
-	categoryService := service.NewCategoryService(categoryRepo, productRepo)
+	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
+	categoryService := service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
 
 	return &CategoryModule{
 		categoryHandler: handlers.NewCategoryHandler(categoryService),
@@ -28,24 +29,29 @@ func NewCategoryModule() *CategoryModule {
 
 // RegisterRoutes registers all category-related routes
 func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
-	// Auth middleware for protected routes
-	auth := middleware.SellerAuth()
+	sellerAuth := middleware.SellerAuth()
+	publicRoutesAuth := middleware.PublicAPIAuth()
 
 	// Category routes
 	categoryRoutes := router.Group("/api/categories")
 	{
 		// Public routes
-		categoryRoutes.GET("", m.categoryHandler.GetAllCategories)
-		categoryRoutes.GET("/:categoryId", m.categoryHandler.GetCategoryByID)
-		categoryRoutes.GET("/by-parent", m.categoryHandler.GetCategoriesByParent)
+		categoryRoutes.GET("", publicRoutesAuth, m.categoryHandler.GetAllCategories)
+		categoryRoutes.GET("/:categoryId", publicRoutesAuth, m.categoryHandler.GetCategoryByID)
+		categoryRoutes.GET("/by-parent", publicRoutesAuth, m.categoryHandler.GetCategoriesByParent)
 		categoryRoutes.GET(
 			"/:categoryId/attributes",
+			publicRoutesAuth,
 			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
 		)
 
 		// Admin routes (protected)
-		categoryRoutes.POST("", auth, m.categoryHandler.CreateCategory)
-		categoryRoutes.PUT("/:categoryId", auth, m.categoryHandler.UpdateCategory)
-		categoryRoutes.DELETE("/:categoryId", auth, m.categoryHandler.DeleteCategory)
+		categoryRoutes.POST("", sellerAuth, m.categoryHandler.CreateCategory)
+		categoryRoutes.PUT("/:categoryId", sellerAuth, m.categoryHandler.UpdateCategory)
+		categoryRoutes.DELETE("/:categoryId", sellerAuth, m.categoryHandler.DeleteCategory)
+		
+		// Link/Unlink attribute routes (protected)
+		categoryRoutes.POST("/:categoryId/attributes", sellerAuth, m.categoryHandler.LinkAttributeToCategory)
+		categoryRoutes.DELETE("/:categoryId/attributes/:attributeId", sellerAuth, m.categoryHandler.UnlinkAttributeFromCategory)
 	}
 }

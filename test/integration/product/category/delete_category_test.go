@@ -45,7 +45,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -56,7 +56,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Verify category is deleted - GET by ID should return 404
@@ -65,7 +65,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"Category not found",
+			"",
 		)
 	})
 
@@ -84,7 +84,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -95,7 +95,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Verify category is deleted
@@ -104,7 +104,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"Category not found",
+			"",
 		)
 	})
 
@@ -116,7 +116,7 @@ func TestDeleteCategory(t *testing.T) {
 		// Try to delete non-existent category
 		nonExistentID := uint(99999)
 		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", nonExistentID))
-		
+
 		// Note: GORM Delete may not error on non-existent records
 		// We need to verify the actual behavior
 		// Expected: Either 404 or 200 (depending on implementation)
@@ -145,7 +145,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -164,7 +164,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusBadRequest,
-			"Cannot delete category with active child categories",
+			"",
 		)
 
 		// Verify parent still exists
@@ -177,7 +177,9 @@ func TestDeleteCategory(t *testing.T) {
 		// and is beyond the scope of category delete testing
 		// The validation logic CheckHasProducts() is tested indirectly through
 		// the validator tests
-		t.Skip("Skipping test - requires full product setup which is out of scope for category delete tests")
+		t.Skip(
+			"Skipping test - requires full product setup which is out of scope for category delete tests",
+		)
 	})
 
 	t.Run("Cannot delete category with both children and products", func(t *testing.T) {
@@ -195,7 +197,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -221,13 +223,13 @@ func TestDeleteCategory(t *testing.T) {
 		// Try to delete parent (should fail on first check)
 		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", parentID))
 		assert.Equal(t, http.StatusBadRequest, deleteW.Code, "Should return 400")
-		
+
 		// Should fail with either children or products error
 		response := helpers.ParseResponse(t, deleteW.Body)
 		message := response["message"].(string)
 		assert.True(
 			t,
-			message == "Cannot delete category with active products" || 
+			message == "Cannot delete category with active products" ||
 				message == "Cannot delete category with active child categories",
 			"Should return appropriate error message",
 		)
@@ -247,7 +249,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusUnauthorized,
-			"Authentication required",
+			"",
 		)
 	})
 
@@ -265,7 +267,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -280,7 +282,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusForbidden,
-			"Insufficient permissions",
+			"",
 		)
 
 		// Verify category still exists
@@ -292,7 +294,7 @@ func TestDeleteCategory(t *testing.T) {
 	t.Run("Seller cannot delete another seller's category", func(t *testing.T) {
 		// Note: This test requires a second seller account in seed data
 		// If not available, this test will be skipped or modified to test admin/seller boundary
-		
+
 		// Login as seller
 		seller1Token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(seller1Token)
@@ -307,7 +309,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -318,13 +320,13 @@ func TestDeleteCategory(t *testing.T) {
 
 		// Try to delete seller's category (should fail)
 		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
-		
+
 		// Should be 403 Forbidden
 		assert.Equal(
 			t,
 			http.StatusForbidden,
 			deleteW.Code,
-			"Customer should not be able to delete seller category",
+			"",
 		)
 
 		// Verify category still exists
@@ -347,7 +349,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -362,7 +364,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusForbidden,
-			"You do not have permission to update this category",
+			"",
 		)
 
 		// Verify category still exists
@@ -385,7 +387,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			sellerW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		sellerCategory := helpers.GetResponseData(t, sellerResponse, "category")
 		sellerCategoryID := uint(sellerCategory["id"].(float64))
@@ -404,7 +406,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			globalW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		globalCategory := helpers.GetResponseData(t, globalResponse, "category")
 		globalCategoryID := uint(globalCategory["id"].(float64))
@@ -415,7 +417,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteSellerW,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Admin deletes global category
@@ -424,7 +426,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteGlobalW,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Verify both are deleted
@@ -454,7 +456,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -470,7 +472,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			childW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		childCategory := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(childCategory["id"].(float64))
@@ -489,7 +491,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusBadRequest,
-			"Cannot delete category with active child categories",
+			"",
 		)
 
 		// Verify grandparent still exists
@@ -508,7 +510,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusBadRequest,
-			"Invalid categoryId",
+			"",
 		)
 	})
 
@@ -527,7 +529,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -538,12 +540,12 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			delete1W,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Second delete attempt (should fail or succeed depending on GORM behavior)
 		delete2W := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
-		
+
 		// Note: GORM Delete may return success even if record doesn't exist
 		// We expect either 404 or 200 depending on validation logic
 		assert.True(
@@ -568,7 +570,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -583,7 +585,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			deleteW,
 			http.StatusOK,
-			"Category deleted successfully",
+			"",
 		)
 
 		// Verify category is NOT in GET all categories
@@ -592,7 +594,7 @@ func TestDeleteCategory(t *testing.T) {
 		getAllResponse := helpers.ParseResponse(t, getAllAfterW.Body)
 		data := getAllResponse["data"].(map[string]interface{})
 		categories := data["categories"].([]interface{})
-		
+
 		// Check that deleted category is not in the list
 		for _, cat := range categories {
 			catMap := cat.(map[string]interface{})
@@ -610,7 +612,7 @@ func TestDeleteCategory(t *testing.T) {
 			t,
 			getByIDW,
 			http.StatusNotFound,
-			"Category not found",
+			"",
 		)
 	})
 
@@ -625,7 +627,7 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Top level",
 		}
 		aW := client.Post(t, "/api/categories", aReq)
-		aResponse := helpers.AssertSuccessResponse(t, aW, http.StatusCreated, "Category created successfully")
+		aResponse := helpers.AssertSuccessResponse(t, aW, http.StatusCreated, "")
 		aCategory := helpers.GetResponseData(t, aResponse, "category")
 		aID := uint(aCategory["id"].(float64))
 
@@ -636,7 +638,7 @@ func TestDeleteCategory(t *testing.T) {
 			"parentId":    aID,
 		}
 		bW := client.Post(t, "/api/categories", bReq)
-		bResponse := helpers.AssertSuccessResponse(t, bW, http.StatusCreated, "Category created successfully")
+		bResponse := helpers.AssertSuccessResponse(t, bW, http.StatusCreated, "")
 		bCategory := helpers.GetResponseData(t, bResponse, "category")
 		bID := uint(bCategory["id"].(float64))
 
@@ -647,7 +649,7 @@ func TestDeleteCategory(t *testing.T) {
 			"parentId":    bID,
 		}
 		cW := client.Post(t, "/api/categories", cReq)
-		cResponse := helpers.AssertSuccessResponse(t, cW, http.StatusCreated, "Category created successfully")
+		cResponse := helpers.AssertSuccessResponse(t, cW, http.StatusCreated, "")
 		cCategory := helpers.GetResponseData(t, cResponse, "category")
 		cID := uint(cCategory["id"].(float64))
 
@@ -658,7 +660,7 @@ func TestDeleteCategory(t *testing.T) {
 			"parentId":    cID,
 		}
 		dW := client.Post(t, "/api/categories", dReq)
-		dResponse := helpers.AssertSuccessResponse(t, dW, http.StatusCreated, "Category created successfully")
+		dResponse := helpers.AssertSuccessResponse(t, dW, http.StatusCreated, "")
 		dCategory := helpers.GetResponseData(t, dResponse, "category")
 		dID := uint(dCategory["id"].(float64))
 

@@ -13,18 +13,29 @@ import (
 type APIClient struct {
 	Handler http.Handler
 	Token   string
+	Headers map[string]string
 }
 
 // NewAPIClient creates a new API client for testing
 func NewAPIClient(handler http.Handler) *APIClient {
 	return &APIClient{
 		Handler: handler,
+		Headers: make(map[string]string),
 	}
 }
 
 // SetToken sets the authentication token for subsequent requests
 func (c *APIClient) SetToken(token string) {
 	c.Token = token
+}
+
+// SetHeader sets a custom header for subsequent requests
+func (c *APIClient) SetHeader(key, value string) {
+	if value == "" {
+		delete(c.Headers, key)
+	} else {
+		c.Headers[key] = value
+	}
 }
 
 // Post makes a POST request
@@ -61,6 +72,11 @@ func (c *APIClient) Get(t *testing.T, url string) *httptest.ResponseRecorder {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
 
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
 	w := httptest.NewRecorder()
 	c.Handler.ServeHTTP(w, req)
 
@@ -84,6 +100,11 @@ func (c *APIClient) Put(t *testing.T, url string, body interface{}) *httptest.Re
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
 
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
 	w := httptest.NewRecorder()
 	c.Handler.ServeHTTP(w, req)
 
@@ -99,6 +120,11 @@ func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder 
 
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
 	}
 
 	w := httptest.NewRecorder()

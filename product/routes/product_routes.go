@@ -38,22 +38,26 @@ func NewProductModule() *ProductModule {
 
 // RegisterRoutes registers all product-related routes
 func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
-	// Auth middleware for protected routes
-	auth := middleware.SellerAuth()
+	sellerAuth := middleware.SellerAuth()
+	publicRoutesAuth := middleware.PublicAPIAuth()
 
 	// Product routes
 	productRoutes := router.Group("/api/products")
 	{
 		// Public routes
-		productRoutes.GET("", m.productHandler.GetAllProducts)
-		productRoutes.GET("/:productId", m.productHandler.GetProductByID)
-		productRoutes.GET("/search", m.productHandler.SearchProducts)
-		productRoutes.GET("/filters", m.productHandler.GetProductFilters)
-		productRoutes.GET("/:productId/related", m.productHandler.GetRelatedProducts)
+		productRoutes.GET("", publicRoutesAuth, m.productHandler.GetAllProducts)
+		productRoutes.GET("/:productId", publicRoutesAuth, m.productHandler.GetProductByID)
+		productRoutes.GET("/search", publicRoutesAuth, m.productHandler.SearchProducts)
+		productRoutes.GET("/filters", publicRoutesAuth, m.productHandler.GetProductFilters)
+		productRoutes.GET(
+			"/:productId/related",
+			publicRoutesAuth,
+			m.productHandler.GetRelatedProducts,
+		)
 
 		// Admin/Seller routes (protected)
-		productRoutes.POST("", auth, m.productHandler.CreateProduct)
-		productRoutes.PUT("/:productId", auth, m.productHandler.UpdateProduct)
-		productRoutes.DELETE("/:productId", auth, m.productHandler.DeleteProduct)
+		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)
+		productRoutes.PUT("/:productId", sellerAuth, m.productHandler.UpdateProduct)
+		productRoutes.DELETE("/:productId", sellerAuth, m.productHandler.DeleteProduct)
 	}
 }

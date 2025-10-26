@@ -29,14 +29,14 @@ func NewVariantModule() *VariantModule {
 
 // RegisterRoutes registers all variant-related routes
 func (m *VariantModule) RegisterRoutes(router *gin.Engine) {
+	publicRoutesAuth := middleware.PublicAPIAuth()
+	sellerAuth := middleware.SellerAuth()
+
 	variantRoutes := router.Group("/api/products/:productId/variants")
 	{
-		// Public routes
-		variantRoutes.GET("/find", m.variantHandler.FindVariantByOptions)
-		variantRoutes.GET("/:variantId", m.variantHandler.GetVariantByID)
+		variantRoutes.GET("/find", publicRoutesAuth, m.variantHandler.FindVariantByOptions)
+		variantRoutes.GET("/:variantId", publicRoutesAuth, m.variantHandler.GetVariantByID)
 
-		// Protected routes (require seller authentication)
-		sellerAuth := middleware.SellerAuth()
 		variantRoutes.POST("", sellerAuth, m.variantHandler.CreateVariant)
 		variantRoutes.PUT("/:variantId", sellerAuth, m.variantHandler.UpdateVariant)
 		variantRoutes.PUT("/bulk", sellerAuth, m.variantHandler.BulkUpdateVariants)

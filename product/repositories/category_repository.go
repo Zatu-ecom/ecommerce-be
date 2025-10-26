@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/query"
 	"ecommerce-be/product/utils"
 
@@ -23,6 +24,9 @@ type CategoryRepository interface {
 	CheckHasChildren(id uint) (bool, error)
 	Exists(id uint) error
 	FindAttributesByCategoryIDWithInheritance(catagoryID uint) ([]entity.AttributeDefinition, error)
+	LinkAttribute(categoryAttribute *entity.CategoryAttribute) error
+	UnlinkAttribute(categoryID uint, attributeID uint) error
+	CheckAttributeLinked(categoryID uint, attributeID uint) (*entity.CategoryAttribute, error)
 }
 
 // CategoryRepositoryImpl implements the CategoryRepository interface
@@ -59,7 +63,7 @@ func (r *CategoryRepositoryImpl) FindByID(id uint) (*entity.Category, error) {
 	result := r.db.Preload("Parent").Preload("Children").Where("id = ?", id).First(&category)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.CATEGORY_NOT_FOUND_MSG)
+			return nil, prodErrors.ErrCategoryNotFound
 		}
 		return nil, result.Error
 	}
@@ -187,4 +191,43 @@ func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(
 	}
 
 	return attributes, nil
+}
+
+// LinkAttribute creates a link between a category and an attribute
+func (r *CategoryRepositoryImpl) LinkAttribute(categoryAttribute *entity.CategoryAttribute) error {
+	result := r.db.Create(categoryAttribute)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+// UnlinkAttribute removes the link between a category and an attribute
+func (r *CategoryRepositoryImpl) UnlinkAttribute(categoryID uint, attributeID uint) error {
+	result := r.db.Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
+		Delete(&entity.CategoryAttribute{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return prodErrors.ErrAttributeNotLinked
+	}
+	return nil
+}
+
+// CheckAttributeLinked checks if an attribute is already linked to a category
+func (r *CategoryRepositoryImpl) CheckAttributeLinked(
+	categoryID uint,
+	attributeID uint,
+) (*entity.CategoryAttribute, error) {
+	var categoryAttribute entity.CategoryAttribute
+	result := r.db.Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
+		First(&categoryAttribute)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &categoryAttribute, nil
 }

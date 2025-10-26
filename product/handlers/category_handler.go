@@ -227,3 +227,81 @@ func (h *CategoryHandler) GetAttributesByCategoryIDWithInheritance(c *gin.Contex
 		attributesResponse,
 	)
 }
+
+// LinkAttributeToCategory links an existing attribute to a category
+func (h *CategoryHandler) LinkAttributeToCategory(c *gin.Context) {
+	categoryID, err := h.ParseUintParam(c, "categoryId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid category ID")
+		return
+	}
+
+	var req model.LinkAttributeRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	roleLevel, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
+	response, err := h.categoryService.LinkAttributeToCategory(
+		categoryID,
+		req,
+		roleLevel,
+		sellerID,
+	)
+	if err != nil {
+		h.HandleError(c, err, "Failed to link attribute to category")
+		return
+	}
+
+	h.Success(
+		c,
+		http.StatusCreated,
+		"Attribute linked to category successfully",
+		response,
+	)
+}
+
+// UnlinkAttributeFromCategory removes the link between an attribute and a category
+func (h *CategoryHandler) UnlinkAttributeFromCategory(c *gin.Context) {
+	categoryID, err := h.ParseUintParam(c, "categoryId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid category ID")
+		return
+	}
+
+	attributeID, err := h.ParseUintParam(c, "attributeId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid attribute ID")
+		return
+	}
+
+	roleLevel, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
+	err = h.categoryService.UnlinkAttributeFromCategory(
+		categoryID,
+		attributeID,
+		roleLevel,
+		sellerID,
+	)
+	if err != nil {
+		h.HandleError(c, err, "Failed to unlink attribute from category")
+		return
+	}
+
+	h.Success(
+		c,
+		http.StatusOK,
+		"Attribute unlinked from category successfully",
+		nil,
+	)
+}

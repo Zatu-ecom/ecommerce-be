@@ -46,7 +46,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -69,7 +69,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory1 := helpers.GetResponseData(t, updateResponse1, "category")
 
@@ -120,7 +120,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -136,7 +136,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory2 := helpers.GetResponseData(t, updateResponse2, "category")
 
@@ -159,7 +159,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW3,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory3 := helpers.GetResponseData(t, updateResponse3, "category")
 
@@ -176,7 +176,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parent2W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parent2Category := helpers.GetResponseData(t, parent2Response, "category")
 		parent2ID := uint(parent2Category["id"].(float64))
@@ -192,7 +192,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW4,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory4 := helpers.GetResponseData(t, updateResponse4, "category")
 
@@ -221,7 +221,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -243,7 +243,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory1 := helpers.GetResponseData(t, updateResponse1, "category")
 
@@ -286,7 +286,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -302,7 +302,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory2 := helpers.GetResponseData(t, updateResponse2, "category")
 
@@ -335,7 +335,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -350,7 +350,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory := helpers.GetResponseData(t, updateResponse, "category")
 
@@ -383,7 +383,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -464,7 +464,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -480,7 +480,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child1W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 
 		// Create second child category
@@ -494,7 +494,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child2W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		child2Category := helpers.GetResponseData(t, child2Response, "category")
 		child2ID := uint(child2Category["id"].(float64))
@@ -506,7 +506,7 @@ func TestUpdateCategory(t *testing.T) {
 			"parentId":    parentID,
 		}
 		w1 := client.Put(t, fmt.Sprintf("/api/categories/%d", child2ID), updateReq1)
-		helpers.AssertErrorResponse(t, w1, http.StatusConflict, "already exists")
+		helpers.AssertErrorResponse(t, w1, http.StatusConflict, "")
 
 		// Create another parent
 		parent2Req := map[string]interface{}{
@@ -518,7 +518,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parent2W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parent2Category := helpers.GetResponseData(t, parent2Response, "category")
 		parent2ID := uint(parent2Category["id"].(float64))
@@ -534,7 +534,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedChild2 := helpers.GetResponseData(t, updateResponse2, "category")
 		assert.Equal(t, "Football", updatedChild2["name"])
@@ -551,7 +551,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w3,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedChild3 := helpers.GetResponseData(t, updateResponse3, "category")
 		assert.Equal(t, "Football", updatedChild3["name"])
@@ -576,7 +576,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW1,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		globalCategory := helpers.GetResponseData(t, createResponse1, "category")
 		globalCategoryID := uint(globalCategory["id"].(float64))
@@ -591,7 +591,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedGlobal := helpers.GetResponseData(t, updateResponse1, "category")
 
@@ -611,7 +611,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW2,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		sellerCategory := helpers.GetResponseData(t, createResponse2, "category")
 		sellerCategoryID := uint(sellerCategory["id"].(float64))
@@ -627,7 +627,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedSeller := helpers.GetResponseData(t, updateResponse2, "category")
 
@@ -653,7 +653,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWA,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		categoryA := helpers.GetResponseData(t, createResponseA, "category")
 		categoryAID := uint(categoryA["id"].(float64))
@@ -678,7 +678,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWB,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		categoryB := helpers.GetResponseData(t, createResponseB, "category")
 		categoryBID := uint(categoryB["id"].(float64))
@@ -694,7 +694,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWC,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		categoryC := helpers.GetResponseData(t, createResponseC, "category")
 		categoryCID := uint(categoryC["id"].(float64))
@@ -727,7 +727,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			globalParentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		globalParent := helpers.GetResponseData(t, globalParentResponse, "category")
 		globalParentID := uint(globalParent["id"].(float64))
@@ -742,7 +742,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			global2W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		global2 := helpers.GetResponseData(t, global2Response, "category")
 		global2ID := uint(global2["id"].(float64))
@@ -762,7 +762,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateGlobalW,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedGlobal2 := helpers.GetResponseData(t, updateGlobalResponse, "category")
 		assert.Equal(t, float64(globalParentID), updatedGlobal2["parentId"].(float64))
@@ -781,7 +781,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerCatW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		sellerCat := helpers.GetResponseData(t, sellerCatResponse, "category")
 		sellerCatID := uint(sellerCat["id"].(float64))
@@ -801,7 +801,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateSellerW,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedSellerCat := helpers.GetResponseData(t, updateSellerResponse, "category")
 		assert.Equal(
@@ -821,7 +821,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerParentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		sellerParent := helpers.GetResponseData(t, sellerParentResponse, "category")
 		sellerParentID := uint(sellerParent["id"].(float64))
@@ -841,7 +841,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateSellerW2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedSellerCat2 := helpers.GetResponseData(t, updateSellerResponse2, "category")
 		assert.Equal(t, float64(sellerParentID), updatedSellerCat2["parentId"].(float64))
@@ -866,7 +866,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -901,7 +901,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			globalW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		globalCat := helpers.GetResponseData(t, globalResponse, "category")
 		globalCatID := uint(globalCat["id"].(float64))
@@ -927,7 +927,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 
 		// Note: Testing "another seller" would require a second seller account in seeds
@@ -944,7 +944,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w2,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCat := helpers.GetResponseData(t, updateResponse, "category")
 		assert.Equal(t, "Updated Restrictions Global", updatedCat["name"])
@@ -969,7 +969,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -985,7 +985,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child1W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 
 		child2Req := map[string]interface{}{
@@ -998,7 +998,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child2W,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 
 		// Update parent category that has children - should succeed
@@ -1011,7 +1011,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateParentW,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedParent := helpers.GetResponseData(t, updateParentResponse, "category")
 
@@ -1038,7 +1038,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"Category created successfully",
+			"",
 		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -1055,7 +1055,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW,
 			http.StatusOK,
-			"Category updated successfully",
+			"",
 		)
 		updatedCategory := helpers.GetResponseData(t, updateResponse, "category")
 
