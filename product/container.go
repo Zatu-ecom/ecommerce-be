@@ -33,6 +33,7 @@ func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewCategoryModule())
 	c.RegisterModule(routes.NewAttributeModule())
 	c.RegisterModule(routes.NewProductModule())
+	c.RegisterModule(routes.NewProductAttributeModule())
 	c.RegisterModule(routes.NewProductOptionModule())
 	c.RegisterModule(routes.NewVariantModule())
 }
