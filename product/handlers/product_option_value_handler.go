@@ -164,3 +164,39 @@ func (h *ProductOptionValueHandler) BulkAddOptionValues(c *gin.Context) {
 		utils.ADDED_COUNT_FIELD_NAME:   len(valueResponses),
 	})
 }
+
+// BulkUpdateOptionValuePositions handles bulk updating product option values
+// PUT /api/products/:productId/options/:optionId/values/bulk-update
+func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
+	// Parse IDs from URL
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	optionID, err := h.ParseUintParam(c, "optionId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid option ID")
+		return
+	}
+
+	// Bind request body
+	var req model.ProductOptionValueBulkUpdateRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Call service
+	response, err := h.valueService.BulkUpdateOptionValues(productID, optionID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTION_VALUES_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, response.Message, map[string]interface{}{
+		"updatedCount": response.UpdatedCount,
+	})
+}
+

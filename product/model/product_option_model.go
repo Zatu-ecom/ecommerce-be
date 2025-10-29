@@ -62,3 +62,34 @@ type ProductOptionValueResponse struct {
 type ProductOptionListResponse struct {
 	Options []ProductOptionResponse `json:"options"`
 }
+
+// ProductOptionBulkUpdateItem represents a single option update in bulk operation
+type ProductOptionBulkUpdateItem struct {
+	OptionID    uint   `json:"optionId" binding:"required"`
+	DisplayName string `json:"displayName" binding:"omitempty,min=3,max=100"`
+	Position    int    `json:"position"`
+}
+
+// ProductOptionBulkUpdateRequest represents the request body for bulk updating options
+type ProductOptionBulkUpdateRequest struct {
+	Options []ProductOptionBulkUpdateItem `json:"options" binding:"required,min=1,dive"`
+}
+
+// ProductOptionValueBulkUpdateItem represents a single option value update in bulk operation
+type ProductOptionValueBulkUpdateItem struct {
+	ValueID     uint   `json:"valueId" binding:"required"`
+	DisplayName string `json:"displayName" binding:"omitempty,min=1,max=100"`
+	ColorCode   string `json:"colorCode" binding:"omitempty,len=7"`
+	Position    int    `json:"position"`
+}
+
+// ProductOptionValueBulkUpdateRequest represents the request body for bulk updating option values
+type ProductOptionValueBulkUpdateRequest struct {
+	Values []ProductOptionValueBulkUpdateItem `json:"values" binding:"required,min=1,dive"`
+}
+
+// BulkUpdateResponse represents the response for bulk updates
+type BulkUpdateResponse struct {
+	UpdatedCount int    `json:"updatedCount"`
+	Message      string `json:"message"`
+}

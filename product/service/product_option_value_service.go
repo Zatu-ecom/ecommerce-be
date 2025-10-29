@@ -1,9 +1,12 @@
 package service
 
 import (
+	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/utils"
 	"ecommerce-be/product/validator"
 )
 
@@ -26,6 +29,11 @@ type ProductOptionValueService interface {
 		optionID uint,
 		req model.ProductOptionValueBulkAddRequest,
 	) ([]model.ProductOptionValueResponse, error)
+	BulkUpdateOptionValues(
+		productID uint,
+		optionID uint,
+		req model.ProductOptionValueBulkUpdateRequest,
+	) (*model.BulkUpdateResponse, error)
 }
 
 // ProductOptionValueServiceImpl implements the ProductOptionValueService interface
@@ -185,4 +193,69 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	}
 
 	return responses, nil
+}
+
+/***********************************************
+ *       BulkUpdateOptionValues                *
+ ***********************************************/
+func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
+	productID uint,
+	optionID uint,
+	req model.ProductOptionValueBulkUpdateRequest,
+) (*model.BulkUpdateResponse, error) {
+	// Validate product and option
+	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+		return nil, err
+	}
+
+	// Get all existing values for this option
+	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a map of existing value IDs for validation and lookup
+	existingValueMap := make(map[uint]*entity.ProductOptionValue)
+	for i := range existingValues {
+		existingValueMap[existingValues[i].ID] = &existingValues[i]
+	}
+
+	// Validate all value IDs belong to this option and prepare updates
+	valuesToUpdate := make([]*entity.ProductOptionValue, 0, len(req.Values))
+	for _, update := range req.Values {
+		existingValue, exists := existingValueMap[update.ValueID]
+		if !exists {
+			return nil, prodErrors.ErrProductOptionValueNotFound
+		}
+
+		// Create updated value entity
+		updatedValue := &entity.ProductOptionValue{
+			OptionID:    optionID,
+			Value:       existingValue.Value, // Value cannot be changed
+			DisplayName: update.DisplayName,
+			ColorCode:   update.ColorCode,
+			Position:    update.Position,
+		}
+		updatedValue.ID = update.ValueID
+
+		// If fields are empty, keep the existing ones
+		if update.DisplayName == "" {
+			updatedValue.DisplayName = existingValue.DisplayName
+		}
+		if update.ColorCode == "" {
+			updatedValue.ColorCode = existingValue.ColorCode
+		}
+
+		valuesToUpdate = append(valuesToUpdate, updatedValue)
+	}
+
+	// Perform bulk update
+	if err := s.optionRepo.BulkUpdateOptionValues(valuesToUpdate); err != nil {
+		return nil, err
+	}
+
+	return &model.BulkUpdateResponse{
+		UpdatedCount: len(valuesToUpdate),
+		Message:      utils.OPTION_VALUES_BULK_UPDATED_MSG,
+	}, nil
 }

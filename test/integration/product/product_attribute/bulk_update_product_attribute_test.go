@@ -106,13 +106,14 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			attrMap := attr.(map[string]interface{})
 			attrID := int(attrMap["id"].(float64))
 
-			if attrID == attr1ID {
+			switch attrID {
+			case attr1ID:
 				assert.Equal(t, "Intel i7", attrMap["value"])
 				assert.Equal(t, float64(10), attrMap["sortOrder"])
-			} else if attrID == attr2ID {
+			case attr2ID:
 				assert.Equal(t, "5000mAh", attrMap["value"])
 				assert.Equal(t, float64(20), attrMap["sortOrder"])
-			} else if attrID == attr3ID {
+			case attr3ID:
 				assert.Equal(t, "15x25x8", attrMap["value"])
 				assert.Equal(t, float64(30), attrMap["sortOrder"])
 			}
@@ -162,9 +163,10 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			attrMap := attr.(map[string]interface{})
 			attrID := int(attrMap["id"].(float64))
 
-			if attrID == attr1ID {
+			switch attrID {
+			case attr1ID:
 				assert.Equal(t, float64(100), attrMap["sortOrder"])
-			} else if attrID == attr2ID {
+			case attr2ID:
 				assert.Equal(t, float64(200), attrMap["sortOrder"])
 			}
 		}
@@ -469,7 +471,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/6/attributes/bulk")
+		url := "/api/products/6/attributes/bulk"
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")

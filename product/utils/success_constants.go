@@ -45,13 +45,15 @@ const (
 
 // Product Option success messages
 const (
-	PRODUCT_OPTION_CREATED_MSG          = "Product option created successfully"
-	PRODUCT_OPTION_UPDATED_MSG          = "Product option updated successfully"
-	PRODUCT_OPTION_DELETED_MSG          = "Product option deleted successfully"
-	PRODUCT_OPTIONS_RETRIEVED_MSG       = "Product options retrieved successfully"
-	PRODUCT_OPTION_VALUE_ADDED_MSG      = "Option value added successfully"
-	PRODUCT_OPTION_VALUE_UPDATED_MSG    = "Option value updated successfully"
-	PRODUCT_OPTION_VALUE_DELETED_MSG    = "Option value deleted successfully"
-	PRODUCT_OPTION_VALUES_ADDED_MSG     = "Option values added successfully"
-	PRODUCT_OPTION_VALUES_RETRIEVED_MSG = "Option values retrieved successfully"
+	PRODUCT_OPTION_CREATED_MSG           = "Product option created successfully"
+	PRODUCT_OPTION_UPDATED_MSG           = "Product option updated successfully"
+	PRODUCT_OPTION_DELETED_MSG           = "Product option deleted successfully"
+	PRODUCT_OPTIONS_RETRIEVED_MSG        = "Product options retrieved successfully"
+	PRODUCT_OPTION_VALUE_ADDED_MSG       = "Option value added successfully"
+	PRODUCT_OPTION_VALUE_UPDATED_MSG     = "Option value updated successfully"
+	PRODUCT_OPTION_VALUE_DELETED_MSG     = "Option value deleted successfully"
+	PRODUCT_OPTION_VALUES_ADDED_MSG      = "Option values added successfully"
+	PRODUCT_OPTION_VALUES_RETRIEVED_MSG  = "Option values retrieved successfully"
+	PRODUCT_OPTIONS_BULK_UPDATED_MSG     = "Product options updated successfully"
+	OPTION_VALUES_BULK_UPDATED_MSG       = "Option values updated successfully"
 )

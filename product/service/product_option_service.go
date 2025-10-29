@@ -1,6 +1,7 @@
 package service
 
 import (
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -21,6 +22,10 @@ type ProductOptionService interface {
 		req model.ProductOptionUpdateRequest,
 	) (*model.ProductOptionResponse, error)
 	DeleteOption(productID uint, optionID uint) error
+	BulkUpdateOptions(
+		productID uint,
+		req model.ProductOptionBulkUpdateRequest,
+	) (*model.BulkUpdateResponse, error)
 
 	// GetAvailableOptions retrieves all available options and their values for a product
 	GetAvailableOptions(productID uint, sellerID *uint) (*model.GetAvailableOptionsResponse, error)
@@ -229,3 +234,65 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 		Options:   optionResponses,
 	}, nil
 }
+
+/***********************************************
+ *         BulkUpdateOptions                   *
+ ***********************************************/
+func (s *ProductOptionServiceImpl) BulkUpdateOptions(
+	productID uint,
+	req model.ProductOptionBulkUpdateRequest,
+) (*model.BulkUpdateResponse, error) {
+	// Validate product exists
+	if err := s.optionValidator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	// Get all existing options for this product
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a map of existing option IDs for validation and lookup
+	existingOptionMap := make(map[uint]*entity.ProductOption)
+	for i := range existingOptions {
+		existingOptionMap[existingOptions[i].ID] = &existingOptions[i]
+	}
+
+	// Validate all option IDs belong to this product and prepare updates
+	optionsToUpdate := make([]*entity.ProductOption, 0, len(req.Options))
+	for _, update := range req.Options {
+		existingOption, exists := existingOptionMap[update.OptionID]
+		if !exists {
+			return nil, prodErrors.ErrProductOptionNotFound
+		}
+
+		// Create updated option entity
+		updatedOption := &entity.ProductOption{
+			ProductID:   productID,
+			Name:        existingOption.Name, // Name cannot be changed
+			DisplayName: update.DisplayName,
+			Position:    update.Position,
+		}
+		updatedOption.ID = update.OptionID
+
+		// If DisplayName is empty, keep the existing one
+		if update.DisplayName == "" {
+			updatedOption.DisplayName = existingOption.DisplayName
+		}
+
+		optionsToUpdate = append(optionsToUpdate, updatedOption)
+	}
+
+	// Perform bulk update
+	if err := s.optionRepo.BulkUpdateOptions(optionsToUpdate); err != nil {
+		return nil, err
+	}
+
+	return &model.BulkUpdateResponse{
+		UpdatedCount: len(optionsToUpdate),
+		Message:      utils.PRODUCT_OPTIONS_BULK_UPDATED_MSG,
+	}, nil
+}
+
+

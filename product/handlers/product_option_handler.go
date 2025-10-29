@@ -143,3 +143,36 @@ func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 	h.SuccessWithData(c, http.StatusOK, "Available options retrieved successfully",
 		"options", optionsResponse)
 }
+
+/***********************************************
+ *       BulkUpdateOptionPositions             *
+ ***********************************************/
+// BulkUpdateOptions handles bulk updating product options
+// PUT /api/products/:productId/options/bulk-update
+func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
+	// Parse product ID from URL
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	// Bind request body
+	var req model.ProductOptionBulkUpdateRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Call service
+	response, err := h.optionService.BulkUpdateOptions(productID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTIONS_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, response.Message, map[string]interface{}{
+		"updatedCount": response.UpdatedCount,
+	})
+}
+

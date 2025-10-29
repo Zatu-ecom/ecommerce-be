@@ -48,11 +48,13 @@ func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 		protectedOptionRoutes.POST("", m.optionHandler.CreateOption)
 		protectedOptionRoutes.PUT("/:optionId", m.optionHandler.UpdateOption)
 		protectedOptionRoutes.DELETE("/:optionId", m.optionHandler.DeleteOption)
+		protectedOptionRoutes.PUT("/bulk-update", m.optionHandler.BulkUpdateOptions)
 
 		// Option value routes
 		protectedOptionRoutes.POST("/:optionId/values", m.valueHandler.AddOptionValue)
 		protectedOptionRoutes.PUT("/:optionId/values/:valueId", m.valueHandler.UpdateOptionValue)
 		protectedOptionRoutes.DELETE("/:optionId/values/:valueId", m.valueHandler.DeleteOptionValue)
 		protectedOptionRoutes.POST("/:optionId/values/bulk", m.valueHandler.BulkAddOptionValues)
+		protectedOptionRoutes.PUT("/:optionId/values/bulk-update", m.valueHandler.BulkUpdateOptionValues)
 	}
 }

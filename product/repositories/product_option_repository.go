@@ -15,6 +15,7 @@ type ProductOptionRepository interface {
 	FindOptionsByProductID(productID uint) ([]entity.ProductOption, error)
 	DeleteOption(id uint) error
 	CheckOptionInUse(optionID uint) (bool, []uint, error)
+	BulkUpdateOptions(options []*entity.ProductOption) error
 
 	// Option value operations
 	CreateOptionValue(value *entity.ProductOptionValue) error
@@ -24,6 +25,7 @@ type ProductOptionRepository interface {
 	FindOptionValuesByOptionID(optionID uint) ([]entity.ProductOptionValue, error)
 	DeleteOptionValue(id uint) error
 	CheckOptionValueInUse(valueID uint) (bool, []uint, error)
+	BulkUpdateOptionValues(values []*entity.ProductOptionValue) error
 
 	// Get options with variant counts
 	GetProductOptionsWithVariantCounts(productID uint) ([]entity.ProductOption, map[uint]int, error)
@@ -213,3 +215,62 @@ func (r *ProductOptionRepositoryImpl) GetProductOptionsWithVariantCounts(
 func (r *ProductOptionRepositoryImpl) DeleteOptionValuesByOptionID(optionID uint) error {
 	return r.db.Where("option_id = ?", optionID).Delete(&entity.ProductOptionValue{}).Error
 }
+
+/***********************************************
+ *    Bulk Update Methods                      *
+ ***********************************************/
+
+// BulkUpdateOptions updates multiple options in a transaction
+func (r *ProductOptionRepositoryImpl) BulkUpdateOptions(options []*entity.ProductOption) error {
+	if len(options) == 0 {
+		return nil
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, option := range options {
+			if err := tx.Model(&entity.ProductOption{}).
+				Where("id = ?", option.ID).
+				Updates(map[string]interface{}{
+					"display_name": option.DisplayName,
+					"position":     option.Position,
+				}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// BulkUpdateOptionValues updates multiple option values in a transaction
+func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(values []*entity.ProductOptionValue) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, value := range values {
+			updates := map[string]interface{}{}
+			
+			// Only update non-empty fields
+			if value.DisplayName != "" {
+				updates["display_name"] = value.DisplayName
+			}
+			if value.ColorCode != "" {
+				updates["color_code"] = value.ColorCode
+			}
+			// Always update position
+			updates["position"] = value.Position
+
+			if len(updates) > 0 {
+				if err := tx.Model(&entity.ProductOptionValue{}).
+					Where("id = ?", value.ID).
+					Updates(updates).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+
