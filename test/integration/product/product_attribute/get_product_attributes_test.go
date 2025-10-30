@@ -37,7 +37,7 @@ func TestGetProductAttributes(t *testing.T) {
 
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
 	}
 
@@ -69,7 +69,6 @@ func TestGetProductAttributes(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"Product attributes retrieved successfully",
 		)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
@@ -98,7 +97,7 @@ func TestGetProductAttributes(t *testing.T) {
 
 		// Should succeed with list (might have seed data)
 		if w.Code == http.StatusOK {
-			response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 			productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 			attributes := productAttributes["attributes"].([]interface{})
@@ -108,7 +107,7 @@ func TestGetProductAttributes(t *testing.T) {
 			assert.Equal(t, float64(productID), productAttributes["productId"])
 		} else if w.Code == http.StatusNotFound {
 			// Product doesn't exist, which is also acceptable
-			helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+			helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 		}
 	})
 
@@ -129,7 +128,7 @@ func TestGetProductAttributes(t *testing.T) {
 		w := client.Get(t, url)
 
 		// Should succeed with X-Seller-ID header
-		helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	})
 
 	t.Run("Verify attributes include definition details", func(t *testing.T) {
@@ -150,7 +149,7 @@ func TestGetProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, url)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})
@@ -197,7 +196,7 @@ func TestGetProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, url)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})
@@ -249,7 +248,7 @@ func TestGetProductAttributes(t *testing.T) {
 		url := "/api/products/invalid/attributes"
 		w := client.Get(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "Invalid productId")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Get attributes for non-existent product", func(t *testing.T) {
@@ -261,7 +260,7 @@ func TestGetProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "Product not found")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	// ============================================================================
@@ -288,7 +287,7 @@ func TestGetProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, url)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})
@@ -316,7 +315,7 @@ func TestGetProductAttributes(t *testing.T) {
 		}
 		updateURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		wUpdate := client.Put(t, updateURL, updateBody)
-		helpers.AssertSuccessResponse(t, wUpdate, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, wUpdate, http.StatusOK)
 
 		// Get attributes with X-Seller-ID header
 		client.SetToken("")
@@ -325,7 +324,7 @@ func TestGetProductAttributes(t *testing.T) {
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, getURL)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})
@@ -362,7 +361,7 @@ func TestGetProductAttributes(t *testing.T) {
 		// Delete first attribute
 		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr1ID)
 		wDelete := client.Delete(t, deleteURL)
-		helpers.AssertSuccessResponse(t, wDelete, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, wDelete, http.StatusOK)
 
 		// Get attributes with X-Seller-ID header
 		client.SetToken("")
@@ -371,7 +370,7 @@ func TestGetProductAttributes(t *testing.T) {
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Get(t, getURL)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})

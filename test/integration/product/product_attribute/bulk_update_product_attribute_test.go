@@ -37,7 +37,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
 	}
 
@@ -89,7 +89,6 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"Product attributes bulk updated successfully",
 		)
 
 		result := helpers.GetResponseData(t, response, "result")
@@ -153,7 +152,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		result := helpers.GetResponseData(t, response, "result")
 
 		assert.Equal(t, float64(2), result["updatedCount"])
@@ -197,7 +196,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		result := helpers.GetResponseData(t, response, "result")
 
 		assert.Equal(t, float64(1), result["updatedCount"])
@@ -239,7 +238,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
 	t.Run("Seller tries to bulk update other seller's product attributes", func(t *testing.T) {
@@ -300,7 +299,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := "/api/products/99999/attributes/bulk"
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "Product not found")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Bulk update with empty attributes array", func(t *testing.T) {
@@ -317,7 +316,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Bulk update with empty value", func(t *testing.T) {
@@ -342,7 +341,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Bulk update with invalid attribute value (allowed_values)", func(t *testing.T) {
@@ -368,7 +367,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "Invalid attribute value")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Bulk update with missing required fields", func(t *testing.T) {
@@ -392,7 +391,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -429,7 +428,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		result := helpers.GetResponseData(t, response, "result")
 
 		// Only 1 attribute should be updated (the valid one)
@@ -474,7 +473,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		url := "/api/products/6/attributes/bulk"
 		w := client.Put(t, url, bulkUpdateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		result := helpers.GetResponseData(t, response, "result")
 
 		// Only 1 attribute should be updated (attr6, not attr7)

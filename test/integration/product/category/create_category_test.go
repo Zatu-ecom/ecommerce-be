@@ -45,7 +45,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -73,7 +72,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -94,7 +92,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -125,7 +122,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Name too long validation", func(t *testing.T) {
@@ -144,7 +141,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Name too short validation", func(t *testing.T) {
@@ -157,7 +154,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Description too long validation", func(t *testing.T) {
@@ -176,7 +173,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -201,7 +198,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", duplicateRequest)
-		helpers.AssertErrorResponse(t, w, http.StatusConflict, "")
+		helpers.AssertErrorResponse(t, w, http.StatusConflict)
 	}) // ============================================================================
 	// PARENT HIERARCHY TESTS (P0 & P1)
 	// ============================================================================
@@ -217,7 +214,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -233,7 +230,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
 	t.Run("Customer attempts create", func(t *testing.T) {
@@ -246,7 +243,7 @@ func TestCreateCategory(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/categories", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusForbidden, "")
+		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
 	// ============================================================================
@@ -267,7 +264,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		globalParentID := uint(parentCategory["id"].(float64))
@@ -287,7 +283,7 @@ func TestCreateCategory(t *testing.T) {
 
 		w := client.Post(t, "/api/categories", childRequest)
 		// This should fail because sellers cannot create subcategories under global categories
-		helpers.AssertSuccessResponse(t, w, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 	})
 
 	t.Run("Admin can create subcategory under another admin's global category", func(t *testing.T) {
@@ -304,7 +300,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -321,7 +316,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -344,7 +338,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -371,7 +364,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 
@@ -408,7 +400,6 @@ func TestCreateCategory(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, response, "category")
 

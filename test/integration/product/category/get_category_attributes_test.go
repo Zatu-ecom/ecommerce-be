@@ -46,8 +46,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"", // Don't assert message
-		)
+			)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -63,8 +62,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			attrW,
 			http.StatusCreated,
-			"", // Don't assert message
-		)
+			)
 		_ = helpers.GetResponseData(t, attrResponse, "attribute") // Just validate structure
 
 		// Create and link attribute to category using /api/attributes/:categoryId endpoint
@@ -76,7 +74,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"allowedValues": []string{"Red", "Blue", "Green"},
 		}
 		catAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", categoryID), catAttrReq)
-		helpers.AssertSuccessResponse(t, catAttrW, http.StatusCreated, "") // Don't assert message
+		helpers.AssertSuccessResponse(t, catAttrW, http.StatusCreated)
 
 		// Get attributes using public API
 		client.SetToken("")
@@ -87,8 +85,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"", // Don't assert message
-		)
+			)
 
 		// Verify response structure matches AttributeDefinitionsResponse
 		data := response["data"].(map[string]interface{})
@@ -126,7 +123,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -142,7 +138,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			attrW,
 			http.StatusCreated,
-			"",
 		)
 
 		// Get attributes using public API with same seller
@@ -154,7 +149,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -187,7 +181,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -201,7 +194,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"",
 		)
 	})
 
@@ -220,7 +212,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -232,7 +223,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Product material",
 		}
 		attr1W := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), attr1Req)
-		helpers.AssertSuccessResponse(t, attr1W, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, attr1W, http.StatusCreated)
 
 		attr2Req := map[string]interface{}{
 			"key":         "color_inherit",
@@ -240,7 +231,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Product color",
 		}
 		attr2W := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), attr2Req)
-		helpers.AssertSuccessResponse(t, attr2W, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, attr2W, http.StatusCreated)
 
 		// Create child category
 		childReq := map[string]interface{}{
@@ -253,7 +244,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			childW,
 			http.StatusCreated,
-			"",
 		)
 		child := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(child["id"].(float64))
@@ -266,7 +256,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"unit":        "kg",
 		}
 		attr3W := client.Post(t, fmt.Sprintf("/api/attributes/%d", childID), attr3Req)
-		helpers.AssertSuccessResponse(t, attr3W, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, attr3W, http.StatusCreated)
 
 		// Get child's attributes with inheritance
 		client.SetToken("")
@@ -277,7 +267,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -318,7 +307,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			grandparentW,
 			http.StatusCreated,
-			"",
 		)
 		grandparent := helpers.GetResponseData(t, grandparentResponse, "category")
 		grandparentID := uint(grandparent["id"].(float64))
@@ -330,7 +318,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Country of origin",
 		}
 		gAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", grandparentID), gAttrReq)
-		helpers.AssertSuccessResponse(t, gAttrW, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, gAttrW, http.StatusCreated)
 
 		// Create parent
 		parentReq := map[string]interface{}{
@@ -343,7 +331,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -355,7 +342,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Warranty period",
 		}
 		pAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), pAttrReq)
-		helpers.AssertSuccessResponse(t, pAttrW, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, pAttrW, http.StatusCreated)
 
 		// Create child
 		childReq := map[string]interface{}{
@@ -368,7 +355,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			childW,
 			http.StatusCreated,
-			"",
 		)
 		child := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(child["id"].(float64))
@@ -380,7 +366,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Model number",
 		}
 		cAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", childID), cAttrReq)
-		helpers.AssertSuccessResponse(t, cAttrW, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, cAttrW, http.StatusCreated)
 
 		// Get child's attributes - should include all 3 levels
 		client.SetToken("")
@@ -391,7 +377,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -435,7 +420,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
@@ -448,7 +432,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
@@ -470,7 +453,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -481,7 +463,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -503,7 +484,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -517,7 +497,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -543,7 +522,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -557,7 +535,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})
@@ -580,7 +557,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"",
 		)
 	})
 
@@ -593,8 +569,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"", // Don't assert message
-		)
+			)
 	})
 
 	t.Run("Verify attribute response fields", func(t *testing.T) {
@@ -611,7 +586,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			categoryW,
 			http.StatusCreated,
-			"",
 		)
 		category := helpers.GetResponseData(t, categoryResponse, "category")
 		categoryID := uint(category["id"].(float64))
@@ -634,7 +608,6 @@ func TestGetCategoryAttributes(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		data := response["data"].(map[string]interface{})

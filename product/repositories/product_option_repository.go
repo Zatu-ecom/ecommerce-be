@@ -242,7 +242,9 @@ func (r *ProductOptionRepositoryImpl) BulkUpdateOptions(options []*entity.Produc
 }
 
 // BulkUpdateOptionValues updates multiple option values in a transaction
-func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(values []*entity.ProductOptionValue) error {
+func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(
+	values []*entity.ProductOptionValue,
+) error {
 	if len(values) == 0 {
 		return nil
 	}
@@ -250,7 +252,7 @@ func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(values []*entity.Pr
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for _, value := range values {
 			updates := map[string]interface{}{}
-			
+
 			// Only update non-empty fields
 			if value.DisplayName != "" {
 				updates["display_name"] = value.DisplayName
@@ -272,5 +274,3 @@ func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(values []*entity.Pr
 		return nil
 	})
 }
-
-

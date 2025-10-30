@@ -46,8 +46,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 		originalUpdatedAt := category["updatedAt"].(string)
@@ -69,8 +68,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory1 := helpers.GetResponseData(t, updateResponse1, "category")
 
 		assert.Equal(t, "Electronics & Gadgets", updatedCategory1["name"])
@@ -120,8 +118,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
 
@@ -136,8 +133,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory2 := helpers.GetResponseData(t, updateResponse2, "category")
 
 		assert.Equal(
@@ -159,8 +155,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW3,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory3 := helpers.GetResponseData(t, updateResponse3, "category")
 
 		assert.Nil(t, updatedCategory3["parentId"], "Should be root category again")
@@ -176,8 +171,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parent2W,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parent2Category := helpers.GetResponseData(t, parent2Response, "category")
 		parent2ID := uint(parent2Category["id"].(float64))
 
@@ -192,8 +186,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW4,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory4 := helpers.GetResponseData(t, updateResponse4, "category")
 
 		assert.Equal(
@@ -221,8 +214,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 		originalSellerID := category["sellerId"]
@@ -243,8 +235,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory1 := helpers.GetResponseData(t, updateResponse1, "category")
 
 		assert.Equal(t, "My Premium Products", updatedCategory1["name"])
@@ -286,8 +277,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
 
@@ -302,8 +292,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory2 := helpers.GetResponseData(t, updateResponse2, "category")
 
 		assert.Equal(
@@ -335,8 +324,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -350,8 +338,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory := helpers.GetResponseData(t, updateResponse, "category")
 
 		assert.Equal(t, "Books & Magazines", updatedCategory["name"], "Name should be updated")
@@ -383,8 +370,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -394,7 +380,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Updated description",
 		}
 		w1 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq1)
-		helpers.AssertErrorResponse(t, w1, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w1, http.StatusBadRequest)
 
 		// Name too long (>100 chars)
 		longName := ""
@@ -406,7 +392,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Updated description",
 		}
 		w2 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq2)
-		helpers.AssertErrorResponse(t, w2, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w2, http.StatusBadRequest)
 
 		// Name too short (<3 chars)
 		updateReq3 := map[string]interface{}{
@@ -414,7 +400,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Updated description",
 		}
 		w3 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq3)
-		helpers.AssertErrorResponse(t, w3, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w3, http.StatusBadRequest)
 
 		// Description too long (>500 chars)
 		longDesc := ""
@@ -426,7 +412,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": longDesc,
 		}
 		w4 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq4)
-		helpers.AssertErrorResponse(t, w4, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w4, http.StatusBadRequest)
 
 		// Invalid category ID
 		updateReq5 := map[string]interface{}{
@@ -434,7 +420,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Valid description",
 		}
 		w5 := client.Put(t, "/api/categories/99999", updateReq5)
-		helpers.AssertErrorResponse(t, w5, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w5, http.StatusNotFound)
 
 		// Invalid parent ID
 		updateReq6 := map[string]interface{}{
@@ -443,7 +429,7 @@ func TestUpdateCategory(t *testing.T) {
 			"parentId":    99999,
 		}
 		w6 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq6)
-		helpers.AssertErrorResponse(t, w6, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w6, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -464,8 +450,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
 
@@ -480,8 +465,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child1W,
 			http.StatusCreated,
-			"",
-		)
+			)
 
 		// Create second child category
 		child2Req := map[string]interface{}{
@@ -494,8 +478,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child2W,
 			http.StatusCreated,
-			"",
-		)
+			)
 		child2Category := helpers.GetResponseData(t, child2Response, "category")
 		child2ID := uint(child2Category["id"].(float64))
 
@@ -506,7 +489,7 @@ func TestUpdateCategory(t *testing.T) {
 			"parentId":    parentID,
 		}
 		w1 := client.Put(t, fmt.Sprintf("/api/categories/%d", child2ID), updateReq1)
-		helpers.AssertErrorResponse(t, w1, http.StatusConflict, "")
+		helpers.AssertErrorResponse(t, w1, http.StatusConflict)
 
 		// Create another parent
 		parent2Req := map[string]interface{}{
@@ -518,8 +501,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parent2W,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parent2Category := helpers.GetResponseData(t, parent2Response, "category")
 		parent2ID := uint(parent2Category["id"].(float64))
 
@@ -534,8 +516,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedChild2 := helpers.GetResponseData(t, updateResponse2, "category")
 		assert.Equal(t, "Football", updatedChild2["name"])
 		assert.Equal(t, float64(parent2ID), updatedChild2["parentId"].(float64))
@@ -551,8 +532,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w3,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedChild3 := helpers.GetResponseData(t, updateResponse3, "category")
 		assert.Equal(t, "Football", updatedChild3["name"])
 		assert.Equal(t, "Updated description", updatedChild3["description"])
@@ -576,8 +556,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW1,
 			http.StatusCreated,
-			"",
-		)
+			)
 		globalCategory := helpers.GetResponseData(t, createResponse1, "category")
 		globalCategoryID := uint(globalCategory["id"].(float64))
 
@@ -591,8 +570,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW1,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedGlobal := helpers.GetResponseData(t, updateResponse1, "category")
 
 		assert.True(t, updatedGlobal["isGlobal"].(bool), "Should remain global")
@@ -611,8 +589,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW2,
 			http.StatusCreated,
-			"",
-		)
+			)
 		sellerCategory := helpers.GetResponseData(t, createResponse2, "category")
 		sellerCategoryID := uint(sellerCategory["id"].(float64))
 		originalSellerID := sellerCategory["sellerId"]
@@ -627,8 +604,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedSeller := helpers.GetResponseData(t, updateResponse2, "category")
 
 		assert.False(t, updatedSeller["isGlobal"].(bool), "Should remain seller-specific")
@@ -653,8 +629,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWA,
 			http.StatusCreated,
-			"",
-		)
+			)
 		categoryA := helpers.GetResponseData(t, createResponseA, "category")
 		categoryAID := uint(categoryA["id"].(float64))
 
@@ -665,7 +640,7 @@ func TestUpdateCategory(t *testing.T) {
 			"parentId":    categoryAID,
 		}
 		wSelf := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryAID), updateReqSelf)
-		helpers.AssertErrorResponse(t, wSelf, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, wSelf, http.StatusBadRequest)
 
 		// Create category B with A as parent
 		createReqB := map[string]interface{}{
@@ -678,8 +653,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWB,
 			http.StatusCreated,
-			"",
-		)
+			)
 		categoryB := helpers.GetResponseData(t, createResponseB, "category")
 		categoryBID := uint(categoryB["id"].(float64))
 
@@ -694,8 +668,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createWC,
 			http.StatusCreated,
-			"",
-		)
+			)
 		categoryC := helpers.GetResponseData(t, createResponseC, "category")
 		categoryCID := uint(categoryC["id"].(float64))
 
@@ -710,7 +683,7 @@ func TestUpdateCategory(t *testing.T) {
 			fmt.Sprintf("/api/categories/%d", categoryAID),
 			updateReqCircular,
 		)
-		helpers.AssertErrorResponse(t, wCircular, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, wCircular, http.StatusBadRequest)
 	})
 
 	t.Run("Cross-boundary parent updates", func(t *testing.T) {
@@ -727,8 +700,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			globalParentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		globalParent := helpers.GetResponseData(t, globalParentResponse, "category")
 		globalParentID := uint(globalParent["id"].(float64))
 
@@ -742,8 +714,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			global2W,
 			http.StatusCreated,
-			"",
-		)
+			)
 		global2 := helpers.GetResponseData(t, global2Response, "category")
 		global2ID := uint(global2["id"].(float64))
 
@@ -762,8 +733,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateGlobalW,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedGlobal2 := helpers.GetResponseData(t, updateGlobalResponse, "category")
 		assert.Equal(t, float64(globalParentID), updatedGlobal2["parentId"].(float64))
 		assert.True(t, updatedGlobal2["isGlobal"].(bool))
@@ -781,8 +751,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerCatW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		sellerCat := helpers.GetResponseData(t, sellerCatResponse, "category")
 		sellerCatID := uint(sellerCat["id"].(float64))
 
@@ -801,8 +770,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateSellerW,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedSellerCat := helpers.GetResponseData(t, updateSellerResponse, "category")
 		assert.Equal(
 			t,
@@ -821,8 +789,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerParentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		sellerParent := helpers.GetResponseData(t, sellerParentResponse, "category")
 		sellerParentID := uint(sellerParent["id"].(float64))
 
@@ -841,8 +808,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateSellerW2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedSellerCat2 := helpers.GetResponseData(t, updateSellerResponse2, "category")
 		assert.Equal(t, float64(sellerParentID), updatedSellerCat2["parentId"].(float64))
 		assert.False(t, updatedSellerCat2["isGlobal"].(bool))
@@ -866,8 +832,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -878,13 +843,13 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Updated description",
 		}
 		w1 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq)
-		helpers.AssertErrorResponse(t, w1, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w1, http.StatusUnauthorized)
 
 		// Customer role - should return 403 (authenticated but insufficient permissions)
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 		w2 := client.Put(t, fmt.Sprintf("/api/categories/%d", categoryID), updateReq)
-		helpers.AssertErrorResponse(t, w2, http.StatusForbidden, "")
+		helpers.AssertErrorResponse(t, w2, http.StatusForbidden)
 	})
 
 	t.Run("Cross-user/seller restrictions", func(t *testing.T) {
@@ -901,8 +866,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			globalW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		globalCat := helpers.GetResponseData(t, globalResponse, "category")
 		globalCatID := uint(globalCat["id"].(float64))
 
@@ -915,7 +879,7 @@ func TestUpdateCategory(t *testing.T) {
 			"description": "Trying to hack",
 		}
 		w1 := client.Put(t, fmt.Sprintf("/api/categories/%d", globalCatID), updateGlobalReq)
-		helpers.AssertErrorResponse(t, w1, http.StatusForbidden, "")
+		helpers.AssertErrorResponse(t, w1, http.StatusForbidden)
 
 		// Seller creates own category
 		sellerReq := map[string]interface{}{
@@ -927,8 +891,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			sellerW,
 			http.StatusCreated,
-			"",
-		)
+			)
 
 		// Note: Testing "another seller" would require a second seller account in seeds
 		// For now, we verify admin can update any global category
@@ -944,8 +907,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			w2,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCat := helpers.GetResponseData(t, updateResponse, "category")
 		assert.Equal(t, "Updated Restrictions Global", updatedCat["name"])
 		assert.True(t, updatedCat["isGlobal"].(bool))
@@ -969,8 +931,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
 
@@ -985,8 +946,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child1W,
 			http.StatusCreated,
-			"",
-		)
+			)
 
 		child2Req := map[string]interface{}{
 			"name":        "Child 2",
@@ -998,8 +958,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			child2W,
 			http.StatusCreated,
-			"",
-		)
+			)
 
 		// Update parent category that has children - should succeed
 		updateParentReq := map[string]interface{}{
@@ -1011,8 +970,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateParentW,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedParent := helpers.GetResponseData(t, updateParentResponse, "category")
 
 		assert.Equal(t, "Updated Parent Category", updatedParent["name"])
@@ -1020,7 +978,7 @@ func TestUpdateCategory(t *testing.T) {
 
 		// Verify children still exist by getting all categories (children should still be intact)
 		getChildW := client.Get(t, "/api/categories")
-		helpers.AssertSuccessResponse(t, getChildW, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, getChildW, http.StatusOK)
 		// Children should still be intact (detailed verification would require GET by ID or checking hierarchy)
 	})
 
@@ -1038,8 +996,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -1055,8 +1012,7 @@ func TestUpdateCategory(t *testing.T) {
 			t,
 			updateW,
 			http.StatusOK,
-			"",
-		)
+			)
 		updatedCategory := helpers.GetResponseData(t, updateResponse, "category")
 
 		assert.Equal(t, category["name"], updatedCategory["name"])

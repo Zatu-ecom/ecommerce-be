@@ -45,8 +45,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -59,8 +58,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -87,8 +85,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -101,8 +98,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -129,8 +125,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -143,8 +138,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"",
-		)
+			)
 	})
 
 	t.Run("Public access without seller ID fails", func(t *testing.T) {
@@ -156,8 +150,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
-		)
+			)
 	})
 
 	// ============================================================================
@@ -178,8 +171,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -193,8 +185,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -221,8 +212,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -232,8 +222,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -260,8 +249,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -274,8 +262,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"",
-		)
+			)
 	})
 
 	t.Run("Admin can get any category", func(t *testing.T) {
@@ -292,8 +279,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -306,8 +292,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify admin can access seller-specific category
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -315,8 +300,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			categoryID,
 			uint(returnedCategory["id"].(float64)),
-			"",
-		)
+			)
 		assert.False(t, returnedCategory["isGlobal"].(bool), "Should be seller-specific")
 	})
 
@@ -334,8 +318,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusNotFound,
-			"",
-		)
+			)
 	})
 
 	t.Run("Invalid category ID format", func(t *testing.T) {
@@ -348,8 +331,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
-		)
+			)
 	})
 
 	// ============================================================================
@@ -370,8 +352,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			createW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -381,8 +362,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		// Verify all required fields
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -422,8 +402,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
 
@@ -438,8 +417,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			childW,
 			http.StatusCreated,
-			"",
-		)
+			)
 		childCategory := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(childCategory["id"].(float64))
 
@@ -449,8 +427,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
-		)
+			)
 
 		returnedCategory := helpers.GetResponseData(t, response, "category")
 		assert.NotNil(t, returnedCategory["parentId"], "Child should have parentId")

@@ -5,13 +5,13 @@ type ProductOptionCreateRequest struct {
 	Name        string                      `json:"name"        binding:"required,min=2,max=50"`
 	DisplayName string                      `json:"displayName" binding:"required,min=3,max=100"`
 	Position    int                         `json:"position"`
-	Values      []ProductOptionValueRequest `json:"values"`
+	Values      []ProductOptionValueRequest `json:"values"      binding:"omitempty,dive"`
 }
 
 // ProductOptionUpdateRequest represents the request body for updating a product option
 type ProductOptionUpdateRequest struct {
-	DisplayName string `json:"displayName" binding:"min=3,max=100"`
-	Position    int    `json:"position"`
+	DisplayName *string `json:"displayName"        binding:"omitempty,min=3,max=100"`
+	Position    *int    `json:"position,omitempty"`
 }
 
 // ProductOptionValueRequest represents a product option value in requests
@@ -65,7 +65,7 @@ type ProductOptionListResponse struct {
 
 // ProductOptionBulkUpdateItem represents a single option update in bulk operation
 type ProductOptionBulkUpdateItem struct {
-	OptionID    uint   `json:"optionId" binding:"required"`
+	OptionID    uint   `json:"optionId"    binding:"required"`
 	DisplayName string `json:"displayName" binding:"omitempty,min=3,max=100"`
 	Position    int    `json:"position"`
 }
@@ -77,9 +77,9 @@ type ProductOptionBulkUpdateRequest struct {
 
 // ProductOptionValueBulkUpdateItem represents a single option value update in bulk operation
 type ProductOptionValueBulkUpdateItem struct {
-	ValueID     uint   `json:"valueId" binding:"required"`
+	ValueID     uint   `json:"valueId"     binding:"required"`
 	DisplayName string `json:"displayName" binding:"omitempty,min=1,max=100"`
-	ColorCode   string `json:"colorCode" binding:"omitempty,len=7"`
+	ColorCode   string `json:"colorCode"   binding:"omitempty,len=7"`
 	Position    int    `json:"position"`
 }
 

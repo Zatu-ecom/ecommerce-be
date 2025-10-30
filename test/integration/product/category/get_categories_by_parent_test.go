@@ -74,7 +74,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 				t,
 				getW,
 				http.StatusOK,
-				"",
 			)
 
 			// Verify response contains categories
@@ -113,7 +112,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -142,7 +140,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Verify response contains both children
@@ -177,7 +174,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 				t,
 				parentW,
 				http.StatusCreated,
-				"",
 			)
 			parent := helpers.GetResponseData(t, parentResponse, "category")
 			parentID := uint(parent["id"].(float64))
@@ -199,7 +195,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 				t,
 				getW,
 				http.StatusOK,
-				"",
 			)
 
 			// Should return empty array (no access to other seller's categories)
@@ -223,7 +218,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -252,7 +246,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Should return global children
@@ -274,7 +267,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
@@ -287,7 +279,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
@@ -309,7 +300,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -327,7 +317,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		categories := getCategoriesFromResponse(response)
@@ -353,7 +342,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -372,7 +360,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		categories := getCategoriesFromResponse(response)
@@ -393,7 +380,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		categories := getCategoriesFromResponse(response)
@@ -415,7 +401,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
@@ -429,7 +414,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		categories := getCategoriesFromResponse(response)
@@ -446,7 +430,6 @@ func TestGetCategoriesByParent(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 }

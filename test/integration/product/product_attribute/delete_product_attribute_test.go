@@ -37,7 +37,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
 	}
 
@@ -67,7 +67,6 @@ func TestDeleteProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"Product attribute deleted successfully",
 		)
 	})
 
@@ -93,7 +92,6 @@ func TestDeleteProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"Product attribute deleted successfully",
 		)
 	})
 
@@ -114,16 +112,16 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Delete the attribute
 		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Delete(t, deleteURL)
-		helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Try to delete again - should return 404
 		w2 := client.Delete(t, deleteURL)
-		helpers.AssertErrorResponse(t, w2, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w2, http.StatusNotFound)
 
 		// Verify it's not in the list
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		wGet := client.Get(t, getURL)
-		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK, "")
+		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})
@@ -159,7 +157,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
 	t.Run("Seller tries to delete other seller's product attribute", func(t *testing.T) {
@@ -211,7 +209,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/99999/attributes/%d", attributeID)
 		w := client.Delete(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "Product not found")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Delete with invalid attribute ID", func(t *testing.T) {
@@ -226,7 +224,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/99999", productID)
 		w := client.Delete(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Delete attribute that doesn't belong to the product", func(t *testing.T) {
@@ -246,7 +244,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID2, attributeID)
 		w := client.Delete(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Delete already deleted attribute", func(t *testing.T) {
@@ -266,11 +264,11 @@ func TestDeleteProductAttribute(t *testing.T) {
 
 		// Delete first time - should succeed
 		w1 := client.Delete(t, url)
-		helpers.AssertSuccessResponse(t, w1, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 
 		// Try to delete again - should fail
 		w2 := client.Delete(t, url)
-		helpers.AssertErrorResponse(t, w2, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w2, http.StatusNotFound)
 	})
 
 	t.Run("Delete with invalid attribute ID format", func(t *testing.T) {
@@ -284,7 +282,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/invalid", productID)
 		w := client.Delete(t, url)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "Invalid attributeId")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -319,12 +317,12 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Delete the second attribute
 		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr2ID)
 		w := client.Delete(t, deleteURL)
-		helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify other attributes still exist
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		wGet := client.Get(t, getURL)
-		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK, "")
+		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})

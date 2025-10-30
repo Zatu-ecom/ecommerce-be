@@ -38,7 +38,7 @@ func TestGetAllCategories(t *testing.T) {
 		// Create global category (as admin would)
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
-		
+
 		globalReq := map[string]interface{}{
 			"name":        "Global Electronics",
 			"description": "Global electronics category",
@@ -54,7 +54,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.Post(t, "/api/categories", sellerReq)
 
 		// Now test public access with X-Seller-ID header
-		client.SetToken("") // Clear token for public access
+		client.SetToken("")                               // Clear token for public access
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Jane Merchant's seller ID
 
 		getW := client.Get(t, "/api/categories")
@@ -62,7 +62,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Verify response structure
@@ -90,7 +89,7 @@ func TestGetAllCategories(t *testing.T) {
 	})
 
 	t.Run("Public access without seller ID fails", func(t *testing.T) {
-		client.SetToken("")                               // No JWT token
+		client.SetToken("")                              // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "") // No X-Seller-ID
 
 		getW := client.Get(t, "/api/categories")
@@ -98,12 +97,11 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
 	t.Run("Public access with invalid seller ID fails", func(t *testing.T) {
-		client.SetToken("")                                       // No JWT token
+		client.SetToken("")                                     // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "invalid") // Invalid seller ID
 
 		getW := client.Get(t, "/api/categories")
@@ -111,12 +109,11 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
 	t.Run("Public access with zero seller ID fails", func(t *testing.T) {
-		client.SetToken("")                                  // No JWT token
+		client.SetToken("")                               // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "0") // Zero seller ID
 
 		getW := client.Get(t, "/api/categories")
@@ -124,7 +121,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusBadRequest,
-			"",
 		)
 	})
 
@@ -141,7 +137,7 @@ func TestGetAllCategories(t *testing.T) {
 		// Create global category as admin
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
-		
+
 		globalReq := map[string]interface{}{
 			"name":        "Global Furniture",
 			"description": "Global furniture category",
@@ -162,7 +158,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Verify response
@@ -218,7 +213,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Admin should see ALL categories (global + all seller-specific)
@@ -263,7 +257,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			parentW,
 			http.StatusCreated,
-			"",
 		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
@@ -279,7 +272,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			childW,
 			http.StatusCreated,
-			"",
 		)
 		childCategory := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(childCategory["id"].(float64))
@@ -298,7 +290,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Verify hierarchical structure
@@ -316,12 +307,12 @@ func TestGetAllCategories(t *testing.T) {
 		}
 
 		assert.NotNil(t, foundParent, "Should find parent category")
-		
+
 		// Check if parent has children
 		if children, ok := foundParent["children"]; ok && children != nil {
 			childrenList := children.([]interface{})
 			assert.GreaterOrEqual(t, len(childrenList), 1, "Parent should have children")
-			
+
 			// Note: The hierarchical structure in GetAllCategories returns a tree,
 			// but the children array is built by appending child objects directly.
 			// The children of children (grandchildren) should also be populated.
@@ -332,8 +323,13 @@ func TestGetAllCategories(t *testing.T) {
 				// Verify child has the correct structure (name, id, etc.)
 				assert.NotNil(t, firstChild["id"], "Child should have an ID")
 				assert.NotNil(t, firstChild["name"], "Child should have a name")
-				assert.Equal(t, "Child Category Hierarchy", firstChild["name"], "Child should have correct name")
-				
+				assert.Equal(
+					t,
+					"Child Category Hierarchy",
+					firstChild["name"],
+					"Child should have correct name",
+				)
+
 				// Check if grandchildren exist (this may be populated or not depending on service implementation)
 				// If grandchildren are present, verify the structure
 				if grandchildren, ok := firstChild["children"]; ok && grandchildren != nil {
@@ -342,7 +338,12 @@ func TestGetAllCategories(t *testing.T) {
 						// If grandchildren are populated, verify the first one
 						firstGrandchild := grandchildrenList[0].(map[string]interface{})
 						assert.NotNil(t, firstGrandchild["id"], "Grandchild should have an ID")
-						assert.Equal(t, "Grandchild Category Hierarchy", firstGrandchild["name"], "Grandchild should have correct name")
+						assert.Equal(
+							t,
+							"Grandchild Category Hierarchy",
+							firstGrandchild["name"],
+							"Grandchild should have correct name",
+						)
 					}
 					// Note: We don't assert that grandchildren MUST exist,
 					// as the API might only return 1-level deep hierarchy
@@ -371,7 +372,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Should return only global categories
@@ -413,7 +413,6 @@ func TestGetAllCategories(t *testing.T) {
 			t,
 			getW,
 			http.StatusOK,
-			"",
 		)
 
 		// Verify response structure

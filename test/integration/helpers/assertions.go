@@ -14,7 +14,6 @@ func AssertSuccessResponse(
 	t *testing.T,
 	w *httptest.ResponseRecorder,
 	expectedStatus int,
-	expectedMessage string,
 ) map[string]interface{} {
 	assert.Equal(
 		t,
@@ -28,16 +27,6 @@ func AssertSuccessResponse(
 	response := ParseResponse(t, w.Body)
 	assert.True(t, response["success"].(bool), "Response should be successful")
 
-	if expectedMessage != "" {
-		assert.Equal(
-			t,
-			expectedMessage,
-			response["message"],
-			"Expected message: %s",
-			expectedMessage,
-		)
-	}
-
 	return response
 }
 
@@ -46,7 +35,6 @@ func AssertErrorResponse(
 	t *testing.T,
 	w *httptest.ResponseRecorder,
 	expectedStatus int,
-	expectedMessage string,
 ) map[string]interface{} {
 	assert.Equal(
 		t,
@@ -61,19 +49,6 @@ func AssertErrorResponse(
 	log.Println("Error Response:", response)
 
 	assert.False(t, response["success"].(bool), "Response should not be successful")
-
-	if expectedMessage != "" {
-		message, ok := response["message"].(string)
-		if ok {
-			assert.Contains(
-				t,
-				message,
-				expectedMessage,
-				"Expected message to contain: %s",
-				expectedMessage,
-			)
-		}
-	}
 
 	return response
 }

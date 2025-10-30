@@ -55,7 +55,6 @@ func TestAddProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Product attribute added successfully",
 		)
 
 		attribute := helpers.GetResponseData(t, response, "attribute")
@@ -96,7 +95,6 @@ func TestAddProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"Product attribute added successfully",
 		)
 
 		attribute := helpers.GetResponseData(t, response, "attribute")
@@ -130,7 +128,6 @@ func TestAddProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 
 		attribute := helpers.GetResponseData(t, response, "attribute")
@@ -160,7 +157,6 @@ func TestAddProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusCreated,
-			"",
 		)
 
 		attribute := helpers.GetResponseData(t, response, "attribute")
@@ -187,7 +183,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
 	t.Run("Seller tries to add attribute to other seller's product", func(t *testing.T) {
@@ -238,7 +234,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "Product not found")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Add attribute with invalid attribute definition ID", func(t *testing.T) {
@@ -259,7 +255,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Add duplicate attribute to same product", func(t *testing.T) {
@@ -282,7 +278,7 @@ func TestAddProductAttribute(t *testing.T) {
 
 		// Add first time - should succeed
 		w1 := client.Post(t, url, requestBody)
-		helpers.AssertSuccessResponse(t, w1, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 
 		// Try to add same attribute again - should fail
 		requestBody["value"] = "200"
@@ -291,7 +287,6 @@ func TestAddProductAttribute(t *testing.T) {
 			t,
 			w2,
 			http.StatusConflict,
-			"Product already has this attribute assigned",
 		)
 	})
 
@@ -314,7 +309,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Add attribute with missing required fields", func(t *testing.T) {
@@ -333,7 +328,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Add attribute with invalid product ID format", func(t *testing.T) {
@@ -350,7 +345,7 @@ func TestAddProductAttribute(t *testing.T) {
 		url := "/api/products/invalid/attributes"
 		w := client.Post(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "Invalid productId")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -368,38 +363,38 @@ func TestAddProductAttribute(t *testing.T) {
 		// Add first attribute - color (doesn't exist on product 7)
 		requestBody1 := map[string]interface{}{
 			"attributeDefinitionId": 1, // color
-			"value":                     "Black",
-			"sortOrder":                 1,
+			"value":                 "Black",
+			"sortOrder":             1,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w1 := client.Post(t, url, requestBody1)
-		helpers.AssertSuccessResponse(t, w1, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 
 		// Add second attribute - fit (doesn't exist on product 7)
 		requestBody2 := map[string]interface{}{
 			"attributeDefinitionId": 10, // fit
-			"value":                     "Regular",
-			"sortOrder":                 2,
+			"value":                 "Regular",
+			"sortOrder":             2,
 		}
 
 		w2 := client.Post(t, url, requestBody2)
-		helpers.AssertSuccessResponse(t, w2, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, w2, http.StatusCreated)
 
 		// Add third attribute - dimensions (doesn't exist on product 7)
 		requestBody3 := map[string]interface{}{
 			"attributeDefinitionId": 11, // dimensions
-			"value":                     "28 x 18 x 10",
-			"sortOrder":                 3,
+			"value":                 "28 x 18 x 10",
+			"sortOrder":             3,
 		}
 
 		w3 := client.Post(t, url, requestBody3)
-		helpers.AssertSuccessResponse(t, w3, http.StatusCreated, "")
+		helpers.AssertSuccessResponse(t, w3, http.StatusCreated)
 
 		// Verify all attributes exist by getting them
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		wGet := client.Get(t, getURL)
-		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK, "")
+		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})

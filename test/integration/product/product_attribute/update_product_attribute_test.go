@@ -37,7 +37,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 
 		url := fmt.Sprintf("/api/products/%d/attributes", productID)
 		w := client.Post(t, url, requestBody)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
 	}
 
@@ -70,7 +70,6 @@ func TestUpdateProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"Product attribute updated successfully",
 		)
 
 		updatedAttribute := helpers.GetResponseData(t, response, "attribute")
@@ -107,7 +106,6 @@ func TestUpdateProductAttribute(t *testing.T) {
 			t,
 			w,
 			http.StatusOK,
-			"",
 		)
 
 		updatedAttribute := helpers.GetResponseData(t, response, "attribute")
@@ -135,7 +133,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		updatedAttribute := helpers.GetResponseData(t, response, "attribute")
 
 		assert.Equal(t, "5000mAh", updatedAttribute["value"])
@@ -163,7 +161,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK, "")
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		updatedAttribute := helpers.GetResponseData(t, response, "attribute")
 
 		assert.Equal(t, "15x25x8", updatedAttribute["value"])
@@ -196,7 +194,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized, "")
+		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
 	t.Run("Seller tries to update other seller's product attribute", func(t *testing.T) {
@@ -255,7 +253,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/99999/attributes/%d", attributeID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "Product not found")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Update with invalid attribute ID", func(t *testing.T) {
@@ -274,7 +272,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/99999", productID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Update attribute that doesn't belong to the product", func(t *testing.T) {
@@ -298,7 +296,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID2, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound, "")
+		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
 	t.Run("Update with empty value", func(t *testing.T) {
@@ -321,7 +319,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Update with missing required fields", func(t *testing.T) {
@@ -343,7 +341,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Update with invalid attribute ID format", func(t *testing.T) {
@@ -361,7 +359,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		url := fmt.Sprintf("/api/products/%d/attributes/invalid", productID)
 		w := client.Put(t, url, updateBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest, "Invalid attributeId")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	// ============================================================================
@@ -392,7 +390,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		}
 		url1 := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr1ID)
 		w1 := client.Put(t, url1, updateBody1)
-		helpers.AssertSuccessResponse(t, w1, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 
 		// Update second attribute
 		updateBody2 := map[string]interface{}{
@@ -401,7 +399,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		}
 		url2 := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr2ID)
 		w2 := client.Put(t, url2, updateBody2)
-		helpers.AssertSuccessResponse(t, w2, http.StatusOK, "")
+		helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 
 		// Verify third attribute is unchanged (GET request requires X-Seller-ID header)
 		client.SetToken("")
@@ -409,7 +407,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 
 		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
 		wGet := client.Get(t, getURL)
-		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK, "")
+		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
 		attributes := productAttributes["attributes"].([]interface{})

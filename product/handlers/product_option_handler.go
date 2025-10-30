@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
@@ -42,8 +43,14 @@ func (h *ProductOptionHandler) CreateOption(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Create option
-	optionResponse, err := h.optionService.CreateOption(productID, req)
+	optionResponse, err := h.optionService.CreateOption(productID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_PRODUCT_OPTION_MSG)
 		return
@@ -76,8 +83,14 @@ func (h *ProductOptionHandler) UpdateOption(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Update option
-	optionResponse, err := h.optionService.UpdateOption(productID, optionID, req)
+	optionResponse, err := h.optionService.UpdateOption(productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_PRODUCT_OPTION_MSG)
 		return
@@ -103,8 +116,14 @@ func (h *ProductOptionHandler) DeleteOption(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Delete option
-	err = h.optionService.DeleteOption(productID, optionID)
+	err = h.optionService.DeleteOption(productID, sellerId, optionID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_PRODUCT_OPTION_MSG)
 		return
@@ -164,8 +183,14 @@ func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	response, err := h.optionService.BulkUpdateOptions(productID, req)
+	response, err := h.optionService.BulkUpdateOptions(productID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTIONS_MSG)
 		return
@@ -175,4 +200,3 @@ func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
 		"updatedCount": response.UpdatedCount,
 	})
 }
-

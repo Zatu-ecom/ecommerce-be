@@ -14,21 +14,27 @@ import (
 type ProductOptionService interface {
 	CreateOption(
 		productID uint,
+		sellerId uint,
 		req model.ProductOptionCreateRequest,
 	) (*model.ProductOptionResponse, error)
 	UpdateOption(
 		productID uint,
 		optionID uint,
+		sellerId uint,
 		req model.ProductOptionUpdateRequest,
 	) (*model.ProductOptionResponse, error)
-	DeleteOption(productID uint, optionID uint) error
+	DeleteOption(productID uint, sellerId uint, optionID uint) error
 	BulkUpdateOptions(
 		productID uint,
+		sellerId uint,
 		req model.ProductOptionBulkUpdateRequest,
 	) (*model.BulkUpdateResponse, error)
 
 	// GetAvailableOptions retrieves all available options and their values for a product
-	GetAvailableOptions(productID uint, sellerID *uint) (*model.GetAvailableOptionsResponse, error)
+	GetAvailableOptions(
+		productID uint,
+		sellerID *uint,
+	) (*model.GetAvailableOptionsResponse, error)
 }
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
@@ -61,10 +67,15 @@ func NewProductOptionService(
  ***********************************************/
 func (s *ProductOptionServiceImpl) CreateOption(
 	productID uint,
+	sellerId uint,
 	req model.ProductOptionCreateRequest,
 ) (*model.ProductOptionResponse, error) {
 	// Validate product exists
 	if err := s.optionValidator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
 		return nil, err
 	}
 
@@ -118,10 +129,15 @@ func (s *ProductOptionServiceImpl) CreateOption(
 func (s *ProductOptionServiceImpl) UpdateOption(
 	productID uint,
 	optionID uint,
+	sellerId uint,
 	req model.ProductOptionUpdateRequest,
 ) (*model.ProductOptionResponse, error) {
 	// Validate product and option
 	if err := s.valueValidator.ValidateProductAndOption(productID, optionID); err != nil {
+		return nil, err
+	}
+
+	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
 		return nil, err
 	}
 
@@ -155,10 +171,15 @@ func (s *ProductOptionServiceImpl) UpdateOption(
  ***********************************************/
 func (s *ProductOptionServiceImpl) DeleteOption(
 	productID uint,
+	sellerId uint,
 	optionID uint,
 ) error {
 	// Validate product and option
 	if err := s.valueValidator.ValidateProductAndOption(productID, optionID); err != nil {
+		return err
+	}
+
+	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
 		return err
 	}
 
@@ -240,10 +261,15 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
  ***********************************************/
 func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 	productID uint,
+	sellerId uint,
 	req model.ProductOptionBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
 	// Validate product exists
 	if err := s.optionValidator.ValidateProductExists(productID); err != nil {
+		return nil, err
+	}
+
+	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
 		return nil, err
 	}
 
@@ -294,5 +320,3 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 		Message:      utils.PRODUCT_OPTIONS_BULK_UPDATED_MSG,
 	}, nil
 }
-
-

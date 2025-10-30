@@ -31,9 +31,6 @@ func NewProductOptionValidator(
 func (v *ProductOptionValidator) ValidateProductExists(productID uint) error {
 	_, err := v.productRepo.FindByID(productID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductNotFound
-		}
 		return err
 	}
 	return nil
@@ -90,6 +87,22 @@ func (v *ProductOptionValidator) ValidateOptionNotInUse(optionID uint) error {
 			utils.PRODUCT_OPTION_IN_USE_MSG,
 			len(variantIDs),
 		)
+	}
+
+	return nil
+}
+
+func (v *ProductOptionValidator) ValidateProductBelongsToSeller(
+	productID uint,
+	sellerID uint,
+) error {
+	product, err := v.productRepo.FindByID(productID)
+	if err != nil {
+		return err
+	}
+
+	if product.SellerID != sellerID {
+		return prodErrors.ErrUnauthorizedProductAccess
 	}
 
 	return nil

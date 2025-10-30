@@ -44,4 +44,10 @@ var (
 		Message:    utils.PRODUCT_ATTRIBUTES_REQUIRED_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrUnauthorizedProductAccess = &commonerrors.AppError{
+		Code:       utils.UNAUTHORIZED_PRODUCT_ACCESS_CODE,
+		Message:    utils.PRODUCT_UNAUTHORIZED_ACCESS_MSG,
+		StatusCode: http.StatusForbidden,
+	}
 )

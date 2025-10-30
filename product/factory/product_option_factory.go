@@ -34,11 +34,11 @@ func (f *ProductOptionFactory) UpdateOptionEntity(
 	option *entity.ProductOption,
 	req model.ProductOptionUpdateRequest,
 ) *entity.ProductOption {
-	if req.DisplayName != "" {
-		option.DisplayName = req.DisplayName
+	if req.DisplayName != nil {
+		option.DisplayName = *req.DisplayName
 	}
-	if req.Position != 0 || req.Position != option.Position {
-		option.Position = req.Position
+	if req.Position != nil {
+		option.Position = *req.Position
 	}
 	return option
 }

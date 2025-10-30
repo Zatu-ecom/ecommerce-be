@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"ecommerce-be/product/entity"
+	productError "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/query"
-	"ecommerce-be/product/utils"
 
 	"gorm.io/gorm"
 )
@@ -77,7 +77,7 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 		First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
+			return nil, productError.ErrProductNotFound
 		}
 		return nil, result.Error
 	}
