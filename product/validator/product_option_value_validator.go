@@ -27,18 +27,23 @@ func NewProductOptionValueValidator(
 	}
 }
 
-// ValidateProductAndOption validates both product and option exist and belong together
-func (v *ProductOptionValueValidator) ValidateProductAndOption(
+// ValidateSellerProductAndOption validates both product and option exist and belong together
+func (v *ProductOptionValueValidator) ValidateSellerProductAndOption(
+	sellerID uint,
 	productID uint,
 	optionID uint,
 ) error {
 	// Validate product exists
-	_, err := v.productRepo.FindByID(productID)
+	product, err := v.productRepo.FindByID(productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return prodErrors.ErrProductNotFound
 		}
 		return err
+	}
+
+	if product.SellerID != sellerID {
+		return prodErrors.ErrUnauthorizedProductAccess
 	}
 
 	// Validate option exists and belongs to product

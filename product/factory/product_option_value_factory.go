@@ -52,14 +52,14 @@ func (f *ProductOptionValueFactory) UpdateOptionValueEntity(
 	optionValue *entity.ProductOptionValue,
 	req model.ProductOptionValueUpdateRequest,
 ) *entity.ProductOptionValue {
-	if req.DisplayName != "" {
-		optionValue.DisplayName = req.DisplayName
+	if req.DisplayName != nil {
+		optionValue.DisplayName = *req.DisplayName
 	}
-	if req.ColorCode != "" {
-		optionValue.ColorCode = req.ColorCode
+	if req.ColorCode != nil {
+		optionValue.ColorCode = *req.ColorCode
 	}
-	if req.Position != 0 {
-		optionValue.Position = req.Position
+	if req.Position != nil {
+		optionValue.Position = *req.Position
 	}
 	return optionValue
 }

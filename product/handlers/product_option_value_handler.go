@@ -3,7 +3,10 @@ package handlers
 import (
 	"net/http"
 
+	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/handler"
+	"ecommerce-be/common/validator"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -49,8 +52,14 @@ func (h *ProductOptionValueHandler) AddOptionValue(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Add option value
-	valueResponse, err := h.valueService.AddOptionValue(productID, optionID, req)
+	valueResponse, err := h.valueService.AddOptionValue(productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_OPTION_VALUE_MSG)
 		return
@@ -88,8 +97,25 @@ func (h *ProductOptionValueHandler) UpdateOptionValue(c *gin.Context) {
 		return
 	}
 
+	if err := validator.RequireAtLeastOneNonNilPointer(&req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Update option value
-	valueResponse, err := h.valueService.UpdateOptionValue(productID, optionID, valueID, req)
+	valueResponse, err := h.valueService.UpdateOptionValue(
+		productID,
+		optionID,
+		valueID,
+		sellerId,
+		req,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_OPTION_VALUE_MSG)
 		return
@@ -120,8 +146,14 @@ func (h *ProductOptionValueHandler) DeleteOptionValue(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Delete option value
-	err = h.valueService.DeleteOptionValue(productID, optionID, valueID)
+	err = h.valueService.DeleteOptionValue(productID, optionID, sellerId, valueID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_OPTION_VALUE_MSG)
 		return
@@ -152,8 +184,14 @@ func (h *ProductOptionValueHandler) BulkAddOptionValues(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Bulk add option values
-	valueResponses, err := h.valueService.BulkAddOptionValues(productID, optionID, req)
+	valueResponses, err := h.valueService.BulkAddOptionValues(productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_OPTION_VALUE_MSG)
 		return
@@ -188,8 +226,14 @@ func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	response, err := h.valueService.BulkUpdateOptionValues(productID, optionID, req)
+	response, err := h.valueService.BulkUpdateOptionValues(productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTION_VALUES_MSG)
 		return
@@ -199,4 +243,3 @@ func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
 		"updatedCount": response.UpdatedCount,
 	})
 }
-

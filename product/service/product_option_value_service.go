@@ -15,23 +15,32 @@ type ProductOptionValueService interface {
 	AddOptionValue(
 		productID uint,
 		optionID uint,
+		sellerID uint,
 		req model.ProductOptionValueRequest,
 	) (*model.ProductOptionValueResponse, error)
 	UpdateOptionValue(
 		productID uint,
 		optionID uint,
 		valueID uint,
+		sellerID uint,
 		req model.ProductOptionValueUpdateRequest,
 	) (*model.ProductOptionValueResponse, error)
-	DeleteOptionValue(productID uint, optionID uint, valueID uint) error
+	DeleteOptionValue(
+		productID uint,
+		optionID uint,
+		sellerID uint,
+		valueID uint,
+	) error
 	BulkAddOptionValues(
 		productID uint,
 		optionID uint,
+		sellerID uint,
 		req model.ProductOptionValueBulkAddRequest,
 	) ([]model.ProductOptionValueResponse, error)
 	BulkUpdateOptionValues(
 		productID uint,
 		optionID uint,
+		sellerID uint,
 		req model.ProductOptionValueBulkUpdateRequest,
 	) (*model.BulkUpdateResponse, error)
 }
@@ -63,10 +72,11 @@ func NewProductOptionValueService(
 func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	productID uint,
 	optionID uint,
+	sellerID uint,
 	req model.ProductOptionValueRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+	if err := s.validator.ValidateSellerProductAndOption(sellerID, productID, optionID); err != nil {
 		return nil, err
 	}
 
@@ -95,10 +105,11 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	productID uint,
 	optionID uint,
 	valueID uint,
+	sellerID uint,
 	req model.ProductOptionValueUpdateRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+	if err := s.validator.ValidateSellerProductAndOption(sellerID, productID, optionID); err != nil {
 		return nil, err
 	}
 
@@ -132,10 +143,11 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	productID uint,
 	optionID uint,
+	sellerID uint,
 	valueID uint,
 ) error {
 	// Validate product and option
-	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+	if err := s.validator.ValidateSellerProductAndOption(sellerID, productID, optionID); err != nil {
 		return err
 	}
 
@@ -159,10 +171,11 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	productID uint,
 	optionID uint,
+	sellerID uint,
 	req model.ProductOptionValueBulkAddRequest,
 ) ([]model.ProductOptionValueResponse, error) {
 	// Validate product and option
-	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+	if err := s.validator.ValidateSellerProductAndOption(sellerID, productID, optionID); err != nil {
 		return nil, err
 	}
 
@@ -201,10 +214,11 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
 	productID uint,
 	optionID uint,
+	sellerID uint,
 	req model.ProductOptionValueBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
 	// Validate product and option
-	if err := s.validator.ValidateProductAndOption(productID, optionID); err != nil {
+	if err := s.validator.ValidateSellerProductAndOption(sellerID, productID, optionID); err != nil {
 		return nil, err
 	}
 

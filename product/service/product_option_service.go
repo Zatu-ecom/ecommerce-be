@@ -133,11 +133,7 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	req model.ProductOptionUpdateRequest,
 ) (*model.ProductOptionResponse, error) {
 	// Validate product and option
-	if err := s.valueValidator.ValidateProductAndOption(productID, optionID); err != nil {
-		return nil, err
-	}
-
-	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
+	if err := s.valueValidator.ValidateSellerProductAndOption(sellerId, productID, optionID); err != nil {
 		return nil, err
 	}
 
@@ -175,11 +171,7 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	optionID uint,
 ) error {
 	// Validate product and option
-	if err := s.valueValidator.ValidateProductAndOption(productID, optionID); err != nil {
-		return err
-	}
-
-	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
+	if err := s.valueValidator.ValidateSellerProductAndOption(sellerId, productID, optionID); err != nil {
 		return err
 	}
 

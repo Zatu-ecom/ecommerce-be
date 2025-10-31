@@ -35,6 +35,20 @@ var (
 		StatusCode: http.StatusBadRequest,
 	}
 
+	// ErrNoFieldsProvided is returned when no fields are provided in update request
+	ErrNoFieldsProvided = &AppError{
+		Code:       constants.NO_FIELDS_PROVIDED_CODE,
+		Message:    constants.NO_FIELDS_PROVIDED_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrInvalidRequestStruct is returned when request structure is invalid
+	ErrInvalidRequestStruct = &AppError{
+		Code:       constants.INVALID_REQUEST_STRUCT_CODE,
+		Message:    constants.INVALID_REQUEST_STRUCT_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
 	// ErrRoleDataMissing is returned when role data is missing in context
 	ErrRoleDataMissing = &AppError{
 		Code:       constants.ROLE_DATA_MISSING_CODE,

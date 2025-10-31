@@ -24,9 +24,9 @@ type ProductOptionValueRequest struct {
 
 // ProductOptionValueUpdateRequest represents the request body for updating a product option value
 type ProductOptionValueUpdateRequest struct {
-	DisplayName string `json:"displayName" binding:"omitempty,min=1,max=100"`
-	ColorCode   string `json:"colorCode"   binding:"omitempty,len=7"`
-	Position    int    `json:"position"`
+	DisplayName *string `json:"displayName" binding:"omitempty,min=1,max=100"`
+	ColorCode   *string `json:"colorCode"   binding:"omitempty,len=7"`
+	Position    *int    `json:"position"    binding:"omitempty"`
 }
 
 // ProductOptionValueBulkAddRequest represents the request body for bulk adding option values
