@@ -88,3 +88,20 @@ func AssertSellerCategory(t *testing.T, category map[string]interface{}, expecte
 	assert.NotNil(t, category["sellerId"], "Seller category should have sellerId")
 	assert.Equal(t, float64(expectedSellerID), category["sellerId"].(float64), "Seller ID mismatch")
 }
+
+// AssertStatusCodeOneOf verifies response has one of the expected status codes
+func AssertStatusCodeOneOf(t *testing.T, w *httptest.ResponseRecorder, expectedCodes ...int) {
+	for _, code := range expectedCodes {
+		if w.Code == code {
+			return
+		}
+	}
+	assert.Fail(t, fmt.Sprintf("Expected one of %v but got %d", expectedCodes, w.Code))
+}
+
+// AssertResponseStructure verifies response has proper error structure
+func AssertResponseStructure(t *testing.T, response map[string]interface{}, expectedSuccess bool) {
+	assert.NotNil(t, response["success"], "Response should have success field")
+	assert.Equal(t, expectedSuccess, response["success"], "Success field mismatch")
+	assert.NotNil(t, response["message"], "Response should have message field")
+}

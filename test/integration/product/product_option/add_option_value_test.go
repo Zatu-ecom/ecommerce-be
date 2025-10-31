@@ -80,11 +80,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		// Verify response
 		valueData := helpers.GetResponseData(t, response, "optionValue")
-		assert.Equal(t, "red", valueData["value"])
-		assert.Equal(t, "Red", valueData["displayName"])
-		assert.Equal(t, "#FF0000", valueData["colorCode"])
-		assert.Equal(t, float64(1), valueData["position"])
-		assert.NotNil(t, valueData["id"])
+		assertOptionValueFieldsWithColor(t, valueData, "red", "Red", "#FF0000", 1)
 	})
 
 	t.Run("Add value without colorCode", func(t *testing.T) {
@@ -112,8 +108,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		// Verify response
 		valueData := helpers.GetResponseData(t, response, "optionValue")
-		assert.Equal(t, "small", valueData["value"])
-		assert.Equal(t, "Small", valueData["displayName"])
+		assertOptionValueFields(t, valueData, "small", "Small")
 	})
 
 	t.Run("Add value without position", func(t *testing.T) {
@@ -141,8 +136,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		// Verify response
 		valueData := helpers.GetResponseData(t, response, "optionValue")
-		assert.Equal(t, "leather", valueData["value"])
-		assert.Equal(t, "Leather", valueData["displayName"])
+		assertOptionValueFields(t, valueData, "leather", "Leather")
 		assert.Equal(t, "#8B4513", valueData["colorCode"])
 	})
 
@@ -195,7 +189,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		// Verify response
 		valueData := helpers.GetResponseData(t, response, "optionValue")
-		assert.Equal(t, "regular", valueData["value"])
+		assertOptionValueFields(t, valueData, "regular", "Regular Fit")
 		assert.Equal(t, float64(0), valueData["position"])
 	})
 
@@ -315,14 +309,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		w := addOptionValue(otherProductID, optionID, "value1", "Value 1", "", 0)
 
-		// Should return 400, 403 or 404
-		assert.True(
-			t,
-			w.Code == http.StatusBadRequest || w.Code == http.StatusForbidden ||
-				w.Code == http.StatusNotFound,
-			"Expected 400, 403 or 404, got %d",
-			w.Code,
-		)
+		helpers.AssertStatusCodeOneOf(t, w, http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound)
 	})
 
 	// ============================================================================
@@ -411,13 +398,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		w := addOptionValue(productID2, optionID, "value1", "Value 1", "", 0)
 
-		// Should return 400 or 404
-		assert.True(
-			t,
-			w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
-			"Expected 400 or 404, got %d",
-			w.Code,
-		)
+		helpers.AssertStatusCodeOneOf(t, w, http.StatusBadRequest, http.StatusNotFound)
 	})
 
 	t.Run("Missing required field - value", func(t *testing.T) {

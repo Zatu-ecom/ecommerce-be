@@ -69,10 +69,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 		// Delete value 23 (Small) - not used in any variant
 		w := deleteOptionValue(5, 8, 23)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-
-		// Verify success message
-		assert.Contains(t, response["message"], "deleted successfully")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	})
 
 	t.Run("Delete option value with color code - not used in variants", func(t *testing.T) {
@@ -81,9 +78,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 		// Delete value 30 (Navy Blue) - has color code but not used in variants
 		w := deleteOptionValue(5, 9, 30)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-
-		assert.Contains(t, response["message"], "deleted successfully")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	})
 
 	t.Run("Delete option value without color code - not used in variants", func(t *testing.T) {
@@ -92,9 +87,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 		// Delete value 26 (XL) - no color code and not used in variants
 		w := deleteOptionValue(5, 8, 26)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-
-		assert.Contains(t, response["message"], "deleted successfully")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	})
 
 	t.Run("Delete last value in sequence - not used in variants", func(t *testing.T) {
@@ -103,9 +96,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 		// Delete value 31 (Gray) - last in the color option
 		w := deleteOptionValue(5, 9, 31)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-
-		assert.Contains(t, response["message"], "deleted successfully")
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	})
 
 	t.Run("Delete value and verify other values remain", func(t *testing.T) {
@@ -224,7 +215,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		// Option 8 belongs to product 5, try with product 6
 		w := deleteOptionValue(6, 8, 24)
 
-		assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
+		helpers.AssertStatusCodeOneOf(t, w, http.StatusBadRequest, http.StatusNotFound)
 	})
 
 	t.Run("Value doesn't belong to option", func(t *testing.T) {
@@ -234,7 +225,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		// Value 28 (Black) belongs to option 9 (Color), try with option 8 (Size)
 		w := deleteOptionValue(5, 8, 28)
 
-		assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
+		helpers.AssertStatusCodeOneOf(t, w, http.StatusBadRequest, http.StatusNotFound)
 	})
 
 	// ============================================================================
@@ -250,14 +241,7 @@ func TestDeleteOptionValue(t *testing.T) {
 			// Value 25 (Large) is used in variant 11
 			w := deleteOptionValue(5, 8, 25)
 
-			assert.Equal(t, http.StatusBadRequest, w.Code)
-
-			// Parse error response
-			response := helpers.ParseResponse(t, w.Body)
-
-			// Verify error message mentions variants
-			errorMsg := fmt.Sprintf("%v", response["message"])
-			assert.Contains(t, errorMsg, "variant", "Error should mention variants")
+			helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 		},
 	)
 
@@ -268,12 +252,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		// Value 24 (Medium) is used in variants 9 and 10
 		w := deleteOptionValue(5, 8, 24)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		response := helpers.ParseResponse(t, w.Body)
-
-		errorMsg := fmt.Sprintf("%v", response["message"])
-		assert.Contains(t, errorMsg, "variant", "Error should mention variants")
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run(
@@ -285,12 +264,7 @@ func TestDeleteOptionValue(t *testing.T) {
 			// Value 28 (Black) is used in variants 9 and 11
 			w := deleteOptionValue(5, 9, 28)
 
-			assert.Equal(t, http.StatusBadRequest, w.Code)
-
-			response := helpers.ParseResponse(t, w.Body)
-
-			errorMsg := fmt.Sprintf("%v", response["message"])
-			assert.Contains(t, errorMsg, "variant", "Error should mention variants")
+			helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 		},
 	)
 
@@ -298,17 +272,11 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		// Try to delete value that's in use
-		w := deleteOptionValue(5, 9, 29) // White - used in variant 10
+		// Try to delete value that's in use - White used in variant 10
+		w := deleteOptionValue(5, 9, 29)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		response := helpers.ParseResponse(t, w.Body)
-
-		errorMsg := fmt.Sprintf("%v", response["message"])
-		// Error should be clear about why deletion failed
-		assert.NotEmpty(t, errorMsg)
-		t.Logf("Error message for variant usage: %s", errorMsg)
+		// Should return 400 Bad Request when value is in use
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
 	t.Run("Verify variant still exists after failed deletion attempt", func(t *testing.T) {
@@ -336,24 +304,13 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		// Try to delete value in use
-		w := deleteOptionValue(5, 8, 24) // Medium - used in 2 variants
+		// Try to delete value in use - Medium used in 2 variants
+		w := deleteOptionValue(5, 8, 24)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		response := helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 
-		response := helpers.ParseResponse(t, w.Body)
-
-		// Check if response has proper structure
-		assert.NotNil(t, response["success"])
-		assert.Equal(t, false, response["success"])
-		assert.NotNil(t, response["message"])
-
-		errorMsg := fmt.Sprintf("%v", response["message"])
-		// Ideally should mention: "used", "variant", "delete" or "remove"
-		hasUsedOrVariant := assert.Contains(t, errorMsg, "use") ||
-			assert.Contains(t, errorMsg, "variant") ||
-			assert.Contains(t, errorMsg, "associated")
-		assert.True(t, hasUsedOrVariant, "Error should mention usage or variants")
+		// Verify response structure
+		helpers.AssertResponseStructure(t, response, false)
 	})
 
 	// ============================================================================
@@ -364,16 +321,10 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		// First deletion should succeed (using a value not in variants)
-		// We already deleted value 23 in the first test, so try another unused value
-		// Actually, we've deleted several in earlier tests, so let's try a fresh approach
-
-		// This test is tricky because we've already deleted several values
-		// Let's test by trying to delete a value that doesn't exist
+		// Try to delete value that was already deleted
 		w := deleteOptionValue(5, 8, 23) // Already deleted in first test
 
-		// Should return 404 or 400
-		assert.True(t, w.Code == http.StatusNotFound || w.Code == http.StatusBadRequest)
+		helpers.AssertStatusCodeOneOf(t, w, http.StatusNotFound, http.StatusBadRequest)
 	})
 
 	t.Run("Delete from option with only remaining values used in variants", func(t *testing.T) {

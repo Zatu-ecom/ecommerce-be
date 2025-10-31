@@ -55,6 +55,9 @@ func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 		protectedOptionRoutes.PUT("/:optionId/values/:valueId", m.valueHandler.UpdateOptionValue)
 		protectedOptionRoutes.DELETE("/:optionId/values/:valueId", m.valueHandler.DeleteOptionValue)
 		protectedOptionRoutes.POST("/:optionId/values/bulk", m.valueHandler.BulkAddOptionValues)
-		protectedOptionRoutes.PUT("/:optionId/values/bulk-update", m.valueHandler.BulkUpdateOptionValues)
+		protectedOptionRoutes.PUT(
+			"/:optionId/values/bulk-update",
+			m.valueHandler.BulkUpdateOptionValues,
+		)
 	}
 }
