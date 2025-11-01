@@ -16,6 +16,11 @@ const (
 	Seller2Password = "seller123"
 	Seller2UserID   = 2 // John Seller's user ID from seed data
 
+	// Another Seller (for Home & Living products)
+	Seller4Email    = "bob.store@example.com"
+	Seller4Password = "seller123"
+	Seller4UserID   = 4 // Bob Store's user ID from seed data
+
 	// Customer credentials
 	CustomerEmail    = "alice.j@example.com"
 	CustomerPassword = "customer123"

@@ -34,6 +34,7 @@ type VariantRepository interface {
 	DeleteVariantOptionValues(variantID uint) error
 	FindVariantsByIDs(variantIDs []uint) ([]entity.ProductVariant, error)
 	BulkUpdateVariants(variants []*entity.ProductVariant) error
+	UnsetAllDefaultVariantsForProduct(productID uint) error
 	GetProductVariantAggregation(productID uint) (*VariantAggregation, error)
 	GetProductsVariantAggregations(productIDs []uint) (map[uint]*VariantAggregation, error)
 	GetProductVariantsWithOptions(productID uint) ([]VariantWithOptions, error)
@@ -412,6 +413,14 @@ func (r *VariantRepositoryImpl) BulkUpdateVariants(variants []*entity.ProductVar
 		}
 		return nil
 	})
+}
+
+// UnsetAllDefaultVariantsForProduct sets is_default=false for all variants of a product
+// This is used to enforce "only one default variant per product" constraint
+func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(productID uint) error {
+	return r.db.Model(&entity.ProductVariant{}).
+		Where("product_id = ? AND is_default = ?", productID, true).
+		Update("is_default", false).Error
 }
 
 // GetProductVariantAggregation retrieves aggregated variant data for a single product

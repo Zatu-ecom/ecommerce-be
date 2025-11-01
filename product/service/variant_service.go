@@ -76,6 +76,23 @@ func NewVariantService(
 }
 
 /***********************************************
+ *          Private Helper Methods             *
+ ***********************************************/
+
+// handleDefaultVariantLogic ensures only one variant per product is default
+// If isDefault is true, it unsets all other defaults for the product
+// This maintains the business rule: "Only one variant can be default per product"
+func (s *VariantServiceImpl) handleDefaultVariantLogic(productID uint, isDefault bool) error {
+	if isDefault {
+		// Unset all existing defaults for this product before setting new default
+		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(productID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/***********************************************
  *                GetVariantByID               *
  ***********************************************/
 func (s *VariantServiceImpl) GetVariantByID(
@@ -309,6 +326,14 @@ func (s *VariantServiceImpl) UpdateVariant(
 		return nil, err
 	}
 
+	// Handle default variant logic BEFORE updating
+	// If setting this variant as default, unset all other defaults for the product
+	if request.IsDefault != nil && *request.IsDefault {
+		if err := s.handleDefaultVariantLogic(productID, true); err != nil {
+			return nil, err
+		}
+	}
+
 	// Update variant using factory
 	variant = s.factory.UpdateVariantEntity(variant, request)
 
@@ -415,14 +440,43 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	variantIDs := make([]uint, 0, len(request.Variants))
 	updateMap := make(map[uint]*model.BulkUpdateVariantItem)
 
+	// Track which variants are being set to default (to apply "last one wins" logic)
+	var lastDefaultVariantID *uint
+
 	for i := range request.Variants {
 		variantIDs = append(variantIDs, request.Variants[i].ID)
 		updateMap[request.Variants[i].ID] = &request.Variants[i]
+
+		// Track last variant being set to default (last one wins)
+		if request.Variants[i].IsDefault != nil && *request.Variants[i].IsDefault {
+			lastDefaultVariantID = &request.Variants[i].ID
+		}
 	}
 
 	// Validate all variants exist and belong to product
 	if err := s.validator.ValidateBulkVariantsExist(productID, variantIDs); err != nil {
 		return nil, err
+	}
+
+	// Handle default variant logic BEFORE updating
+	// If any variant is being set to default, unset all existing defaults
+	// Then only the last variant marked as default will remain as default
+	if lastDefaultVariantID != nil {
+		if err := s.handleDefaultVariantLogic(productID, true); err != nil {
+			return nil, err
+		}
+
+		// Apply "last one wins" rule: only keep the last variant's isDefault=true
+		// Set all other variants' isDefault to false
+		for variantID, updateData := range updateMap {
+			if updateData.IsDefault != nil && *updateData.IsDefault {
+				if variantID != *lastDefaultVariantID {
+					// Not the last one, force to false
+					falseValue := false
+					updateData.IsDefault = &falseValue
+				}
+			}
+		}
 	}
 
 	// Fetch all variants by IDs
