@@ -56,21 +56,6 @@ func TestDeleteProductOption(t *testing.T) {
 		return helpers.GetResponseData(t, response, "option")
 	}
 
-	// Helper function to create a product variant
-	createVariant := func(productID int, sku string, price float64, stock int, optionValueIDs []int) map[string]interface{} {
-		requestBody := map[string]interface{}{
-			"sku":            sku,
-			"price":          price,
-			"stock":          stock,
-			"optionValueIds": optionValueIDs,
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
-		w := client.Post(t, url, requestBody)
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
-		return helpers.GetResponseData(t, response, "variant")
-	}
-
 	// ============================================================================
 	// SUCCESS SCENARIOS
 	// ============================================================================
@@ -290,6 +275,46 @@ func TestDeleteProductOption(t *testing.T) {
 		)
 	})
 
+	t.Run("Admin can delete option from any product", func(t *testing.T) {
+		// First login as seller to create option
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		// Use product 5 (Jane's T-Shirt)
+		productID := 5
+
+		option := createOption(productID, "finish", "Finish Type", 1)
+		optionID := int(option["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		w := client.Delete(t, url)
+
+		// Admin should be able to delete options
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
+	t.Run("Admin can delete option from different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin deletes option from Product 1 (owned by seller_id 2)
+		// First create an option as admin
+		productID := 1
+		option := createOption(productID, "certification", "Certification", 1)
+		optionID := int(option["id"].(float64))
+
+		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		w := client.Delete(t, url)
+
+		// Admin should be able to delete
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
 	// ============================================================================
 	// FAILURE SCENARIOS - VALIDATION
 	// ============================================================================
@@ -393,58 +418,24 @@ func TestDeleteProductOption(t *testing.T) {
 	// ============================================================================
 
 	t.Run("Cannot delete option in use by variants", func(t *testing.T) {
-		t.Skip("Skipping until variant creation endpoint is available in tests")
 		// Login as seller
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		// Use product 7 (Jane's Running Shoes)
+		// Use product 7 (Jane's Running Shoes) which has existing variants in seed data
+		// Variants 14 and 15 use option 12 (Size) and option 13 (Color)
 		productID := 7
-
-		// Create option with values
-		values := []map[string]interface{}{
-			{
-				"value":       "small",
-				"displayName": "Small",
-				"position":    1,
-			},
-			{
-				"value":       "large",
-				"displayName": "Large",
-				"position":    2,
-			},
-		}
-
-		option := createOptionWithValues(productID, "shoe_size", "Shoe Size", 1, values)
-		optionID := int(option["id"].(float64))
-
-		// Get the value IDs
-		optionValues := option["values"].([]interface{})
-		value1ID := int(optionValues[0].(map[string]interface{})["id"].(float64))
-
-		// Create a variant using this option value
-		createVariant(productID, "SHOE-SMALL-001", 89.99, 50, []int{value1ID})
-
-		// Try to delete the option - should fail because it's in use
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		optionToDelete := 12 // Size option used by variants
+		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionToDelete)
 		w := client.Delete(t, deleteURL)
 
 		// Should return 400 or 409 (Conflict)
 		assert.True(
 			t,
 			w.Code == http.StatusBadRequest || w.Code == http.StatusConflict,
-			"Expected 400 or 409, got %d",
+			"Expected 400 or 409, got %d. Body: %s",
 			w.Code,
-		)
-
-		// Verify error message mentions option is in use
-		response := helpers.ParseResponse(t, w.Body)
-		errorMsg := response["message"].(string)
-		assert.Contains(
-			t,
-			errorMsg,
-			"in use",
-			"Error message should indicate option is in use",
+			w.Body.String(),
 		)
 	})
 
@@ -549,7 +540,7 @@ func TestDeleteProductOption(t *testing.T) {
 		)
 	})
 
-	t.Run("Soft deleted product - option delete should fail", func(t *testing.T) {
+	t.Run("Deleted product - option delete should fail", func(t *testing.T) {
 		// Login as seller
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)

@@ -393,6 +393,56 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
+	t.Run("Admin can bulk update option values for any product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin bulk updates values on Product 5 (owned by seller_id 3)
+		// Values 23, 24, 25 = S, M, L
+		updates := []map[string]interface{}{
+			{"valueId": 23, "displayName": "Small Size - Admin"},
+			{"valueId": 24, "displayName": "Medium Size - Admin"},
+		}
+
+		w := bulkUpdateOptionValues(5, 8, updates)
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		
+		// Verify response structure
+		data, ok := response["data"].(map[string]interface{})
+		assert.True(t, ok, "Response should have data field")
+		if ok && data != nil {
+			optionValues, ok := data["optionValues"].([]interface{})
+			if ok {
+				assert.GreaterOrEqual(t, len(optionValues), 1, "Should have at least 1 updated value")
+			}
+		}
+	})
+
+	t.Run("Admin can bulk update option values for different seller's product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin bulk updates values on Product 1 (owned by seller_id 2)
+		// Values 1, 2 = Natural Titanium, Blue Titanium
+		updates := []map[string]interface{}{
+			{"valueId": 1, "displayName": "Natural Titanium - Admin Updated"},
+			{"valueId": 2, "displayName": "Blue Titanium - Admin Updated", "colorCode": "#4169E1"},
+		}
+
+		w := bulkUpdateOptionValues(1, 1, updates)
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		
+		// Verify response structure
+		data, ok := response["data"].(map[string]interface{})
+		assert.True(t, ok, "Response should have data field")
+		if ok && data != nil {
+			optionValues, ok := data["optionValues"].([]interface{})
+			if ok {
+				assert.GreaterOrEqual(t, len(optionValues), 1, "Should have at least 1 updated value")
+			}
+		}
+	})
+
 	// ============================================================================
 	// VALIDATION ERRORS - INVALID IDs
 	// ============================================================================

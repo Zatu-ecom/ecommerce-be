@@ -312,6 +312,40 @@ func TestBulkAddOptionValues(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
+	t.Run("Admin can bulk add option values to any product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin bulk adds values to Product 5 (owned by seller_id 3)
+		values := []map[string]interface{}{
+			{"value": "3XL", "displayName": "3X Large", "position": 6},
+			{"value": "4XL", "displayName": "4X Large", "position": 7},
+		}
+
+		w := bulkAddOptionValues(5, 8, values)
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		data := response["data"].(map[string]interface{})
+		optionValues := data["optionValues"].([]interface{})
+		assert.Len(t, optionValues, 2)
+	})
+
+	t.Run("Admin can bulk add option values to different seller's product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin bulk adds values to Product 1 (owned by seller_id 2)
+		values := []map[string]interface{}{
+			{"value": "Green Titanium", "displayName": "Green Titanium", "colorCode": "#2E8B57", "position": 5},
+			{"value": "Purple Titanium", "displayName": "Purple Titanium", "colorCode": "#800080", "position": 6},
+		}
+
+		w := bulkAddOptionValues(1, 1, values)
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		data := response["data"].(map[string]interface{})
+		optionValues := data["optionValues"].([]interface{})
+		assert.Len(t, optionValues, 2)
+	})
+
 	// ============================================================================
 	// VALIDATION ERRORS - INVALID IDs
 	// ============================================================================

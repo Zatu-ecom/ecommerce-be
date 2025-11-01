@@ -2,10 +2,9 @@ package repositories
 
 import (
 	"errors"
-	"fmt"
 
 	"ecommerce-be/product/entity"
-	"ecommerce-be/product/utils"
+	producterrors "ecommerce-be/product/errors"
 
 	"gorm.io/gorm"
 )
@@ -90,7 +89,7 @@ func (r *VariantRepositoryImpl) FindVariantByID(variantID uint) (*entity.Product
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.VARIANT_NOT_FOUND_MSG)
+			return nil, producterrors.ErrVariantNotFound
 		}
 		return nil, result.Error
 	}
@@ -107,7 +106,7 @@ func (r *VariantRepositoryImpl) FindVariantByProductIDAndVariantID(
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.VARIANT_NOT_FOUND_MSG)
+			return nil, producterrors.ErrVariantNotFound
 		}
 		return nil, result.Error
 	}
@@ -127,7 +126,7 @@ func (r *VariantRepositoryImpl) FindVariantByOptions(
 	}
 
 	if len(productOptions) == 0 {
-		return nil, errors.New(utils.PRODUCT_HAS_NO_OPTIONS_MSG)
+		return nil, producterrors.ErrProductHasNoOptions
 	}
 
 	// Build a map of option name to option ID
@@ -139,7 +138,10 @@ func (r *VariantRepositoryImpl) FindVariantByOptions(
 	// Validate that all provided options exist
 	for optionName := range optionValues {
 		if _, exists := optionNameToID[optionName]; !exists {
-			return nil, fmt.Errorf("%s: %s", utils.INVALID_OPTION_NAME_MSG, optionName)
+			return nil, producterrors.ErrInvalidOptionName.WithMessagef(
+				"Invalid option name: %s",
+				optionName,
+			)
 		}
 	}
 
@@ -187,7 +189,7 @@ func (r *VariantRepositoryImpl) FindVariantByOptions(
 		}
 	}
 
-	return nil, errors.New(utils.VARIANT_NOT_FOUND_WITH_OPTIONS_MSG)
+	return nil, producterrors.ErrVariantNotFoundWithOptions
 }
 
 // GetVariantOptionValues retrieves all option values for a specific variant
@@ -214,7 +216,10 @@ func (r *VariantRepositoryImpl) GetProductOptionByName(
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%s: %s", utils.OPTION_NOT_FOUND_MSG, optionName)
+			return nil, producterrors.ErrProductOptionNotFound.WithMessagef(
+				"Product option not found: %s",
+				optionName,
+			)
 		}
 		return nil, result.Error
 	}
@@ -232,7 +237,10 @@ func (r *VariantRepositoryImpl) GetProductOptionValueByValue(
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%s: %s", utils.OPTION_VALUE_NOT_FOUND_MSG, value)
+			return nil, producterrors.ErrProductOptionValueNotFound.WithMessagef(
+				"Product option value not found: %s",
+				value,
+			)
 		}
 		return nil, result.Error
 	}
@@ -311,7 +319,10 @@ func (r *VariantRepositoryImpl) GetProductOptionByID(optionID uint) (*entity.Pro
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%s: %d", utils.OPTION_NOT_FOUND_MSG, optionID)
+			return nil, producterrors.ErrProductOptionNotFound.WithMessagef(
+				"Product option not found with ID: %d",
+				optionID,
+			)
 		}
 		return nil, result.Error
 	}
@@ -328,7 +339,10 @@ func (r *VariantRepositoryImpl) GetOptionValueByID(
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%s: %d", utils.OPTION_VALUE_NOT_FOUND_MSG, optionValueID)
+			return nil, producterrors.ErrProductOptionValueNotFound.WithMessagef(
+				"Product option value not found with ID: %d",
+				optionValueID,
+			)
 		}
 		return nil, result.Error
 	}

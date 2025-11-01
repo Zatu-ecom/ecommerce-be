@@ -309,7 +309,52 @@ func TestAddOptionValue(t *testing.T) {
 
 		w := addOptionValue(otherProductID, optionID, "value1", "Value 1", "", 0)
 
-		helpers.AssertStatusCodeOneOf(t, w, http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound)
+		helpers.AssertStatusCodeOneOf(
+			t,
+			w,
+			http.StatusBadRequest,
+			http.StatusForbidden,
+			http.StatusNotFound,
+		)
+	})
+
+	t.Run("Admin can add option value to any product", func(t *testing.T) {
+		// First create option as seller
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		productID := 5
+		option := createOption(productID, "test_admin_add", "Test Admin Add", 1)
+		optionID := int(option["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin adds option value
+		w := addOptionValue(productID, optionID, "admin_val", "Admin Value", "#AAAAAA", 1)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		optionValue := helpers.GetResponseData(t, response, "optionValue")
+		assert.Equal(t, "admin_val", optionValue["value"])
+		assert.Equal(t, "Admin Value", optionValue["displayName"])
+	})
+
+	t.Run("Admin can add option value to different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin adds value to Product 1 Option 1 (Color - owned by seller_id 2)
+		productID := 1
+		optionID := 1 // Color option from seed data
+
+		w := addOptionValue(productID, optionID, "rose gold", "Rose Gold Titanium", "#B76E79", 5)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		optionValue := helpers.GetResponseData(t, response, "optionValue")
+		assert.Equal(t, "rose gold", optionValue["value"])
+		assert.Equal(t, "Rose Gold Titanium", optionValue["displayName"])
 	})
 
 	// ============================================================================

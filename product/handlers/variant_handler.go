@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
@@ -54,7 +55,7 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	}
 
 	// Call service
-	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, sellerID)
+	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, *sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -136,8 +137,14 @@ func (h *VariantHandler) CreateVariant(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	variantResponse, err := h.variantService.CreateVariant(productID, &request)
+	variantResponse, err := h.variantService.CreateVariant(productID, sellerId, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_VARIANT_MSG)
 		return
@@ -179,8 +186,14 @@ func (h *VariantHandler) UpdateVariant(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	variantResponse, err := h.variantService.UpdateVariant(productID, variantID, &request)
+	variantResponse, err := h.variantService.UpdateVariant(productID, variantID, sellerId, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_MSG)
 		return
@@ -215,8 +228,14 @@ func (h *VariantHandler) DeleteVariant(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	if err := h.variantService.DeleteVariant(productID, variantID); err != nil {
+	if err := h.variantService.DeleteVariant(productID, variantID, sellerId); err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_VARIANT_MSG)
 		return
 	}
@@ -251,8 +270,19 @@ func (h *VariantHandler) UpdateVariantStock(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	stockResponse, err := h.variantService.UpdateVariantStock(productID, variantID, &request)
+	stockResponse, err := h.variantService.UpdateVariantStock(
+		productID,
+		variantID,
+		sellerId,
+		&request,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_STOCK_MSG)
 		return
@@ -288,8 +318,14 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 		return
 	}
 
+	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
 	// Call service
-	response, err := h.variantService.BulkUpdateVariants(productID, &request)
+	response, err := h.variantService.BulkUpdateVariants(productID, sellerId, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_VARIANTS_MSG)
 		return

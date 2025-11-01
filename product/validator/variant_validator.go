@@ -27,15 +27,23 @@ func NewVariantValidator(
 	}
 }
 
-// ValidateProductExists validates that a product exists
-func (v *VariantValidator) ValidateProductExists(productID uint) error {
-	_, err := v.productRepo.FindByID(productID)
+// ValidateProductAndSeller validates that a product exists
+func (v *VariantValidator) ValidateProductAndSeller(productID uint, sellerID uint) error {
+	product, err := v.productRepo.FindByID(productID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductNotFound
-		}
 		return err
 	}
+
+	// Variant creation with multiple options
+	if sellerID == 0 {
+		return nil
+	}
+
+	// Validate seller ownership
+	if product.SellerID != sellerID {
+		return prodErrors.ErrUnauthorizedProductAccess
+	}
+
 	return nil
 }
 
@@ -155,9 +163,6 @@ func (v *VariantValidator) ValidateBulkVariantsExist(productID uint, variantIDs 
 func (v *VariantValidator) ValidateOptionExists(productID uint, optionName string) (*uint, error) {
 	option, err := v.variantRepo.GetProductOptionByName(productID, optionName)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, prodErrors.ErrProductOptionNotFound
-		}
 		return nil, err
 	}
 	return &option.ID, nil
@@ -167,9 +172,6 @@ func (v *VariantValidator) ValidateOptionExists(productID uint, optionName strin
 func (v *VariantValidator) ValidateOptionValueExists(optionID uint, value string) (*uint, error) {
 	optionValue, err := v.variantRepo.GetProductOptionValueByValue(optionID, value)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, prodErrors.ErrProductOptionValueNotFound
-		}
 		return nil, err
 	}
 	return &optionValue.ID, nil

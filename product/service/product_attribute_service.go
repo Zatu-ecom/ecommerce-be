@@ -78,7 +78,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Check if user has permission to modify this product
-	if product.SellerID != sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return nil, prodErrors.ErrUnauthorizedAttributeAccess
 	}
 
@@ -141,7 +141,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Check if user has permission to modify this product
-	if product.SellerID != sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return nil, prodErrors.ErrUnauthorizedAttributeAccess
 	}
 
@@ -198,7 +198,7 @@ func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
 	}
 
 	// Check if user has permission to modify this product
-	if product.SellerID != sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return prodErrors.ErrUnauthorizedAttributeAccess
 	}
 
@@ -249,7 +249,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		return nil, prodErrors.ErrProductNotFound
 	}
 
-	if product.SellerID != sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return nil, prodErrors.ErrUnauthorizedAttributeAccess
 	}
 

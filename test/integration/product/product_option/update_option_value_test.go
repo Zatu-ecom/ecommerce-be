@@ -204,6 +204,37 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
+	t.Run("Admin can update any seller's product option value", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin updates Product 5's option value (owned by seller_id 3)
+		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+			"displayName": "Updated by Admin",
+		})
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		optionValue := helpers.GetResponseData(t, response, "optionValue")
+		assert.Equal(t, "Updated by Admin", optionValue["displayName"])
+		assert.Equal(t, "M", optionValue["value"])
+	})
+
+	t.Run("Admin can update option value for different seller's product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin updates Product 1's option value (owned by seller_id 2)
+		w := updateOptionValue(1, 1, 1, map[string]interface{}{
+			"displayName": "Titanium Natural - Admin Updated",
+			"colorCode":   "#E5D6C3",
+		})
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		optionValue := helpers.GetResponseData(t, response, "optionValue")
+		assert.Equal(t, "Titanium Natural - Admin Updated", optionValue["displayName"])
+		assert.Equal(t, "#E5D6C3", optionValue["colorCode"])
+	})
+
 	// ============================================================================
 	// VALIDATION ERRORS - INVALID IDs
 	// ============================================================================

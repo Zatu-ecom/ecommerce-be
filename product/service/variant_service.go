@@ -12,7 +12,11 @@ import (
 // VariantService defines the interface for variant-related business logic
 type VariantService interface {
 	// GetVariantByID retrieves detailed information about a specific variant
-	GetVariantByID(productID, variantID uint, sellerID *uint) (*model.VariantDetailResponse, error)
+	GetVariantByID(
+		productID,
+		variantID uint,
+		sellerID uint,
+	) (*model.VariantDetailResponse, error)
 
 	// FindVariantByOptions finds a variant based on selected options
 	FindVariantByOptions(
@@ -24,27 +28,28 @@ type VariantService interface {
 	// CreateVariant creates a new variant for a product
 	CreateVariant(
 		productID uint,
+		sellerID uint,
 		request *model.CreateVariantRequest,
 	) (*model.VariantDetailResponse, error)
 
 	// UpdateVariant updates an existing variant
 	UpdateVariant(
-		productID, variantID uint,
+		productID, variantID uint, sellerID uint,
 		request *model.UpdateVariantRequest,
 	) (*model.VariantDetailResponse, error)
 
 	// DeleteVariant deletes a variant
-	DeleteVariant(productID, variantID uint) error
+	DeleteVariant(productID, variantID uint, sellerID uint) error
 
 	// UpdateVariantStock updates the stock for a variant
 	UpdateVariantStock(
-		productID, variantID uint,
+		productID, variantID, sellerID uint,
 		request *model.UpdateVariantStockRequest,
 	) (*model.UpdateVariantStockResponse, error)
 
 	// BulkUpdateVariants updates multiple variants at once
 	BulkUpdateVariants(
-		productID uint,
+		productID, sellerID uint,
 		request *model.BulkUpdateVariantsRequest,
 	) (*model.BulkUpdateVariantsResponse, error)
 }
@@ -75,10 +80,10 @@ func NewVariantService(
  ***********************************************/
 func (s *VariantServiceImpl) GetVariantByID(
 	productID, variantID uint,
-	sellerID *uint,
+	sellerID uint,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +94,7 @@ func (s *VariantServiceImpl) GetVariantByID(
 	}
 
 	// Validate seller access: if sellerID is provided (non-admin), check ownership
-	if sellerID != nil && product.SellerID != *sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return nil, prodErrors.ErrProductNotFound
 	}
 
@@ -226,10 +231,11 @@ func (s *VariantServiceImpl) buildVariantOptions(
  ***********************************************/
 func (s *VariantServiceImpl) CreateVariant(
 	productID uint,
+	sellerID uint,
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -275,18 +281,20 @@ func (s *VariantServiceImpl) CreateVariant(
 	}
 
 	// Return the created variant details (no seller validation needed for create response)
-	return s.GetVariantByID(productID, variant.ID, nil)
+	return s.GetVariantByID(productID, variant.ID, sellerID)
 }
 
 /***********************************************
  *              UpdateVariant                  *
  ***********************************************/
 func (s *VariantServiceImpl) UpdateVariant(
-	productID, variantID uint,
+	productID,
+	variantID uint,
+	sellerID uint,
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -310,15 +318,15 @@ func (s *VariantServiceImpl) UpdateVariant(
 	}
 
 	// Return updated variant details (no seller validation needed for update response)
-	return s.GetVariantByID(productID, variant.ID, nil)
+	return s.GetVariantByID(productID, variant.ID, sellerID)
 }
 
 /***********************************************
  *                DeleteVariant                *
  ***********************************************/
-func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint) error {
+func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint, sellerID uint) error {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return err
 	}
 
@@ -345,11 +353,11 @@ func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint) error {
  *            UpdateVariantStock               *
  ***********************************************/
 func (s *VariantServiceImpl) UpdateVariantStock(
-	productID, variantID uint,
+	productID, variantID, sellerID uint,
 	request *model.UpdateVariantStockRequest,
 ) (*model.UpdateVariantStockResponse, error) {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -390,11 +398,11 @@ func (s *VariantServiceImpl) UpdateVariantStock(
  *           BulkUpdateVariants                *
  ***********************************************/
 func (s *VariantServiceImpl) BulkUpdateVariants(
-	productID uint,
+	productID, sellerID uint,
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
 	// Validate that the product exists
-	if err := s.validator.ValidateProductExists(productID); err != nil {
+	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
 		return nil, err
 	}
 

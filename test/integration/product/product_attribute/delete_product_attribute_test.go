@@ -188,6 +188,43 @@ func TestDeleteProductAttribute(t *testing.T) {
 		)
 	})
 
+	t.Run("Admin can delete attribute from any product", func(t *testing.T) {
+		// First create attribute as seller
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		productID := 5
+		attributeDefID := 1 // Color attribute (doesn't exist on Product 5)
+
+		attribute := createAttribute(productID, attributeDefID, "Red", 0)
+		attributeID := int(attribute["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		w := client.Delete(t, url)
+
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
+	t.Run("Admin can delete attribute from different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Delete existing attribute from Product 1 (owned by seller_id 2)
+		// Attribute ID 1 (Brand: Apple) from seed data
+		productID := 1
+		attributeID := 1
+
+		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		w := client.Delete(t, url)
+
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
 	// ============================================================================
 	// FAILURE SCENARIOS - VALIDATION
 	// ============================================================================

@@ -146,6 +146,29 @@ func TestDeleteOptionValue(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
+	t.Run("Admin can delete any seller's product option value", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin deletes Product 6's option value (owned by seller_id 3)
+		// Product 6: Summer Dress, Option 11: Color
+		// Value 39: Solid White (not used in variants)
+		w := deleteOptionValue(6, 11, 39)
+
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
+	t.Run("Admin can delete option value from different seller's product", func(t *testing.T) {
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin deletes Product 1's option value (owned by seller_id 2)
+		// Value 3: White Titanium (not used in variants)
+		w := deleteOptionValue(1, 1, 3)
+
+		helpers.AssertSuccessResponse(t, w, http.StatusOK)
+	})
+
 	// ============================================================================
 	// VALIDATION ERRORS - INVALID IDs
 	// ============================================================================
@@ -348,7 +371,8 @@ func TestDeleteOptionValue(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Try to delete from iPhone 15 Pro (Product 1, owned by john.seller)
-		w := deleteOptionValue(1, 1, 1) // Natural Titanium color
+		// Value 4: Black Titanium (not used in variants)
+		w := deleteOptionValue(1, 1, 4)
 
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})

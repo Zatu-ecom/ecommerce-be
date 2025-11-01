@@ -229,6 +229,58 @@ func TestUpdateProductAttribute(t *testing.T) {
 		)
 	})
 
+	t.Run("Admin can update attribute for any product", func(t *testing.T) {
+		// First create attribute as seller
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		productID := 6      // Jane's Summer Dress (avoids conflicts with Product 5 tests)
+		attributeDefID := 9 // Size (doesn't exist on Product 6 yet)
+
+		attribute := createAttribute(productID, attributeDefID, "M", 0)
+		attributeID := int(attribute["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		updateBody := map[string]interface{}{
+			"value":     "L",
+			"sortOrder": 2,
+		}
+
+		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		w := client.Put(t, url, updateBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		attribute = helpers.GetResponseData(t, response, "attribute")
+		assert.Equal(t, "L", attribute["value"])
+		assert.Equal(t, float64(2), attribute["sortOrder"])
+	})
+
+	t.Run("Admin can update attribute for different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Update existing attribute on Product 1 (owned by seller_id 2)
+		// Attribute ID 2 (Brand: Apple) from seed data
+		productID := 1
+		attributeID := 2
+
+		updateBody := map[string]interface{}{
+			"value":     "Apple Inc.",
+			"sortOrder": 1,
+		}
+
+		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		w := client.Put(t, url, updateBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		attribute := helpers.GetResponseData(t, response, "attribute")
+		assert.Equal(t, "Apple Inc.", attribute["value"])
+	})
+
 	// ============================================================================
 	// FAILURE SCENARIOS - VALIDATION
 	// ============================================================================

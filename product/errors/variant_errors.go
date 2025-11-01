@@ -72,4 +72,18 @@ var (
 		Code:       utils.BULK_UPDATE_VARIANT_NOT_FOUND_CODE,
 		Message:    utils.BULK_UPDATE_VARIANT_NOT_FOUND_MSG,
 	}
+
+	// ErrVariantNotFoundWithOptions is returned when no variant is found with the selected options
+	ErrVariantNotFoundWithOptions = &commonerrors.AppError{
+		StatusCode: http.StatusNotFound,
+		Code:       utils.VARIANT_NOT_FOUND_WITH_OPTIONS_CODE,
+		Message:    utils.VARIANT_NOT_FOUND_WITH_OPTIONS_MSG,
+	}
+
+	// ErrInvalidOptionName is returned when an invalid option name is provided
+	ErrInvalidOptionName = &commonerrors.AppError{
+		StatusCode: http.StatusBadRequest,
+		Code:       utils.INVALID_OPTION_CODE,
+		Message:    utils.INVALID_OPTION_NAME_MSG,
+	}
 )

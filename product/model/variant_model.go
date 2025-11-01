@@ -92,9 +92,9 @@ type VariantOptionInput struct {
 
 // CreateVariantRequest represents the request to create a new variant
 type CreateVariantRequest struct {
-	SKU       string               `json:"sku"       binding:"required"`
+	SKU       string               `json:"sku"`
 	Price     float64              `json:"price"     binding:"required,gt=0"`
-	Stock     int                  `json:"stock"     binding:"required,gte=0"`
+	Stock     int                  `json:"stock"     binding:"gte=0"`
 	Images    []string             `json:"images"`
 	InStock   *bool                `json:"inStock"`
 	IsPopular *bool                `json:"isPopular"`

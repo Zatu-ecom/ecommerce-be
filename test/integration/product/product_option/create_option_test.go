@@ -577,24 +577,52 @@ func TestCreateProductOption(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
-	t.Run("Admin tries to create option (only sellers allowed)", func(t *testing.T) {
+	t.Run("Admin can create option for any product", func(t *testing.T) {
 		// Login as admin
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
+		// Admin creates option for Product 5 (owned by seller_id 3)
 		productID := 5
 
 		requestBody := map[string]interface{}{
 			"name":        "quality",
 			"displayName": "Quality Grade",
-			"position":    1,
+			"position":    3,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/options", productID)
 		w := client.Post(t, url, requestBody)
 
-		// Should return 403 Forbidden (only sellers can create options)
-		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
+		// Admin should be able to create options for any product
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		option := helpers.GetResponseData(t, response, "option")
+		assert.Equal(t, "quality", option["name"])
+		assert.Equal(t, "Quality Grade", option["displayName"])
+	})
+
+	t.Run("Admin can create option for different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin creates option for Product 1 (owned by seller_id 2)
+		productID := 1
+
+		requestBody := map[string]interface{}{
+			"name":        "warranty",
+			"displayName": "Warranty Period",
+			"position":    3,
+		}
+
+		url := fmt.Sprintf("/api/products/%d/options", productID)
+		w := client.Post(t, url, requestBody)
+
+		// Admin should be able to create options
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		option := helpers.GetResponseData(t, response, "option")
+		assert.Equal(t, "warranty", option["name"])
+		assert.Equal(t, "Warranty Period", option["displayName"])
 	})
 
 	t.Run("Customer tries to create option (only sellers allowed)", func(t *testing.T) {

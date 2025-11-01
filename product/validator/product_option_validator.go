@@ -101,7 +101,7 @@ func (v *ProductOptionValidator) ValidateProductBelongsToSeller(
 		return err
 	}
 
-	if product.SellerID != sellerID {
+	if sellerID != 0 && product.SellerID != sellerID {
 		return prodErrors.ErrUnauthorizedProductAccess
 	}
 

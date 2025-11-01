@@ -276,6 +276,98 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		)
 	})
 
+	t.Run("Admin can bulk update attributes for any product", func(t *testing.T) {
+		// First create attributes as seller
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		productID := 5
+		attr1 := createAttribute(productID, 5, "128", 0)        // Storage (doesn't exist on Product 5)
+		attr2 := createAttribute(productID, 6, "8", 0)          // RAM (doesn't exist on Product 5)
+		attrID1 := int(attr1["id"].(float64))
+		attrID2 := int(attr2["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		bulkUpdateBody := map[string]interface{}{
+			"attributes": []map[string]interface{}{
+				{
+					"attributeId": attrID1,
+					"value":       "256",
+					"sortOrder":   1,
+				},
+				{
+					"attributeId": attrID2,
+					"value":       "16",
+					"sortOrder":   2,
+				},
+			},
+		}
+
+		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		w := client.Put(t, url, bulkUpdateBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		data, ok := response["data"].(map[string]interface{})
+		assert.True(t, ok, "Response should have data field")
+		if ok && data != nil {
+			attributes, ok := data["productAttributes"].([]interface{})
+			if ok {
+				assert.GreaterOrEqual(
+					t,
+					len(attributes),
+					1,
+					"Should have at least 1 updated attribute",
+				)
+			}
+		}
+	})
+
+	t.Run("Admin can bulk update attributes for different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Update existing attributes on Product 1 (owned by seller_id 2)
+		// Attribute IDs 1, 2 from seed data
+		productID := 1
+
+		bulkUpdateBody := map[string]interface{}{
+			"attributes": []map[string]interface{}{
+				{
+					"attributeId": 1,
+					"value":       "Apple Inc.",
+					"sortOrder":   1,
+				},
+				{
+					"attributeId": 2,
+					"value":       "6.2",
+					"sortOrder":   2,
+				},
+			},
+		}
+
+		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		w := client.Put(t, url, bulkUpdateBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		data, ok := response["data"].(map[string]interface{})
+		assert.True(t, ok, "Response should have data field")
+		if ok && data != nil {
+			attributes, ok := data["productAttributes"].([]interface{})
+			if ok {
+				assert.GreaterOrEqual(
+					t,
+					len(attributes),
+					1,
+					"Should have at least 1 updated attribute",
+				)
+			}
+		}
+	})
+
 	// ============================================================================
 	// FAILURE SCENARIOS - VALIDATION
 	// ============================================================================

@@ -499,12 +499,12 @@ func TestUpdateProductOption(t *testing.T) {
 		updateUrl := fmt.Sprintf("/api/products/%d/options/%d", differentProductID, optionID)
 		w := client.Put(t, updateUrl, updateBody)
 
-		// Should return 400 Bad Request (invalid product-option combination)
+		// Should return 403 forbidden (invalid product-option combination)
 		// Note: Both product and option exist, but the combination is invalid
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
-	t.Run("Admin tries to update option (only sellers allowed)", func(t *testing.T) {
+	t.Run("Admin can update option for any product", func(t *testing.T) {
 		// Setup - create option as seller
 		productID, optionID, _ := setupTestOptions()
 
@@ -514,13 +514,40 @@ func TestUpdateProductOption(t *testing.T) {
 
 		requestBody := map[string]interface{}{
 			"displayName": "Admin Update",
+			"position":    10,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
-		// Should return 403 Forbidden
-		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
+		// Admin should be able to update options
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		option := helpers.GetResponseData(t, response, "option")
+		assert.Equal(t, "Admin Update", option["displayName"])
+		assert.Equal(t, float64(10), option["position"])
+	})
+
+	t.Run("Admin can update option for different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin updates option on Product 1 (owned by seller_id 2)
+		// Option 1: "Color" from seed data
+		productID := uint(1)
+		optionID := uint(1)
+
+		requestBody := map[string]interface{}{
+			"displayName": "Color Choice - Admin Updated",
+		}
+
+		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		w := client.Put(t, url, requestBody)
+
+		// Admin should be able to update
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		option := helpers.GetResponseData(t, response, "option")
+		assert.Equal(t, "Color Choice - Admin Updated", option["displayName"])
 	})
 
 	t.Run("Customer tries to update option (only sellers allowed)", func(t *testing.T) {

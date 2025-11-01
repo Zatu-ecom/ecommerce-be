@@ -549,6 +549,76 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		)
 	})
 
+	t.Run("Admin can bulk update options for any product", func(t *testing.T) {
+		// First create options as seller
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		productID := 5
+		option1 := createOption(productID, "test_admin1", "Test Admin 1", 1)
+		option2 := createOption(productID, "test_admin2", "Test Admin 2", 2)
+		optionID1 := int(option1["id"].(float64))
+		optionID2 := int(option2["id"].(float64))
+
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		requestBody := map[string]interface{}{
+			"options": []map[string]interface{}{
+				{
+					"optionId":    optionID1,
+					"displayName": "Admin Updated Option 1",
+					"position":    10,
+				},
+				{
+					"optionId":    optionID2,
+					"displayName": "Admin Updated Option 2",
+					"position":    11,
+				},
+			},
+		}
+
+		url := fmt.Sprintf("/api/products/%d/options/bulk-update", productID)
+		w := client.Put(t, url, requestBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, float64(2), data["updatedCount"])
+	})
+
+	t.Run("Admin can bulk update options for different seller's product", func(t *testing.T) {
+		// Login as admin
+		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
+		client.SetToken(adminToken)
+
+		// Admin bulk updates options on Product 1 (owned by seller_id 2)
+		// Options 1, 2 from seed data
+		productID := 1
+
+		requestBody := map[string]interface{}{
+			"options": []map[string]interface{}{
+				{
+					"optionId":    1,
+					"displayName": "Color Selection - Admin",
+					"position":    1,
+				},
+				{
+					"optionId":    2,
+					"displayName": "Storage Size - Admin",
+					"position":    2,
+				},
+			},
+		}
+
+		url := fmt.Sprintf("/api/products/%d/options/bulk-update", productID)
+		w := client.Put(t, url, requestBody)
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, float64(2), data["updatedCount"])
+	})
+
 	// ============================================================================
 	// FAILURE SCENARIOS - VALIDATION
 	// ============================================================================

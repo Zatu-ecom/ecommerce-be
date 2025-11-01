@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"ecommerce-be/common/auth"
-	commonError "ecommerce-be/common/error"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
@@ -39,10 +39,9 @@ func (h *ProductAttributeHandler) AddProductAttribute(c *gin.Context) {
 		return
 	}
 
-	// Get seller ID from context
-	sellerID, exists := auth.GetSellerIDFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.UnauthorizedError, utils.AUTHENTICATION_REQUIRED_MSG)
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
 
@@ -91,9 +90,9 @@ func (h *ProductAttributeHandler) UpdateProductAttribute(c *gin.Context) {
 	}
 
 	// Get seller ID from context
-	sellerID, exists := auth.GetSellerIDFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.UnauthorizedError, utils.AUTHENTICATION_REQUIRED_MSG)
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
 
@@ -142,10 +141,9 @@ func (h *ProductAttributeHandler) DeleteProductAttribute(c *gin.Context) {
 		return
 	}
 
-	// Get seller ID from context
-	sellerID, exists := auth.GetSellerIDFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.UnauthorizedError, utils.AUTHENTICATION_REQUIRED_MSG)
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
 
@@ -200,9 +198,9 @@ func (h *ProductAttributeHandler) BulkUpdateProductAttributes(c *gin.Context) {
 	}
 
 	// Get seller ID from context
-	sellerID, exists := auth.GetSellerIDFromContext(c)
-	if !exists {
-		h.HandleError(c, commonError.UnauthorizedError, utils.AUTHENTICATION_REQUIRED_MSG)
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
 
