@@ -49,13 +49,10 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	}
 
 	// Extract seller ID from context (set by PublicAPIAuth middleware)
-	var sellerID *uint
-	if id, exists := auth.GetSellerIDFromContext(c); exists {
-		sellerID = &id
-	}
+	sellerID, _ := auth.GetSellerIDFromContext(c)
 
 	// Call service
-	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, *sellerID)
+	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return

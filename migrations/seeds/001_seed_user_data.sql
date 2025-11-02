@@ -45,11 +45,7 @@ INSERT INTO "user" (id, first_name, last_name, email, password, phone, date_of_b
 -- Sellers
 (2, 'John', 'Seller', 'john.seller@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567891', '1985-05-15', 'male', true, 2, NOW(), NOW()),
 (3, 'Jane', 'Merchant', 'jane.merchant@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567892', '1990-08-22', 'female', true, 2, NOW(), NOW()),
-(4, 'Bob', 'Store', 'bob.store@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567893', '1988-03-10', 'male', true, 2, NOW(), NOW()),
--- Customers
-(5, 'Alice', 'Johnson', 'alice.j@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567894', '1992-11-05', 'female', true, 3, NOW(), NOW()),
-(6, 'Michael', 'Smith', 'michael.s@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567895', '1995-07-18', 'male', true, 3, NOW(), NOW()),
-(7, 'Sarah', 'Williams', 'sarah.w@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567896', '1993-02-28', 'female', true, 3, NOW(), NOW())
+(4, 'Bob', 'Store', 'bob.store@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567893', '1988-03-10', 'male', true, 2, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
     first_name = EXCLUDED.first_name,
     last_name = EXCLUDED.last_name,
@@ -80,6 +76,26 @@ ON CONFLICT (user_id) DO UPDATE SET
 UPDATE "user" SET seller_id = 2 WHERE id = 2;
 UPDATE "user" SET seller_id = 3 WHERE id = 3;
 UPDATE "user" SET seller_id = 4 WHERE id = 4;
+
+
+-- ------------------------------
+-- Insert Customers
+-- ------------------------------
+INSERT INTO "user" (id, first_name, last_name, email, password, phone, date_of_birth, gender, is_active, role_id, seller_id, created_at, updated_at) VALUES
+(5, 'Alice', 'Johnson', 'alice.j@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567894', '1992-11-05', 'female', true, 3, 2, NOW(), NOW()),
+(6, 'Michael', 'Smith', 'michael.s@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567895', '1995-07-18', 'male', true, 3, 3, NOW(), NOW()),
+(7, 'Sarah', 'Williams', 'sarah.w@example.com', '$2a$12$KChTvYVo4KtWdT.4N1ijbuL/Wm.lv.nndgndCalCwDrf03L1D9LLy', '+1234567896', '1993-02-28', 'female', true, 3, 4, NOW(), NOW())
+ON CONFLICT (id) DO UPDATE SET
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    phone = EXCLUDED.phone,
+    date_of_birth = EXCLUDED.date_of_birth,
+    gender = EXCLUDED.gender,
+    is_active = EXCLUDED.is_active,
+    role_id = EXCLUDED.role_id,
+    seller_id = EXCLUDED.seller_id,
+    updated_at = NOW();
+
 
 -- ------------------------------
 -- Insert Subscriptions
