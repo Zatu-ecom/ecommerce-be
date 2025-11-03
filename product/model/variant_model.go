@@ -26,9 +26,8 @@ type VariantDetailResponse struct {
 	SKU             string                  `json:"sku"`
 	Price           float64                 `json:"price"`
 	Images          []string                `json:"images"`
-	InStock         bool                    `json:"inStock"`
+	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
-	Stock           int                     `json:"stock"`
 	IsDefault       bool                    `json:"isDefault"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 	CreatedAt       string                  `json:"createdAt,omitempty"`
@@ -41,9 +40,8 @@ type VariantResponse struct {
 	SKU             string                  `json:"sku"`
 	Price           float64                 `json:"price"`
 	Images          []string                `json:"images"`
-	InStock         bool                    `json:"inStock"`
+	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
-	Stock           int                     `json:"stock"`
 	IsDefault       bool                    `json:"isDefault"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 }
@@ -92,51 +90,34 @@ type VariantOptionInput struct {
 
 // CreateVariantRequest represents the request to create a new variant
 type CreateVariantRequest struct {
-	SKU       string               `json:"sku"`
-	Price     float64              `json:"price"     binding:"required,gt=0"`
-	Stock     int                  `json:"stock"     binding:"gte=0"`
-	Images    []string             `json:"images"`
-	InStock   *bool                `json:"inStock"`
-	IsPopular *bool                `json:"isPopular"`
-	IsDefault *bool                `json:"isDefault"`
-	Options   []VariantOptionInput `json:"options"   binding:"required,min=1,dive"`
+	SKU           string               `json:"sku"`
+	Price         float64              `json:"price"         binding:"required,gt=0"`
+	Images        []string             `json:"images"`
+	AllowPurchase *bool                `json:"allowPurchase"`
+	IsPopular     *bool                `json:"isPopular"`
+	IsDefault     *bool                `json:"isDefault"`
+	Options       []VariantOptionInput `json:"options"       binding:"required,min=1,dive"`
 }
 
 // UpdateVariantRequest represents the request to update an existing variant
 type UpdateVariantRequest struct {
-	SKU       *string  `json:"sku"`
-	Price     *float64 `json:"price"     binding:"omitempty,gt=0"`
-	Stock     *int     `json:"stock"     binding:"omitempty,gte=0"`
-	Images    []string `json:"images"`
-	InStock   *bool    `json:"inStock"`
-	IsPopular *bool    `json:"isPopular"`
-	IsDefault *bool    `json:"isDefault"`
-}
-
-// UpdateVariantStockRequest represents the request to update variant stock
-type UpdateVariantStockRequest struct {
-	Stock     int    `json:"stock"     binding:"required,gte=0"`
-	Operation string `json:"operation" binding:"required,oneof=set add subtract"`
-}
-
-// UpdateVariantStockResponse represents the response for stock update
-type UpdateVariantStockResponse struct {
-	VariantID uint   `json:"variantId"`
-	SKU       string `json:"sku"`
-	Stock     int    `json:"stock"`
-	InStock   bool   `json:"inStock"`
+	SKU           *string  `json:"sku"`
+	Price         *float64 `json:"price"         binding:"omitempty,gt=0"`
+	Images        []string `json:"images"`
+	AllowPurchase *bool    `json:"allowPurchase"`
+	IsPopular     *bool    `json:"isPopular"`
+	IsDefault     *bool    `json:"isDefault"`
 }
 
 // BulkUpdateVariantItem represents a single variant update in bulk operation
 type BulkUpdateVariantItem struct {
-	ID        uint     `json:"id"                  binding:"required"`
-	SKU       *string  `json:"sku,omitempty"`
-	Price     *float64 `json:"price,omitempty"     binding:"omitempty,gt=0"`
-	Stock     *int     `json:"stock,omitempty"     binding:"omitempty,gte=0"`
-	Images    []string `json:"images,omitempty"`
-	InStock   *bool    `json:"inStock,omitempty"`
-	IsPopular *bool    `json:"isPopular,omitempty"`
-	IsDefault *bool    `json:"isDefault,omitempty"`
+	ID            uint     `json:"id"                  binding:"required"`
+	SKU           *string  `json:"sku,omitempty"`
+	Price         *float64 `json:"price,omitempty"     binding:"omitempty,gt=0"`
+	Images        []string `json:"images,omitempty"`
+	AllowPurchase *bool    `json:"allowPurchase,omitempty"`
+	IsPopular     *bool    `json:"isPopular,omitempty"`
+	IsDefault     *bool    `json:"isDefault,omitempty"`
 }
 
 // BulkUpdateVariantsRequest represents the request to bulk update variants
@@ -146,11 +127,10 @@ type BulkUpdateVariantsRequest struct {
 
 // BulkUpdateVariantSummary represents a single variant summary in response
 type BulkUpdateVariantSummary struct {
-	ID      uint    `json:"id"`
-	SKU     string  `json:"sku"`
-	Price   float64 `json:"price"`
-	Stock   int     `json:"stock"`
-	InStock bool    `json:"inStock"`
+	ID            uint    `json:"id"`
+	SKU           string  `json:"sku"`
+	Price         float64 `json:"price"`
+	AllowPurchase bool    `json:"allowPurchase"`
 }
 
 // BulkUpdateVariantsResponse represents the response for bulk update

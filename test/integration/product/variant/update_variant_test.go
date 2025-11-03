@@ -73,26 +73,6 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Equal(t, 1399.99, variant["price"])
 	})
 
-	t.Run("Success - Update stock only", func(t *testing.T) {
-		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
-		client.SetToken(seller2Token)
-
-		productID := 1
-		variantID := 4 // Use variant 4
-
-		requestBody := map[string]interface{}{
-			"stock": 500,
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		variant := helpers.GetResponseData(t, response, "variant")
-
-		assert.Equal(t, float64(500), variant["stock"])
-	})
-
 	t.Run("Success - Update images only", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
@@ -120,7 +100,7 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Len(t, images, 2)
 	})
 
-	t.Run("Success - Update inStock flag", func(t *testing.T) {
+	t.Run("Success - Update allowPurchase flag", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
 
@@ -128,7 +108,7 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 6 // Use variant 6
 
 		requestBody := map[string]interface{}{
-			"inStock": false,
+			"allowPurchase": false,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
@@ -137,7 +117,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.False(t, variant["inStock"].(bool))
+		assert.False(t, variant["allowPurchase"].(bool))
 	})
 
 	t.Run("Success - Update isPopular flag", func(t *testing.T) {
@@ -168,11 +148,10 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 8 // Use variant 8
 
 		requestBody := map[string]interface{}{
-			"sku":       "MBP-16-M3-UPDATED",
-			"price":     2799.99,
-			"stock":     75,
-			"inStock":   true,
-			"isPopular": true,
+			"sku":           "MBP-16-M3-UPDATED",
+			"price":         2799.99,
+			"allowPurchase": true,
+			"isPopular":     true,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
@@ -183,8 +162,7 @@ func TestUpdateVariant(t *testing.T) {
 
 		assert.Equal(t, "MBP-16-M3-UPDATED", variant["sku"])
 		assert.Equal(t, 2799.99, variant["price"])
-		assert.Equal(t, float64(75), variant["stock"])
-		assert.True(t, variant["inStock"].(bool))
+		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 	})
 
@@ -197,13 +175,16 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 9 // Use variant 9 (default variant)
 
 		requestBody := map[string]interface{}{
-			"sku":       "NIKE-TSHIRT-COMPLETE-UPDATE",
-			"price":     39.99,
-			"stock":     200,
-			"images":    []string{"https://example.com/updated1.jpg", "https://example.com/updated2.jpg", "https://example.com/updated3.jpg"},
-			"inStock":   true,
-			"isPopular": false,
-			"isDefault": true,
+			"sku":   "NIKE-TSHIRT-COMPLETE-UPDATE",
+			"price": 39.99,
+			"images": []string{
+				"https://example.com/updated1.jpg",
+				"https://example.com/updated2.jpg",
+				"https://example.com/updated3.jpg",
+			},
+			"allowPurchase": true,
+			"isPopular":     false,
+			"isDefault":     true,
 		}
 
 		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
@@ -214,34 +195,13 @@ func TestUpdateVariant(t *testing.T) {
 
 		assert.Equal(t, "NIKE-TSHIRT-COMPLETE-UPDATE", variant["sku"])
 		assert.Equal(t, 39.99, variant["price"])
-		assert.Equal(t, float64(200), variant["stock"])
-		assert.True(t, variant["inStock"].(bool))
+		assert.True(t, variant["allowPurchase"].(bool))
 		assert.False(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
 
 		images, ok := variant["images"].([]interface{})
 		assert.True(t, ok)
 		assert.Len(t, images, 3)
-	})
-
-	t.Run("Success - Update with zero stock", func(t *testing.T) {
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
-
-		productID := 5
-		variantID := 10 // Use variant 10
-
-		requestBody := map[string]interface{}{
-			"stock": 0,
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		variant := helpers.GetResponseData(t, response, "variant")
-
-		assert.Equal(t, float64(0), variant["stock"])
 	})
 
 	t.Run("Success - Update with empty images array", func(t *testing.T) {
@@ -270,32 +230,35 @@ func TestUpdateVariant(t *testing.T) {
 	// SUCCESS SCENARIOS - Default Variant Logic
 	// ============================================================================
 
-	t.Run("Success - Set non-default variant as default (should unset previous default)", func(t *testing.T) {
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
+	t.Run(
+		"Success - Set non-default variant as default (should unset previous default)",
+		func(t *testing.T) {
+			sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+			client.SetToken(sellerToken)
 
-		productID := 6 // Summer Dress
-		variantID := 13 // Non-default variant
+			productID := 6  // Summer Dress
+			variantID := 13 // Non-default variant
 
-		requestBody := map[string]interface{}{
-			"isDefault": true,
-		}
+			requestBody := map[string]interface{}{
+				"isDefault": true,
+			}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
+			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			w := client.Put(t, url, requestBody)
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		variant := helpers.GetResponseData(t, response, "variant")
+			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+			variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.True(t, variant["isDefault"].(bool))
-		// Note: The old default (variant 12) should now be false, but we're not checking response message
-	})
+			assert.True(t, variant["isDefault"].(bool))
+			// Note: The old default (variant 12) should now be false, but we're not checking response message
+		},
+	)
 
 	t.Run("Success - Unset default variant (set to false)", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		productID := 7 // Running Shoes
+		productID := 7  // Running Shoes
 		variantID := 14 // Default variant
 
 		requestBody := map[string]interface{}{
@@ -349,24 +312,6 @@ func TestUpdateVariant(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Validation Error - Invalid stock (negative)", func(t *testing.T) {
-		// Use seller 4 who owns products 8, 9
-		seller4Token := helpers.Login(t, client, helpers.Seller4Email, helpers.Seller4Password)
-		client.SetToken(seller4Token)
-
-		productID := 8 // Sofa
-		variantID := 16 // Use variant 16
-
-		requestBody := map[string]interface{}{
-			"stock": -5,
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
-
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
-	})
-
 	// Note: Duplicate SKU validation and empty SKU validation are not enforced by the API
 	// These are business decisions that may be intentional (e.g., allowing empty SKUs for draft variants)
 
@@ -408,23 +353,26 @@ func TestUpdateVariant(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
-	t.Run("Authorization Error - Seller cannot update another seller's variant", func(t *testing.T) {
-		// Seller 3 trying to update product 1 which belongs to seller 2
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
+	t.Run(
+		"Authorization Error - Seller cannot update another seller's variant",
+		func(t *testing.T) {
+			// Seller 3 trying to update product 1 which belongs to seller 2
+			sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+			client.SetToken(sellerToken)
 
-		productID := 1 // Belongs to seller 2
-		variantID := 1
+			productID := 1 // Belongs to seller 2
+			variantID := 1
 
-		requestBody := map[string]interface{}{
-			"price": 999.99,
-		}
+			requestBody := map[string]interface{}{
+				"price": 999.99,
+			}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
+			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			w := client.Put(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
-	})
+			helpers.AssertErrorResponse(t, w, http.StatusForbidden)
+		},
+	)
 
 	t.Run("Success - Admin can update any seller's variant", func(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
@@ -471,7 +419,7 @@ func TestUpdateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		productID := 5 // Valid product owned by seller
+		productID := 5    // Valid product owned by seller
 		variantID := 9999 // Non-existent variant
 
 		requestBody := map[string]interface{}{
@@ -523,26 +471,6 @@ func TestUpdateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, 999999.99, variant["price"])
-	})
-
-	t.Run("Edge Case - Update with very large stock", func(t *testing.T) {
-		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
-		client.SetToken(seller2Token)
-
-		productID := 3
-		variantID := 8
-
-		requestBody := map[string]interface{}{
-			"stock": 1000000,
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		variant := helpers.GetResponseData(t, response, "variant")
-
-		assert.Equal(t, float64(1000000), variant["stock"])
 	})
 
 	t.Run("Edge Case - Update with very long SKU", func(t *testing.T) {
@@ -659,13 +587,10 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Equal(t, 799.99, variant1["price"])
 
 		// Second update
-		requestBody2 := map[string]interface{}{
-			"stock": 25,
-		}
+		requestBody2 := map[string]interface{}{}
 		w2 := client.Put(t, url, requestBody2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		variant2 := helpers.GetResponseData(t, response2, "variant")
-		assert.Equal(t, float64(25), variant2["stock"])
+		_ = helpers.GetResponseData(t, response2, "variant")
 
 		// Third update
 		requestBody3 := map[string]interface{}{
@@ -733,23 +658,6 @@ func TestUpdateVariant(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Invalid Request - Wrong data type for stock", func(t *testing.T) {
-		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
-		client.SetToken(seller2Token)
-
-		productID := 2
-		variantID := 5
-
-		requestBody := map[string]interface{}{
-			"stock": "not-a-number",
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
-		w := client.Put(t, url, requestBody)
-
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
-	})
-
 	t.Run("Invalid Request - Wrong data type for boolean flags", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
@@ -758,7 +666,7 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 6
 
 		requestBody := map[string]interface{}{
-			"inStock": "yes",
+			"allowPurchase": "yes",
 		}
 
 		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)

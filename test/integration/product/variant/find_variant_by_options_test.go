@@ -217,6 +217,9 @@ func TestFindVariantByOptions(t *testing.T) {
 
 	t.Run("Success - Find non-default variant", func(t *testing.T) {
 		// Variant 10: White + M is not default
+		client.SetToken("")
+		client.SetHeader("X-Seller-ID", "3")
+
 		productID := 5
 
 		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=White", productID)
@@ -357,9 +360,12 @@ func TestFindVariantByOptions(t *testing.T) {
 
 	t.Run("EdgeCase - Extra query parameters should be ignored", func(t *testing.T) {
 		// Extra pagination/filter params should be ignored by ParseOptionsFromQuery
+		client.SetToken("")
+		client.SetHeader("X-Seller-ID", "3")
+
 		productID := 5
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Black&Size=M&page=1&limit=10&sort=price&inStock=true",
+			"/api/products/%d/variants/find?Color=Black&Size=M&page=1&limit=10&sort=price",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -403,21 +409,6 @@ func TestFindVariantByOptions(t *testing.T) {
 		// Should return the same variant
 		assert.Equal(t, variant1["id"], variant2["id"])
 		assert.Equal(t, "NIKE-TSHIRT-BLK-L", variant1["sku"])
-	})
-
-	t.Run("EdgeCase - Find variant with stock = 0 (out of stock)", func(t *testing.T) {
-		// First, let's find an in-stock variant to confirm the endpoint works
-		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
-		w := client.Get(t, url)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		variant := helpers.GetResponseData(t, response, "variant")
-
-		// Should still return the variant even if out of stock
-		// The business logic should return the variant; frontend decides if purchasable
-		assert.NotNil(t, variant["id"])
-		assert.NotNil(t, variant["stock"])
 	})
 
 	t.Run("EdgeCase - Verify color option has colorCode", func(t *testing.T) {
@@ -477,9 +468,9 @@ func TestFindVariantByOptions(t *testing.T) {
 	// ============================================================================
 	// RESPONSE VALIDATION SCENARIOS
 	// ============================================================================
-
 	t.Run("ResponseValidation - Verify all required fields are present", func(t *testing.T) {
-		client.SetToken("") // Public access
+		client.SetToken("")
+		client.SetHeader("X-Seller-ID", "3")
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
@@ -491,8 +482,8 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		// Verify all required fields
 		requiredFields := []string{
-			"id", "sku", "price", "images", "inStock",
-			"isPopular", "stock", "isDefault", "selectedOptions",
+			"id", "sku", "price", "images", "allowPurchase",
+			"isPopular", "isDefault", "selectedOptions",
 		}
 
 		for _, field := range requiredFields {

@@ -132,9 +132,8 @@ CREATE TABLE IF NOT EXISTS product_variant (
     sku VARCHAR(255) UNIQUE,
     price DOUBLE PRECISION NOT NULL,
     images TEXT[],
-    in_stock BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_purchase BOOLEAN NOT NULL DEFAULT TRUE,
     is_popular BOOLEAN NOT NULL DEFAULT FALSE,
-    stock INTEGER NOT NULL DEFAULT 0,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -143,7 +142,7 @@ CREATE TABLE IF NOT EXISTS product_variant (
 -- Create indexes on product_variants
 CREATE INDEX IF NOT EXISTS idx_product_variant_product_id ON product_variant(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_variant_sku ON product_variant(sku);
-CREATE INDEX IF NOT EXISTS idx_product_variant_in_stock ON product_variant(in_stock);
+CREATE INDEX IF NOT EXISTS idx_product_variant_allow_purchase ON product_variant(allow_purchase);
 CREATE INDEX IF NOT EXISTS idx_product_variant_is_popular ON product_variant(is_popular);
 
 -- Create variant_option_values table if not exists (junction table for variant-option relationships)

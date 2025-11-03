@@ -242,60 +242,6 @@ func (h *VariantHandler) DeleteVariant(c *gin.Context) {
 }
 
 /***********************************************
- *           UpdateVariantStock                *
- ***********************************************/
-// UpdateVariantStock handles updating the stock for a specific variant
-// PATCH /api/products/:productId/variants/:variantId/stock
-func (h *VariantHandler) UpdateVariantStock(c *gin.Context) {
-	// Parse and validate IDs
-	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
-	if err != nil {
-		h.HandleError(c, err, "")
-		return
-	}
-
-	variantID, err := h.ParseUintParam(c, utils.VARIANT_ID_PARAM)
-	if err != nil {
-		h.HandleError(c, err, "")
-		return
-	}
-
-	// Bind request
-	var request model.UpdateVariantStockRequest
-	if err := h.BindJSON(c, &request); err != nil {
-		h.HandleValidationError(c, err)
-		return
-	}
-
-	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
-	if err != nil {
-		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
-		return
-	}
-
-	// Call service
-	stockResponse, err := h.variantService.UpdateVariantStock(
-		productID,
-		variantID,
-		sellerId,
-		&request,
-	)
-	if err != nil {
-		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_STOCK_MSG)
-		return
-	}
-
-	// Return success response
-	h.SuccessWithData(
-		c,
-		http.StatusOK,
-		utils.VARIANT_STOCK_UPDATED_MSG,
-		utils.VARIANT_FIELD_NAME,
-		stockResponse,
-	)
-}
-
-/***********************************************
  *           BulkUpdateVariants                *
  ***********************************************/
 // BulkUpdateVariants handles updating multiple variants at once

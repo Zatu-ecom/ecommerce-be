@@ -72,7 +72,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.Equal(t, float64(variantID), variant["id"])
 		assert.Equal(t, "IPHONE-15-PRO-NAT-128", variant["sku"])
 		assert.Equal(t, 999.00, variant["price"])
-		assert.True(t, variant["inStock"].(bool))
+		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
 		assert.NotNil(t, variant["images"])
@@ -412,7 +412,7 @@ func TestGetVariantByID(t *testing.T) {
 			// Verify all required fields for VariantDetailResponse
 			requiredFields := []string{
 				"id", "productId", "product", "sku", "price", "images",
-				"inStock", "isPopular", "stock", "isDefault",
+				"allowPurchase", "isPopular", "isDefault",
 				"selectedOptions", "createdAt", "updatedAt",
 			}
 

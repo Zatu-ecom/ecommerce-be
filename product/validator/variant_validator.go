@@ -108,25 +108,6 @@ func (v *VariantValidator) ValidateCanDeleteVariant(productID uint) error {
 	return nil
 }
 
-// ValidateStockOperation validates the stock operation type and value
-func (v *VariantValidator) ValidateStockOperation(
-	request *model.UpdateVariantStockRequest,
-	currentStock int,
-) error {
-	switch request.Operation {
-	case "set", "add":
-		// Always valid
-		return nil
-	case "subtract":
-		if currentStock < request.Stock {
-			return prodErrors.ErrInsufficientStockForOperation
-		}
-		return nil
-	default:
-		return prodErrors.ErrInvalidStockOperation
-	}
-}
-
 // ValidateBulkUpdateRequest validates the bulk update request
 func (v *VariantValidator) ValidateBulkUpdateRequest(
 	request *model.BulkUpdateVariantsRequest,

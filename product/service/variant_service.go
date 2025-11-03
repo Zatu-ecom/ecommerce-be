@@ -41,12 +41,6 @@ type VariantService interface {
 	// DeleteVariant deletes a variant
 	DeleteVariant(productID, variantID uint, sellerID uint) error
 
-	// UpdateVariantStock updates the stock for a variant
-	UpdateVariantStock(
-		productID, variantID, sellerID uint,
-		request *model.UpdateVariantStockRequest,
-	) (*model.UpdateVariantStockResponse, error)
-
 	// BulkUpdateVariants updates multiple variants at once
 	BulkUpdateVariants(
 		productID, sellerID uint,
@@ -375,51 +369,6 @@ func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint, sellerID u
 }
 
 /***********************************************
- *            UpdateVariantStock               *
- ***********************************************/
-func (s *VariantServiceImpl) UpdateVariantStock(
-	productID, variantID, sellerID uint,
-	request *model.UpdateVariantStockRequest,
-) (*model.UpdateVariantStockResponse, error) {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
-		return nil, err
-	}
-
-	// Validate variant belongs to product
-	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
-		return nil, err
-	}
-
-	// Get existing variant
-	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate stock operation
-	if err := s.validator.ValidateStockOperation(request, variant.Stock); err != nil {
-		return nil, err
-	}
-
-	// Apply stock operation using factory
-	variant = s.factory.ApplyStockOperation(variant, request.Operation, request.Stock)
-
-	// Save updated variant
-	if err := s.variantRepo.UpdateVariant(variant); err != nil {
-		return nil, err
-	}
-
-	// Return stock update response
-	return &model.UpdateVariantStockResponse{
-		VariantID: variant.ID,
-		SKU:       variant.SKU,
-		Stock:     variant.Stock,
-		InStock:   variant.InStock,
-	}, nil
-}
-
-/***********************************************
  *           BulkUpdateVariants                *
  ***********************************************/
 func (s *VariantServiceImpl) BulkUpdateVariants(
@@ -505,11 +454,10 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	summaries := make([]model.BulkUpdateVariantSummary, 0, len(variantsToUpdate))
 	for _, variant := range variantsToUpdate {
 		summaries = append(summaries, model.BulkUpdateVariantSummary{
-			ID:      variant.ID,
-			SKU:     variant.SKU,
-			Price:   variant.Price,
-			Stock:   variant.Stock,
-			InStock: variant.InStock,
+			ID:            variant.ID,
+			SKU:           variant.SKU,
+			Price:         variant.Price,
+			AllowPurchase: variant.AllowPurchase,
 		})
 	}
 

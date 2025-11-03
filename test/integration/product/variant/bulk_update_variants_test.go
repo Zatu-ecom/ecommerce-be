@@ -57,8 +57,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 					"price": 1299.99,
 				},
 				{
-					"id":    3,
-					"stock": 150,
+					"id": 3,
 				},
 			},
 		}
@@ -83,12 +82,10 @@ func TestBulkUpdateVariants(t *testing.T) {
 		variant2Data := helpers.GetResponseData(t, response2, "variant")
 		assert.Equal(t, 1299.99, variant2Data["price"].(float64))
 
-		// Verify variant 3 stock was updated
 		variant3URL := fmt.Sprintf("/api/products/%d/variants/3", productID)
 		w3 := client.Get(t, variant3URL)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
-		variant3Data := helpers.GetResponseData(t, response3, "variant")
-		assert.Equal(t, float64(150), variant3Data["stock"].(float64))
+		_ = helpers.GetResponseData(t, response3, "variant")
 	})
 
 	t.Run("Success - Update 3 variants with mixed updates", func(t *testing.T) {
@@ -104,13 +101,12 @@ func TestBulkUpdateVariants(t *testing.T) {
 					"price": 1099.99,
 				},
 				{
-					"id":    2,
-					"stock": 75,
+					"id": 2,
 				},
 				{
-					"id":        3,
-					"inStock":   true,
-					"isPopular": true,
+					"id":            3,
+					"allowPurchase": true,
+					"isPopular":     true,
 				},
 			},
 		}
@@ -131,19 +127,17 @@ func TestBulkUpdateVariants(t *testing.T) {
 		variant1Data := helpers.GetResponseData(t, response1, "variant")
 		assert.Equal(t, 1099.99, variant1Data["price"].(float64))
 
-		// Verify variant 2 stock was updated
 		variant2URL := fmt.Sprintf("/api/products/%d/variants/2", productID)
 		w2 := client.Get(t, variant2URL)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		variant2Data := helpers.GetResponseData(t, response2, "variant")
-		assert.Equal(t, float64(75), variant2Data["stock"].(float64))
+		_ = helpers.GetResponseData(t, response2, "variant")
 
 		// Verify variant 3 flags were updated
 		variant3URL := fmt.Sprintf("/api/products/%d/variants/3", productID)
 		w3 := client.Get(t, variant3URL)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 		variant3Data := helpers.GetResponseData(t, response3, "variant")
-		assert.True(t, variant3Data["inStock"].(bool))
+		assert.True(t, variant3Data["allowPurchase"].(bool))
 		assert.True(t, variant3Data["isPopular"].(bool))
 	})
 
@@ -194,7 +188,6 @@ func TestBulkUpdateVariants(t *testing.T) {
 				{
 					"id":    9,
 					"price": 34.99,
-					"stock": 250,
 				},
 			},
 		}
@@ -239,36 +232,6 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, 31.99, variant11Data["price"].(float64))
 	})
 
-	t.Run("Success - Update multiple variants - only stock changes", func(t *testing.T) {
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
-
-		productID := 6 // Summer Dress
-
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
-				{"id": 12, "stock": 100},
-				{"id": 13, "stock": 150},
-			},
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
-		w := client.Put(t, url, requestBody)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
-		assert.True(t, ok)
-
-		assert.Equal(t, float64(2), data["updatedCount"])
-
-		// Verify stock was updated
-		variant12Data := getAndVerifyVariant(t, client, uint(productID), 12)
-		assert.Equal(t, float64(100), variant12Data["stock"].(float64))
-
-		variant13Data := getAndVerifyVariant(t, client, uint(productID), 13)
-		assert.Equal(t, float64(150), variant13Data["stock"].(float64))
-	})
-
 	t.Run("Success - Update multiple variants with all fields", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
@@ -280,23 +243,21 @@ func TestBulkUpdateVariants(t *testing.T) {
 				{
 					"id":    14,
 					"price": 119.99,
-					"stock": 80,
 					"images": []string{
 						"https://example.com/shoe1.jpg",
 						"https://example.com/shoe2.jpg",
 					},
-					"inStock":   true,
-					"isPopular": true,
-					"isDefault": true,
+					"allowPurchase": true,
+					"isPopular":     true,
+					"isDefault":     true,
 				},
 				{
-					"id":        15,
-					"price":     109.99,
-					"stock":     60,
-					"images":    []string{"https://example.com/shoe3.jpg"},
-					"inStock":   true,
-					"isPopular": false,
-					"isDefault": false,
+					"id":            15,
+					"price":         109.99,
+					"images":        []string{"https://example.com/shoe3.jpg"},
+					"allowPurchase": true,
+					"isPopular":     false,
+					"isDefault":     false,
 				},
 			},
 		}
@@ -315,7 +276,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 	// SUCCESS SCENARIOS - Boolean Flags
 	// ============================================================================
 
-	t.Run("Success - Update inStock flag for multiple variants", func(t *testing.T) {
+	t.Run("Success - Update allowPurchase flag for multiple variants", func(t *testing.T) {
 		seller4Token := helpers.Login(t, client, helpers.Seller4Email, helpers.Seller4Password)
 		client.SetToken(seller4Token)
 
@@ -323,8 +284,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]interface{}{
 			"variants": []map[string]interface{}{
-				{"id": 16, "inStock": false},
-				{"id": 17, "inStock": true},
+				{"id": 16, "allowPurchase": false},
+				{"id": 17, "allowPurchase": true},
 			},
 		}
 
@@ -337,12 +298,12 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		assert.Equal(t, float64(2), data["updatedCount"])
 
-		// Verify inStock flags were updated
+		// Verify allowPurchase flags were updated
 		variant16Data := getAndVerifyVariant(t, client, uint(productID), 16)
-		assert.False(t, variant16Data["inStock"].(bool))
+		assert.False(t, variant16Data["allowPurchase"].(bool))
 
 		variant17Data := getAndVerifyVariant(t, client, uint(productID), 17)
-		assert.True(t, variant17Data["inStock"].(bool))
+		assert.True(t, variant17Data["allowPurchase"].(bool))
 	})
 
 	t.Run("Success - Update isPopular flag for multiple variants", func(t *testing.T) {
@@ -524,36 +485,6 @@ func TestBulkUpdateVariants(t *testing.T) {
 	// SUCCESS SCENARIOS - Partial Updates
 	// ============================================================================
 
-	t.Run("Success - Update with zero stock", func(t *testing.T) {
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
-
-		productID := 7
-
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
-				{"id": 14, "stock": 0},
-				{"id": 15, "stock": 0},
-			},
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
-		w := client.Put(t, url, requestBody)
-
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
-		assert.True(t, ok)
-
-		assert.Equal(t, float64(2), data["updatedCount"])
-
-		// Verify stock was set to 0
-		variant14Data := getAndVerifyVariant(t, client, uint(productID), 14)
-		assert.Equal(t, float64(0), variant14Data["stock"].(float64))
-
-		variant15Data := getAndVerifyVariant(t, client, uint(productID), 15)
-		assert.Equal(t, float64(0), variant15Data["stock"].(float64))
-	})
-
 	t.Run("Success - Update with empty variants array", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
@@ -633,27 +564,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 	})
 
 	// ============================================================================
-	// VALIDATION ERRORS - Stock Validation
 	// ============================================================================
-
-	t.Run("Validation Error - One variant with negative stock", func(t *testing.T) {
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
-
-		productID := 5
-
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
-				{"id": 9, "stock": 100},
-				{"id": 10, "stock": -5}, // Invalid
-			},
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
-		w := client.Put(t, url, requestBody)
-
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
-	})
 
 	// ============================================================================
 	// VALIDATION ERRORS - Variant ID
@@ -833,24 +744,6 @@ func TestBulkUpdateVariants(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Validation Error - Wrong data type for stock", func(t *testing.T) {
-		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
-		client.SetToken(seller2Token)
-
-		productID := 1
-
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
-				{"id": 2, "stock": "not-a-number"},
-			},
-		}
-
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
-		w := client.Put(t, url, requestBody)
-
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
-	})
-
 	t.Run("Validation Error - Wrong data type for boolean flags", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
@@ -859,7 +752,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]interface{}{
 			"variants": []map[string]interface{}{
-				{"id": 3, "inStock": "yes"},
+				{"id": 3, "allowPurchase": "yes"},
 			},
 		}
 

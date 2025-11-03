@@ -111,6 +111,34 @@ func (c *APIClient) Put(t *testing.T, url string, body interface{}) *httptest.Re
 	return w
 }
 
+// Patch makes a PATCH request with JSON body
+func (c *APIClient) Patch(t *testing.T, url string, body interface{}) *httptest.ResponseRecorder {
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("failed to marshal request body: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
+	w := httptest.NewRecorder()
+	c.Handler.ServeHTTP(w, req)
+
+	return w
+}
+
 // Delete makes a DELETE request
 func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)

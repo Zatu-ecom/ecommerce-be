@@ -179,12 +179,12 @@ func (s *ProductServiceImpl) createProductVariants(
 
 	for i, variantReq := range variantReqs {
 		// Determine default values
-		inStock := true
+		allowPurchase := true
 		isPopular := false
 		isDefault := false
 
-		if variantReq.InStock != nil {
-			inStock = *variantReq.InStock
+		if variantReq.AllowPurchase != nil {
+			allowPurchase = *variantReq.AllowPurchase
 		}
 		if variantReq.IsPopular != nil {
 			isPopular = *variantReq.IsPopular
@@ -200,14 +200,13 @@ func (s *ProductServiceImpl) createProductVariants(
 
 		// Create variant
 		variant := &entity.ProductVariant{
-			ProductID: productID,
-			SKU:       variantReq.SKU,
-			Price:     variantReq.Price,
-			Stock:     variantReq.Stock,
-			InStock:   inStock,
-			IsPopular: isPopular,
-			IsDefault: isDefault,
-			Images:    variantReq.Images,
+			ProductID:     productID,
+			SKU:           variantReq.SKU,
+			Price:         variantReq.Price,
+			AllowPurchase: allowPurchase,
+			IsPopular:     isPopular,
+			IsDefault:     isDefault,
+			Images:        variantReq.Images,
 		}
 
 		if err := s.variantRepo.CreateVariant(variant); err != nil {
@@ -392,8 +391,7 @@ func (s *ProductServiceImpl) buildVariantsDetailResponse(
 			ID:              vwo.Variant.ID,
 			SKU:             vwo.Variant.SKU,
 			Price:           vwo.Variant.Price,
-			Stock:           vwo.Variant.Stock,
-			InStock:         vwo.Variant.InStock,
+			AllowPurchase:   vwo.Variant.AllowPurchase,
 			Images:          vwo.Variant.Images,
 			IsDefault:       vwo.Variant.IsDefault,
 			IsPopular:       vwo.Variant.IsPopular,

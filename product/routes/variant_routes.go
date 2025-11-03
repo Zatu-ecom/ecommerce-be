@@ -41,6 +41,5 @@ func (m *VariantModule) RegisterRoutes(router *gin.Engine) {
 		variantRoutes.PUT("/:variantId", sellerAuth, m.variantHandler.UpdateVariant)
 		variantRoutes.PUT("/bulk", sellerAuth, m.variantHandler.BulkUpdateVariants)
 		variantRoutes.DELETE("/:variantId", sellerAuth, m.variantHandler.DeleteVariant)
-		variantRoutes.PATCH("/:variantId/stock", sellerAuth, m.variantHandler.UpdateVariantStock)
 	}
 }

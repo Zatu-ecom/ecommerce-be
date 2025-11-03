@@ -21,9 +21,9 @@ func (f *VariantFactory) CreateVariantFromRequest(
 	req *model.CreateVariantRequest,
 ) *entity.ProductVariant {
 	// Set default values
-	inStock := true
-	if req.InStock != nil {
-		inStock = *req.InStock
+	allowPurchase := true
+	if req.AllowPurchase != nil {
+		allowPurchase = *req.AllowPurchase
 	}
 
 	isPopular := false
@@ -37,14 +37,13 @@ func (f *VariantFactory) CreateVariantFromRequest(
 	}
 
 	return &entity.ProductVariant{
-		ProductID: productID,
-		SKU:       req.SKU,
-		Price:     req.Price,
-		Stock:     req.Stock,
-		Images:    req.Images,
-		InStock:   inStock,
-		IsPopular: isPopular,
-		IsDefault: isDefault,
+		ProductID:     productID,
+		SKU:           req.SKU,
+		Price:         req.Price,
+		Images:        req.Images,
+		AllowPurchase: allowPurchase,
+		IsPopular:     isPopular,
+		IsDefault:     isDefault,
 	}
 }
 
@@ -61,16 +60,8 @@ func (f *VariantFactory) UpdateVariantEntity(
 		variant.Price = *req.Price
 	}
 
-	if req.Stock != nil {
-		variant.Stock = *req.Stock
-	}
-
 	if req.Images != nil {
 		variant.Images = req.Images
-	}
-
-	if req.InStock != nil {
-		variant.InStock = *req.InStock
 	}
 
 	if req.IsPopular != nil {
@@ -81,26 +72,11 @@ func (f *VariantFactory) UpdateVariantEntity(
 		variant.IsDefault = *req.IsDefault
 	}
 
-	return variant
-}
-
-// ApplyStockOperation applies a stock operation to a variant
-func (f *VariantFactory) ApplyStockOperation(
-	variant *entity.ProductVariant,
-	operation string,
-	stock int,
-) *entity.ProductVariant {
-	switch operation {
-	case "set":
-		variant.Stock = stock
-	case "add":
-		variant.Stock += stock
-	case "subtract":
-		variant.Stock -= stock
+	// Apply AllowPurchase logic based on business rules:
+	// - AllowPurchase is user-controlled, only apply if explicitly provided
+	if req.AllowPurchase != nil {
+		variant.AllowPurchase = *req.AllowPurchase
 	}
-
-	// Update InStock status based on new stock value
-	variant.InStock = variant.Stock > 0
 
 	return variant
 }
@@ -118,16 +94,8 @@ func (f *VariantFactory) BulkUpdateVariantEntity(
 		variant.Price = *updateData.Price
 	}
 
-	if updateData.Stock != nil {
-		variant.Stock = *updateData.Stock
-	}
-
 	if updateData.Images != nil {
 		variant.Images = updateData.Images
-	}
-
-	if updateData.InStock != nil {
-		variant.InStock = *updateData.InStock
 	}
 
 	if updateData.IsPopular != nil {
@@ -136,6 +104,12 @@ func (f *VariantFactory) BulkUpdateVariantEntity(
 
 	if updateData.IsDefault != nil {
 		variant.IsDefault = *updateData.IsDefault
+	}
+
+	// Apply AllowPurchase logic based on business rules:
+	// - AllowPurchase is user-controlled, only apply if explicitly provided
+	if updateData.AllowPurchase != nil {
+		variant.AllowPurchase = *updateData.AllowPurchase
 	}
 
 	return variant
@@ -192,8 +166,7 @@ func (f *VariantFactory) BuildVariantDetailResponse(
 		ProductID:       variant.ProductID,
 		SKU:             variant.SKU,
 		Price:           variant.Price,
-		Stock:           variant.Stock,
-		InStock:         variant.InStock,
+		AllowPurchase:   variant.AllowPurchase,
 		Images:          images,
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
@@ -228,8 +201,7 @@ func (f *VariantFactory) BuildVariantResponse(
 		ID:              variant.ID,
 		SKU:             variant.SKU,
 		Price:           variant.Price,
-		Stock:           variant.Stock,
-		InStock:         variant.InStock,
+		AllowPurchase:   variant.AllowPurchase,
 		Images:          images,
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
