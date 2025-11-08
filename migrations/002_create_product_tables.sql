@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS product (
     name VARCHAR(255) NOT NULL,
     category_id BIGINT NOT NULL REFERENCES category(id) ON DELETE RESTRICT,
     brand VARCHAR(255),
-    base_sku VARCHAR(255) UNIQUE,
+    base_sku VARCHAR(255),
     short_description TEXT,
     long_description TEXT,
     tags TEXT[],
@@ -129,7 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_product_option_value_option_id ON product_option_
 CREATE TABLE IF NOT EXISTS product_variant (
     id BIGSERIAL PRIMARY KEY,
     product_id BIGINT NOT NULL REFERENCES product(id) ON DELETE CASCADE,
-    sku VARCHAR(255) UNIQUE,
+    sku VARCHAR(255),
     price DOUBLE PRECISION NOT NULL,
     images TEXT[],
     allow_purchase BOOLEAN NOT NULL DEFAULT TRUE,

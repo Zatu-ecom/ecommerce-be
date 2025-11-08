@@ -177,6 +177,15 @@ func (s *ProductServiceImpl) createProductVariants(
 		optionMap[productOptions[i].Name] = &productOptions[i]
 	}
 
+	// Apply "last one wins" rule for multiple default variants
+	// Find the last variant that has isDefault=true
+	lastDefaultIndex := -1
+	for i, variantReq := range variantReqs {
+		if variantReq.IsDefault != nil && *variantReq.IsDefault {
+			lastDefaultIndex = i
+		}
+	}
+
 	for i, variantReq := range variantReqs {
 		// Determine default values
 		allowPurchase := true
@@ -189,13 +198,17 @@ func (s *ProductServiceImpl) createProductVariants(
 		if variantReq.IsPopular != nil {
 			isPopular = *variantReq.IsPopular
 		}
-		if variantReq.IsDefault != nil {
-			isDefault = *variantReq.IsDefault
-		}
 
-		// First variant is default if not specified
-		if i == 0 && variantReq.IsDefault == nil {
-			isDefault = true
+		// Apply multiple default validation: "last one wins" rule
+		// If multiple variants are marked as default, only the last one remains default
+		if lastDefaultIndex != -1 {
+			// There are explicitly marked defaults, only set default for the last one
+			isDefault = (i == lastDefaultIndex)
+		} else {
+			// No explicit defaults, first variant is default by convention
+			if i == 0 {
+				isDefault = true
+			}
 		}
 
 		// Create variant
@@ -211,6 +224,18 @@ func (s *ProductServiceImpl) createProductVariants(
 
 		if err := s.variantRepo.CreateVariant(variant); err != nil {
 			return err
+		}
+
+		// Validate that variant provides all required options
+		// If product has options defined, variants with options must specify all of them
+		if len(productOptions) > 0 && len(variantReq.Options) > 0 {
+			if len(variantReq.Options) != len(productOptions) {
+				return commonError.ErrValidation.WithMessagef(
+					"variant must specify all product options (%d required, %d provided)",
+					len(productOptions),
+					len(variantReq.Options),
+				)
+			}
 		}
 
 		// Link variant to option values
@@ -308,8 +333,7 @@ func (s *ProductServiceImpl) buildProductResponseFromEntity(
 		Tags:             product.Tags,
 		SellerID:         product.SellerID,
 		HasVariants:      variantAgg.HasVariants,
-		TotalStock:       variantAgg.TotalStock,
-		InStock:          variantAgg.InStock,
+		AllowPurchase:    variantAgg.AllowPurchase,
 		Attributes:       attributes,
 		PackageOptions:   packageOptionResponses,
 		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
@@ -690,8 +714,7 @@ func (s *ProductServiceImpl) buildProductResponse(
 		Tags:             product.Tags,
 		SellerID:         product.SellerID,
 		HasVariants:      variantAgg.HasVariants,
-		TotalStock:       variantAgg.TotalStock,
-		InStock:          variantAgg.InStock,
+		AllowPurchase:    variantAgg.AllowPurchase,
 		CreatedAt:        product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        product.UpdatedAt.Format(time.RFC3339),
 	}

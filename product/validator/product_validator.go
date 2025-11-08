@@ -28,18 +28,6 @@ func NewProductValidator(
 	}
 }
 
-// ValidateSKUUniqueness checks if a SKU is not already in use
-func (v *ProductValidator) ValidateSKUUniqueness(sku string) error {
-	existing, err := v.productRepo.FindBySKU(sku)
-	if err != nil {
-		return err
-	}
-	if existing != nil {
-		return prodErrors.ErrProductSKUExists
-	}
-	return nil
-}
-
 // ValidateCategoryExists checks if a category exists
 func (v *ProductValidator) ValidateCategoryExists(categoryID uint) (*entity.Category, error) {
 	category, err := v.categoryRepo.FindByID(categoryID)
@@ -89,11 +77,6 @@ func (v *ProductValidator) ValidateVariantSKUsUnique(variants []model.CreateVari
 // ValidateProductCreateRequest validates the entire product creation request
 // This is the main validation orchestrator for product creation
 func (v *ProductValidator) ValidateProductCreateRequest(req model.ProductCreateRequest) error {
-	// Validate SKU uniqueness
-	if err := v.ValidateSKUUniqueness(req.BaseSKU); err != nil {
-		return err
-	}
-
 	// Validate category exists
 	if _, err := v.ValidateCategoryExists(req.CategoryID); err != nil {
 		return err

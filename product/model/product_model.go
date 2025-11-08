@@ -1,25 +1,26 @@
 package model
 
 // ProductCreateRequest represents the request body for creating a product
-// Note: Product requires at least one variant with price, images, stock
+// Note: Product requires at least one variant with price and images
 // Frontend handles variant generation from options - backend only saves the final variants
 type ProductCreateRequest struct {
 	Name             string   `json:"name"             binding:"required,min=3,max=200"`
 	CategoryID       uint     `json:"categoryId"       binding:"required"`
 	Brand            string   `json:"brand"            binding:"max=100"`
-	BaseSKU          string   `json:"baseSku"          binding:"required,min=3,max=50"`
+	BaseSKU          string   `json:"baseSku"          binding:"max=50"` // Optional, no validation
 	ShortDescription string   `json:"shortDescription" binding:"max=500"`
 	LongDescription  string   `json:"longDescription"  binding:"max=5000"`
 	Tags             []string `json:"tags"             binding:"max=20"`
+	SellerID         *uint    `json:"sellerId"` // Optional: set by backend from auth context this is required in case of admin creates product for a seller
 
 	// Options and Variants
 	// Frontend generates variant combinations from options and sends final variants
-	Options  []ProductOptionCreateRequest `json:"options"`  // Product options (color, size, etc.)
-	Variants []CreateVariantRequest       `json:"variants"` // Variants selected by seller (required, min=1)
+	Options  []ProductOptionCreateRequest `json:"options"  binding:"dive"` // Product options (color, size, etc.)
+	Variants []CreateVariantRequest       `json:"variants" binding:"dive"` // Variants selected by seller (required, min=1)
 
 	// Product attributes and package options
-	Attributes     []ProductAttributeRequest `json:"attributes"`
-	PackageOptions []PackageOptionRequest    `json:"packageOptions"`
+	Attributes     []ProductAttributeRequest `json:"attributes"     binding:"dive"`
+	PackageOptions []PackageOptionRequest    `json:"packageOptions" binding:"dive"`
 }
 
 // ProductUpdateRequest represents the request body for updating a product
@@ -90,8 +91,7 @@ type ProductResponse struct {
 	// Variant information (from aggregated variants) - PRD Section 3.1.1
 	HasVariants    bool            `json:"hasVariants"`              // Product has variants
 	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
-	TotalStock     int             `json:"totalStock"`               // Total stock across all variants
-	InStock        bool            `json:"inStock"`                  // Any variant in stock
+	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
 	Images         []string        `json:"images"`                   // Main product images
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
 
@@ -124,9 +124,10 @@ type ProductsResponse struct {
 	Pagination PaginationResponse `json:"pagination"`
 }
 
-// ProductStockUpdateRequest represents the request body for updating product stock
+// ProductStockUpdateRequest represents the request body for updating product purchase availability
+// Deprecated: Stock management removed, use variant allowPurchase instead
 type ProductStockUpdateRequest struct {
-	InStock bool `json:"inStock" binding:"required"`
+	AllowPurchase bool `json:"allowPurchase" binding:"required"`
 }
 
 // SearchResult represents a product search result

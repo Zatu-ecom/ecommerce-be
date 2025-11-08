@@ -62,4 +62,10 @@ var (
 		Message:    constants.UNAUTHORIZED_ERROR_MSG,
 		StatusCode: http.StatusUnauthorized,
 	}
+
+	ErrSellerDataMissing = &AppError{
+		Code:       constants.SELLER_DATA_MISSING_CODE,
+		Message:    constants.SELLER_DATA_MISSING_MSG,
+		StatusCode: http.StatusNotFound,
+	}
 )

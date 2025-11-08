@@ -17,7 +17,7 @@ type ProductRepository interface {
 	Create(product *entity.Product) error
 	Update(product *entity.Product) error
 	FindByID(id uint) (*entity.Product, error)
-	FindBySKU(sku string) (*entity.Product, error)
+	// FindBySKU removed - BaseSKU validation no longer required
 	FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
 	Search(
 		query string,
@@ -85,17 +85,18 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 }
 
 // FindBySKU finds a product by SKU
-func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
-	var product entity.Product
-	result := r.db.Where("base_sku = ?", sku).First(&product)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil // Not found, but not an error
-		}
-		return nil, result.Error
-	}
-	return &product, nil
-}
+// DEPRECATED: BaseSKU validation has been removed from product APIs
+// func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
+// 	var product entity.Product
+// 	result := r.db.Where("base_sku = ?", sku).First(&product)
+// 	if result.Error != nil {
+// 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+// 			return nil, nil // Not found, but not an error
+// 		}
+// 		return nil, result.Error
+// 	}
+// 	return &product, nil
+// }
 
 // FindAll finds all products with filtering and pagination
 // Updated to work with variant-based pricing and stock

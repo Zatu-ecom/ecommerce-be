@@ -129,16 +129,16 @@ const (
 
 	FIND_STOCK_STATUS_QUERY = `
 		SELECT 
-			COUNT(DISTINCT CASE WHEN pv.in_stock = true AND pv.stock > 0 THEN p.id END) as in_stock,
-			COUNT(DISTINCT CASE WHEN pv.in_stock = false OR pv.stock = 0 THEN p.id END) as out_of_stock,
+			COUNT(DISTINCT CASE WHEN pv.allow_purchase = true THEN p.id END) as in_stock,
+			COUNT(DISTINCT CASE WHEN pv.allow_purchase = false THEN p.id END) as out_of_stock,
 			COUNT(DISTINCT p.id) as total_products
 		FROM product p
 		INNER JOIN product_variant pv ON pv.product_id = p.id`
 
 	FIND_STOCK_STATUS_BY_SELLER_QUERY = `
 		SELECT 
-			COUNT(DISTINCT CASE WHEN pv.in_stock = true AND pv.stock > 0 THEN p.id END) as in_stock,
-			COUNT(DISTINCT CASE WHEN pv.in_stock = false OR pv.stock = 0 THEN p.id END) as out_of_stock,
+			COUNT(DISTINCT CASE WHEN pv.allow_purchase = true THEN p.id END) as in_stock,
+			COUNT(DISTINCT CASE WHEN pv.allow_purchase = false THEN p.id END) as out_of_stock,
 			COUNT(DISTINCT p.id) as total_products
 		FROM product p
 		INNER JOIN product_variant pv ON pv.product_id = p.id

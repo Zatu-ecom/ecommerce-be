@@ -652,13 +652,14 @@ func TestFindVariantByOptions(t *testing.T) {
 		// If case-insensitive: should succeed
 		// If case-sensitive: should fail with 400/404
 		// Let the test reveal the actual behavior
-		if w.Code == http.StatusOK {
+		switch w.Code {
+		case http.StatusOK:
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 			variant := helpers.GetResponseData(t, response, "variant")
 			assert.NotNil(t, variant["id"], "System is case-insensitive")
-		} else if w.Code == http.StatusBadRequest {
+		case http.StatusBadRequest:
 			t.Log("System is case-sensitive for option values (returns 400)")
-		} else {
+		default:
 			helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 			t.Log("System is case-sensitive for option values (returns 404)")
 		}

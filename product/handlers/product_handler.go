@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
+	"ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
@@ -36,9 +38,18 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	}
 
 	// Get seller ID from context
-	sellerID, exists := auth.GetSellerIDFromContext(c)
-	if !exists {
-		h.HandleError(c, nil, "Seller ID not found in context")
+	roleLevel, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, "Failed to validate user role")
+		return
+	}
+
+	if roleLevel < constants.SELLER_ROLE_LEVEL && req.SellerID != nil {
+		sellerID = *req.SellerID
+	}
+
+	if sellerID == 0 {
+		h.HandleError(c, error.ErrSellerDataMissing, "Seller ID is required to create a product")
 		return
 	}
 

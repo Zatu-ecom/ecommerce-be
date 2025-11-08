@@ -9,7 +9,7 @@ type Product struct {
 	Name             string         `json:"name"             binding:"required" gorm:"column:name"`
 	CategoryID       uint           `json:"categoryId"       binding:"required" gorm:"column:category_id"`
 	Brand            string         `json:"brand"                               gorm:"column:brand"`
-	BaseSKU          string         `json:"baseSku"          binding:"required" gorm:"column:base_sku;uniqueIndex"`
+	BaseSKU          string         `json:"baseSku"                             gorm:"column:base_sku"`
 	ShortDescription string         `json:"shortDescription"                    gorm:"column:short_description"`
 	LongDescription  string         `json:"longDescription"                     gorm:"column:long_description"`
 	Tags             db.StringArray `json:"tags"                                gorm:"column:tags;type:text[]"`

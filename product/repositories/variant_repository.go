@@ -49,8 +49,7 @@ type VariantAggregation struct {
 	TotalVariants int
 	MinPrice      float64
 	MaxPrice      float64
-	TotalStock    int
-	InStock       bool
+	AllowPurchase bool                // At least one variant allows purchase
 	MainImage     string
 	OptionNames   []string
 	OptionValues  map[string][]string // optionName -> []values
@@ -446,21 +445,19 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	aggregation.HasVariants = true
 	aggregation.TotalVariants = int(variantCount)
 
-	// Get price range and total stock
+	// Get price range and availability (using allow_purchase instead of stock)
 	var priceAgg struct {
-		MinPrice   float64
-		MaxPrice   float64
-		TotalStock int
-		InStock    bool
-		MainImage  string
+		MinPrice        float64
+		MaxPrice        float64
+		AllowPurchase   bool
+		MainImage       string
 	}
 
 	err := r.db.Model(&entity.ProductVariant{}).
 		Select(`
 			MIN(price) as min_price,
 			MAX(price) as max_price,
-			SUM(stock) as total_stock,
-			BOOL_OR(in_stock) as in_stock,
+			BOOL_OR(allow_purchase) as allow_purchase,
 			(SELECT images FROM product_variant WHERE product_id = ? AND is_default = true AND images IS NOT NULL AND images != '{}' LIMIT 1) as main_image
 		`, productID).
 		Where("product_id = ?", productID).
@@ -471,8 +468,7 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 
 	aggregation.MinPrice = priceAgg.MinPrice
 	aggregation.MaxPrice = priceAgg.MaxPrice
-	aggregation.TotalStock = priceAgg.TotalStock
-	aggregation.InStock = priceAgg.InStock
+	aggregation.AllowPurchase = priceAgg.AllowPurchase
 	if priceAgg.MainImage != "" {
 		aggregation.MainImage = priceAgg.MainImage
 	}
@@ -577,11 +573,10 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	// Get price range and total stock for products with variants
 	if len(productsWithVariants) > 0 {
 		var priceAggData []struct {
-			ProductID  uint
-			MinPrice   float64
-			MaxPrice   float64
-			TotalStock int
-			InStock    bool
+			ProductID     uint
+			MinPrice      float64
+			MaxPrice      float64
+			AllowPurchase bool
 		}
 
 		variantProductIDs := make([]uint, 0, len(productsWithVariants))
@@ -594,8 +589,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 				product_id,
 				MIN(price) as min_price,
 				MAX(price) as max_price,
-				SUM(stock) as total_stock,
-				BOOL_OR(in_stock) as in_stock
+				BOOL_OR(allow_purchase) as allow_purchase
 			`).
 			Where("product_id IN ?", variantProductIDs).
 			Group("product_id").
@@ -608,8 +602,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 			if result[agg.ProductID] != nil {
 				result[agg.ProductID].MinPrice = agg.MinPrice
 				result[agg.ProductID].MaxPrice = agg.MaxPrice
-				result[agg.ProductID].TotalStock = agg.TotalStock
-				result[agg.ProductID].InStock = agg.InStock
+				result[agg.ProductID].AllowPurchase = agg.AllowPurchase
 			}
 		}
 

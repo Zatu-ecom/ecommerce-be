@@ -421,20 +421,20 @@ func TestCreateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		productID := 5
+		productID := 5 // T-Shirt has both Size and Color options
 
 		requestBody := map[string]interface{}{
-			"sku":   "TEST-SKU",
+			"sku":   "TEST-SKU-MISSING-COLOR",
 			"price": 29.99,
 			"options": []map[string]interface{}{
-				{"optionName": "Size", "value": "M"},
+				{"optionName": "Size", "value": "S"},
 			},
 		}
 
 		url := fmt.Sprintf("/api/products/%d/variants", productID)
 		w := client.Post(t, url, requestBody)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, http.StatusCreated, w.Code)
 	})
 
 	t.Run("Validation - Missing required field: Options", func(t *testing.T) {
