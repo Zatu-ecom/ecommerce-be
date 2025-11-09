@@ -213,6 +213,9 @@ INSERT INTO product_option (id, product_id, name, display_name, position) VALUES
 (12, 7, 'Size', 'Shoe Size', 1),
 (13, 7, 'Color', 'Color', 2),
 
+-- Sony Headphones options (Product 4)
+(16, 4, 'Color', 'Color', 1),
+
 -- Sofa options
 (14, 8, 'Color', 'Color', 1),
 (15, 8, 'Material', 'Material Type', 2)
@@ -300,6 +303,10 @@ INSERT INTO product_option_value (id, option_id, value, display_name, color_code
 (47, 13, 'Blue/Orange', 'Blue/Orange', NULL, 2),
 (48, 13, 'All Black', 'All Black', '#000000', 3),
 
+-- Sony Headphones - Color option values (option_id 16)
+(55, 16, 'Black', 'Midnight Black', '#000000', 1),
+(56, 16, 'Silver', 'Silver', '#C0C0C0', 2),
+
 -- Sofa - Color option values
 (49, 14, 'Gray', 'Gray', '#808080', 1),
 (50, 14, 'Beige', 'Beige', '#F5F5DC', 2),
@@ -333,6 +340,10 @@ INSERT INTO product_variant (id, product_id, sku, price, images, allow_purchase,
 -- MacBook Pro variants
 (7, 3, 'MBP-16-M3-SB-16-512', 2499.00, ARRAY['https://example.com/mbp-16-space-black.jpg'], true, true, true),
 (8, 3, 'MBP-16-M3-SLV-16-512', 2499.00, ARRAY['https://example.com/mbp-16-silver.jpg'], true, false, false),
+
+-- Sony Headphones variants
+(19, 4, 'SONY-WH1000XM5-BLK', 399.99, ARRAY['https://example.com/sony-wh1000xm5-black.jpg'], true, true, true),
+(20, 4, 'SONY-WH1000XM5-SLV', 399.99, ARRAY['https://example.com/sony-wh1000xm5-silver.jpg'], true, false, false),
 
 -- T-Shirt variants
 (9, 5, 'NIKE-TSHIRT-BLK-M', 29.99, ARRAY['https://example.com/nike-tshirt-black-m.jpg'], true, true, true),
@@ -381,6 +392,11 @@ INSERT INTO variant_option_value (variant_id, option_id, option_value_id) VALUES
 (7, 5, 15), (7, 6, 17), (7, 7, 20),
 -- MacBook Pro variant 8: Silver + 16GB + 512GB
 (8, 5, 16), (8, 6, 17), (8, 7, 20),
+
+-- Sony Headphones variant 19: Black
+(19, 16, 55),
+-- Sony Headphones variant 20: Silver
+(20, 16, 56),
 
 -- T-Shirt variant 9: Black + M
 (9, 8, 24), (9, 9, 28),

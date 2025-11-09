@@ -105,3 +105,13 @@ func AssertResponseStructure(t *testing.T, response map[string]interface{}, expe
 	assert.Equal(t, expectedSuccess, response["success"], "Success field mismatch")
 	assert.NotNil(t, response["message"], "Response should have message field")
 }
+
+func AssertShouldNotSucceed(t *testing.T, w *httptest.ResponseRecorder) {
+	// Check that status code is not in the 2xx success range (200-299)
+	assert.False(
+		t,
+		w.Code >= 200 && w.Code < 300,
+		"Response should not be successful. Expected error status, but got %d",
+		w.Code,
+	)
+}

@@ -88,14 +88,14 @@ type ProductResponse struct {
 	Tags             []string              `json:"tags"`
 	SellerID         uint                  `json:"sellerId"`
 
-	// Variant information (from aggregated variants) - PRD Section 3.1.1
+	// Variant information (from aggregated variants) for a get all products API
 	HasVariants    bool            `json:"hasVariants"`              // Product has variants
 	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
 	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
 	Images         []string        `json:"images"`                   // Main product images
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
 
-	// Additional product info - PRD Section 3.1.2
+	// Detail product info (for get product by ID)
 	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
 	PackageOptions []PackageOptionResponse       `json:"packageOptions,omitempty"`
 	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)

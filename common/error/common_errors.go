@@ -68,4 +68,11 @@ var (
 		Message:    constants.SELLER_DATA_MISSING_MSG,
 		StatusCode: http.StatusNotFound,
 	}
+
+	// ErrRequiredQueryParam is returned when a required query parameter is missing
+	ErrRequiredQueryParam = &AppError{
+		Code:       constants.REQUIRED_QUERY_PARAM_CODE,
+		Message:    constants.REQUIRED_QUERY_PARAM_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

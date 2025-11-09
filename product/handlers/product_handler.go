@@ -187,7 +187,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 func (h *ProductHandler) SearchProducts(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
-		h.HandleError(c, nil, "Search query is required")
+		h.HandleError(c, error.ErrRequiredQueryParam, "Search query parameter 'q' is required")
 		return
 	}
 
