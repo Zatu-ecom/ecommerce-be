@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
@@ -11,6 +12,8 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
+
+	productErrors "ecommerce-be/product/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -261,6 +264,76 @@ func (h *ProductHandler) GetRelatedProducts(c *gin.Context) {
 	}
 
 	relatedProductsResponse, err := h.productService.GetRelatedProducts(productID, limit, sellerID)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, utils.RELATED_PRODUCTS_RETRIEVED_MSG, relatedProductsResponse)
+}
+
+// GetRelatedProductsScored handles getting related products with intelligent scoring
+func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	// Parse query parameters
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	strategies := c.DefaultQuery("strategies", "all")
+
+	// Validate limit (must be between 1 and 100)
+	if limit < 1 || limit > 100 {
+		h.HandleError(c, error.ErrInvalidLimit, constants.INVALID_LIMIT_MSG)
+		return
+	}
+
+	// Validate strategies parameter
+	validStrategies := map[string]bool{
+		"all":              true,
+		"same_category":    true,
+		"same_brand":       true,
+		"sibling_category": true,
+		"parent_category":  true,
+		"child_category":   true,
+		"tag_matching":     true,
+		"price_range":      true,
+		"seller_popular":   true,
+	}
+
+	// Check if single strategy or comma-separated list
+	strategyList := strings.Split(strategies, ",")
+	for _, strategy := range strategyList {
+		trimmedStrategy := strings.TrimSpace(strategy)
+		if !validStrategies[trimmedStrategy] {
+			h.HandleError(c, productErrors.ErrInvalidStrategy, utils.INVALID_STRATEGY_MSG)
+			return
+		}
+	}
+
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
+	// Verify product exists before getting related products
+	_, err = h.productService.GetProductByID(productID, sellerID)
+	if err != nil {
+		h.HandleError(c, productErrors.ErrProductNotFound, utils.PRODUCT_NOT_FOUND_MSG)
+		return
+	}
+
+	relatedProductsResponse, err := h.productService.GetRelatedProductsScored(
+		productID,
+		limit,
+		page,
+		strategies,
+		sellerID,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG)
 		return

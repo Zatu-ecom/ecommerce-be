@@ -101,8 +101,8 @@ type ProductResponse struct {
 	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)
 	Variants       []VariantDetailResponse       `json:"variants,omitempty"` // Full variants with selected options (detail view)
 
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
 // CategoryInfo represents basic category information
@@ -157,6 +157,28 @@ type RelatedProductItem struct {
 // RelatedProductsResponse represents the response for getting related products
 type RelatedProductsResponse struct {
 	RelatedProducts []RelatedProductItem `json:"relatedProducts"`
+}
+
+// RelatedProductItemScored represents a scored related product with additional metadata
+type RelatedProductItemScored struct {
+	ProductResponse        // Embedded struct - all fields promoted to top level
+	RelationReason  string `json:"relationReason"` // Reason for relation
+	Score           int    `json:"score"`          // Relevance score
+	StrategyUsed    string `json:"strategyUsed"`   // Strategy that matched this product
+}
+
+// RelatedProductsScoredResponse represents the response with scoring and pagination
+type RelatedProductsScoredResponse struct {
+	RelatedProducts []RelatedProductItemScored `json:"relatedProducts"`
+	Pagination      PaginationResponse         `json:"pagination"`
+	Meta            RelatedProductsMeta        `json:"meta"`
+}
+
+// RelatedProductsMeta represents metadata about the related products query
+type RelatedProductsMeta struct {
+	StrategiesUsed []string `json:"strategiesUsed"` // List of strategies that found products
+	AvgScore       float64  `json:"avgScore"`       // Average relevance score
+	TotalStrategies int     `json:"totalStrategies"` // Total strategies attempted
 }
 
 // PackageOptionCreateRequest represents the request body for creating a package option

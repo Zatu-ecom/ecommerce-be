@@ -35,6 +35,13 @@ type ProductService interface {
 		limit int,
 		sellerID *uint,
 	) (*model.RelatedProductsResponse, error)
+	GetRelatedProductsScored(
+		productID uint,
+		limit int,
+		page int,
+		strategies string,
+		sellerID *uint,
+	) (*model.RelatedProductsScoredResponse, error)
 }
 
 // ProductServiceImpl implements the ProductService interface
@@ -1064,5 +1071,178 @@ func (s *ProductServiceImpl) GetRelatedProducts(
 
 	return &model.RelatedProductsResponse{
 		RelatedProducts: relatedProductsResponse,
+	}, nil
+}
+
+/******************************************************************************
+*      GetRelatedProductsScored gets products using intelligent scoring      *
+*      Uses stored procedure for multi-strategy matching with pagination     *
+******************************************************************************/
+func (s *ProductServiceImpl) GetRelatedProductsScored(
+	productID uint,
+	limit int,
+	page int,
+	strategies string,
+	sellerID *uint,
+) (*model.RelatedProductsScoredResponse, error) {
+	// Validate and set defaults
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if page < 1 {
+		page = 1
+	}
+	if strategies == "" {
+		strategies = "all"
+	}
+
+	// Calculate offset
+	offset := (page - 1) * limit
+
+	// Call repository method that uses stored procedure
+	scoredResults, totalCount, err := s.productRepo.FindRelatedScored(
+		productID,
+		sellerID,
+		limit,
+		offset,
+		strategies,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// If no results, return empty response
+	if len(scoredResults) == 0 {
+		return &model.RelatedProductsScoredResponse{
+			RelatedProducts: []model.RelatedProductItemScored{},
+			Pagination: model.PaginationResponse{
+				CurrentPage:  page,
+				TotalPages:   0,
+				TotalItems:   0,
+				ItemsPerPage: limit,
+				HasNext:      false,
+				HasPrev:      false,
+			},
+			Meta: model.RelatedProductsMeta{
+				StrategiesUsed:  []string{},
+				AvgScore:        0,
+				TotalStrategies: 8, // Total number of strategies available in the system
+			},
+		}, nil
+	}
+
+	// Build response items with variant options
+	relatedItems := make([]model.RelatedProductItemScored, 0, len(scoredResults))
+	strategiesUsedMap := make(map[string]bool)
+	totalScore := 0
+
+	for _, result := range scoredResults {
+		// Build category info
+		categoryInfo := model.CategoryHierarchyInfo{
+			ID:   result.CategoryID,
+			Name: result.CategoryName,
+		}
+		if result.ParentCategoryID != nil && result.ParentCategoryName != nil {
+			categoryInfo.Parent = &model.CategoryInfo{
+				ID:   *result.ParentCategoryID,
+				Name: *result.ParentCategoryName,
+			}
+		}
+
+		// Get variant options for this product
+		variantOptions, err := s.optionRepo.FindOptionsByProductID(result.ProductID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Build options preview
+		optionsPreview := make([]model.OptionPreview, 0, len(variantOptions))
+		for _, option := range variantOptions {
+			// Get all values for this option
+			optionValues, err := s.optionRepo.FindOptionValuesByOptionID(option.ID)
+			if err != nil {
+				return nil, err
+			}
+
+			availableValues := make([]string, 0, len(optionValues))
+			for _, val := range optionValues {
+				availableValues = append(availableValues, val.Value)
+			}
+
+			optionsPreview = append(optionsPreview, model.OptionPreview{
+				Name:            option.Name,
+				DisplayName:     option.DisplayName,
+				AvailableValues: availableValues,
+			})
+		}
+
+		// Build product response
+		productResponse := model.ProductResponse{
+			ID:               result.ProductID,
+			Name:             result.ProductName,
+			CategoryID:       result.CategoryID,
+			Category:         categoryInfo,
+			Brand:            result.Brand,
+			SKU:              result.SKU,
+			ShortDescription: result.ShortDescription,
+			LongDescription:  result.LongDescription,
+			Tags:             result.Tags,
+			SellerID:         result.SellerID,
+			HasVariants:      result.HasVariants,
+			PriceRange: &model.PriceRange{
+				Min: result.MinPrice,
+				Max: result.MaxPrice,
+			},
+			AllowPurchase: result.AllowPurchase,
+			Images:        []string{}, // Images would need to be fetched separately if needed
+			VariantPreview: &model.VariantPreview{
+				TotalVariants: int(result.TotalVariants),
+				Options:       optionsPreview,
+			},
+		}
+
+		// Create scored item
+		scoredItem := model.RelatedProductItemScored{
+			ProductResponse: productResponse,
+			RelationReason:  result.RelationReason,
+			Score:           result.FinalScore,
+			StrategyUsed:    result.StrategyUsed,
+		}
+
+		relatedItems = append(relatedItems, scoredItem)
+		strategiesUsedMap[result.StrategyUsed] = true
+		totalScore += result.FinalScore
+	}
+
+	// Build strategies used list
+	strategiesUsed := make([]string, 0, len(strategiesUsedMap))
+	for strategy := range strategiesUsedMap {
+		strategiesUsed = append(strategiesUsed, strategy)
+	}
+
+	// Calculate average score
+	avgScore := float64(totalScore) / float64(len(relatedItems))
+
+	// Calculate pagination
+	totalPages := int((totalCount + int64(limit) - 1) / int64(limit))
+
+	return &model.RelatedProductsScoredResponse{
+		RelatedProducts: relatedItems,
+		Pagination: model.PaginationResponse{
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			TotalItems:   int(totalCount),
+			ItemsPerPage: limit,
+			HasNext:      page < totalPages,
+			HasPrev:      page > 1,
+		},
+		Meta: model.RelatedProductsMeta{
+			StrategiesUsed:  strategiesUsed,
+			AvgScore:        avgScore,
+			TotalStrategies: 8, // Total number of strategies available in the system
+		},
 	}, nil
 }

@@ -32,14 +32,14 @@ cd /home/kushal/Work/Personal\ Codes/Ecommerce/ecommerce-be/migrations
 
 ```
 migrations/
-├── run_migrations.sh                    # Main automation script ⭐
-├── 001_create_user_tables.sql          # User service tables
-├── 002_create_product_tables.sql       # Product service tables
-├── QUICK_COMMANDS.md                    # Quick reference
-├── HOW_TO_RUN.md                        # Complete guide
+├── run_migrations.sh                                 # Main automation script ⭐
+├── 001_create_user_tables.sql                       # User service tables
+├── 002_create_product_tables.sql                    # Product service tables
+├── 003_alter_timestamps_to_timestamptz.sql          # Timestamp migration
+├── 004_create_related_products_procedure.sql        # Related products stored 
 └── seeds/
-    ├── 001_seed_user_data.sql          # User demo data
-    └── 002_seed_product_data.sql       # Product demo data
+    ├── 001_seed_user_data.sql                       # User demo data
+    └── 002_seed_product_data.sql                    # Product demo data
 ```
 
 ---

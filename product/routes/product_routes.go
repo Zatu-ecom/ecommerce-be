@@ -49,11 +49,19 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 		productRoutes.GET("/:productId", publicRoutesAuth, m.productHandler.GetProductByID)
 		productRoutes.GET("/search", publicRoutesAuth, m.productHandler.SearchProducts)
 		productRoutes.GET("/filters", publicRoutesAuth, m.productHandler.GetProductFilters)
+		
 		productRoutes.GET(
 			"/:productId/related",
 			publicRoutesAuth,
-			m.productHandler.GetRelatedProducts,
+			m.productHandler.GetRelatedProductsScored,
 		)
+		
+		// // New intelligent related products with scoring and pagination
+		// productRoutes.GET(
+		// 	"/:productId/related-scored",
+		// 	publicRoutesAuth,
+		// 	m.productHandler.GetRelatedProductsScored,
+		// )
 
 		// Admin/Seller routes (protected)
 		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)

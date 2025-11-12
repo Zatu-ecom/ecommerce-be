@@ -50,4 +50,11 @@ var (
 		Message:    utils.PRODUCT_UNAUTHORIZED_ACCESS_MSG,
 		StatusCode: http.StatusForbidden,
 	}
+
+	// ErrInvalidStrategy is returned when strategy parameter is invalid
+	ErrInvalidStrategy = &commonerrors.AppError{
+		Code:       utils.INVALID_STRATEGY_CODE,
+		Message:    utils.INVALID_STRATEGY_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

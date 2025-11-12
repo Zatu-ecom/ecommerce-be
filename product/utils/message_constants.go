@@ -49,6 +49,7 @@ const (
 	PRODUCT_TAGS_LIMIT_MSG          = "Product cannot have more than 20 tags"
 	PRODUCT_ATTRIBUTES_REQUIRED_MSG = "Product attributes are required based on category configuration"
 	PRODUCT_UNAUTHORIZED_ACCESS_MSG = "You do not have permission to access this product"
+	INVALID_STRATEGY_MSG            = "Invalid strategy name. Must be one of: all, same_category, same_brand, sibling_category, parent_category, child_category, tag_matching, price_range, seller_popular"
 )
 
 // Product Attribute messages

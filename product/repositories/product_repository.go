@@ -31,6 +31,14 @@ type ProductRepository interface {
 		limit int,
 		sellerID *uint,
 	) ([]entity.Product, error)
+	// New method for intelligent related products with scoring
+	FindRelatedScored(
+		productID uint,
+		sellerID *uint,
+		limit int,
+		offset int,
+		strategies string,
+	) ([]mapper.RelatedProductScored, int64, error)
 	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
 	CreatePackageOptions(option []entity.PackageOption) error
 	UpdatePackageOptions(option []entity.PackageOption) error
@@ -327,6 +335,76 @@ func (r *ProductRepositoryImpl) FindRelated(
 		return nil, result.Error
 	}
 	return products, nil
+}
+
+// FindRelatedScored finds related products using stored procedure with intelligent scoring
+func (r *ProductRepositoryImpl) FindRelatedScored(
+	productID uint,
+	sellerID *uint,
+	limit int,
+	offset int,
+	strategies string,
+) ([]mapper.RelatedProductScored, int64, error) {
+	var results []mapper.RelatedProductScored
+
+	// Convert sellerID to BIGINT or NULL
+	var sellerParam interface{}
+	if sellerID != nil {
+		sellerParam = *sellerID
+	} else {
+		sellerParam = nil
+	}
+
+	// Call stored procedure for related products
+	query := `SELECT 
+				product_id, 
+				product_name, 
+				category_id, 
+				category_name, 
+				parent_category_id, 
+				parent_category_name, 
+				brand, 
+				sku, 
+				short_description, 
+				long_description, 
+				tags, 
+				seller_id, 
+				has_variants, 
+				min_price, 
+				max_price, 
+				allow_purchase, 
+				total_variants, 
+				in_stock_variants, 
+				created_at, 
+				updated_at, 
+				final_score, 
+				relation_reason, 
+				strategy_used 
+			  FROM 
+				get_related_products_scored(
+					$1 :: BIGINT, 
+					$2 :: BIGINT, 
+					$3 :: INT, 
+					$4 :: INT, 
+					$5 :: TEXT
+				)`
+
+	err := r.db.Raw(query, productID, sellerParam, limit, offset, strategies).
+		Scan(&results).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get total count for pagination
+	var totalCount int64
+	countQuery := `SELECT get_related_products_count($1, $2, $3)`
+	err = r.db.Raw(countQuery, productID, sellerParam, strategies).
+		Scan(&totalCount).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return results, totalCount, nil
 }
 
 func (r *ProductRepositoryImpl) FindPackageOptionByProductID(

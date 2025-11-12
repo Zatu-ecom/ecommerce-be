@@ -75,4 +75,11 @@ var (
 		Message:    constants.REQUIRED_QUERY_PARAM_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	// ErrInvalidLimit is returned when limit parameter is invalid
+	ErrInvalidLimit = &AppError{
+		Code:       constants.INVALID_LIMIT_CODE,
+		Message:    constants.INVALID_LIMIT_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

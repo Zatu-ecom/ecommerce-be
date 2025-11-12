@@ -8,6 +8,7 @@ const (
 	INVALID_REQUEST_STRUCT_CODE = "INVALID_REQUEST_STRUCT"
 	SELLER_DATA_MISSING_CODE    = "SELLER_DATA_MISSING"
 	REQUIRED_QUERY_PARAM_CODE   = "REQUIRED_QUERY_PARAM_MISSING"
+	INVALID_LIMIT_CODE          = "INVALID_LIMIT"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 	INVALID_REQUEST_STRUCT_MSG = "Invalid request structure"
 	SELLER_DATA_MISSING_MSG    = "Seller data is missing"
 	REQUIRED_QUERY_PARAM_MSG   = "Required query parameter is missing"
+	INVALID_LIMIT_MSG          = "Limit must be between 1 and 100"
 )
 
 const (
