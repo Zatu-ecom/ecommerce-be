@@ -19,17 +19,35 @@ import (
 
 // ProductService defines the interface for product-related business logic
 type ProductService interface {
-	CreateProduct(req model.ProductCreateRequest, sellerID uint) (*model.ProductResponse, error)
-	UpdateProduct(id uint, req model.ProductUpdateRequest) (*model.ProductResponse, error)
-	DeleteProduct(id uint) error
-	GetAllProducts(page, limit int, filters map[string]interface{}) (*model.ProductsResponse, error)
-	GetProductByID(id uint, sellerID *uint) (*model.ProductResponse, error)
+	CreateProduct(
+		req model.ProductCreateRequest,
+		sellerID uint,
+	) (*model.ProductResponse, error)
+	UpdateProduct(
+		id uint,
+		sellerId *uint,
+		req model.ProductUpdateRequest,
+	) (*model.ProductResponse, error)
+	DeleteProduct(
+		id uint,
+		sellerId *uint,
+	) error
+	GetAllProducts(
+		page, limit int,
+		filters map[string]interface{},
+	) (*model.ProductsResponse, error)
+	GetProductByID(
+		id uint,
+		sellerID *uint,
+	) (*model.ProductResponse, error)
 	SearchProducts(
 		query string,
 		filters map[string]interface{},
 		page, limit int,
 	) (*model.SearchResponse, error)
-	GetProductFilters(sellerID *uint) (*model.ProductFilters, error)
+	GetProductFilters(
+		sellerID *uint,
+	) (*model.ProductFilters, error)
 	GetRelatedProducts(
 		productID uint,
 		limit int,
@@ -579,10 +597,11 @@ func (s *ProductServiceImpl) createPackageOption(
  ********************************************************/
 func (s *ProductServiceImpl) UpdateProduct(
 	id uint,
+	sellerId *uint,
 	req model.ProductUpdateRequest,
 ) (*model.ProductResponse, error) {
 	// Validate product exists and category if provided
-	product, err := s.validator.ValidateProductUpdateRequest(id, req)
+	product, err := s.validator.ValidateProductUpdateRequest(id, sellerId, req)
 	if err != nil {
 		return nil, err
 	}
@@ -601,21 +620,24 @@ func (s *ProductServiceImpl) UpdateProduct(
 	return s.buildProductResponseFromEntity(product)
 }
 
-/**********************************************************
+/********************************************************
 *      Deletes a product and all associated data        *
 *      Implements PRD Section 3.1.5                     *
 *      Cascading deletes:                               *
 *      - Variants                                       *
-*      - Variant option values                         *
-*      - Product options                               *
-*      - Product option values                         *
-*      - Product attributes                            *
-*      - Package options                               *
-***********************************************************/
-func (s *ProductServiceImpl) DeleteProduct(id uint) error {
+*      - Variant option values                          *
+*      - Product options                                *
+*      - Product option values                          *
+*      - Product attributes                             *
+*      - Package options                                *
+*********************************************************/
+func (s *ProductServiceImpl) DeleteProduct(
+	id uint,
+	sellerId *uint,
+) error {
 	// Verify product exists
 	// Verify product exists using validator
-	_, err := s.validator.ValidateProductExists(id)
+	_, err := s.validator.ValidateProductExistsAndCheckProductOwnership(id, sellerId)
 	if err != nil {
 		return err
 	}

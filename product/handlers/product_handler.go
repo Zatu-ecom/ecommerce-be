@@ -80,7 +80,13 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	productResponse, err := h.productService.UpdateProduct(productID, req)
+	// Get seller ID from context if available (for multi-tenant isolation)
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	productResponse, err := h.productService.UpdateProduct(productID, sellerIDPtr, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_PRODUCT_MSG)
 		return
@@ -98,7 +104,13 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	err = h.productService.DeleteProduct(productID)
+	// Get seller ID from context if available (for multi-tenant isolation)
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	err = h.productService.DeleteProduct(productID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_PRODUCT_MSG)
 		return

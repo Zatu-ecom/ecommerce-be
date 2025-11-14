@@ -20,7 +20,7 @@ func TestGetProductByID_Negative(t *testing.T) {
 	containers.RunAllMigrations(t)
 	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
 	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
-	containers.RunSeeds(t, "test/integration/product/product/get_product_by_id/test_seed_data.sql")
+	containers.RunSeeds(t, "test/integration/data/get_product_by_id_seed_data.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)

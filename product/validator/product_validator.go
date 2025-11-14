@@ -41,14 +41,18 @@ func (v *ProductValidator) ValidateCategoryExists(categoryID uint) (*entity.Cate
 }
 
 // ValidateProductExists checks if a product exists by ID
-func (v *ProductValidator) ValidateProductExists(productID uint) (*entity.Product, error) {
+func (v *ProductValidator) ValidateProductExistsAndCheckProductOwnership(
+	productID uint,
+	sellerID *uint,
+) (*entity.Product, error) {
 	product, err := v.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
 	}
-	if product == nil {
-		return nil, prodErrors.ErrProductNotFound
+	if product == nil || (sellerID != nil && product.SellerID != *sellerID) {
+		return nil, prodErrors.ErrUnauthorizedProductAccess
 	}
+
 	return product, nil
 }
 
@@ -100,10 +104,11 @@ func (v *ProductValidator) ValidateProductCreateRequest(req model.ProductCreateR
 // ValidateProductUpdateRequest validates product update request
 func (v *ProductValidator) ValidateProductUpdateRequest(
 	productID uint,
+	sellerID *uint,
 	req model.ProductUpdateRequest,
 ) (*entity.Product, error) {
 	// Verify product exists
-	product, err := v.ValidateProductExists(productID)
+	product, err := v.ValidateProductExistsAndCheckProductOwnership(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
