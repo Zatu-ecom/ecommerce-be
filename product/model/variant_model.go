@@ -61,7 +61,7 @@ type VariantNotFoundErrorDetails struct {
 type OptionValueResponse struct {
 	ValueID      uint   `json:"valueId"`
 	Value        string `json:"value"`
-	DisplayName  string `json:"DisplayName"`
+	DisplayName  string `json:"displayName"`
 	ColorCode    string `json:"colorCode,omitempty"`
 	VariantCount int    `json:"variantCount"`
 	Position     int    `json:"position"`
@@ -111,9 +111,9 @@ type UpdateVariantRequest struct {
 
 // BulkUpdateVariantItem represents a single variant update in bulk operation
 type BulkUpdateVariantItem struct {
-	ID            uint     `json:"id"                  binding:"required"`
+	ID            uint     `json:"id"                      binding:"required"`
 	SKU           *string  `json:"sku,omitempty"`
-	Price         *float64 `json:"price,omitempty"     binding:"omitempty,gt=0"`
+	Price         *float64 `json:"price,omitempty"         binding:"omitempty,gt=0"`
 	Images        []string `json:"images,omitempty"`
 	AllowPurchase *bool    `json:"allowPurchase,omitempty"`
 	IsPopular     *bool    `json:"isPopular,omitempty"`
