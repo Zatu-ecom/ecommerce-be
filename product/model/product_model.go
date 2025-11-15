@@ -25,15 +25,16 @@ type ProductCreateRequest struct {
 
 // ProductUpdateRequest represents the request body for updating a product
 // Note: Price, images, stock are managed at variant level
+// Uses pointers to distinguish between null (don't update) and empty (clear field)
 type ProductUpdateRequest struct {
-	Name             string                    `json:"name"             binding:"min=3,max=200"`
-	CategoryID       uint                      `json:"categoryId"`
-	Brand            string                    `json:"brand"            binding:"max=100"`
-	ShortDescription string                    `json:"shortDescription" binding:"max=500"`
-	LongDescription  string                    `json:"longDescription"  binding:"max=5000"`
-	Tags             []string                  `json:"tags"             binding:"max=20"`
-	Attributes       []ProductAttributeRequest `json:"attributes"`
-	PackageOptions   []PackageOptionRequest    `json:"packageOptions"`
+	Name             *string                    `json:"name"             binding:"omitempty,min=3,max=200"`
+	CategoryID       *uint                      `json:"categoryId"       binding:"omitempty"`
+	Brand            *string                    `json:"brand"            binding:"omitempty,max=100"`
+	ShortDescription *string                    `json:"shortDescription" binding:"omitempty,max=500"`
+	LongDescription  *string                    `json:"longDescription"  binding:"omitempty,max=5000"`
+	Tags             *[]string                  `json:"tags"             binding:"omitempty,max=20"`
+	Attributes       []ProductAttributeRequest  `json:"attributes"       binding:"omitempty,dive"`
+	PackageOptions   []PackageOptionRequest     `json:"packageOptions"   binding:"omitempty,dive"`
 }
 
 // ProductAttributeRequest represents a product attribute in requests

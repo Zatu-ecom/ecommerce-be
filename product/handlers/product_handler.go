@@ -9,6 +9,7 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
+	"ecommerce-be/common/validator"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -76,6 +77,11 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 
 	var req model.ProductUpdateRequest
 	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	if err := validator.RequireAtLeastOneNonNilPointer(&req); err != nil {
 		h.HandleValidationError(c, err)
 		return
 	}

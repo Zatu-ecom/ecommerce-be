@@ -39,29 +39,31 @@ func (f *ProductFactory) CreateProductFromRequest(
 	}
 }
 
-// UpdateProductEntity updates an existing Product entity with new data
-func (f *ProductFactory) UpdateProductEntity(
+// CreateProductEntityFromUpdateRequest updates an existing Product entity with new data
+// Uses pointer fields to distinguish between null (don't update) and empty (clear field)
+func (f *ProductFactory) CreateProductEntityFromUpdateRequest(
 	product *entity.Product,
 	req model.ProductUpdateRequest,
 ) *entity.Product {
-	// Update basic fields if provided
-	if req.Name != "" {
-		product.Name = req.Name
+	// Update basic fields if provided (not nil)
+	// If pointer is not nil, update even if value is empty string/zero
+	if req.Name != nil {
+		product.Name = *req.Name
 	}
-	if req.Brand != "" {
-		product.Brand = req.Brand
+	if req.Brand != nil {
+		product.Brand = *req.Brand
 	}
-	if req.CategoryID != 0 {
-		product.CategoryID = req.CategoryID
+	if req.CategoryID != nil {
+		product.CategoryID = *req.CategoryID
 	}
-	if req.ShortDescription != "" {
-		product.ShortDescription = req.ShortDescription
+	if req.ShortDescription != nil {
+		product.ShortDescription = *req.ShortDescription
 	}
-	if req.LongDescription != "" {
-		product.LongDescription = req.LongDescription
+	if req.LongDescription != nil {
+		product.LongDescription = *req.LongDescription
 	}
-	if len(req.Tags) > 0 {
-		product.Tags = req.Tags
+	if req.Tags != nil {
+		product.Tags = *req.Tags
 	}
 
 	product.UpdatedAt = time.Now()

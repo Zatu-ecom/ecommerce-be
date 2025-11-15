@@ -591,10 +591,10 @@ func (s *ProductServiceImpl) createPackageOption(
 	return packageOptions, s.productRepo.CreatePackageOptions(packageOptions)
 }
 
-/********************************************************
- *		UpdateProduct updates an existing product 		*
- *		Note: Price, images, stock are managed at variant level
- ********************************************************/
+/************************************************************
+ *	UpdateProduct updates an existing product 		        *
+ *	Note: Price, images, stock are managed at variant level *
+ ************************************************************/
 func (s *ProductServiceImpl) UpdateProduct(
 	id uint,
 	sellerId *uint,
@@ -607,7 +607,11 @@ func (s *ProductServiceImpl) UpdateProduct(
 	}
 
 	// Update product entity using factory
-	product = s.factory.UpdateProductEntity(product, req)
+	product = s.factory.CreateProductEntityFromUpdateRequest(product, req)
+
+	// Clear preloaded associations to avoid GORM sync issues
+	// When CategoryID is updated but Category is preloaded, GORM may not update correctly
+	product.Category = nil
 
 	// Save updated product
 	if err := s.productRepo.Update(product); err != nil {

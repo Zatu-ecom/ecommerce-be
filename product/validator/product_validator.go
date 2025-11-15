@@ -113,9 +113,9 @@ func (v *ProductValidator) ValidateProductUpdateRequest(
 		return nil, err
 	}
 
-	// Validate category if being updated
-	if req.CategoryID != 0 {
-		if _, err := v.ValidateCategoryExists(req.CategoryID); err != nil {
+	// Validate category if being updated (pointer not nil)
+	if req.CategoryID != nil && *req.CategoryID != 0 {
+		if _, err := v.ValidateCategoryExists(*req.CategoryID); err != nil {
 			return nil, err
 		}
 	}
