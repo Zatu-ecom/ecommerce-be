@@ -52,7 +52,6 @@ type VariantService interface {
 type VariantServiceImpl struct {
 	variantRepo repositories.VariantRepository
 	productRepo repositories.ProductRepository
-	validator   *validator.VariantValidator
 	factory     *factory.VariantFactory
 }
 
@@ -64,7 +63,6 @@ func NewVariantService(
 	return &VariantServiceImpl{
 		variantRepo: variantRepo,
 		productRepo: productRepo,
-		validator:   validator.NewVariantValidator(variantRepo, productRepo),
 		factory:     factory.NewVariantFactory(),
 	}
 }
@@ -93,30 +91,25 @@ func (s *VariantServiceImpl) GetVariantByID(
 	productID, variantID uint,
 	sellerID uint,
 ) (*model.VariantDetailResponse, error) {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
-		return nil, err
-	}
-
 	// Get product to validate seller access
 	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate seller access: if sellerID is provided (non-admin), check ownership
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Validate variant belongs to product
-	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
+	// Validate that the product exists and seller has access
+	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
 	// Find the variant
 	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Validate variant belongs to product
+	if err := validator.ValidateVariantBelongsToProduct(productID, variant); err != nil {
 		return nil, err
 	}
 
@@ -146,12 +139,12 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 	optionValues map[string]string,
 	sellerID *uint,
 ) (*model.VariantResponse, error) {
-	// Validate input
-	if err := s.validator.ValidateVariantOptions(optionValues); err != nil {
+	// Validate input options structure
+	if err := validator.ValidateVariantOptions(optionValues); err != nil {
 		return nil, err
 	}
 
-	// Validate that the product exists and validate seller access
+	// Get product to validate seller access
 	product, err := s.productRepo.FindByID(productID)
 	if err != nil {
 		return nil, err
@@ -245,8 +238,14 @@ func (s *VariantServiceImpl) CreateVariant(
 	sellerID uint,
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
+	// Get product to validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate that the product exists and seller has access
+	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -255,14 +254,26 @@ func (s *VariantServiceImpl) CreateVariant(
 	optionsMap := make(map[string]string) // For checking duplicate combination
 
 	for _, optionInput := range request.Options {
+		// Fetch option by name
+		option, err := s.variantRepo.GetProductOptionByName(productID, optionInput.OptionName)
+		if err != nil {
+			return nil, err
+		}
+
 		// Validate option exists and get option ID
-		optionID, err := s.validator.ValidateOptionExists(productID, optionInput.OptionName)
+		optionID, err := validator.ValidateProductOptionExists(option)
+		if err != nil {
+			return nil, err
+		}
+
+		// Fetch option value
+		optionValue, err := s.variantRepo.GetProductOptionValueByValue(*optionID, optionInput.Value)
 		if err != nil {
 			return nil, err
 		}
 
 		// Validate option value exists and get option value ID
-		optionValueID, err := s.validator.ValidateOptionValueExists(*optionID, optionInput.Value)
+		optionValueID, err := validator.ValidateProductOptionValueExists(optionValue)
 		if err != nil {
 			return nil, err
 		}
@@ -272,7 +283,8 @@ func (s *VariantServiceImpl) CreateVariant(
 	}
 
 	// Check if variant with these options already exists
-	if err := s.validator.ValidateVariantCombinationUnique(productID, optionsMap); err != nil {
+	existingVariant, _ := s.variantRepo.FindVariantByOptions(productID, optionsMap)
+	if err := validator.ValidateVariantCombinationUnique(existingVariant); err != nil {
 		return nil, err
 	}
 
@@ -304,19 +316,25 @@ func (s *VariantServiceImpl) UpdateVariant(
 	sellerID uint,
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
+	// Get product to validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
 		return nil, err
 	}
 
-	// Validate variant belongs to product
-	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
+	// Validate that the product exists and seller has access
+	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
 	// Get existing variant
 	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Validate variant belongs to product
+	if err := validator.ValidateVariantBelongsToProduct(productID, variant); err != nil {
 		return nil, err
 	}
 
@@ -344,18 +362,35 @@ func (s *VariantServiceImpl) UpdateVariant(
  *                DeleteVariant                *
  ***********************************************/
 func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint, sellerID uint) error {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
+	// Get product to validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return err
+	}
+
+	// Validate that the product exists and seller has access
+	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
+		return err
+	}
+
+	// Get variant
+	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
+	if err != nil {
 		return err
 	}
 
 	// Validate variant belongs to product
-	if err := s.validator.ValidateVariantBelongsToProduct(productID, variantID); err != nil {
+	if err := validator.ValidateVariantBelongsToProduct(productID, variant); err != nil {
 		return err
 	}
 
-	// Check if this is the last variant - cannot delete
-	if err := s.validator.ValidateCanDeleteVariant(productID); err != nil {
+	// Check variant count - cannot delete if it's the last one
+	variantCount, err := s.variantRepo.CountVariantsByProductID(productID)
+	if err != nil {
+		return err
+	}
+
+	if err := validator.ValidateCanDeleteVariant(variantCount); err != nil {
 		return err
 	}
 
@@ -375,13 +410,19 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	productID, sellerID uint,
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
-	// Validate that the product exists
-	if err := s.validator.ValidateProductAndSeller(productID, sellerID); err != nil {
+	// Get product to validate seller access
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate that the product exists and seller has access
+	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
 	// Validate bulk update request
-	if err := s.validator.ValidateBulkUpdateRequest(request); err != nil {
+	if err := validator.ValidateBulkVariantUpdateRequest(request); err != nil {
 		return nil, err
 	}
 
@@ -402,8 +443,14 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 		}
 	}
 
+	// Fetch all variants by IDs
+	existingVariants, err := s.variantRepo.FindVariantsByIDs(variantIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Validate all variants exist and belong to product
-	if err := s.validator.ValidateBulkVariantsExist(productID, variantIDs); err != nil {
+	if err := validator.ValidateBulkVariantsExist(productID, variantIDs, existingVariants); err != nil {
 		return nil, err
 	}
 
@@ -426,12 +473,6 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 				}
 			}
 		}
-	}
-
-	// Fetch all variants by IDs
-	existingVariants, err := s.variantRepo.FindVariantsByIDs(variantIDs)
-	if err != nil {
-		return nil, err
 	}
 
 	// Update variants using factory

@@ -46,7 +46,6 @@ type ProductAttributeServiceImpl struct {
 	productAttrRepo repositories.ProductAttributeRepository
 	productRepo     repositories.ProductRepository
 	attributeRepo   repositories.AttributeDefinitionRepository
-	validator       *validator.ProductAttributeValidator
 	factory         *factory.ProductAttributeFactory
 }
 
@@ -60,7 +59,6 @@ func NewProductAttributeService(
 		productAttrRepo: productAttrRepo,
 		productRepo:     productRepo,
 		attributeRepo:   attributeRepo,
-		validator:       validator.NewProductAttributeValidator(),
 		factory:         factory.NewProductAttributeFactory(),
 	}
 }
@@ -89,7 +87,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Validate request
-	if err := s.validator.ValidateAddRequest(
+	if err := validator.ValidateProductAttributeAddRequest(
 		req.AttributeDefinitionID,
 		req.Value,
 		attributeDef.AllowedValues,
@@ -163,7 +161,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Validate request
-	if err := s.validator.ValidateUpdateRequest(req.Value, attributeDef.AllowedValues); err != nil {
+	if err := validator.ValidateProductAttributeUpdateRequest(req.Value, attributeDef.AllowedValues); err != nil {
 		return nil, err
 	}
 
@@ -279,7 +277,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		}
 
 		// Validate the new value against allowed values
-		if err := s.validator.ValidateAttributeValue(attrUpdate.Value, attributeDef.AllowedValues); err != nil {
+		if err := validator.ValidateProductAttributeValue(attrUpdate.Value, attributeDef.AllowedValues); err != nil {
 			return nil, err
 		}
 

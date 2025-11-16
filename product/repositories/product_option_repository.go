@@ -1,7 +1,10 @@
 package repositories
 
 import (
+	"errors"
+
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/errors"
 
 	"gorm.io/gorm"
 )
@@ -63,6 +66,9 @@ func (r *ProductOptionRepositoryImpl) FindOptionByID(id uint) (*entity.ProductOp
 	var option entity.ProductOption
 	err := r.db.Preload("Values").First(&option, id).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, prodErrors.ErrProductOptionNotFound
+		}
 		return nil, err
 	}
 	return &option, nil
@@ -131,6 +137,9 @@ func (r *ProductOptionRepositoryImpl) FindOptionValueByID(
 	var value entity.ProductOptionValue
 	err := r.db.First(&value, id).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, prodErrors.ErrProductOptionValueNotFound
+		}
 		return nil, err
 	}
 	return &value, nil
@@ -145,6 +154,9 @@ func (r *ProductOptionRepositoryImpl) FindOptionValuesByOptionID(
 		Order("position ASC").
 		Find(&values).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, prodErrors.ErrProductOptionValueNotFound
+		}
 		return nil, err
 	}
 	return values, nil

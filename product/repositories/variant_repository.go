@@ -5,6 +5,8 @@ import (
 
 	"ecommerce-be/product/entity"
 	producterrors "ecommerce-be/product/errors"
+	"ecommerce-be/product/mapper"
+	productQuery "ecommerce-be/product/query"
 
 	"gorm.io/gorm"
 )
@@ -35,41 +37,12 @@ type VariantRepository interface {
 	FindVariantsByIDs(variantIDs []uint) ([]entity.ProductVariant, error)
 	BulkUpdateVariants(variants []*entity.ProductVariant) error
 	UnsetAllDefaultVariantsForProduct(productID uint) error
-	GetProductVariantAggregation(productID uint) (*VariantAggregation, error)
-	GetProductsVariantAggregations(productIDs []uint) (map[uint]*VariantAggregation, error)
-	GetProductVariantsWithOptions(productID uint) ([]VariantWithOptions, error)
+	GetProductVariantAggregation(productID uint) (*mapper.VariantAggregation, error)
+	GetProductsVariantAggregations(productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+	GetProductVariantsWithOptions(productID uint) ([]mapper.VariantWithOptions, error)
 	FindVariantsByProductID(productID uint) ([]entity.ProductVariant, error)
 	DeleteVariantsByProductID(productID uint) error
 	DeleteVariantOptionValuesByVariantIDs(variantIDs []uint) error
-}
-
-// VariantAggregation represents aggregated variant data for a product
-type VariantAggregation struct {
-	HasVariants   bool
-	TotalVariants int
-	MinPrice      float64
-	MaxPrice      float64
-	AllowPurchase bool                // At least one variant allows purchase
-	MainImage     string
-	OptionNames   []string
-	OptionValues  map[string][]string // optionName -> []values
-}
-
-// VariantWithOptions represents a variant with its selected option values
-type VariantWithOptions struct {
-	Variant         entity.ProductVariant
-	SelectedOptions []SelectedOptionValue
-}
-
-// SelectedOptionValue represents a selected option value for a variant
-type SelectedOptionValue struct {
-	OptionID          uint
-	OptionName        string
-	OptionDisplayName string
-	ValueID           uint
-	Value             string
-	ValueDisplayName  string
-	ColorCode         string
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
@@ -425,8 +398,8 @@ func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(productID uint
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
 func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	productID uint,
-) (*VariantAggregation, error) {
-	var aggregation VariantAggregation
+) (*mapper.VariantAggregation, error) {
+	var aggregation mapper.VariantAggregation
 	aggregation.OptionValues = make(map[string][]string)
 
 	// Check if product has variants
@@ -447,19 +420,14 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 
 	// Get price range and availability (using allow_purchase instead of stock)
 	var priceAgg struct {
-		MinPrice        float64
-		MaxPrice        float64
-		AllowPurchase   bool
-		MainImage       string
+		MinPrice      float64
+		MaxPrice      float64
+		AllowPurchase bool
+		MainImage     string
 	}
 
 	err := r.db.Model(&entity.ProductVariant{}).
-		Select(`
-			MIN(price) as min_price,
-			MAX(price) as max_price,
-			BOOL_OR(allow_purchase) as allow_purchase,
-			(SELECT images FROM product_variant WHERE product_id = ? AND is_default = true AND images IS NOT NULL AND images != '{}' LIMIT 1) as main_image
-		`, productID).
+		Select(productQuery.VARIANT_PRICE_AGGREGATION_QUERY, productID).
 		Where("product_id = ?", productID).
 		Scan(&priceAgg).Error
 	if err != nil {
@@ -528,8 +496,8 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 // GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	productIDs []uint,
-) (map[uint]*VariantAggregation, error) {
-	result := make(map[uint]*VariantAggregation)
+) (map[uint]*mapper.VariantAggregation, error) {
+	result := make(map[uint]*mapper.VariantAggregation)
 
 	if len(productIDs) == 0 {
 		return result, nil
@@ -553,7 +521,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	productsWithVariants := make(map[uint]bool)
 	for _, vc := range variantCounts {
 		productsWithVariants[vc.ProductID] = true
-		result[vc.ProductID] = &VariantAggregation{
+		result[vc.ProductID] = &mapper.VariantAggregation{
 			HasVariants:   true,
 			TotalVariants: int(vc.Count),
 			OptionValues:  make(map[string][]string),
@@ -563,7 +531,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	// Initialize products without variants
 	for _, productID := range productIDs {
 		if !productsWithVariants[productID] {
-			result[productID] = &VariantAggregation{
+			result[productID] = &mapper.VariantAggregation{
 				HasVariants:  false,
 				OptionValues: make(map[string][]string),
 			}
@@ -699,7 +667,7 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 *******************************************************************************/
 func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	productID uint,
-) ([]VariantWithOptions, error) {
+) ([]mapper.VariantWithOptions, error) {
 	// First, get all variants for the product
 	var variants []entity.ProductVariant
 	if err := r.db.Where("product_id = ?", productID).Find(&variants).Error; err != nil {
@@ -707,7 +675,7 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	}
 
 	if len(variants) == 0 {
-		return []VariantWithOptions{}, nil
+		return []mapper.VariantWithOptions{}, nil
 	}
 
 	// Extract variant IDs for batch query
@@ -719,20 +687,7 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 		variantMap[v.ID] = &variantCopy
 	}
 
-	// Batch query to get all variant option values with option and option value details
-	// This is a single JOIN query for performance
-	type OptionValueData struct {
-		VariantID         uint
-		OptionID          uint
-		OptionName        string
-		OptionDisplayName string
-		ValueID           uint
-		Value             string
-		ValueDisplayName  string
-		ColorCode         string
-	}
-
-	var optionData []OptionValueData
+	var optionData []mapper.OptionValueData
 	err := r.db.Table("variant_option_value AS vov").
 		Select(`
 			vov.variant_id,
@@ -754,11 +709,11 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	}
 
 	// Group option values by variant ID
-	variantOptionsMap := make(map[uint][]SelectedOptionValue)
+	variantOptionsMap := make(map[uint][]mapper.SelectedOptionValue)
 	for _, od := range optionData {
 		variantOptionsMap[od.VariantID] = append(
 			variantOptionsMap[od.VariantID],
-			SelectedOptionValue{
+			mapper.SelectedOptionValue{
 				OptionID:          od.OptionID,
 				OptionName:        od.OptionName,
 				OptionDisplayName: od.OptionDisplayName,
@@ -771,9 +726,9 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	}
 
 	// Build result
-	result := make([]VariantWithOptions, 0, len(variants))
+	result := make([]mapper.VariantWithOptions, 0, len(variants))
 	for _, variant := range variants {
-		result = append(result, VariantWithOptions{
+		result = append(result, mapper.VariantWithOptions{
 			Variant:         variant,
 			SelectedOptions: variantOptionsMap[variant.ID],
 		})

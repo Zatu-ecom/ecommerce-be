@@ -1,45 +1,22 @@
 package validator
 
 import (
-	"errors"
-
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
-	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
-
-	"gorm.io/gorm"
 )
 
-// ProductOptionValueValidator handles validation logic for product option values
-type ProductOptionValueValidator struct {
-	optionRepo  repositories.ProductOptionRepository
-	productRepo repositories.ProductRepository
-}
-
-// NewProductOptionValueValidator creates a new instance of ProductOptionValueValidator
-func NewProductOptionValueValidator(
-	optionRepo repositories.ProductOptionRepository,
-	productRepo repositories.ProductRepository,
-) *ProductOptionValueValidator {
-	return &ProductOptionValueValidator{
-		optionRepo:  optionRepo,
-		productRepo: productRepo,
-	}
-}
-
 // ValidateSellerProductAndOption validates both product and option exist and belong together
-func (v *ProductOptionValueValidator) ValidateSellerProductAndOption(
+// product and option should be fetched entities from the service layer
+func ValidateSellerProductAndOption(
 	sellerID uint,
 	productID uint,
-	optionID uint,
+	product *entity.Product,
+	option *entity.ProductOption,
 ) error {
 	// Validate product exists
-	product, err := v.productRepo.FindByID(productID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductNotFound
-		}
-		return err
+	if product == nil {
+		return prodErrors.ErrProductNotFound
 	}
 
 	if sellerID != 0 && product.SellerID != sellerID {
@@ -47,12 +24,8 @@ func (v *ProductOptionValueValidator) ValidateSellerProductAndOption(
 	}
 
 	// Validate option exists and belongs to product
-	option, err := v.optionRepo.FindOptionByID(optionID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductOptionNotFound
-		}
-		return err
+	if option == nil {
+		return prodErrors.ErrProductOptionNotFound
 	}
 
 	if option.ProductID != productID {
@@ -62,17 +35,13 @@ func (v *ProductOptionValueValidator) ValidateSellerProductAndOption(
 	return nil
 }
 
-// ValidateOptionValueUniqueness validates that option value is unique for an option
-func (v *ProductOptionValueValidator) ValidateOptionValueUniqueness(
-	optionID uint,
+// ValidateProductOptionValueUniqueness validates that option value is unique for an option
+// existingValues should be the list of existing values for the option
+func ValidateProductOptionValueUniqueness(
 	value string,
+	existingValues []entity.ProductOptionValue,
 ) error {
 	normalizedValue := utils.ToLowerTrimmed(value)
-
-	existingValues, err := v.optionRepo.FindOptionValuesByOptionID(optionID)
-	if err != nil {
-		return err
-	}
 
 	for _, val := range existingValues {
 		if val.Value == normalizedValue {
@@ -82,17 +51,14 @@ func (v *ProductOptionValueValidator) ValidateOptionValueUniqueness(
 	return nil
 }
 
-// ValidateOptionValueBelongsToOption validates that a value belongs to an option
-func (v *ProductOptionValueValidator) ValidateOptionValueBelongsToOption(
-	valueID uint,
+// ValidateProductOptionValueBelongsToOption validates that a value belongs to an option
+// optionValue should be the fetched option value entity
+func ValidateProductOptionValueBelongsToOption(
 	optionID uint,
+	optionValue *entity.ProductOptionValue,
 ) error {
-	optionValue, err := v.optionRepo.FindOptionValueByID(valueID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductOptionValueNotFound
-		}
-		return err
+	if optionValue == nil {
+		return prodErrors.ErrProductOptionValueNotFound
 	}
 
 	if optionValue.OptionID != optionID {
@@ -102,35 +68,27 @@ func (v *ProductOptionValueValidator) ValidateOptionValueBelongsToOption(
 	return nil
 }
 
-// ValidateOptionValueNotInUse validates that a value is not being used by any variants
-func (v *ProductOptionValueValidator) ValidateOptionValueNotInUse(valueID uint) error {
-	inUse, variantIDs, err := v.optionRepo.CheckOptionValueInUse(valueID)
-	if err != nil {
-		return err
-	}
-
+// ValidateProductOptionValueNotInUse validates that a value is not being used by any variants
+// inUse indicates if the value is being used by variants
+// variantCount is the number of variants using this value
+func ValidateProductOptionValueNotInUse(inUse bool, variantCount int) error {
 	if inUse {
 		return prodErrors.ErrProductOptionValueInUse.WithMessagef(
 			"%s (used by %d variants)",
 			utils.PRODUCT_OPTION_VALUE_IN_USE_MSG,
-			len(variantIDs),
+			variantCount,
 		)
 	}
 
 	return nil
 }
 
-// ValidateBulkOptionValuesUniqueness validates bulk option values for duplicates
-func (v *ProductOptionValueValidator) ValidateBulkOptionValuesUniqueness(
-	optionID uint,
+// ValidateBulkProductOptionValuesUniqueness validates bulk option values for duplicates
+// existingValues should be the list of existing values for the option
+func ValidateBulkProductOptionValuesUniqueness(
 	values []string,
+	existingValues []entity.ProductOptionValue,
 ) error {
-	// Get existing values
-	existingValues, err := v.optionRepo.FindOptionValuesByOptionID(optionID)
-	if err != nil {
-		return err
-	}
-
 	existingValueMap := make(map[string]bool)
 	for _, val := range existingValues {
 		existingValueMap[val.Value] = true

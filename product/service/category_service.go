@@ -54,7 +54,6 @@ type CategoryServiceImpl struct {
 	categoryRepo     repositories.CategoryRepository
 	productRepo      repositories.ProductRepository
 	attributeRepo    repositories.AttributeDefinitionRepository
-	validator        *validator.CategoryValidator
 	factory          *factory.CategoryFactory
 	attributeFactory *factory.AttributeFactory
 }
@@ -69,7 +68,6 @@ func NewCategoryService(
 		categoryRepo:     categoryRepo,
 		productRepo:      productRepo,
 		attributeRepo:    attributeRepo,
-		validator:        validator.NewCategoryValidator(categoryRepo),
 		factory:          factory.NewCategoryFactory(),
 		attributeFactory: factory.NewAttributeFactory(),
 	}
@@ -81,13 +79,29 @@ func (s *CategoryServiceImpl) CreateCategory(
 	roleLevel uint,
 	sellerId uint,
 ) (*model.CategoryResponse, error) {
-	// Validate unique name within the same parent
-	if err := s.validator.ValidateUniqueName(req.Name, req.ParentID, nil); err != nil {
+	// Fetch existing category with same name and parent (if any)
+	existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
+	if err != nil {
 		return nil, err
 	}
 
+	// Validate unique name within the same parent
+	if err := validator.ValidateUniqueName(req.Name, req.ParentID, nil, existingCategory); err != nil {
+		return nil, err
+	}
+
+	// Fetch parent category if parent ID is provided
+	var parentCategory *entity.Category
+	if req.ParentID != nil && *req.ParentID != 0 {
+		parentCategory, err = s.categoryRepo.FindByID(*req.ParentID)
+		if err != nil {
+			// Convert to validation error if parent not found
+			parentCategory = nil
+		}
+	}
+
 	// Validate parent category if provided
-	if err := s.validator.ValidateParentCategory(req.ParentID); err != nil {
+	if err := validator.ValidateParentCategory(req.ParentID, parentCategory); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +138,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 		return nil, err
 	}
 
-	if err := s.validator.ValidateCategoryOwnershipOrAdminAccess(
+	if err := validator.ValidateCategoryOwnershipOrAdminAccess(
 		roleLevel,
 		sellerId,
 		category,
@@ -132,18 +146,55 @@ func (s *CategoryServiceImpl) UpdateCategory(
 		return nil, err
 	}
 
-	// Validate name change (check uniqueness within same parent)
-	if err := s.validator.ValidateNameChange(category.Name, req.Name, req.ParentID, id); err != nil {
+	// Fetch category with new name and parent (if any) for uniqueness check
+	existingCategoryWithNewName, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
+	if err != nil {
 		return nil, err
+	}
+
+	// Validate name change (check uniqueness within same parent)
+	if err := validator.ValidateNameChange(category.Name, req.Name, req.ParentID, id, existingCategoryWithNewName); err != nil {
+		return nil, err
+	}
+
+	// Build parent chain for circular reference validation
+	var parentChain []*entity.Category
+	if req.ParentID != nil && *req.ParentID != 0 {
+		currentParentID := req.ParentID
+		visited := make(map[uint]bool)
+
+		for currentParentID != nil && *currentParentID != 0 {
+			// Prevent infinite loops
+			if visited[*currentParentID] {
+				break
+			}
+			visited[*currentParentID] = true
+
+			parent, err := s.categoryRepo.FindByID(*currentParentID)
+			if err != nil {
+				break
+			}
+			parentChain = append(parentChain, parent)
+			currentParentID = parent.ParentID
+		}
 	}
 
 	// Validate circular reference
-	if err := s.validator.ValidateCircularReference(id, req.ParentID); err != nil {
+	if err := validator.ValidateCircularReference(id, req.ParentID, parentChain); err != nil {
 		return nil, err
 	}
 
+	// Fetch parent category if parent ID is provided
+	var parentCategory *entity.Category
+	if req.ParentID != nil && *req.ParentID != 0 {
+		parentCategory, err = s.categoryRepo.FindByID(*req.ParentID)
+		if err != nil {
+			parentCategory = nil
+		}
+	}
+
 	// Validate parent category if provided
-	if err := s.validator.ValidateParentCategory(req.ParentID); err != nil {
+	if err := validator.ValidateParentCategory(req.ParentID, parentCategory); err != nil {
 		return nil, err
 	}
 
@@ -167,8 +218,20 @@ func (s *CategoryServiceImpl) DeleteCategory(
 	roleLevel uint,
 	sellerId uint,
 ) error {
+	// Check if category has active products
+	hasProducts, err := s.categoryRepo.CheckHasProducts(id)
+	if err != nil {
+		return err
+	}
+
+	// Check if category has active child categories
+	hasChildren, err := s.categoryRepo.CheckHasChildren(id)
+	if err != nil {
+		return err
+	}
+
 	// Validate that category can be deleted
-	if err := s.validator.ValidateCanDelete(id); err != nil {
+	if err := validator.ValidateCanDelete(hasProducts, hasChildren); err != nil {
 		return err
 	}
 
@@ -181,7 +244,7 @@ func (s *CategoryServiceImpl) DeleteCategory(
 		return err
 	}
 
-	if err := s.validator.ValidateCategoryOwnershipOrAdminAccess(
+	if err := validator.ValidateCategoryOwnershipOrAdminAccess(
 		roleLevel,
 		sellerId,
 		category,

@@ -60,6 +60,16 @@ type ProductService interface {
 		strategies string,
 		sellerID *uint,
 	) (*model.RelatedProductsScoredResponse, error)
+
+	// Service-to-Service methods (for other services to use)
+	// These methods centralize validation logic to avoid duplication
+	GetAndValidateProductOwnership(
+		productID uint,
+		sellerID *uint,
+	) (*entity.Product, error)
+	GetAndValidateProduct(
+		productID uint,
+	) (*entity.Product, error)
 }
 
 // ProductServiceImpl implements the ProductService interface
@@ -69,7 +79,6 @@ type ProductServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
 	variantRepo   repositories.VariantRepository
 	optionRepo    repositories.ProductOptionRepository
-	validator     *validator.ProductValidator
 	factory       *factory.ProductFactory
 }
 
@@ -87,7 +96,6 @@ func NewProductService(
 		attributeRepo: attributeRepo,
 		variantRepo:   variantRepo,
 		optionRepo:    optionRepo,
-		validator:     validator.NewProductValidator(productRepo, categoryRepo, optionRepo),
 		factory:       factory.NewProductFactory(),
 	}
 }
@@ -103,8 +111,14 @@ func (s *ProductServiceImpl) CreateProduct(
 	var product *entity.Product
 
 	err := db.Atomic(func(tx *gorm.DB) error {
+		// Fetch category for validation
+		category, err := s.categoryRepo.FindByID(req.CategoryID)
+		if err != nil {
+			return err
+		}
+
 		// Validate request using validator
-		if err := s.validator.ValidateProductCreateRequest(req); err != nil {
+		if err := validator.ValidateProductCreateRequest(req, category); err != nil {
 			return err
 		}
 
@@ -431,7 +445,7 @@ func (s *ProductServiceImpl) buildProductOptionsResponse(
 
 // buildVariantsDetailResponse converts variant entities with options to response format (PRD Section 3.1.2)
 func (s *ProductServiceImpl) buildVariantsDetailResponse(
-	variantsWithOptions []repositories.VariantWithOptions,
+	variantsWithOptions []mapper.VariantWithOptions,
 ) []model.VariantDetailResponse {
 	result := make([]model.VariantDetailResponse, 0, len(variantsWithOptions))
 
@@ -600,9 +614,23 @@ func (s *ProductServiceImpl) UpdateProduct(
 	sellerId *uint,
 	req model.ProductUpdateRequest,
 ) (*model.ProductResponse, error) {
-	// Validate product exists and category if provided
-	product, err := s.validator.ValidateProductUpdateRequest(id, sellerId, req)
+	// Fetch product to validate
+	product, err := s.productRepo.FindByID(id)
 	if err != nil {
+		return nil, err
+	}
+
+	// Fetch category if being updated
+	var category *entity.Category
+	if req.CategoryID != nil && *req.CategoryID != 0 {
+		category, err = s.categoryRepo.FindByID(*req.CategoryID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate product exists and category if provided
+	if err := validator.ValidateProductUpdateRequest(product, sellerId, req, category); err != nil {
 		return nil, err
 	}
 
@@ -639,10 +667,14 @@ func (s *ProductServiceImpl) DeleteProduct(
 	id uint,
 	sellerId *uint,
 ) error {
-	// Verify product exists
-	// Verify product exists using validator
-	_, err := s.validator.ValidateProductExistsAndCheckProductOwnership(id, sellerId)
+	// Fetch product to validate
+	product, err := s.productRepo.FindByID(id)
 	if err != nil {
+		return err
+	}
+
+	// Verify product exists and ownership
+	if err := validator.ValidateProductExistsAndOwnership(product, sellerId); err != nil {
 		return err
 	}
 
@@ -720,7 +752,7 @@ func (s *ProductServiceImpl) DeleteProduct(
 // This is a shared helper to ensure consistency across GetAllProducts, GetRelatedProducts, etc.
 func (s *ProductServiceImpl) buildProductResponse(
 	product *entity.Product,
-	variantAgg *repositories.VariantAggregation,
+	variantAgg *mapper.VariantAggregation,
 ) model.ProductResponse {
 	// Build category hierarchy
 	categoryInfo := model.CategoryHierarchyInfo{
@@ -1271,4 +1303,50 @@ func (s *ProductServiceImpl) GetRelatedProductsScored(
 			TotalStrategies: 8, // Total number of strategies available in the system
 		},
 	}, nil
+}
+
+/***********************************************
+ *     Service-to-Service Methods              *
+ *     (For other services to use)             *
+ ***********************************************/
+
+// GetAndValidateProductOwnership fetches a product and validates that the seller has access to it
+// This method centralizes product ownership validation logic to avoid duplication across services
+// Returns the product entity if validation passes, error otherwise
+func (s *ProductServiceImpl) GetAndValidateProductOwnership(
+	productID uint,
+	sellerID *uint,
+) (*entity.Product, error) {
+	// Fetch product from repository
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate product exists and seller has ownership
+	if err := validator.ValidateProductExistsAndOwnership(product, sellerID); err != nil {
+		return nil, err
+	}
+
+	return product, nil
+}
+
+// GetAndValidateProduct fetches a product and validates that it exists
+// This method centralizes product existence validation logic
+// Returns the product entity if validation passes, error otherwise
+func (s *ProductServiceImpl) GetAndValidateProduct(
+	productID uint,
+) (*entity.Product, error) {
+	// Fetch product from repository
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate product exists
+	if err := validator.ValidateProductExists(product); err != nil {
+		return nil, err
+	}
+
+	return product, nil
 }

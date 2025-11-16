@@ -4,29 +4,16 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
-	"ecommerce-be/product/repositories"
 )
 
-// CategoryValidator handles validation logic for categories
-type CategoryValidator struct {
-	categoryRepo repositories.CategoryRepository
-}
-
-// NewCategoryValidator creates a new instance of CategoryValidator
-func NewCategoryValidator(categoryRepo repositories.CategoryRepository) *CategoryValidator {
-	return &CategoryValidator{
-		categoryRepo: categoryRepo,
-	}
-}
-
 // ValidateParentCategory validates that the parent category exists
-func (v *CategoryValidator) ValidateParentCategory(parentID *uint) error {
+// parentCategory should be nil if parentID is nil/0, otherwise should be the fetched parent category
+func ValidateParentCategory(parentID *uint, parentCategory *entity.Category) error {
 	if parentID == nil || *parentID == 0 {
 		return nil // No parent is valid
 	}
 
-	_, err := v.categoryRepo.FindByID(*parentID)
-	if err != nil {
+	if parentCategory == nil {
 		return prodErrors.ErrInvalidParentCategory
 	}
 
@@ -35,7 +22,12 @@ func (v *CategoryValidator) ValidateParentCategory(parentID *uint) error {
 
 // ValidateCircularReference validates that a category is not its own parent
 // and that setting this parent won't create a circular reference in the hierarchy
-func (v *CategoryValidator) ValidateCircularReference(categoryID uint, parentID *uint) error {
+// parentChain is the list of parent categories in the hierarchy (from immediate parent up to root)
+func ValidateCircularReference(
+	categoryID uint,
+	parentID *uint,
+	parentChain []*entity.Category,
+) error {
 	if parentID == nil || *parentID == 0 {
 		return nil
 	}
@@ -45,46 +37,27 @@ func (v *CategoryValidator) ValidateCircularReference(categoryID uint, parentID 
 		return prodErrors.ErrInvalidParentCategory.WithMessage("Category cannot be its own parent")
 	}
 
-	// Check if the new parent is a descendant of this category
+	// Check if the category appears in its parent chain
 	// This prevents circular references like A->B->C->A
-	currentParentID := parentID
-	visited := make(map[uint]bool)
-
-	for currentParentID != nil && *currentParentID != 0 {
-		// Prevent infinite loops in case of existing circular references
-		if visited[*currentParentID] {
-			break
-		}
-		visited[*currentParentID] = true
-
-		// If we find the category in its own parent chain, it's circular
-		if *currentParentID == categoryID {
+	for _, parent := range parentChain {
+		if parent.ID == categoryID {
 			return prodErrors.ErrInvalidParentCategory.WithMessage(
 				"Cannot create circular reference in category hierarchy",
 			)
 		}
-
-		// Get the parent category
-		parentCategory, err := v.categoryRepo.FindByID(*currentParentID)
-		if err != nil {
-			// If parent not found, break the loop
-			break
-		}
-
-		// Move up the chain
-		currentParentID = parentCategory.ParentID
 	}
 
 	return nil
 }
 
 // ValidateUniqueName validates that the category name is unique within the same parent
-func (v *CategoryValidator) ValidateUniqueName(name string, parentID *uint, excludeID *uint) error {
-	existingCategory, err := v.categoryRepo.FindByNameAndParent(name, parentID)
-	if err != nil {
-		return err
-	}
-
+// existingCategory should be nil if no category with this name+parent exists, otherwise the existing category
+func ValidateUniqueName(
+	name string,
+	parentID *uint,
+	excludeID *uint,
+	existingCategory *entity.Category,
+) error {
 	if existingCategory != nil {
 		// If excludeID is provided, allow the same name for the category being updated
 		if excludeID == nil || existingCategory.ID != *excludeID {
@@ -96,21 +69,14 @@ func (v *CategoryValidator) ValidateUniqueName(name string, parentID *uint, excl
 }
 
 // ValidateCanDelete validates that a category can be deleted
-func (v *CategoryValidator) ValidateCanDelete(id uint) error {
+// hasProducts and hasChildren should be provided from the service layer
+func ValidateCanDelete(hasProducts bool, hasChildren bool) error {
 	// Check if category has active products
-	hasProducts, err := v.categoryRepo.CheckHasProducts(id)
-	if err != nil {
-		return err
-	}
 	if hasProducts {
 		return prodErrors.ErrCategoryHasProducts
 	}
 
 	// Check if category has active child categories
-	hasChildren, err := v.categoryRepo.CheckHasChildren(id)
-	if err != nil {
-		return err
-	}
 	if hasChildren {
 		return prodErrors.ErrCategoryHasChildren
 	}
@@ -119,19 +85,21 @@ func (v *CategoryValidator) ValidateCanDelete(id uint) error {
 }
 
 // ValidateNameChange validates that the name change is allowed
-func (v *CategoryValidator) ValidateNameChange(
+// existingCategory should be the category with the new name+parent (if it exists)
+func ValidateNameChange(
 	currentName, newName string,
 	parentID *uint,
 	categoryID uint,
+	existingCategory *entity.Category,
 ) error {
 	if currentName == newName {
 		return nil // Name hasn't changed
 	}
 
-	return v.ValidateUniqueName(newName, parentID, &categoryID)
+	return ValidateUniqueName(newName, parentID, &categoryID, existingCategory)
 }
 
-func (v *CategoryValidator) ValidateCategoryOwnershipOrAdminAccess(
+func ValidateCategoryOwnershipOrAdminAccess(
 	roleLevel uint,
 	sellerId uint,
 	category *entity.Category,

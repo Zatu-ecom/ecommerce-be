@@ -39,12 +39,10 @@ type ProductOptionService interface {
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
 type ProductOptionServiceImpl struct {
-	optionRepo      repositories.ProductOptionRepository
-	productRepo     repositories.ProductRepository
-	optionValidator *validator.ProductOptionValidator
-	valueValidator  *validator.ProductOptionValueValidator
-	optionFactory   *factory.ProductOptionFactory
-	valueFactory    *factory.ProductOptionValueFactory
+	optionRepo    repositories.ProductOptionRepository
+	productRepo   repositories.ProductRepository
+	optionFactory *factory.ProductOptionFactory
+	valueFactory  *factory.ProductOptionValueFactory
 }
 
 // NewProductOptionService creates a new instance of ProductOptionService
@@ -53,12 +51,10 @@ func NewProductOptionService(
 	productRepo repositories.ProductRepository,
 ) ProductOptionService {
 	return &ProductOptionServiceImpl{
-		optionRepo:      optionRepo,
-		productRepo:     productRepo,
-		optionValidator: validator.NewProductOptionValidator(optionRepo, productRepo),
-		valueValidator:  validator.NewProductOptionValueValidator(optionRepo, productRepo),
-		optionFactory:   factory.NewProductOptionFactory(),
-		valueFactory:    factory.NewProductOptionValueFactory(),
+		optionRepo:    optionRepo,
+		productRepo:   productRepo,
+		optionFactory: factory.NewProductOptionFactory(),
+		valueFactory:  factory.NewProductOptionValueFactory(),
 	}
 }
 
@@ -70,17 +66,30 @@ func (s *ProductOptionServiceImpl) CreateOption(
 	sellerId uint,
 	req model.ProductOptionCreateRequest,
 ) (*model.ProductOptionResponse, error) {
-	// Validate product exists
-	if err := s.optionValidator.ValidateProductExists(productID); err != nil {
+	// Fetch product for validation
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
+	// Validate product exists
+	if err := validator.ValidateProductExists(product); err != nil {
+		return nil, err
+	}
+
+	// Validate product belongs to seller
+	if err := validator.ValidateProductBelongsToSeller(product, sellerId); err != nil {
+		return nil, err
+	}
+
+	// Fetch existing options for uniqueness validation
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	if err != nil {
 		return nil, err
 	}
 
 	// Validate option name uniqueness
-	if err := s.optionValidator.ValidateOptionNameUniqueness(productID, req.Name); err != nil {
+	if err := validator.ValidateProductOptionNameUniqueness(req.Name, existingOptions); err != nil {
 		return nil, err
 	}
 
@@ -100,8 +109,14 @@ func (s *ProductOptionServiceImpl) CreateOption(
 			values[i] = v.Value
 		}
 
+		// Fetch existing option values (should be empty for new option, but check anyway)
+		existingOptionValues, err := s.optionRepo.FindOptionValuesByOptionID(option.ID)
+		if err != nil {
+			return nil, err
+		}
+
 		// Validate bulk values
-		if err := s.valueValidator.ValidateBulkOptionValuesUniqueness(option.ID, values); err != nil {
+		if err := validator.ValidateBulkProductOptionValuesUniqueness(values, existingOptionValues); err != nil {
 			return nil, err
 		}
 
@@ -132,14 +147,20 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	sellerId uint,
 	req model.ProductOptionUpdateRequest,
 ) (*model.ProductOptionResponse, error) {
-	// Validate product and option
-	if err := s.valueValidator.ValidateSellerProductAndOption(sellerId, productID, optionID); err != nil {
+	// Fetch product for validation
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
 		return nil, err
 	}
 
-	// Fetch option
+	// Fetch option for validation
 	option, err := s.optionRepo.FindOptionByID(optionID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Validate product and option
+	if err := validator.ValidateSellerProductAndOption(sellerId, productID, product, option); err != nil {
 		return nil, err
 	}
 
@@ -170,13 +191,31 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	sellerId uint,
 	optionID uint,
 ) error {
+	// Fetch product for validation
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return err
+	}
+
+	// Fetch option for validation
+	option, err := s.optionRepo.FindOptionByID(optionID)
+	if err != nil {
+		return err
+	}
+
 	// Validate product and option
-	if err := s.valueValidator.ValidateSellerProductAndOption(sellerId, productID, optionID); err != nil {
+	if err := validator.ValidateSellerProductAndOption(sellerId, productID, product, option); err != nil {
+		return err
+	}
+
+	// Check if option is in use by variants
+	inUse, variantIDs, err := s.optionRepo.CheckOptionInUse(optionID)
+	if err != nil {
 		return err
 	}
 
 	// Validate option is not in use
-	if err := s.optionValidator.ValidateOptionNotInUse(optionID); err != nil {
+	if err := validator.ValidateProductOptionNotInUse(inUse, len(variantIDs)); err != nil {
 		return err
 	}
 
@@ -256,12 +295,19 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 	sellerId uint,
 	req model.ProductOptionBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
-	// Validate product exists
-	if err := s.optionValidator.ValidateProductExists(productID); err != nil {
+	// Fetch product for validation
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := s.optionValidator.ValidateProductBelongsToSeller(productID, sellerId); err != nil {
+	// Validate product exists
+	if err := validator.ValidateProductExists(product); err != nil {
+		return nil, err
+	}
+
+	// Validate product belongs to seller
+	if err := validator.ValidateProductBelongsToSeller(product, sellerId); err != nil {
 		return nil, err
 	}
 

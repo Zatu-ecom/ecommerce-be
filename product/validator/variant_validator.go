@@ -1,60 +1,28 @@
 package validator
 
 import (
-	"errors"
-
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
-
-	"gorm.io/gorm"
 )
 
-// VariantValidator handles validation logic for product variants
-type VariantValidator struct {
-	variantRepo repositories.VariantRepository
-	productRepo repositories.ProductRepository
-}
-
-// NewVariantValidator creates a new instance of VariantValidator
-func NewVariantValidator(
-	variantRepo repositories.VariantRepository,
-	productRepo repositories.ProductRepository,
-) *VariantValidator {
-	return &VariantValidator{
-		variantRepo: variantRepo,
-		productRepo: productRepo,
-	}
-}
-
-// ValidateProductAndSeller validates that a product exists
-func (v *VariantValidator) ValidateProductAndSeller(productID uint, sellerID uint) error {
-	product, err := v.productRepo.FindByID(productID)
-	if err != nil {
-		return err
-	}
-
-	// Variant creation with multiple options
+// ValidateVariantProductAndSeller validates that a product exists and seller has access
+// Reuses ValidateProductBelongsToSeller for consistency
+func ValidateVariantProductAndSeller(product *entity.Product, sellerID uint) error {
+	// Variant creation with multiple options - admin check
 	if sellerID == 0 {
 		return nil
 	}
 
-	// Validate seller ownership
-	if product.SellerID != sellerID {
-		return prodErrors.ErrUnauthorizedProductAccess
-	}
-
-	return nil
+	// Reuse the existing validation logic
+	return ValidateProductBelongsToSeller(product, sellerID)
 }
 
 // ValidateVariantBelongsToProduct validates that a variant belongs to a product
-func (v *VariantValidator) ValidateVariantBelongsToProduct(productID uint, variantID uint) error {
-	variant, err := v.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrVariantNotFound
-		}
-		return err
+// variant should be the fetched variant entity
+func ValidateVariantBelongsToProduct(productID uint, variant *entity.ProductVariant) error {
+	if variant == nil {
+		return prodErrors.ErrVariantNotFound
 	}
 
 	if variant.ProductID != productID {
@@ -65,7 +33,7 @@ func (v *VariantValidator) ValidateVariantBelongsToProduct(productID uint, varia
 }
 
 // ValidateVariantOptions validates the options map structure
-func (v *VariantValidator) ValidateVariantOptions(options map[string]string) error {
+func ValidateVariantOptions(options map[string]string) error {
 	if len(options) == 0 {
 		return prodErrors.ErrProductHasNoOptions
 	}
@@ -83,11 +51,8 @@ func (v *VariantValidator) ValidateVariantOptions(options map[string]string) err
 }
 
 // ValidateVariantCombinationUnique validates that variant combination doesn't already exist
-func (v *VariantValidator) ValidateVariantCombinationUnique(
-	productID uint,
-	optionsMap map[string]string,
-) error {
-	existingVariant, _ := v.variantRepo.FindVariantByOptions(productID, optionsMap)
+// existingVariant should be nil if no variant with this combination exists
+func ValidateVariantCombinationUnique(existingVariant *entity.ProductVariant) error {
 	if existingVariant != nil {
 		return prodErrors.ErrVariantCombinationExists
 	}
@@ -95,23 +60,17 @@ func (v *VariantValidator) ValidateVariantCombinationUnique(
 }
 
 // ValidateCanDeleteVariant validates that a variant can be deleted (not the last one)
-func (v *VariantValidator) ValidateCanDeleteVariant(productID uint) error {
-	count, err := v.variantRepo.CountVariantsByProductID(productID)
-	if err != nil {
-		return err
-	}
-
-	if count <= 1 {
+// variantCount is the total number of variants for the product
+func ValidateCanDeleteVariant(variantCount int64) error {
+	if variantCount <= 1 {
 		return prodErrors.ErrLastVariantDeleteNotAllowed
 	}
 
 	return nil
 }
 
-// ValidateBulkUpdateRequest validates the bulk update request
-func (v *VariantValidator) ValidateBulkUpdateRequest(
-	request *model.BulkUpdateVariantsRequest,
-) error {
+// ValidateBulkVariantUpdateRequest validates the bulk update request
+func ValidateBulkVariantUpdateRequest(request *model.BulkUpdateVariantsRequest) error {
 	if len(request.Variants) == 0 {
 		return prodErrors.ErrBulkUpdateEmptyList
 	}
@@ -119,12 +78,8 @@ func (v *VariantValidator) ValidateBulkUpdateRequest(
 }
 
 // ValidateBulkVariantsExist validates that all variants in bulk update exist and belong to product
-func (v *VariantValidator) ValidateBulkVariantsExist(productID uint, variantIDs []uint) error {
-	existingVariants, err := v.variantRepo.FindVariantsByIDs(variantIDs)
-	if err != nil {
-		return err
-	}
-
+// existingVariants should be the fetched variants, variantIDs is the requested IDs
+func ValidateBulkVariantsExist(productID uint, variantIDs []uint, existingVariants []entity.ProductVariant) error {
 	// Validate count matches
 	if len(existingVariants) != len(variantIDs) {
 		return prodErrors.ErrBulkUpdateVariantNotFound
@@ -140,20 +95,20 @@ func (v *VariantValidator) ValidateBulkVariantsExist(productID uint, variantIDs 
 	return nil
 }
 
-// ValidateOptionExists validates that a product option exists
-func (v *VariantValidator) ValidateOptionExists(productID uint, optionName string) (*uint, error) {
-	option, err := v.variantRepo.GetProductOptionByName(productID, optionName)
-	if err != nil {
-		return nil, err
+// ValidateProductOptionExists validates that a product option exists
+// option should be the fetched option entity, returns option ID if valid
+func ValidateProductOptionExists(option *entity.ProductOption) (*uint, error) {
+	if option == nil {
+		return nil, prodErrors.ErrProductOptionNotFound
 	}
 	return &option.ID, nil
 }
 
-// ValidateOptionValueExists validates that an option value exists
-func (v *VariantValidator) ValidateOptionValueExists(optionID uint, value string) (*uint, error) {
-	optionValue, err := v.variantRepo.GetProductOptionValueByValue(optionID, value)
-	if err != nil {
-		return nil, err
+// ValidateProductOptionValueExists validates that an option value exists
+// optionValue should be the fetched option value entity, returns value ID if valid
+func ValidateProductOptionValueExists(optionValue *entity.ProductOptionValue) (*uint, error) {
+	if optionValue == nil {
+		return nil, prodErrors.ErrProductOptionValueNotFound
 	}
 	return &optionValue.ID, nil
 }

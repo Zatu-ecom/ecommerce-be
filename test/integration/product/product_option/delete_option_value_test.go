@@ -316,13 +316,6 @@ func TestDeleteOptionValue(t *testing.T) {
 		assert.Equal(t, http.StatusOK, wGet.Code)
 	})
 
-	t.Run("Delete value after all variants using it are removed", func(t *testing.T) {
-		// This test would require first deleting variants that use the value
-		// Then successfully deleting the value
-		// For now, we'll skip this as it requires variant deletion API
-		t.Skip("Requires variant deletion API to be tested properly")
-	})
-
 	t.Run("Verify error includes helpful information", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)

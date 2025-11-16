@@ -30,7 +30,6 @@ type AttributeDefinitionService interface {
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
 type AttributeDefinitionServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
-	validator     *validator.AttributeValidator
 	factory       *factory.AttributeFactory
 }
 
@@ -40,7 +39,6 @@ func NewAttributeDefinitionService(
 ) AttributeDefinitionService {
 	return &AttributeDefinitionServiceImpl{
 		attributeRepo: attributeRepo,
-		validator:     validator.NewAttributeValidator(),
 		factory:       factory.NewAttributeFactory(),
 	}
 }
@@ -50,13 +48,13 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
 	// Validate attribute key format
-	if err := s.validator.ValidateKey(req.Key); err != nil {
+	if err := validator.ValidateKey(req.Key); err != nil {
 		return nil, err
 	}
 
 	// Validate allowed values if provided
 	if len(req.AllowedValues) > 0 {
-		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+		if err := validator.ValidateAllowedValues(req.AllowedValues); err != nil {
 			return nil, err
 		}
 	}
@@ -96,7 +94,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 
 	// Validate allowed values if provided
 	if len(req.AllowedValues) > 0 {
-		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+		if err := validator.ValidateAllowedValues(req.AllowedValues); err != nil {
 			return nil, err
 		}
 	}
@@ -171,13 +169,13 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
 	// Validate attribute key format
-	if err := s.validator.ValidateKey(req.Key); err != nil {
+	if err := validator.ValidateKey(req.Key); err != nil {
 		return nil, err
 	}
 
 	// Validate allowed values if provided
 	if len(req.AllowedValues) > 0 {
-		if err := s.validator.ValidateAllowedValues(req.AllowedValues); err != nil {
+		if err := validator.ValidateAllowedValues(req.AllowedValues); err != nil {
 			return nil, err
 		}
 	}

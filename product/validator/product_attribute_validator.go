@@ -5,16 +5,8 @@ import (
 	prodErrors "ecommerce-be/product/errors"
 )
 
-// ProductAttributeValidator handles validation logic for product attributes
-type ProductAttributeValidator struct{}
-
-// NewProductAttributeValidator creates a new instance of ProductAttributeValidator
-func NewProductAttributeValidator() *ProductAttributeValidator {
-	return &ProductAttributeValidator{}
-}
-
-// ValidateAttributeValue validates the attribute value
-func (v *ProductAttributeValidator) ValidateAttributeValue(
+// ValidateProductAttributeValue validates the attribute value
+func ValidateProductAttributeValue(
 	value string,
 	allowedValues []string,
 ) error {
@@ -35,15 +27,8 @@ func (v *ProductAttributeValidator) ValidateAttributeValue(
 	return nil
 }
 
-// ValidateSortOrder validates the sort order
-func (v *ProductAttributeValidator) ValidateSortOrder(sortOrder uint) error {
-	// Sort order can be any non-negative value, including 0
-	// No additional validation needed for now
-	return nil
-}
-
-// ValidateAddRequest validates the add product attribute request
-func (v *ProductAttributeValidator) ValidateAddRequest(
+// ValidateProductAttributeAddRequest validates the add product attribute request
+func ValidateProductAttributeAddRequest(
 	attributeDefinitionID uint,
 	value string,
 	allowedValues []string,
@@ -52,13 +37,13 @@ func (v *ProductAttributeValidator) ValidateAddRequest(
 		return commonError.ErrValidation.WithMessage("Attribute definition ID is required")
 	}
 
-	return v.ValidateAttributeValue(value, allowedValues)
+	return ValidateProductAttributeValue(value, allowedValues)
 }
 
-// ValidateUpdateRequest validates the update product attribute request
-func (v *ProductAttributeValidator) ValidateUpdateRequest(
+// ValidateProductAttributeUpdateRequest validates the update product attribute request
+func ValidateProductAttributeUpdateRequest(
 	value string,
 	allowedValues []string,
 ) error {
-	return v.ValidateAttributeValue(value, allowedValues)
+	return ValidateProductAttributeValue(value, allowedValues)
 }

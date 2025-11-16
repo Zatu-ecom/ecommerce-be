@@ -1,49 +1,24 @@
 package validator
 
 import (
-	"errors"
-
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
-	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
-
-	"gorm.io/gorm"
 )
 
-// ProductOptionValidator handles validation logic for product options
-type ProductOptionValidator struct {
-	optionRepo  repositories.ProductOptionRepository
-	productRepo repositories.ProductRepository
-}
-
-// NewProductOptionValidator creates a new instance of ProductOptionValidator
-func NewProductOptionValidator(
-	optionRepo repositories.ProductOptionRepository,
-	productRepo repositories.ProductRepository,
-) *ProductOptionValidator {
-	return &ProductOptionValidator{
-		optionRepo:  optionRepo,
-		productRepo: productRepo,
-	}
-}
-
 // ValidateProductExists validates that a product exists
-func (v *ProductOptionValidator) ValidateProductExists(productID uint) error {
-	_, err := v.productRepo.FindByID(productID)
-	if err != nil {
-		return err
+// product should be nil if not found, otherwise the fetched product entity
+func ValidateProductExists(product *entity.Product) error {
+	if product == nil {
+		return prodErrors.ErrProductNotFound
 	}
 	return nil
 }
 
-// ValidateOptionNameUniqueness validates that option name is unique for a product
-func (v *ProductOptionValidator) ValidateOptionNameUniqueness(productID uint, name string) error {
+// ValidateProductOptionNameUniqueness validates that option name is unique for a product
+// existingOptions should be the list of options already associated with the product
+func ValidateProductOptionNameUniqueness(name string, existingOptions []entity.ProductOption) error {
 	normalizedName := utils.NormalizeToSnakeCase(name)
-
-	existingOptions, err := v.optionRepo.FindOptionsByProductID(productID)
-	if err != nil {
-		return err
-	}
 
 	for _, opt := range existingOptions {
 		if opt.Name == normalizedName {
@@ -53,17 +28,14 @@ func (v *ProductOptionValidator) ValidateOptionNameUniqueness(productID uint, na
 	return nil
 }
 
-// ValidateOptionBelongsToProduct validates that an option belongs to a product
-func (v *ProductOptionValidator) ValidateOptionBelongsToProduct(
+// ValidateProductOptionBelongsToProduct validates that an option belongs to a product
+// option should be the fetched option entity
+func ValidateProductOptionBelongsToProduct(
 	productID uint,
-	optionID uint,
+	option *entity.ProductOption,
 ) error {
-	option, err := v.optionRepo.FindOptionByID(optionID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return prodErrors.ErrProductOptionNotFound
-		}
-		return err
+	if option == nil {
+		return prodErrors.ErrProductOptionNotFound
 	}
 
 	if option.ProductID != productID {
@@ -73,32 +45,30 @@ func (v *ProductOptionValidator) ValidateOptionBelongsToProduct(
 	return nil
 }
 
-// ValidateOptionNotInUse validates that an option is not being used by any variants
-func (v *ProductOptionValidator) ValidateOptionNotInUse(optionID uint) error {
-	inUse, variantIDs, err := v.optionRepo.CheckOptionInUse(optionID)
-	if err != nil {
-		return err
-	}
-
+// ValidateProductOptionNotInUse validates that an option is not being used by any variants
+// inUse indicates if the option is being used by variants
+// variantCount is the number of variants using this option
+func ValidateProductOptionNotInUse(inUse bool, variantCount int) error {
 	if inUse {
 		// Return custom error that can include variant details
 		return prodErrors.ErrProductOptionInUse.WithMessagef(
 			"%s (used by %d variants)",
 			utils.PRODUCT_OPTION_IN_USE_MSG,
-			len(variantIDs),
+			variantCount,
 		)
 	}
 
 	return nil
 }
 
-func (v *ProductOptionValidator) ValidateProductBelongsToSeller(
-	productID uint,
+// ValidateProductBelongsToSeller validates that a product belongs to a seller
+// product should be the fetched product entity
+func ValidateProductBelongsToSeller(
+	product *entity.Product,
 	sellerID uint,
 ) error {
-	product, err := v.productRepo.FindByID(productID)
-	if err != nil {
-		return err
+	if product == nil {
+		return prodErrors.ErrProductNotFound
 	}
 
 	if sellerID != 0 && product.SellerID != sellerID {

@@ -7,6 +7,7 @@ import (
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/logger"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
@@ -23,6 +24,9 @@ func main() {
 	if err != nil {
 		log.Println("No .env file found")
 	}
+
+	/* Initialize Logger */
+	logger.InitLogger()
 
 	/* Connect Database */
 	db.ConnectDB(autoMigrations())

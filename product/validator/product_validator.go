@@ -5,69 +5,44 @@ import (
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
 )
 
-// ProductValidator handles validation logic for product operations
-type ProductValidator struct {
-	productRepo  repositories.ProductRepository
-	categoryRepo repositories.CategoryRepository
-	optionRepo   repositories.ProductOptionRepository
-}
-
-// NewProductValidator creates a new product validator
-func NewProductValidator(
-	productRepo repositories.ProductRepository,
-	categoryRepo repositories.CategoryRepository,
-	optionRepo repositories.ProductOptionRepository,
-) *ProductValidator {
-	return &ProductValidator{
-		productRepo:  productRepo,
-		categoryRepo: categoryRepo,
-		optionRepo:   optionRepo,
-	}
-}
-
-// ValidateCategoryExists checks if a category exists
-func (v *ProductValidator) ValidateCategoryExists(categoryID uint) (*entity.Category, error) {
-	category, err := v.categoryRepo.FindByID(categoryID)
-	if err != nil {
-		return nil, err
-	}
+// ValidateProductCategoryExists checks if a category exists
+// category should be the fetched category entity
+func ValidateProductCategoryExists(category *entity.Category) error {
 	if category == nil {
-		return nil, prodErrors.ErrInvalidCategory
+		return prodErrors.ErrInvalidCategory
 	}
-	return category, nil
+	return nil
 }
 
-// ValidateProductExists checks if a product exists by ID
-func (v *ProductValidator) ValidateProductExistsAndCheckProductOwnership(
-	productID uint,
-	sellerID *uint,
-) (*entity.Product, error) {
-	product, err := v.productRepo.FindByID(productID)
-	if err != nil {
-		return nil, err
+// ValidateProductExistsAndOwnership checks if a product exists and seller has access
+// Reuses ValidateProductBelongsToSeller for consistency
+func ValidateProductExistsAndOwnership(product *entity.Product, sellerID *uint) error {
+	if product == nil {
+		return prodErrors.ErrProductNotFound
 	}
-	if product == nil || (sellerID != nil && product.SellerID != *sellerID) {
-		return nil, prodErrors.ErrUnauthorizedProductAccess
+	
+	if sellerID != nil {
+		// Reuse existing validation logic
+		return ValidateProductBelongsToSeller(product, *sellerID)
 	}
-
-	return product, nil
+	
+	return nil
 }
 
-// ValidateVariantRequirements validates variant-related requirements for product creation
-func (v *ProductValidator) ValidateVariantRequirements(req model.ProductCreateRequest) error {
+// ValidateProductVariantRequirements validates variant-related requirements for product creation
+func ValidateProductVariantRequirements(variants []model.CreateVariantRequest) error {
 	// At least one variant is required
-	if len(req.Variants) == 0 {
+	if len(variants) == 0 {
 		return commonError.ErrValidation.WithMessage("at least one variant is required")
 	}
 
 	return nil
 }
 
-// ValidateVariantSKUsUnique checks that all variant SKUs in the request are unique
-func (v *ProductValidator) ValidateVariantSKUsUnique(variants []model.CreateVariantRequest) error {
+// ValidateProductVariantSKUsUnique checks that all variant SKUs in the request are unique
+func ValidateProductVariantSKUsUnique(variants []model.CreateVariantRequest) error {
 	skuMap := make(map[string]bool)
 	for _, variant := range variants {
 		if skuMap[variant.SKU] {
@@ -79,21 +54,21 @@ func (v *ProductValidator) ValidateVariantSKUsUnique(variants []model.CreateVari
 }
 
 // ValidateProductCreateRequest validates the entire product creation request
-// This is the main validation orchestrator for product creation
-func (v *ProductValidator) ValidateProductCreateRequest(req model.ProductCreateRequest) error {
+// category should be the fetched category entity
+func ValidateProductCreateRequest(req model.ProductCreateRequest, category *entity.Category) error {
 	// Validate category exists
-	if _, err := v.ValidateCategoryExists(req.CategoryID); err != nil {
+	if err := ValidateProductCategoryExists(category); err != nil {
 		return err
 	}
 
 	// Validate variant requirements
-	if err := v.ValidateVariantRequirements(req); err != nil {
+	if err := ValidateProductVariantRequirements(req.Variants); err != nil {
 		return err
 	}
 
 	// Validate variant SKUs are unique if manual variants provided
 	if len(req.Variants) > 0 {
-		if err := v.ValidateVariantSKUsUnique(req.Variants); err != nil {
+		if err := ValidateProductVariantSKUsUnique(req.Variants); err != nil {
 			return err
 		}
 	}
@@ -102,23 +77,25 @@ func (v *ProductValidator) ValidateProductCreateRequest(req model.ProductCreateR
 }
 
 // ValidateProductUpdateRequest validates product update request
-func (v *ProductValidator) ValidateProductUpdateRequest(
-	productID uint,
+// product should be the fetched product entity
+// category should be the fetched category entity if being updated
+func ValidateProductUpdateRequest(
+	product *entity.Product,
 	sellerID *uint,
 	req model.ProductUpdateRequest,
-) (*entity.Product, error) {
-	// Verify product exists
-	product, err := v.ValidateProductExistsAndCheckProductOwnership(productID, sellerID)
-	if err != nil {
-		return nil, err
+	category *entity.Category,
+) error {
+	// Verify product exists and check ownership
+	if err := ValidateProductExistsAndOwnership(product, sellerID); err != nil {
+		return err
 	}
 
 	// Validate category if being updated (pointer not nil)
 	if req.CategoryID != nil && *req.CategoryID != 0 {
-		if _, err := v.ValidateCategoryExists(*req.CategoryID); err != nil {
-			return nil, err
+		if err := ValidateProductCategoryExists(category); err != nil {
+			return err
 		}
 	}
 
-	return product, nil
+	return nil
 }
