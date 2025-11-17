@@ -1,36 +1,26 @@
 package factory
 
 import (
-	"time"
-
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 )
 
-// ProductOptionFactory handles the creation of product option entities from requests
-type ProductOptionFactory struct{}
-
-// NewProductOptionFactory creates a new instance of ProductOptionFactory
-func NewProductOptionFactory() *ProductOptionFactory {
-	return &ProductOptionFactory{}
-}
-
 // CreateOptionFromRequest creates a ProductOption entity from a create request
-func (f *ProductOptionFactory) CreateOptionFromRequest(
+func CreateOptionFromRequest(
 	productID uint,
 	req model.ProductOptionCreateRequest,
 ) *entity.ProductOption {
 	return &entity.ProductOption{
 		ProductID:   productID,
-		Name:        utils.NormalizeToSnakeCase(req.Name),
+		Name:        helper.NormalizeToSnakeCase(req.Name),
 		DisplayName: req.DisplayName,
 		Position:    req.Position,
 	}
 }
 
 // UpdateOptionEntity updates an existing ProductOption entity from an update request
-func (f *ProductOptionFactory) UpdateOptionEntity(
+func UpdateOptionEntity(
 	option *entity.ProductOption,
 	req model.ProductOptionUpdateRequest,
 ) *entity.ProductOption {
@@ -44,7 +34,7 @@ func (f *ProductOptionFactory) UpdateOptionEntity(
 }
 
 // BuildProductOptionResponse builds ProductOptionResponse from entity
-func (f *ProductOptionFactory) BuildProductOptionResponse(
+func BuildProductOptionResponse(
 	option *entity.ProductOption,
 	productID uint,
 ) *model.ProductOptionResponse {
@@ -54,20 +44,56 @@ func (f *ProductOptionFactory) BuildProductOptionResponse(
 		Name:        option.Name,
 		DisplayName: option.DisplayName,
 		Position:    option.Position,
-		CreatedAt:   option.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   option.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   helper.FormatTimestamp(option.CreatedAt),
+		UpdatedAt:   helper.FormatTimestamp(option.UpdatedAt),
 	}
 
 	// Convert values if present
 	if len(option.Values) > 0 {
-		valueFactory := NewProductOptionValueFactory()
 		values := make([]model.ProductOptionValueResponse, 0, len(option.Values))
 		for _, val := range option.Values {
-			valueResp := valueFactory.BuildProductOptionValueResponse(&val)
+			valueResp := BuildProductOptionValueResponse(&val)
 			values = append(values, *valueResp)
 		}
 		response.Values = values
 	}
 
 	return response
+}
+
+// BuildProductOptionDetailResponse builds ProductOptionDetailResponse from entity
+func BuildProductOptionDetailResponse(
+	option *entity.ProductOption,
+) *model.ProductOptionDetailResponse {
+	response := &model.ProductOptionDetailResponse{
+		OptionID:          option.ID,
+		OptionName:        option.Name,
+		OptionDisplayName: option.DisplayName,
+		Position:          option.Position,
+		Values:            make([]model.OptionValueResponse, 0, len(option.Values)),
+	}
+
+	// Convert option values
+	for _, value := range option.Values {
+		response.Values = append(response.Values, model.OptionValueResponse{
+			ValueID:     value.ID,
+			Value:       value.Value,
+			DisplayName: value.DisplayName,
+			ColorCode:   value.ColorCode,
+			Position:    value.Position,
+		})
+	}
+
+	return response
+}
+
+// BuildProductOptionsDetailResponse builds multiple ProductOptionDetailResponse from entities
+func BuildProductOptionsDetailResponse(
+	options []entity.ProductOption,
+) []model.ProductOptionDetailResponse {
+	result := make([]model.ProductOptionDetailResponse, 0, len(options))
+	for _, option := range options {
+		result = append(result, *BuildProductOptionDetailResponse(&option))
+	}
+	return result
 }

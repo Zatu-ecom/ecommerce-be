@@ -4,6 +4,7 @@ import (
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 )
 
 // ValidateProductExists validates that a product exists
@@ -18,7 +19,7 @@ func ValidateProductExists(product *entity.Product) error {
 // ValidateProductOptionNameUniqueness validates that option name is unique for a product
 // existingOptions should be the list of options already associated with the product
 func ValidateProductOptionNameUniqueness(name string, existingOptions []entity.ProductOption) error {
-	normalizedName := utils.NormalizeToSnakeCase(name)
+	normalizedName := helper.NormalizeToSnakeCase(name)
 
 	for _, opt := range existingOptions {
 		if opt.Name == normalizedName {

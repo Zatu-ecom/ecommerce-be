@@ -1,29 +1,22 @@
 package factory
 
 import (
-	"time"
-
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 )
 
 // ProductOptionValueFactory handles the creation of product option value entities from requests
-type ProductOptionValueFactory struct{}
-
-// NewProductOptionValueFactory creates a new instance of ProductOptionValueFactory
-func NewProductOptionValueFactory() *ProductOptionValueFactory {
-	return &ProductOptionValueFactory{}
-}
+// Stateless factory - all methods are pure functions
 
 // CreateOptionValueFromRequest creates a ProductOptionValue entity from a request
-func (f *ProductOptionValueFactory) CreateOptionValueFromRequest(
+func CreateOptionValueFromRequest(
 	optionID uint,
 	req model.ProductOptionValueRequest,
 ) *entity.ProductOptionValue {
 	return &entity.ProductOptionValue{
 		OptionID:    optionID,
-		Value:       utils.ToLowerTrimmed(req.Value),
+		Value:       helper.ToLowerTrimmed(req.Value),
 		DisplayName: req.DisplayName,
 		ColorCode:   req.ColorCode,
 		Position:    req.Position,
@@ -31,7 +24,7 @@ func (f *ProductOptionValueFactory) CreateOptionValueFromRequest(
 }
 
 // CreateOptionValuesFromRequests creates multiple ProductOptionValue entities from requests
-func (f *ProductOptionValueFactory) CreateOptionValuesFromRequests(
+func CreateOptionValuesFromRequests(
 	optionID uint,
 	requests []model.ProductOptionValueRequest,
 ) []entity.ProductOptionValue {
@@ -40,15 +33,16 @@ func (f *ProductOptionValueFactory) CreateOptionValuesFromRequests(
 	}
 
 	optionValues := make([]entity.ProductOptionValue, 0, len(requests))
-	for _, req := range requests {
-		optionValue := f.CreateOptionValueFromRequest(optionID, req)
+	for j, req := range requests {
+		optionValue := CreateOptionValueFromRequest(optionID, req)
+		optionValue.Position = helper.GetPositionOrDefault(req.Position, j+1)
 		optionValues = append(optionValues, *optionValue)
 	}
 	return optionValues
 }
 
 // UpdateOptionValueEntity updates an existing ProductOptionValue entity from an update request
-func (f *ProductOptionValueFactory) UpdateOptionValueEntity(
+func UpdateOptionValueEntity(
 	optionValue *entity.ProductOptionValue,
 	req model.ProductOptionValueUpdateRequest,
 ) *entity.ProductOptionValue {
@@ -65,7 +59,7 @@ func (f *ProductOptionValueFactory) UpdateOptionValueEntity(
 }
 
 // BuildProductOptionValueResponse builds ProductOptionValueResponse from entity
-func (f *ProductOptionValueFactory) BuildProductOptionValueResponse(
+func BuildProductOptionValueResponse(
 	value *entity.ProductOptionValue,
 ) *model.ProductOptionValueResponse {
 	return &model.ProductOptionValueResponse{
@@ -75,7 +69,7 @@ func (f *ProductOptionValueFactory) BuildProductOptionValueResponse(
 		DisplayName: value.DisplayName,
 		ColorCode:   value.ColorCode,
 		Position:    value.Position,
-		CreatedAt:   value.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   value.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   helper.FormatTimestamp(value.CreatedAt),
+		UpdatedAt:   helper.FormatTimestamp(value.UpdatedAt),
 	}
 }

@@ -46,7 +46,6 @@ type ProductAttributeServiceImpl struct {
 	productAttrRepo repositories.ProductAttributeRepository
 	productRepo     repositories.ProductRepository
 	attributeRepo   repositories.AttributeDefinitionRepository
-	factory         *factory.ProductAttributeFactory
 }
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
@@ -59,7 +58,6 @@ func NewProductAttributeService(
 		productAttrRepo: productAttrRepo,
 		productRepo:     productRepo,
 		attributeRepo:   attributeRepo,
-		factory:         factory.NewProductAttributeFactory(),
 	}
 }
 
@@ -108,7 +106,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Create product attribute entity using factory
-	productAttribute := s.factory.CreateFromRequest(productID, req)
+	productAttribute := factory.BuildProductAttributeFromCreateRequest(productID, req)
 
 	// Save to database
 	if err := s.productAttrRepo.Create(productAttribute); err != nil {
@@ -122,7 +120,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Build response using factory
-	return s.factory.BuildDetailResponse(createdAttr), nil
+	return factory.BuildProductAttributeDetailResponse(createdAttr), nil
 }
 
 // UpdateProductAttribute updates an existing product attribute
@@ -166,7 +164,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Update entity using factory
-	s.factory.UpdateEntity(productAttribute, req)
+	factory.BuildProductAttributeFromUpdateRequest(productAttribute, req)
 
 	// Save to database
 	if err := s.productAttrRepo.Update(productAttribute); err != nil {
@@ -180,7 +178,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Build response using factory
-	return s.factory.BuildDetailResponse(updatedAttr), nil
+	return factory.BuildProductAttributeDetailResponse(updatedAttr), nil
 }
 
 // DeleteProductAttribute removes an attribute from a product
@@ -232,7 +230,7 @@ func (s *ProductAttributeServiceImpl) GetProductAttributes(
 	}
 
 	// Build response using factory
-	return s.factory.BuildListResponse(productID, productAttributes), nil
+	return factory.BuildProductAttributesListResponse(productID, productAttributes), nil
 }
 
 // BulkUpdateProductAttributes updates multiple attributes for a product
@@ -297,7 +295,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 	// Build response
 	attributeResponses := make([]model.ProductAttributeDetailResponse, len(updatedAttributes))
 	for i, attr := range updatedAttributes {
-		attributeResponses[i] = *s.factory.BuildDetailResponse(attr)
+		attributeResponses[i] = *factory.BuildProductAttributeDetailResponse(attr)
 	}
 
 	return &model.BulkUpdateProductAttributesResponse{

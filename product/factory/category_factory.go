@@ -3,26 +3,17 @@ package factory
 import (
 	"time"
 
-	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
+	"ecommerce-be/product/utils/helper"
 )
 
-// CategoryFactory handles the creation of category entities from requests
-type CategoryFactory struct{}
-
-// NewCategoryFactory creates a new instance of CategoryFactory
-func NewCategoryFactory() *CategoryFactory {
-	return &CategoryFactory{}
-}
-
-// CreateFromRequest creates a Category entity from a create request
-func (f *CategoryFactory) CreateFromRequest(
+// BuildCategoryEntityFromCreateRequest creates a Category entity from a create request
+func BuildCategoryEntityFromCreateRequest(
 	req model.CategoryCreateRequest,
 	isGlobal bool,
 	sellerID *uint,
 ) *entity.Category {
-	now := time.Now()
 	if isGlobal {
 		sellerID = nil
 	}
@@ -32,15 +23,12 @@ func (f *CategoryFactory) CreateFromRequest(
 		Description: req.Description,
 		IsGlobal:    isGlobal,
 		SellerID:    sellerID,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
+		BaseEntity:  helper.NewBaseEntity(),
 	}
 }
 
-// UpdateEntity updates an existing Category entity from an update request
-func (f *CategoryFactory) UpdateEntity(
+// BuildCategoryEntityFromUpdateReq updates an existing Category entity from an update request
+func BuildCategoryEntityFromUpdateReq(
 	category *entity.Category,
 	req model.CategoryUpdateRequest,
 ) *entity.Category {
@@ -53,7 +41,7 @@ func (f *CategoryFactory) UpdateEntity(
 }
 
 // BuildCategoryResponse builds CategoryResponse from entity
-func (f *CategoryFactory) BuildCategoryResponse(
+func BuildCategoryResponse(
 	category *entity.Category,
 ) *model.CategoryResponse {
 	var responseParentID *uint
@@ -68,13 +56,13 @@ func (f *CategoryFactory) BuildCategoryResponse(
 		Description: category.Description,
 		IsGlobal:    category.IsGlobal,
 		SellerID:    category.SellerID,
-		CreatedAt:   category.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:   category.UpdatedAt.UTC().Format(time.RFC3339),
+		CreatedAt:   helper.FormatTimestamp(category.CreatedAt.UTC()),
+		UpdatedAt:   helper.FormatTimestamp(category.UpdatedAt.UTC()),
 	}
 }
 
 // BuildCategoryHierarchyResponse builds CategoryHierarchyResponse from entity (recursive)
-func (f *CategoryFactory) BuildCategoryHierarchyResponse(
+func BuildCategoryHierarchyResponse(
 	category *entity.Category,
 ) *model.CategoryHierarchyResponse {
 	var responseParentID *uint
@@ -85,7 +73,7 @@ func (f *CategoryFactory) BuildCategoryHierarchyResponse(
 	// Convert children recursively
 	children := make([]model.CategoryHierarchyResponse, 0, len(category.Children))
 	for _, child := range category.Children {
-		childResponse := f.BuildCategoryHierarchyResponse(&child)
+		childResponse := BuildCategoryHierarchyResponse(&child)
 		children = append(children, *childResponse)
 	}
 
@@ -99,7 +87,7 @@ func (f *CategoryFactory) BuildCategoryHierarchyResponse(
 }
 
 // BuildCategoryHierarchyInfo builds CategoryHierarchyInfo from entity and parent
-func (f *CategoryFactory) BuildCategoryHierarchyInfo(
+func BuildCategoryHierarchyInfo(
 	category *entity.Category,
 	parentCategory *entity.Category,
 ) *model.CategoryHierarchyInfo {

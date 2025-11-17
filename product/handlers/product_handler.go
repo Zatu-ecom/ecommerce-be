@@ -22,14 +22,19 @@ import (
 // ProductHandler handles HTTP requests related to products
 type ProductHandler struct {
 	*handler.BaseHandler
-	productService service.ProductService
+	productService      service.ProductService
+	productQueryService service.ProductQueryService
 }
 
 // NewProductHandler creates a new instance of ProductHandler
-func NewProductHandler(productService service.ProductService) *ProductHandler {
+func NewProductHandler(
+	productService service.ProductService,
+	productQueryService service.ProductQueryService,
+) *ProductHandler {
 	return &ProductHandler{
-		BaseHandler:    handler.NewBaseHandler(),
-		productService: productService,
+		BaseHandler:         handler.NewBaseHandler(),
+		productService:      productService,
+		productQueryService: productQueryService,
 	}
 }
 
@@ -169,7 +174,8 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 		filters["sellerId"] = sellerID
 	}
 
-	productsResponse, err := h.productService.GetAllProducts(page, limit, filters)
+	// Use ProductQueryService for read operations (optimized for queries)
+	productsResponse, err := h.productQueryService.GetAllProducts(page, limit, filters)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCTS_MSG)
 		return
@@ -263,31 +269,6 @@ func (h *ProductHandler) GetProductFilters(c *gin.Context) {
 
 	h.SuccessWithData(c, http.StatusOK, utils.FILTERS_RETRIEVED_MSG,
 		utils.FILTERS_FIELD_NAME, filters)
-}
-
-// GetRelatedProducts handles getting related products
-func (h *ProductHandler) GetRelatedProducts(c *gin.Context) {
-	productID, err := h.ParseUintParam(c, "productId")
-	if err != nil {
-		h.HandleError(c, err, "Invalid product ID")
-		return
-	}
-
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
-
-	// Extract seller ID from context (set by PublicAPIAuth middleware)
-	var sellerID *uint
-	if id, exists := auth.GetSellerIDFromContext(c); exists {
-		sellerID = &id
-	}
-
-	relatedProductsResponse, err := h.productService.GetRelatedProducts(productID, limit, sellerID)
-	if err != nil {
-		h.HandleError(c, err, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG)
-		return
-	}
-
-	h.Success(c, http.StatusOK, utils.RELATED_PRODUCTS_RETRIEVED_MSG, relatedProductsResponse)
 }
 
 // GetRelatedProductsScored handles getting related products with intelligent scoring

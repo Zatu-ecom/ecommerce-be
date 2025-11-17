@@ -4,6 +4,7 @@ import (
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 )
 
 // ValidateSellerProductAndOption validates both product and option exist and belong together
@@ -41,7 +42,7 @@ func ValidateProductOptionValueUniqueness(
 	value string,
 	existingValues []entity.ProductOptionValue,
 ) error {
-	normalizedValue := utils.ToLowerTrimmed(value)
+	normalizedValue := helper.ToLowerTrimmed(value)
 
 	for _, val := range existingValues {
 		if val.Value == normalizedValue {
@@ -97,7 +98,7 @@ func ValidateBulkProductOptionValuesUniqueness(
 	// Check for duplicates in existing and within batch
 	valueSet := make(map[string]bool)
 	for _, value := range values {
-		normalizedValue := utils.ToLowerTrimmed(value)
+		normalizedValue := helper.ToLowerTrimmed(value)
 
 		// Check against existing values
 		if existingValueMap[normalizedValue] {

@@ -49,7 +49,6 @@ type ProductOptionValueService interface {
 type ProductOptionValueServiceImpl struct {
 	optionRepo  repositories.ProductOptionRepository
 	productRepo repositories.ProductRepository
-	factory     *factory.ProductOptionValueFactory
 }
 
 // NewProductOptionValueService creates a new instance of ProductOptionValueService
@@ -60,7 +59,6 @@ func NewProductOptionValueService(
 	return &ProductOptionValueServiceImpl{
 		optionRepo:  optionRepo,
 		productRepo: productRepo,
-		factory:     factory.NewProductOptionValueFactory(),
 	}
 }
 
@@ -102,7 +100,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	}
 
 	// Create option value entity using factory
-	optionValue := s.factory.CreateOptionValueFromRequest(optionID, req)
+	optionValue := factory.CreateOptionValueFromRequest(optionID, req)
 
 	// Create option value
 	if err := s.optionRepo.CreateOptionValue(optionValue); err != nil {
@@ -110,7 +108,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	}
 
 	// Convert to response
-	response := s.factory.BuildProductOptionValueResponse(optionValue)
+	response := factory.BuildProductOptionValueResponse(optionValue)
 	return response, nil
 }
 
@@ -153,7 +151,7 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	}
 
 	// Update entity using factory
-	s.factory.UpdateOptionValueEntity(optionValue, req)
+	factory.UpdateOptionValueEntity(optionValue, req)
 
 	// Update option value
 	if err := s.optionRepo.UpdateOptionValue(optionValue); err != nil {
@@ -161,7 +159,7 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	}
 
 	// Convert to response
-	response := s.factory.BuildProductOptionValueResponse(optionValue)
+	response := factory.BuildProductOptionValueResponse(optionValue)
 	return response, nil
 }
 
@@ -260,7 +258,7 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	}
 
 	// Create option values using factory
-	valuesToCreate := s.factory.CreateOptionValuesFromRequests(optionID, req.Values)
+	valuesToCreate := factory.CreateOptionValuesFromRequests(optionID, req.Values)
 
 	// Bulk create option values
 	if err := s.optionRepo.CreateOptionValues(valuesToCreate); err != nil {
@@ -270,7 +268,7 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	// Convert to response
 	var responses []model.ProductOptionValueResponse
 	for i := range valuesToCreate {
-		response := s.factory.BuildProductOptionValueResponse(&valuesToCreate[i])
+		response := factory.BuildProductOptionValueResponse(&valuesToCreate[i])
 		responses = append(responses, *response)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
+	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/validator"
@@ -46,13 +47,28 @@ type VariantService interface {
 		productID, sellerID uint,
 		request *model.BulkUpdateVariantsRequest,
 	) (*model.BulkUpdateVariantsResponse, error)
+
+	// Query methods for variant aggregations (used by ProductQueryService)
+	// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
+	// This is optimized for batch operations to prevent N+1 queries
+	GetProductsVariantAggregations(productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+
+	// GetProductVariantAggregation retrieves aggregated variant data for a single product
+	GetProductVariantAggregation(productID uint) (*mapper.VariantAggregation, error)
+
+	// GetProductOptionsWithVariantCounts retrieves all options with their values for a product
+	// Used for detailed product views to show available options
+	GetProductOptionsWithVariantCounts(productID uint) ([]entity.ProductOption, map[uint]int, error)
+
+	// GetProductVariantsWithOptions retrieves all variants with their selected option values
+	// Optimized single query to prevent N+1 issues when fetching variant details
+	GetProductVariantsWithOptions(productID uint) ([]mapper.VariantWithOptions, error)
 }
 
 // VariantServiceImpl implements the VariantService interface
 type VariantServiceImpl struct {
 	variantRepo repositories.VariantRepository
 	productRepo repositories.ProductRepository
-	factory     *factory.VariantFactory
 }
 
 // NewVariantService creates a new instance of VariantService
@@ -63,7 +79,6 @@ func NewVariantService(
 	return &VariantServiceImpl{
 		variantRepo: variantRepo,
 		productRepo: productRepo,
-		factory:     factory.NewVariantFactory(),
 	}
 }
 
@@ -126,7 +141,7 @@ func (s *VariantServiceImpl) GetVariantByID(
 	}
 
 	// Map to detailed response
-	response := s.factory.BuildVariantDetailResponse(variant, product, selectedOptions)
+	response := factory.BuildVariantDetailResponse(variant, product, selectedOptions)
 
 	return response, nil
 }
@@ -176,7 +191,7 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 	}
 
 	// Map to response
-	response := s.factory.BuildVariantResponse(variant, selectedOptions)
+	response := factory.BuildVariantResponse(variant, selectedOptions)
 
 	return response, nil
 }
@@ -223,7 +238,7 @@ func (s *VariantServiceImpl) buildVariantOptions(
 	}
 
 	// Map to response
-	return s.factory.BuildVariantOptionResponses(
+	return factory.BuildVariantOptionResponses(
 		variantOptionValues,
 		productOptions,
 		optionValues,
@@ -289,7 +304,7 @@ func (s *VariantServiceImpl) CreateVariant(
 	}
 
 	// Create variant entity using factory
-	variant := s.factory.CreateVariantFromRequest(productID, request)
+	variant := factory.CreateVariantFromRequest(productID, request)
 
 	// Save variant
 	if err := s.variantRepo.CreateVariant(variant); err != nil {
@@ -297,7 +312,7 @@ func (s *VariantServiceImpl) CreateVariant(
 	}
 
 	// Create variant option value associations using factory
-	variantOptionValues := s.factory.CreateVariantOptionValues(variant.ID, optionValueIDs)
+	variantOptionValues := factory.CreateVariantOptionValues(variant.ID, optionValueIDs)
 
 	if err := s.variantRepo.CreateVariantOptionValues(variantOptionValues); err != nil {
 		return nil, err
@@ -347,7 +362,7 @@ func (s *VariantServiceImpl) UpdateVariant(
 	}
 
 	// Update variant using factory
-	variant = s.factory.UpdateVariantEntity(variant, request)
+	variant = factory.UpdateVariantEntity(variant, request)
 
 	// Save updated variant
 	if err := s.variantRepo.UpdateVariant(variant); err != nil {
@@ -482,7 +497,7 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 		updateData := updateMap[variant.ID]
 
 		// Update variant using factory
-		variant = s.factory.BulkUpdateVariantEntity(variant, updateData)
+		variant = factory.BulkUpdateVariantEntity(variant, updateData)
 		variantsToUpdate = append(variantsToUpdate, variant)
 	}
 
@@ -506,4 +521,43 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 		UpdatedCount: len(variantsToUpdate),
 		Variants:     summaries,
 	}, nil
+}
+
+/***********************************************
+ *    Query Methods for Variant Aggregations   *
+ ***********************************************/
+
+// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
+// This method is optimized for batch operations to prevent N+1 queries
+// Used by ProductQueryService for efficient product listing queries
+func (s *VariantServiceImpl) GetProductsVariantAggregations(
+	productIDs []uint,
+) (map[uint]*mapper.VariantAggregation, error) {
+	return s.variantRepo.GetProductsVariantAggregations(productIDs)
+}
+
+// GetProductVariantAggregation retrieves aggregated variant data for a single product
+// Returns summary information about all variants for a product
+func (s *VariantServiceImpl) GetProductVariantAggregation(
+	productID uint,
+) (*mapper.VariantAggregation, error) {
+	return s.variantRepo.GetProductVariantAggregation(productID)
+}
+
+// GetProductOptionsWithVariantCounts retrieves all options with their values for a product
+// Returns options and a map of variant counts per option value
+// Used for detailed product views to show available options
+func (s *VariantServiceImpl) GetProductOptionsWithVariantCounts(
+	productID uint,
+) ([]entity.ProductOption, map[uint]int, error) {
+	return s.variantRepo.GetProductOptionsWithVariantCounts(productID)
+}
+
+// GetProductVariantsWithOptions retrieves all variants with their selected option values
+// Optimized with a single query to prevent N+1 issues when fetching variant details
+// Returns complete variant information including selected options for each variant
+func (s *VariantServiceImpl) GetProductVariantsWithOptions(
+	productID uint,
+) ([]mapper.VariantWithOptions, error) {
+	return s.variantRepo.GetProductVariantsWithOptions(productID)
 }

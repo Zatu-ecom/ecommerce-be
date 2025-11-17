@@ -102,9 +102,9 @@ func TestCreateProduct(t *testing.T) {
 
 		option := selectedOptions[0].(map[string]interface{})
 		assert.NotNil(t, option["optionId"])
-		assert.Equal(t, "Color", option["optionName"])
+		assert.Equal(t, "Color", option["optionDisplayName"])
 		assert.NotNil(t, option["valueId"])
-		assert.Equal(t, "Black", option["value"])
+		assert.Equal(t, "Black", option["valueDisplayName"])
 
 		// Verify product options structure
 		assert.NotNil(t, product["options"])
@@ -897,8 +897,8 @@ func TestCreateProduct(t *testing.T) {
 			colorCodeMap[val["value"].(string)] = val["colorCode"].(string)
 		}
 
-		assert.Equal(t, "#000000", colorCodeMap["Black"])
-		assert.Equal(t, "#FFFFFF", colorCodeMap["White"])
+		assert.Equal(t, "#000000", colorCodeMap["black"])
+		assert.Equal(t, "#FFFFFF", colorCodeMap["white"])
 	})
 
 	t.Run("Success - Create product in different categories", func(t *testing.T) {
@@ -1085,8 +1085,8 @@ func TestCreateProduct(t *testing.T) {
 		var foundSlashValue bool
 		for _, opt := range selectedOptions {
 			option := opt.(map[string]interface{})
-			if option["optionName"] == "Color" {
-				assert.Equal(t, "Black/White", option["value"])
+			if option["optionDisplayName"] == "Color" {
+				assert.Equal(t, "Black/White", option["valueDisplayName"])
 				foundSlashValue = true
 			}
 		}

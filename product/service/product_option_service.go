@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 	"ecommerce-be/product/validator"
 )
 
@@ -41,8 +42,6 @@ type ProductOptionService interface {
 type ProductOptionServiceImpl struct {
 	optionRepo    repositories.ProductOptionRepository
 	productRepo   repositories.ProductRepository
-	optionFactory *factory.ProductOptionFactory
-	valueFactory  *factory.ProductOptionValueFactory
 }
 
 // NewProductOptionService creates a new instance of ProductOptionService
@@ -53,8 +52,6 @@ func NewProductOptionService(
 	return &ProductOptionServiceImpl{
 		optionRepo:    optionRepo,
 		productRepo:   productRepo,
-		optionFactory: factory.NewProductOptionFactory(),
-		valueFactory:  factory.NewProductOptionValueFactory(),
 	}
 }
 
@@ -94,7 +91,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 	}
 
 	// Create option entity using factory
-	option := s.optionFactory.CreateOptionFromRequest(productID, req)
+	option := factory.CreateOptionFromRequest(productID, req)
 
 	// Create option
 	if err := s.optionRepo.CreateOption(option); err != nil {
@@ -121,7 +118,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 		}
 
 		// Create option values using factory
-		optionValues := s.valueFactory.CreateOptionValuesFromRequests(option.ID, req.Values)
+		optionValues := factory.CreateOptionValuesFromRequests(option.ID, req.Values)
 		if err := s.optionRepo.CreateOptionValues(optionValues); err != nil {
 			return nil, err
 		}
@@ -134,7 +131,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 	}
 
 	// Convert to response
-	response := s.optionFactory.BuildProductOptionResponse(createdOption, productID)
+	response := factory.BuildProductOptionResponse(createdOption, productID)
 	return response, nil
 }
 
@@ -165,7 +162,7 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	}
 
 	// Update option entity using factory
-	option = s.optionFactory.UpdateOptionEntity(option, req)
+	option = factory.UpdateOptionEntity(option, req)
 
 	// Update option
 	if err := s.optionRepo.UpdateOption(option); err != nil {
@@ -179,7 +176,7 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	}
 
 	// Convert to response
-	response := s.optionFactory.BuildProductOptionResponse(updatedOption, productID)
+	response := factory.BuildProductOptionResponse(updatedOption, productID)
 	return response, nil
 }
 
@@ -254,11 +251,11 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 		values := make([]model.OptionValueResponse, 0, len(option.Values))
 
 		for _, value := range option.Values {
-			valueResponse := model.OptionValueResponse{
-				ValueID:      value.ID,
-				Value:        value.Value,
-				DisplayName:  utils.GetDisplayNameOrDefault(value.DisplayName, value.Value),
-				VariantCount: variantCounts[value.ID],
+		valueResponse := model.OptionValueResponse{
+			ValueID:      value.ID,
+			Value:        value.Value,
+			DisplayName:  helper.GetDisplayNameOrDefault(value.DisplayName, value.Value),
+			VariantCount: variantCounts[value.ID],
 				Position:     value.Position,
 			}
 
@@ -273,7 +270,7 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 		optionResponse := model.ProductOptionDetailResponse{
 			OptionID:          option.ID,
 			OptionName:        option.Name,
-			OptionDisplayName: utils.GetDisplayNameOrDefault(option.DisplayName, option.Name),
+			OptionDisplayName: helper.GetDisplayNameOrDefault(option.DisplayName, option.Name),
 			Position:          option.Position,
 			Values:            values,
 		}

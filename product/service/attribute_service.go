@@ -30,7 +30,6 @@ type AttributeDefinitionService interface {
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
 type AttributeDefinitionServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
-	factory       *factory.AttributeFactory
 }
 
 // NewAttributeDefinitionService creates a new instance of AttributeDefinitionService
@@ -39,7 +38,6 @@ func NewAttributeDefinitionService(
 ) AttributeDefinitionService {
 	return &AttributeDefinitionServiceImpl{
 		attributeRepo: attributeRepo,
-		factory:       factory.NewAttributeFactory(),
 	}
 }
 
@@ -69,7 +67,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	}
 
 	// Create attribute entity using factory
-	attribute := s.factory.CreateFromRequest(req)
+	attribute := factory.CreateFromRequest(req)
 
 	// Save attribute to database
 	if err := s.attributeRepo.Create(attribute); err != nil {
@@ -77,7 +75,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	}
 
 	// Build response using converter
-	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -100,7 +98,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 	}
 
 	// Update attribute using factory
-	attribute = s.factory.UpdateEntity(attribute, req)
+	attribute = factory.UpdateEntity(attribute, req)
 
 	// Save updated attribute
 	if err := s.attributeRepo.Update(attribute); err != nil {
@@ -108,7 +106,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 	}
 
 	// Build response using converter
-	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -126,7 +124,7 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDef
 
 	var attributesResponse []model.AttributeDefinitionResponse
 	for _, attribute := range attributes {
-		ar := s.factory.BuildAttributeResponse(&attribute)
+		ar := factory.BuildAttributeResponse(&attribute)
 		attributesResponse = append(attributesResponse, *ar)
 	}
 
@@ -144,7 +142,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
 		return nil, err
 	}
 
-	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -160,7 +158,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
 		return nil, prodErrors.ErrAttributeNotFound
 	}
 
-	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }
 
@@ -190,12 +188,12 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	}
 
 	// Create attribute entity using factory
-	attribute := s.factory.CreateFromRequest(req)
+	attribute := factory.CreateFromRequest(req)
 
 	if err := s.attributeRepo.CreateCategoryAttributeDefinition(attribute, categoryID); err != nil {
 		return nil, err
 	}
 
-	attributeResponse := s.factory.BuildAttributeResponse(attribute)
+	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil
 }

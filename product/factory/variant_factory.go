@@ -1,54 +1,33 @@
 package factory
 
 import (
-	"time"
-
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
+	"ecommerce-be/product/utils/helper"
 )
 
 // VariantFactory handles the creation of product variant entities from requests
-type VariantFactory struct{}
-
-// NewVariantFactory creates a new instance of VariantFactory
-func NewVariantFactory() *VariantFactory {
-	return &VariantFactory{}
-}
+// Stateless factory - all methods are pure functions
 
 // CreateVariantFromRequest creates a ProductVariant entity from a create request
-func (f *VariantFactory) CreateVariantFromRequest(
+func CreateVariantFromRequest(
 	productID uint,
 	req *model.CreateVariantRequest,
 ) *entity.ProductVariant {
-	// Set default values
-	allowPurchase := true
-	if req.AllowPurchase != nil {
-		allowPurchase = *req.AllowPurchase
-	}
-
-	isPopular := false
-	if req.IsPopular != nil {
-		isPopular = *req.IsPopular
-	}
-
-	isDefault := false
-	if req.IsDefault != nil {
-		isDefault = *req.IsDefault
-	}
-
 	return &entity.ProductVariant{
 		ProductID:     productID,
 		SKU:           req.SKU,
 		Price:         req.Price,
 		Images:        req.Images,
-		AllowPurchase: allowPurchase,
-		IsPopular:     isPopular,
-		IsDefault:     isDefault,
+		AllowPurchase: helper.GetBoolOrDefault(req.AllowPurchase, true),
+		IsPopular:     helper.GetBoolOrDefault(req.IsPopular, false),
+		IsDefault:     helper.GetBoolOrDefault(req.IsDefault, false),
 	}
 }
 
 // UpdateVariantEntity updates an existing ProductVariant entity from an update request
-func (f *VariantFactory) UpdateVariantEntity(
+func UpdateVariantEntity(
 	variant *entity.ProductVariant,
 	req *model.UpdateVariantRequest,
 ) *entity.ProductVariant {
@@ -82,7 +61,7 @@ func (f *VariantFactory) UpdateVariantEntity(
 }
 
 // BulkUpdateVariantEntity updates a variant entity from bulk update data
-func (f *VariantFactory) BulkUpdateVariantEntity(
+func BulkUpdateVariantEntity(
 	variant *entity.ProductVariant,
 	updateData *model.BulkUpdateVariantItem,
 ) *entity.ProductVariant {
@@ -116,7 +95,7 @@ func (f *VariantFactory) BulkUpdateVariantEntity(
 }
 
 // CreateVariantOptionValue creates a VariantOptionValue entity
-func (f *VariantFactory) CreateVariantOptionValue(
+func CreateVariantOptionValue(
 	variantID uint,
 	optionID uint,
 	optionValueID uint,
@@ -129,7 +108,7 @@ func (f *VariantFactory) CreateVariantOptionValue(
 }
 
 // CreateVariantOptionValues creates multiple VariantOptionValue entities
-func (f *VariantFactory) CreateVariantOptionValues(
+func CreateVariantOptionValues(
 	variantID uint,
 	optionValueIDs map[uint]uint, // optionID -> optionValueID
 ) []entity.VariantOptionValue {
@@ -151,28 +130,23 @@ func (f *VariantFactory) CreateVariantOptionValues(
  ***********************************************/
 
 // BuildVariantDetailResponse builds VariantDetailResponse from entities
-func (f *VariantFactory) BuildVariantDetailResponse(
+func BuildVariantDetailResponse(
 	variant *entity.ProductVariant,
 	product *entity.Product,
 	selectedOptions []model.VariantOptionResponse,
 ) *model.VariantDetailResponse {
-	images := []string{}
-	if variant.Images != nil {
-		images = variant.Images
-	}
-
 	response := &model.VariantDetailResponse{
 		ID:              variant.ID,
 		ProductID:       variant.ProductID,
 		SKU:             variant.SKU,
 		Price:           variant.Price,
 		AllowPurchase:   variant.AllowPurchase,
-		Images:          images,
+		Images:          helper.GetOrEmptySlice(variant.Images),
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
 		SelectedOptions: selectedOptions,
-		CreatedAt:       variant.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       variant.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:       helper.FormatTimestamp(variant.CreatedAt),
+		UpdatedAt:       helper.FormatTimestamp(variant.UpdatedAt),
 	}
 
 	// Add product basic info
@@ -188,21 +162,16 @@ func (f *VariantFactory) BuildVariantDetailResponse(
 }
 
 // BuildVariantResponse builds VariantResponse from entity
-func (f *VariantFactory) BuildVariantResponse(
+func BuildVariantResponse(
 	variant *entity.ProductVariant,
 	selectedOptions []model.VariantOptionResponse,
 ) *model.VariantResponse {
-	images := []string{}
-	if variant.Images != nil {
-		images = variant.Images
-	}
-
 	return &model.VariantResponse{
 		ID:              variant.ID,
 		SKU:             variant.SKU,
 		Price:           variant.Price,
 		AllowPurchase:   variant.AllowPurchase,
-		Images:          images,
+		Images:          helper.GetOrEmptySlice(variant.Images),
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
 		SelectedOptions: selectedOptions,
@@ -210,7 +179,7 @@ func (f *VariantFactory) BuildVariantResponse(
 }
 
 // BuildVariantOptionResponses builds variant option responses from entities
-func (f *VariantFactory) BuildVariantOptionResponses(
+func BuildVariantOptionResponses(
 	variantOptionValues []entity.VariantOptionValue,
 	productOptions []entity.ProductOption,
 	optionValues []entity.ProductOptionValue,
@@ -236,10 +205,10 @@ func (f *VariantFactory) BuildVariantOptionResponses(
 			optionResponse := model.VariantOptionResponse{
 				OptionID:          option.ID,
 				OptionName:        option.Name,
-				OptionDisplayName: f.getDisplayNameOrDefault(option.DisplayName, option.Name),
+				OptionDisplayName: helper.GetDisplayNameOrDefault(option.DisplayName, option.Name),
 				ValueID:           value.ID,
 				Value:             value.Value,
-				ValueDisplayName:  f.getDisplayNameOrDefault(value.DisplayName, value.Value),
+				ValueDisplayName:  helper.GetDisplayNameOrDefault(value.DisplayName, value.Value),
 			}
 
 			// Add color code if it exists
@@ -254,10 +223,35 @@ func (f *VariantFactory) BuildVariantOptionResponses(
 	return optionResponses
 }
 
-// getDisplayNameOrDefault returns display name if not empty, otherwise returns the name
-func (f *VariantFactory) getDisplayNameOrDefault(displayName, name string) string {
-	if displayName != "" {
-		return displayName
+// BuildVariantDetailResponseFromMapper builds VariantDetailResponse from mapper.VariantWithOptions
+func BuildVariantDetailResponseFromMapper(
+	vwo *mapper.VariantWithOptions,
+) *model.VariantDetailResponse {
+	// Convert mapper.SelectedOptionValue to model.VariantOptionResponse
+	selectedOptions := make([]model.VariantOptionResponse, 0, len(vwo.SelectedOptions))
+	for _, selOpt := range vwo.SelectedOptions {
+		selectedOptions = append(selectedOptions, model.VariantOptionResponse{
+			OptionID:          selOpt.OptionID,
+			OptionName:        selOpt.OptionName,
+			OptionDisplayName: selOpt.OptionDisplayName,
+			ValueID:           selOpt.ValueID,
+			Value:             selOpt.Value,
+			ValueDisplayName:  selOpt.ValueDisplayName,
+			ColorCode:         selOpt.ColorCode,
+		})
 	}
-	return name
+
+	// Use existing BuildVariantDetailResponse to build the response
+	return BuildVariantDetailResponse(&vwo.Variant, nil, selectedOptions)
+}
+
+// BuildVariantsDetailResponseFromMapper builds multiple VariantDetailResponse from mapper data
+func BuildVariantsDetailResponseFromMapper(
+	variantsWithOptions []mapper.VariantWithOptions,
+) []model.VariantDetailResponse {
+	result := make([]model.VariantDetailResponse, 0, len(variantsWithOptions))
+	for i := range variantsWithOptions {
+		result = append(result, *BuildVariantDetailResponseFromMapper(&variantsWithOptions[i]))
+	}
+	return result
 }

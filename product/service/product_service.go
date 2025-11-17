@@ -12,6 +12,7 @@ import (
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/utils/helper"
 	"ecommerce-be/product/validator"
 
 	"gorm.io/gorm"
@@ -48,11 +49,6 @@ type ProductService interface {
 	GetProductFilters(
 		sellerID *uint,
 	) (*model.ProductFilters, error)
-	GetRelatedProducts(
-		productID uint,
-		limit int,
-		sellerID *uint,
-	) (*model.RelatedProductsResponse, error)
 	GetRelatedProductsScored(
 		productID uint,
 		limit int,
@@ -60,16 +56,6 @@ type ProductService interface {
 		strategies string,
 		sellerID *uint,
 	) (*model.RelatedProductsScoredResponse, error)
-
-	// Service-to-Service methods (for other services to use)
-	// These methods centralize validation logic to avoid duplication
-	GetAndValidateProductOwnership(
-		productID uint,
-		sellerID *uint,
-	) (*entity.Product, error)
-	GetAndValidateProduct(
-		productID uint,
-	) (*entity.Product, error)
 }
 
 // ProductServiceImpl implements the ProductService interface
@@ -79,7 +65,6 @@ type ProductServiceImpl struct {
 	attributeRepo repositories.AttributeDefinitionRepository
 	variantRepo   repositories.VariantRepository
 	optionRepo    repositories.ProductOptionRepository
-	factory       *factory.ProductFactory
 }
 
 // NewProductService creates a new instance of ProductService
@@ -96,7 +81,6 @@ func NewProductService(
 		attributeRepo: attributeRepo,
 		variantRepo:   variantRepo,
 		optionRepo:    optionRepo,
-		factory:       factory.NewProductFactory(),
 	}
 }
 
@@ -123,7 +107,7 @@ func (s *ProductServiceImpl) CreateProduct(
 		}
 
 		// Create product entity using factory
-		product = s.factory.CreateProductFromRequest(req, sellerID)
+		product = factory.CreateProductFromRequest(req, sellerID)
 
 		if err := s.productRepo.Create(product); err != nil {
 			return err
@@ -175,7 +159,7 @@ func (s *ProductServiceImpl) createProductOptions(
 ) error {
 	for _, optionReq := range optionReqs {
 		// Create product option using factory
-		options := s.factory.CreateProductOptionsFromRequests(
+		options := factory.CreateProductOptionsFromRequests(
 			productID,
 			[]model.ProductOptionCreateRequest{optionReq},
 		)
@@ -187,9 +171,9 @@ func (s *ProductServiceImpl) createProductOptions(
 
 		// Create option values using factory
 		if len(optionReq.Values) > 0 {
-			values := s.factory.CreateOptionValuesFromRequests(option.ID, optionReq.Values)
+			values := factory.CreateOptionValuesFromRequests(option.ID, optionReq.Values)
 			for _, value := range values {
-				if err := s.optionRepo.CreateOptionValue(value); err != nil {
+				if err := s.optionRepo.CreateOptionValue(&value); err != nil {
 					return err
 				}
 			}
@@ -289,9 +273,11 @@ func (s *ProductServiceImpl) createProductVariants(
 			}
 
 			// Find the option value ID
+			// Normalize input value to lowercase for comparison (values are stored in lowercase)
+			normalizedValue := helper.ToLowerTrimmed(optInput.Value)
 			var valueID uint
 			for _, val := range option.Values {
-				if val.Value == optInput.Value {
+				if val.Value == normalizedValue {
 					valueID = val.ID
 					break
 				}
@@ -338,20 +324,20 @@ func (s *ProductServiceImpl) buildProductResponseFromEntity(
 			parentCategory = pc
 		}
 	}
-	categoryInfo := s.factory.BuildCategoryHierarchyInfo(category, parentCategory)
+	categoryInfo := factory.BuildCategoryHierarchyInfo(category, parentCategory)
 
 	// Get product attributes
 	productAttributes, err := s.attributeRepo.FindProductAttributeByProductID(product.ID)
 	var attributes []model.ProductAttributeResponse
 	if err == nil {
-		attributes = s.factory.BuildProductAttributesResponse(productAttributes)
+		attributes = factory.BuildProductAttributesResponse(productAttributes)
 	}
 
 	// Get package options
 	packageOptions, err := s.productRepo.FindPackageOptionByProductID(product.ID)
 	var packageOptionResponses []model.PackageOptionResponse
 	if err == nil {
-		packageOptionResponses = s.factory.BuildPackageOptionResponses(packageOptions)
+		packageOptionResponses = factory.BuildPackageOptionResponses(packageOptions)
 	}
 
 	// Get variant aggregation for summary info
@@ -547,19 +533,19 @@ func (s *ProductServiceImpl) processAttributesForBulkOperations(
 
 		if exists {
 			// Update existing attribute using factory
-			if s.factory.UpdateAttributeDefinitionValues(attribute, attr.Value) {
+			if factory.UpdateAttributeDefinitionValues(attribute, attr.Value) {
 				operations.attributesToUpdate = append(operations.attributesToUpdate, attribute)
 			}
 		} else {
 			// Create new attribute definition using factory
-			attribute = s.factory.CreateNewAttributeDefinition(attr)
+			attribute = factory.CreateNewAttributeDefinition(attr)
 			operations.attributesToCreate = append(operations.attributesToCreate, attribute)
 			attributeMap[attr.Key] = attribute
 		}
 	}
 
 	// Create product attributes using factory
-	productAttributes := s.factory.CreateProductAttributesFromRequests(
+	productAttributes := factory.CreateProductAttributesFromRequests(
 		productID,
 		attributes,
 		attributeMap,
@@ -601,7 +587,7 @@ func (s *ProductServiceImpl) createPackageOption(
 	options []model.PackageOptionRequest,
 ) ([]entity.PackageOption, error) {
 	// Create package options using factory
-	packageOptions := s.factory.CreatePackageOptionsFromRequests(parentID, options)
+	packageOptions := factory.CreatePackageOptionsFromRequests(parentID, options)
 	return packageOptions, s.productRepo.CreatePackageOptions(packageOptions)
 }
 
@@ -635,7 +621,7 @@ func (s *ProductServiceImpl) UpdateProduct(
 	}
 
 	// Update product entity using factory
-	product = s.factory.CreateProductEntityFromUpdateRequest(product, req)
+	product = factory.CreateProductEntityFromUpdateRequest(product, req)
 
 	// Clear preloaded associations to avoid GORM sync issues
 	// When CategoryID is updated but Category is preloaded, GORM may not update correctly
@@ -652,17 +638,17 @@ func (s *ProductServiceImpl) UpdateProduct(
 	return s.buildProductResponseFromEntity(product)
 }
 
-/********************************************************
-*      Deletes a product and all associated data        *
-*      Implements PRD Section 3.1.5                     *
-*      Cascading deletes:                               *
-*      - Variants                                       *
-*      - Variant option values                          *
-*      - Product options                                *
-*      - Product option values                          *
-*      - Product attributes                             *
-*      - Package options                                *
-*********************************************************/
+/***************************************************
+* Deletes a product and all associated data        *
+* Implements PRD Section 3.1.5                     *
+* Cascading deletes:                               *
+* - Variants                                       *
+* - Variant option values                          *
+* - Product options                                *
+* - Product option values                          *
+* - Product attributes                             *
+* - Package options                                *
+****************************************************/
 func (s *ProductServiceImpl) DeleteProduct(
 	id uint,
 	sellerId *uint,
@@ -744,9 +730,9 @@ func (s *ProductServiceImpl) DeleteProduct(
 	})
 }
 
-/*****************************************************************************
-*                         HELPER FUNCTIONS                                   *
-******************************************************************************/
+/*****************************************************
+* HELPER FUNCTIONS                                   *
+******************************************************/
 
 // buildProductResponse builds a ProductResponse from product entity and variant aggregation
 // This is a shared helper to ensure consistency across GetAllProducts, GetRelatedProducts, etc.
@@ -857,10 +843,10 @@ func (s *ProductServiceImpl) buildProductResponsesWithVariants(
 	return productsResponse, nil
 }
 
-/*************************************************************************
-*       GetAllProducts gets all products with pagination and filters     *
-*       Now includes variant data for each product                      *
-**************************************************************************/
+/*******************************************************************
+* GetAllProducts gets all products with pagination and filters     *
+* Now includes variant data for each product                       *
+********************************************************************/
 func (s *ProductServiceImpl) GetAllProducts(
 	page,
 	limit int,
@@ -908,12 +894,12 @@ func (s *ProductServiceImpl) GetAllProducts(
 	}, nil
 }
 
-/*****************************************************************************
-*        GetProductByID gets a product by ID with detailed information       *
-*        Now includes complete variant data                                  *
-*        Multi-tenant: If sellerID is provided, verify product belongs to    *
-*        that seller. If nil (admin), allow access to any product.           *
-******************************************************************************/
+/**********************************************************************
+* GetProductByID gets a product by ID with detailed information       *
+* Now includes complete variant data                                  *
+* Multi-tenant: If sellerID is provided, verify product belongs to    *
+* that seller. If nil (admin), allow access to any product.           *
+***********************************************************************/
 func (s *ProductServiceImpl) GetProductByID(
 	id uint,
 	sellerID *uint,
@@ -933,10 +919,10 @@ func (s *ProductServiceImpl) GetProductByID(
 	return s.buildProductResponseFromEntity(product)
 }
 
-/**********************************************************************************
-*     SearchProducts searches for products with the given query and filters       *
-*     Now includes variant data in search results                                 *
-***********************************************************************************/
+/******************************************************************************
+* SearchProducts searches for products with the given query and filters       *
+* Now includes variant data in search results                                 *
+*******************************************************************************/
 func (s *ProductServiceImpl) SearchProducts(
 	query string,
 	filters map[string]interface{},
@@ -995,12 +981,12 @@ func (s *ProductServiceImpl) SearchProducts(
 	}, nil
 }
 
-/****************************************************************************
-*        GetProductFilters gets available filters for product search		*
-*        Multi-tenant: If sellerID is provided, get filters for that       *
-*        seller's products only. If nil (admin), get all filters.          *
-*        Now includes variant-based filters (price, options, stock)        *
-*****************************************************************************/
+/********************************************************************
+* GetProductFilters gets available filters for product search		*
+* Multi-tenant: If sellerID is provided, get filters for that       *
+* seller's products only. If nil (admin), get all filters.          *
+* Now includes variant-based filters (price, options, stock)        *
+*********************************************************************/
 func (s *ProductServiceImpl) GetProductFilters(sellerID *uint) (*model.ProductFilters, error) {
 	brands, categories, attributes, priceRange, variantOptions, stockStatus, err := s.productRepo.GetProductFilters(
 		sellerID,
@@ -1010,12 +996,12 @@ func (s *ProductServiceImpl) GetProductFilters(sellerID *uint) (*model.ProductFi
 	}
 
 	filters := &model.ProductFilters{
-		Brands:       s.factory.BuildBrandFilters(brands),
+		Brands:       factory.BuildBrandFilters(brands),
 		Categories:   s.convertCategoriesToFilters(categories),
-		Attributes:   s.factory.BuildAttributeFilters(attributes),
-		PriceRange:   s.factory.BuildPriceRangeFilter(priceRange),
-		VariantTypes: s.factory.BuildVariantTypeFilters(variantOptions),
-		StockStatus:  s.factory.BuildStockStatusFilter(stockStatus),
+		Attributes:   factory.BuildAttributeFilters(attributes),
+		PriceRange:   factory.BuildPriceRangeFilter(priceRange),
+		VariantTypes: factory.BuildVariantTypeFilters(variantOptions),
+		StockStatus:  factory.BuildStockStatusFilter(stockStatus),
 	}
 
 	return filters, nil
@@ -1027,12 +1013,12 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 	mp := make(map[uint]model.CategoryFilter)
 	var categoryFilter []model.CategoryFilter
 	for _, category := range categories {
-		mp[category.CategoryID] = s.factory.BuildCategoryFilter(category)
+		mp[category.CategoryID] = factory.BuildCategoryFilter(category)
 
 		if category.ParentID == nil || *category.ParentID == 0 {
 			categoryFilter = append(
 				categoryFilter,
-				s.factory.BuildCategoryFilter(category),
+				factory.BuildCategoryFilter(category),
 			)
 		}
 	}
@@ -1043,12 +1029,12 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 			if exist {
 				parentFilter.Children = append(
 					parentFilter.Children,
-					s.factory.BuildCategoryFilter(category),
+					factory.BuildCategoryFilter(category),
 				)
 			} else {
 				categoryFilter = append(
 					categoryFilter,
-					s.factory.BuildCategoryFilter(category),
+					factory.BuildCategoryFilter(category),
 				)
 			}
 		}
@@ -1057,85 +1043,10 @@ func (s *ProductServiceImpl) convertCategoriesToFilters(
 	return categoryFilter
 }
 
-/*****************************************************************************
-*      GetRelatedProducts gets products related to a specific product        *
-*      Now includes variant data similar to GetAllProducts                  *
-******************************************************************************/
-func (s *ProductServiceImpl) GetRelatedProducts(
-	productID uint,
-	limit int,
-	sellerID *uint,
-) (*model.RelatedProductsResponse, error) {
-	// Get the product to find its category and validate seller access
-	product, err := s.productRepo.FindByID(productID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate seller access: if sellerID is provided (non-admin), check ownership
-	if sellerID != nil && product.SellerID != *sellerID {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Set default limit
-	if limit < 1 {
-		limit = 5
-	}
-	if limit > 20 {
-		limit = 20
-	}
-
-	// Find related products in the same category (with seller filtering)
-	relatedProducts, err := s.productRepo.FindRelated(
-		product.CategoryID,
-		productID,
-		limit,
-		sellerID,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// If no related products found, return empty response
-	if len(relatedProducts) == 0 {
-		return &model.RelatedProductsResponse{
-			RelatedProducts: []model.RelatedProductItem{},
-		}, nil
-	}
-
-	// Build product responses with variant data using shared helper
-	productsResponse, err := s.buildProductResponsesWithVariants(relatedProducts)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to RelatedProductItem and add relation reason
-	relatedProductsResponse := make([]model.RelatedProductItem, 0, len(productsResponse))
-	for i, productResp := range productsResponse {
-		// Determine relation reason based on product similarity
-		relationReason := "Same category"
-		if relatedProducts[i].Brand == product.Brand && relatedProducts[i].Brand != "" {
-			relationReason = "Same brand and category"
-		}
-
-		// Create RelatedProductItem by embedding ProductResponse and adding relationReason
-		relatedItem := model.RelatedProductItem{
-			ProductResponse: productResp,
-			RelationReason:  relationReason,
-		}
-
-		relatedProductsResponse = append(relatedProductsResponse, relatedItem)
-	}
-
-	return &model.RelatedProductsResponse{
-		RelatedProducts: relatedProductsResponse,
-	}, nil
-}
-
-/******************************************************************************
-*      GetRelatedProductsScored gets products using intelligent scoring      *
-*      Uses stored procedure for multi-strategy matching with pagination     *
-******************************************************************************/
+/************************************************************************
+* GetRelatedProductsScored gets products using intelligent scoring      *
+* Uses stored procedure for multi-strategy matching with pagination     *
+*************************************************************************/
 func (s *ProductServiceImpl) GetRelatedProductsScored(
 	productID uint,
 	limit int,
@@ -1303,50 +1214,4 @@ func (s *ProductServiceImpl) GetRelatedProductsScored(
 			TotalStrategies: 8, // Total number of strategies available in the system
 		},
 	}, nil
-}
-
-/***********************************************
- *     Service-to-Service Methods              *
- *     (For other services to use)             *
- ***********************************************/
-
-// GetAndValidateProductOwnership fetches a product and validates that the seller has access to it
-// This method centralizes product ownership validation logic to avoid duplication across services
-// Returns the product entity if validation passes, error otherwise
-func (s *ProductServiceImpl) GetAndValidateProductOwnership(
-	productID uint,
-	sellerID *uint,
-) (*entity.Product, error) {
-	// Fetch product from repository
-	product, err := s.productRepo.FindByID(productID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate product exists and seller has ownership
-	if err := validator.ValidateProductExistsAndOwnership(product, sellerID); err != nil {
-		return nil, err
-	}
-
-	return product, nil
-}
-
-// GetAndValidateProduct fetches a product and validates that it exists
-// This method centralizes product existence validation logic
-// Returns the product entity if validation passes, error otherwise
-func (s *ProductServiceImpl) GetAndValidateProduct(
-	productID uint,
-) (*entity.Product, error) {
-	// Fetch product from repository
-	product, err := s.productRepo.FindByID(productID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate product exists
-	if err := validator.ValidateProductExists(product); err != nil {
-		return nil, err
-	}
-
-	return product, nil
 }

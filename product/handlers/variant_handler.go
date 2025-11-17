@@ -11,6 +11,7 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
+	"ecommerce-be/product/utils/helper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -83,7 +84,7 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 
 	// Parse query parameters to get selected options
 	queryParams := c.Request.URL.Query()
-	optionValues := utils.ParseOptionsFromQuery(queryParams)
+	optionValues := helper.ParseOptionsFromQuery(queryParams)
 
 	// Validate options
 	if len(optionValues) == 0 {

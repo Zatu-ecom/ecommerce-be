@@ -31,6 +31,11 @@ type CategoryService interface {
 	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
 	GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error)
 	GetCategoriesByParent(parentID *uint, sellerID *uint) (*model.CategoriesResponse, error)
+
+	// GetCategoryWithParent retrieves a category and its parent (if exists) in optimized way
+	// Used by product queries to build category hierarchy efficiently
+	GetCategoryWithParent(categoryID uint) (*entity.Category, *entity.Category, error)
+
 	GetAttributesByCategoryIDWithInheritance(
 		catagoryID uint,
 		sellerID *uint,
@@ -54,8 +59,6 @@ type CategoryServiceImpl struct {
 	categoryRepo     repositories.CategoryRepository
 	productRepo      repositories.ProductRepository
 	attributeRepo    repositories.AttributeDefinitionRepository
-	factory          *factory.CategoryFactory
-	attributeFactory *factory.AttributeFactory
 }
 
 // NewCategoryService creates a new instance of CategoryService
@@ -68,8 +71,6 @@ func NewCategoryService(
 		categoryRepo:     categoryRepo,
 		productRepo:      productRepo,
 		attributeRepo:    attributeRepo,
-		factory:          factory.NewCategoryFactory(),
-		attributeFactory: factory.NewAttributeFactory(),
 	}
 }
 
@@ -108,7 +109,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	global := roleLevel < constants.SELLER_ROLE_LEVEL
 
 	// Create category entity using factory
-	category := s.factory.CreateFromRequest(req, global, &sellerId)
+	category := factory.BuildCategoryEntityFromCreateRequest(req, global, &sellerId)
 
 	// Save category to database
 	if err := s.categoryRepo.Create(category); err != nil {
@@ -116,7 +117,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	}
 
 	// Create response using converter utility
-	categoryResponse := s.factory.BuildCategoryResponse(category)
+	categoryResponse := factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
@@ -199,7 +200,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	}
 
 	// Update category using factory
-	category = s.factory.UpdateEntity(category, req)
+	category = factory.BuildCategoryEntityFromUpdateReq(category, req)
 
 	// Save updated category
 	if err := s.categoryRepo.Update(category); err != nil {
@@ -207,7 +208,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	}
 
 	// Create response using converter utility
-	categoryResponse := s.factory.BuildCategoryResponse(category)
+	categoryResponse := factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
@@ -270,7 +271,7 @@ func (s *CategoryServiceImpl) GetAllCategories(sellerID *uint) (*model.Categorie
 	var rootCategories []*model.CategoryHierarchyResponse
 
 	for _, category := range categories {
-		categoryResponse := s.factory.BuildCategoryHierarchyResponse(&category)
+		categoryResponse := factory.BuildCategoryHierarchyResponse(&category)
 		categoryMap[category.ID] = categoryResponse
 
 		if category.ParentID == nil || *category.ParentID == 0 {
@@ -329,7 +330,7 @@ func (s *CategoryServiceImpl) GetCategoryByID(
 	}
 
 	// Create response using converter utility
-	categoryResponse := s.factory.BuildCategoryResponse(category)
+	categoryResponse := factory.BuildCategoryResponse(category)
 
 	return categoryResponse, nil
 }
@@ -346,7 +347,7 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 
 	var categoriesResponse []model.CategoryHierarchyResponse
 	for _, category := range categories {
-		categoryResponse := s.factory.BuildCategoryHierarchyResponse(&category)
+		categoryResponse := factory.BuildCategoryHierarchyResponse(&category)
 		categoriesResponse = append(categoriesResponse, *categoryResponse)
 	}
 
@@ -378,7 +379,7 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 
 	var attributesResponse []model.AttributeDefinitionResponse
 	for _, attribute := range attributes {
-		ar := s.attributeFactory.BuildAttributeResponse(&attribute)
+		ar := factory.BuildAttributeResponse(&attribute)
 		attributesResponse = append(attributesResponse, *ar)
 	}
 
@@ -467,4 +468,31 @@ func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
 	}
 
 	return nil
+}
+
+/***********************************************
+ *    Query Helper Methods                     *
+ ***********************************************/
+
+// GetCategoryWithParent retrieves a category and its parent (if exists)
+// Optimized method to fetch both category and parent efficiently
+// Used by product queries to build category hierarchy without multiple queries
+func (s *CategoryServiceImpl) GetCategoryWithParent(
+	categoryID uint,
+) (*entity.Category, *entity.Category, error) {
+	// Get category
+	category, err := s.categoryRepo.FindByID(categoryID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get parent category if exists
+	var parentCategory *entity.Category
+	if category.ParentID != nil && *category.ParentID != 0 {
+		if pc, err := s.categoryRepo.FindByID(*category.ParentID); err == nil {
+			parentCategory = pc
+		}
+	}
+
+	return category, parentCategory, nil
 }

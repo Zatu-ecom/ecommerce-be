@@ -3,38 +3,26 @@ package factory
 import (
 	"time"
 
-	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
+	"ecommerce-be/product/utils/helper"
 )
 
-// AttributeFactory handles the creation of attribute entities from requests
-type AttributeFactory struct{}
-
-// NewAttributeFactory creates a new instance of AttributeFactory
-func NewAttributeFactory() *AttributeFactory {
-	return &AttributeFactory{}
-}
-
 // CreateFromRequest creates an AttributeDefinition entity from a create request
-func (f *AttributeFactory) CreateFromRequest(
+func CreateFromRequest(
 	req model.AttributeDefinitionCreateRequest,
 ) *entity.AttributeDefinition {
-	now := time.Now()
 	return &entity.AttributeDefinition{
 		Key:           req.Key,
 		Name:          req.Name,
 		Unit:          req.Unit,
 		AllowedValues: req.AllowedValues,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
+		BaseEntity:    helper.NewBaseEntity(),
 	}
 }
 
 // UpdateEntity updates an existing AttributeDefinition entity from an update request
-func (f *AttributeFactory) UpdateEntity(
+func UpdateEntity(
 	attribute *entity.AttributeDefinition,
 	req model.AttributeDefinitionUpdateRequest,
 ) *entity.AttributeDefinition {
@@ -47,23 +35,19 @@ func (f *AttributeFactory) UpdateEntity(
 }
 
 // CreateCategoryAttributeFromConfig creates a CategoryAttribute entity from config
-func (f *AttributeFactory) CreateCategoryAttributeFromConfig(
+func CreateCategoryAttributeFromConfig(
 	categoryID uint,
 	config model.CategoryAttributeConfig,
 ) *entity.CategoryAttribute {
-	now := time.Now()
 	return &entity.CategoryAttribute{
 		CategoryID:            categoryID,
 		AttributeDefinitionID: config.AttributeDefinitionID,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
+		BaseEntity:            helper.NewBaseEntity(),
 	}
 }
 
 // BuildAttributeResponse builds AttributeDefinitionResponse from entity
-func (f *AttributeFactory) BuildAttributeResponse(
+func BuildAttributeResponse(
 	attribute *entity.AttributeDefinition,
 ) *model.AttributeDefinitionResponse {
 	return &model.AttributeDefinitionResponse{
@@ -72,12 +56,12 @@ func (f *AttributeFactory) BuildAttributeResponse(
 		Name:          attribute.Name,
 		Unit:          attribute.Unit,
 		AllowedValues: attribute.AllowedValues,
-		CreatedAt:     attribute.CreatedAt.Format(time.RFC3339),
+		CreatedAt:     helper.FormatTimestamp(attribute.CreatedAt),
 	}
 }
 
 // BuildProductAttributeResponse builds ProductAttributeResponse from entity
-func (f *AttributeFactory) BuildProductAttributeResponse(
+func BuildProductAttributeResponse(
 	productAttribute *entity.ProductAttribute,
 ) *model.ProductAttributeResponse {
 	return &model.ProductAttributeResponse{
@@ -91,12 +75,12 @@ func (f *AttributeFactory) BuildProductAttributeResponse(
 }
 
 // BuildProductAttributesResponse builds multiple ProductAttributeResponse from entities
-func (f *AttributeFactory) BuildProductAttributesResponse(
+func BuildProductAttributesResponse(
 	productAttributes []entity.ProductAttribute,
 ) []model.ProductAttributeResponse {
 	responses := make([]model.ProductAttributeResponse, 0, len(productAttributes))
 	for _, productAttribute := range productAttributes {
-		responses = append(responses, *f.BuildProductAttributeResponse(&productAttribute))
+		responses = append(responses, *BuildProductAttributeResponse(&productAttribute))
 	}
 	return responses
 }

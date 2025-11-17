@@ -120,10 +120,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		// Admin should be able to create products
-		// Note: This depends on your business logic
-		// If admins are allowed, expect StatusCreated
-		// If not allowed, expect StatusForbidden
+		// admins are allowed, expect StatusCreated
 
 		requestBody["sellerId"] = helpers.SellerUserID // Admin creating product for a seller
 		w := client.Post(t, "/api/products", requestBody)

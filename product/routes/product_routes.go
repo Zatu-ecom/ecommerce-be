@@ -22,7 +22,22 @@ func NewProductModule() *ProductModule {
 	productRepo := repositories.NewProductRepository(db.GetDB())
 	variantRepo := repositories.NewVariantRepository(db.GetDB())
 	optionRepo := repositories.NewProductOptionRepository(db.GetDB())
+	productAttrRepo := repositories.NewProductAttributeRepository(db.GetDB())
 
+	// Initialize services needed by ProductQueryService
+	variantService := service.NewVariantService(variantRepo, productRepo)
+	categoryService := service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
+	productAttributeService := service.NewProductAttributeService(productAttrRepo, productRepo, attributeRepo)
+
+	// Initialize ProductQueryService for read operations
+	productQueryService := service.NewProductQueryService(
+		productRepo,
+		variantService,
+		categoryService,
+		productAttributeService,
+	)
+
+	// Initialize ProductService for write operations
 	productService := service.NewProductService(
 		productRepo,
 		categoryRepo,
@@ -32,7 +47,7 @@ func NewProductModule() *ProductModule {
 	)
 
 	return &ProductModule{
-		productHandler: handlers.NewProductHandler(productService),
+		productHandler: handlers.NewProductHandler(productService, productQueryService),
 	}
 }
 
@@ -49,19 +64,11 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 		productRoutes.GET("/:productId", publicRoutesAuth, m.productHandler.GetProductByID)
 		productRoutes.GET("/search", publicRoutesAuth, m.productHandler.SearchProducts)
 		productRoutes.GET("/filters", publicRoutesAuth, m.productHandler.GetProductFilters)
-		
 		productRoutes.GET(
 			"/:productId/related",
 			publicRoutesAuth,
 			m.productHandler.GetRelatedProductsScored,
 		)
-		
-		// // New intelligent related products with scoring and pagination
-		// productRoutes.GET(
-		// 	"/:productId/related-scored",
-		// 	publicRoutesAuth,
-		// 	m.productHandler.GetRelatedProductsScored,
-		// )
 
 		// Admin/Seller routes (protected)
 		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)

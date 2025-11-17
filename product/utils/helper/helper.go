@@ -1,8 +1,11 @@
-package utils
+package helper
 
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"ecommerce-be/common/db"
 )
 
 // NormalizeToSnakeCase converts a string to lowercase snake_case format
@@ -107,4 +110,46 @@ func ValidateVariantOptions(options map[string]string) error {
 	}
 
 	return nil
+}
+
+/***********************************************
+ *    Factory Helper Functions                  *
+ ***********************************************/
+
+// FormatTimestamp formats a time.Time to RFC3339 string
+func FormatTimestamp(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
+// NewBaseEntity creates a new BaseEntity with current timestamp
+func NewBaseEntity() db.BaseEntity {
+	now := time.Now()
+	return db.BaseEntity{
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+}
+
+// GetBoolOrDefault returns the value of the pointer if not nil, otherwise returns the default value
+func GetBoolOrDefault(ptr *bool, defaultValue bool) bool {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
+
+// GetPositionOrDefault returns the requested position if not zero, otherwise returns the default position
+func GetPositionOrDefault(requestedPosition, defaultPosition int) int {
+	if requestedPosition == 0 {
+		return defaultPosition
+	}
+	return requestedPosition
+}
+
+// GetOrEmptySlice returns the slice if not nil, otherwise returns an empty slice
+func GetOrEmptySlice[T any](slice []T) []T {
+	if slice != nil {
+		return slice
+	}
+	return []T{}
 }

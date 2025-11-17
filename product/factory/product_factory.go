@@ -3,26 +3,20 @@ package factory
 import (
 	"time"
 
-	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
+	"ecommerce-be/product/utils/helper"
 )
 
 // ProductFactory handles creation and updates of product entities
-type ProductFactory struct{}
-
-// NewProductFactory creates a new product factory
-func NewProductFactory() *ProductFactory {
-	return &ProductFactory{}
-}
+// Stateless factory - all methods are pure functions
 
 // CreateProductFromRequest creates a new Product entity from a creation request
-func (f *ProductFactory) CreateProductFromRequest(
+func CreateProductFromRequest(
 	req model.ProductCreateRequest,
 	sellerID uint,
 ) *entity.Product {
-	now := time.Now()
 	return &entity.Product{
 		Name:             req.Name,
 		CategoryID:       req.CategoryID,
@@ -32,16 +26,13 @@ func (f *ProductFactory) CreateProductFromRequest(
 		LongDescription:  req.LongDescription,
 		Tags:             req.Tags,
 		SellerID:         sellerID,
-		BaseEntity: db.BaseEntity{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
+		BaseEntity:       helper.NewBaseEntity(),
 	}
 }
 
 // CreateProductEntityFromUpdateRequest updates an existing Product entity with new data
 // Uses pointer fields to distinguish between null (don't update) and empty (clear field)
-func (f *ProductFactory) CreateProductEntityFromUpdateRequest(
+func CreateProductEntityFromUpdateRequest(
 	product *entity.Product,
 	req model.ProductUpdateRequest,
 ) *entity.Product {
@@ -71,17 +62,14 @@ func (f *ProductFactory) CreateProductEntityFromUpdateRequest(
 }
 
 // CreateProductOptionsFromRequests creates ProductOption entities from requests
-func (f *ProductFactory) CreateProductOptionsFromRequests(
+func CreateProductOptionsFromRequests(
 	productID uint,
 	optionReqs []model.ProductOptionCreateRequest,
 ) []*entity.ProductOption {
 	options := make([]*entity.ProductOption, 0, len(optionReqs))
 
 	for i, optionReq := range optionReqs {
-		position := optionReq.Position
-		if position == 0 {
-			position = i + 1
-		}
+		position := helper.GetPositionOrDefault(optionReq.Position, i+1)
 
 		option := &entity.ProductOption{
 			ProductID:   productID,
@@ -95,34 +83,8 @@ func (f *ProductFactory) CreateProductOptionsFromRequests(
 	return options
 }
 
-// CreateOptionValuesFromRequests creates ProductOptionValue entities from requests
-func (f *ProductFactory) CreateOptionValuesFromRequests(
-	optionID uint,
-	valueReqs []model.ProductOptionValueRequest,
-) []*entity.ProductOptionValue {
-	values := make([]*entity.ProductOptionValue, 0, len(valueReqs))
-
-	for j, valueReq := range valueReqs {
-		position := valueReq.Position
-		if position == 0 {
-			position = j + 1
-		}
-
-		value := &entity.ProductOptionValue{
-			OptionID:    optionID,
-			Value:       valueReq.Value,
-			DisplayName: valueReq.DisplayName,
-			ColorCode:   valueReq.ColorCode,
-			Position:    position,
-		}
-		values = append(values, value)
-	}
-
-	return values
-}
-
 // CreateProductAttributesFromRequests creates ProductAttribute entities from requests
-func (f *ProductFactory) CreateProductAttributesFromRequests(
+func CreateProductAttributesFromRequests(
 	productID uint,
 	attributes []model.ProductAttributeRequest,
 	attributeMap map[string]*entity.AttributeDefinition,
@@ -146,7 +108,7 @@ func (f *ProductFactory) CreateProductAttributesFromRequests(
 }
 
 // CreateNewAttributeDefinition creates a new AttributeDefinition entity
-func (f *ProductFactory) CreateNewAttributeDefinition(
+func CreateNewAttributeDefinition(
 	attr model.ProductAttributeRequest,
 ) *entity.AttributeDefinition {
 	return &entity.AttributeDefinition{
@@ -159,7 +121,7 @@ func (f *ProductFactory) CreateNewAttributeDefinition(
 
 // UpdateAttributeDefinitionValues adds a new value to an existing AttributeDefinition
 // Returns true if the value was added, false if it already existed
-func (f *ProductFactory) UpdateAttributeDefinitionValues(
+func UpdateAttributeDefinitionValues(
 	attribute *entity.AttributeDefinition,
 	newValue string,
 ) bool {
@@ -178,12 +140,11 @@ func (f *ProductFactory) UpdateAttributeDefinitionValues(
 }
 
 // CreatePackageOptionsFromRequests creates PackageOption entities from requests
-func (f *ProductFactory) CreatePackageOptionsFromRequests(
+func CreatePackageOptionsFromRequests(
 	productID uint,
 	options []model.PackageOptionRequest,
 ) []entity.PackageOption {
 	packageOptions := make([]entity.PackageOption, 0, len(options))
-	now := time.Now()
 
 	for _, option := range options {
 		packageOption := entity.PackageOption{
@@ -192,10 +153,7 @@ func (f *ProductFactory) CreatePackageOptionsFromRequests(
 			Price:       option.Price,
 			Quantity:    option.Quantity,
 			ProductID:   productID,
-			BaseEntity: db.BaseEntity{
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
+			BaseEntity:  helper.NewBaseEntity(),
 		}
 		packageOptions = append(packageOptions, packageOption)
 	}
@@ -204,7 +162,7 @@ func (f *ProductFactory) CreatePackageOptionsFromRequests(
 }
 
 // FlattenProductAttributes converts []*entity.ProductAttribute to []entity.ProductAttribute
-func (f *ProductFactory) FlattenProductAttributes(
+func FlattenProductAttributes(
 	attrs []*entity.ProductAttribute,
 ) []entity.ProductAttribute {
 	result := make([]entity.ProductAttribute, 0, len(attrs))
@@ -219,7 +177,7 @@ func (f *ProductFactory) FlattenProductAttributes(
  ***********************************************/
 
 // BuildPackageOptionResponse builds PackageOptionResponse from entity
-func (f *ProductFactory) BuildPackageOptionResponse(
+func BuildPackageOptionResponse(
 	packageOption *entity.PackageOption,
 ) *model.PackageOptionResponse {
 	return &model.PackageOptionResponse{
@@ -228,24 +186,24 @@ func (f *ProductFactory) BuildPackageOptionResponse(
 		Description: packageOption.Description,
 		Price:       packageOption.Price,
 		Quantity:    packageOption.Quantity,
-		CreatedAt:   packageOption.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   packageOption.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:   helper.FormatTimestamp(packageOption.CreatedAt),
+		UpdatedAt:   helper.FormatTimestamp(packageOption.UpdatedAt),
 	}
 }
 
 // BuildPackageOptionResponses builds multiple PackageOptionResponse from entities
-func (f *ProductFactory) BuildPackageOptionResponses(
+func BuildPackageOptionResponses(
 	packageOptions []entity.PackageOption,
 ) []model.PackageOptionResponse {
 	responses := make([]model.PackageOptionResponse, 0, len(packageOptions))
 	for _, option := range packageOptions {
-		responses = append(responses, *f.BuildPackageOptionResponse(&option))
+		responses = append(responses, *BuildPackageOptionResponse(&option))
 	}
 	return responses
 }
 
 // BuildCategoryFilter builds CategoryFilter from mapper data
-func (f *ProductFactory) BuildCategoryFilter(
+func BuildCategoryFilter(
 	category mapper.CategoryWithProductCount,
 ) model.CategoryFilter {
 	return model.CategoryFilter{
@@ -256,7 +214,7 @@ func (f *ProductFactory) BuildCategoryFilter(
 }
 
 // BuildBrandFilter builds BrandFilter from mapper data
-func (f *ProductFactory) BuildBrandFilter(brand mapper.BrandWithProductCount) model.BrandFilter {
+func BuildBrandFilter(brand mapper.BrandWithProductCount) model.BrandFilter {
 	return model.BrandFilter{
 		Brand:        brand.Brand,
 		ProductCount: brand.ProductCount,
@@ -264,18 +222,18 @@ func (f *ProductFactory) BuildBrandFilter(brand mapper.BrandWithProductCount) mo
 }
 
 // BuildBrandFilters builds multiple BrandFilter from mapper data
-func (f *ProductFactory) BuildBrandFilters(
+func BuildBrandFilters(
 	brands []mapper.BrandWithProductCount,
 ) []model.BrandFilter {
 	filters := make([]model.BrandFilter, 0, len(brands))
 	for _, brand := range brands {
-		filters = append(filters, f.BuildBrandFilter(brand))
+		filters = append(filters, BuildBrandFilter(brand))
 	}
 	return filters
 }
 
 // BuildAttributeFilter builds AttributeFilter from mapper data
-func (f *ProductFactory) BuildAttributeFilter(
+func BuildAttributeFilter(
 	attribute mapper.AttributeWithProductCount,
 ) model.AttributeFilter {
 	return model.AttributeFilter{
@@ -287,18 +245,18 @@ func (f *ProductFactory) BuildAttributeFilter(
 }
 
 // BuildAttributeFilters builds multiple AttributeFilter from mapper data
-func (f *ProductFactory) BuildAttributeFilters(
+func BuildAttributeFilters(
 	attributes []mapper.AttributeWithProductCount,
 ) []model.AttributeFilter {
 	filters := make([]model.AttributeFilter, 0, len(attributes))
 	for _, attribute := range attributes {
-		filters = append(filters, f.BuildAttributeFilter(attribute))
+		filters = append(filters, BuildAttributeFilter(attribute))
 	}
 	return filters
 }
 
 // BuildPriceRangeFilter builds PriceRangeFilter from mapper data
-func (f *ProductFactory) BuildPriceRangeFilter(
+func BuildPriceRangeFilter(
 	data *mapper.PriceRangeData,
 ) *model.PriceRangeFilter {
 	if data == nil || data.ProductCount == 0 {
@@ -312,7 +270,7 @@ func (f *ProductFactory) BuildPriceRangeFilter(
 }
 
 // BuildVariantTypeFilters builds VariantTypeFilter list from variant options data
-func (f *ProductFactory) BuildVariantTypeFilters(
+func BuildVariantTypeFilters(
 	variantOptions []mapper.VariantOptionData,
 ) []model.VariantTypeFilter {
 	// Group by option ID to create VariantTypeFilter
@@ -356,7 +314,7 @@ func (f *ProductFactory) BuildVariantTypeFilters(
 }
 
 // BuildStockStatusFilter builds StockStatusFilter from mapper data
-func (f *ProductFactory) BuildStockStatusFilter(
+func BuildStockStatusFilter(
 	data *mapper.StockStatusData,
 ) *model.StockStatusFilter {
 	if data == nil || data.TotalProducts == 0 {
@@ -369,40 +327,65 @@ func (f *ProductFactory) BuildStockStatusFilter(
 	}
 }
 
-// BuildCategoryHierarchyInfo builds CategoryHierarchyInfo from category and parent
-func (f *ProductFactory) BuildCategoryHierarchyInfo(
-	category *entity.Category,
-	parentCategory *entity.Category,
-) *model.CategoryHierarchyInfo {
-	var parentInfo *model.CategoryInfo
-	if parentCategory != nil {
-		parentInfo = &model.CategoryInfo{
-			ID:   parentCategory.ID,
-			Name: parentCategory.Name,
+// BuildProductResponse builds a ProductResponse from product entity and variant aggregation
+// Used for list views (GetAllProducts, GetRelatedProducts, etc.)
+func BuildProductResponse(
+	product *entity.Product,
+	variantAgg *mapper.VariantAggregation,
+) model.ProductResponse {
+	// Build category hierarchy using existing helper method
+	categoryInfo := BuildCategoryHierarchyInfo(product.Category, product.Category.Parent)
+
+	// Build base product response
+	productResp := model.ProductResponse{
+		ID:               product.ID,
+		Name:             product.Name,
+		CategoryID:       product.CategoryID,
+		Category:         *categoryInfo,
+		Brand:            product.Brand,
+		SKU:              product.BaseSKU,
+		ShortDescription: product.ShortDescription,
+		LongDescription:  product.LongDescription,
+		Tags:             product.Tags,
+		SellerID:         product.SellerID,
+		HasVariants:      variantAgg.HasVariants,
+		AllowPurchase:    variantAgg.AllowPurchase,
+		CreatedAt:        helper.FormatTimestamp(product.CreatedAt),
+		UpdatedAt:        helper.FormatTimestamp(product.UpdatedAt),
+	}
+
+	// Set price range if product has variants
+	if variantAgg.HasVariants {
+		productResp.PriceRange = &model.PriceRange{
+			Min: variantAgg.MinPrice,
+			Max: variantAgg.MaxPrice,
 		}
 	}
 
-	return &model.CategoryHierarchyInfo{
-		ID:     category.ID,
-		Name:   category.Name,
-		Parent: parentInfo,
+	// Add main product image if available
+	if variantAgg.MainImage != "" {
+		productResp.Images = []string{variantAgg.MainImage}
 	}
-}
 
-// BuildProductAttributesResponse builds ProductAttributeResponse from ProductAttribute entities
-func (f *ProductFactory) BuildProductAttributesResponse(
-	productAttributes []entity.ProductAttribute,
-) []model.ProductAttributeResponse {
-	responses := make([]model.ProductAttributeResponse, 0, len(productAttributes))
-	for _, attr := range productAttributes {
-		responses = append(responses, model.ProductAttributeResponse{
-			ID:        attr.ID,
-			Key:       attr.AttributeDefinition.Key,
-			Value:     attr.Value,
-			Name:      attr.AttributeDefinition.Name,
-			Unit:      attr.AttributeDefinition.Unit,
-			SortOrder: attr.SortOrder,
-		})
+	// Build variant preview for product listings
+	if variantAgg.TotalVariants > 0 {
+		variantPreview := &model.VariantPreview{
+			TotalVariants: variantAgg.TotalVariants,
+			Options:       []model.OptionPreview{},
+		}
+
+		// Add available option values for each option
+		for _, optionName := range variantAgg.OptionNames {
+			optionValues := variantAgg.OptionValues[optionName]
+			variantPreview.Options = append(variantPreview.Options, model.OptionPreview{
+				Name:            optionName,
+				DisplayName:     optionName,
+				AvailableValues: optionValues,
+			})
+		}
+
+		productResp.VariantPreview = variantPreview
 	}
-	return responses
+
+	return productResp
 }

@@ -3,39 +3,27 @@ package factory
 import (
 	"time"
 
-	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
+	"ecommerce-be/product/utils/helper"
 )
 
-// ProductAttributeFactory handles the creation of product attribute entities and responses
-type ProductAttributeFactory struct{}
-
-// NewProductAttributeFactory creates a new instance of ProductAttributeFactory
-func NewProductAttributeFactory() *ProductAttributeFactory {
-	return &ProductAttributeFactory{}
-}
-
-// CreateFromRequest creates a ProductAttribute entity from an add request
-func (f *ProductAttributeFactory) CreateFromRequest(
+// BuildProductAttributeFromCreateRequest creates a ProductAttribute entity from an add request
+func BuildProductAttributeFromCreateRequest(
 	productID uint,
 	req model.AddProductAttributeRequest,
 ) *entity.ProductAttribute {
-	now := time.Now()
 	return &entity.ProductAttribute{
 		ProductID:             productID,
 		AttributeDefinitionID: req.AttributeDefinitionID,
 		Value:                 req.Value,
 		SortOrder:             req.SortOrder,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
+		BaseEntity:            helper.NewBaseEntity(),
 	}
 }
 
-// UpdateEntity updates an existing ProductAttribute entity from an update request
-func (f *ProductAttributeFactory) UpdateEntity(
+// BuildProductAttributeFromUpdateRequest updates an existing ProductAttribute entity from an update request
+func BuildProductAttributeFromUpdateRequest(
 	productAttribute *entity.ProductAttribute,
 	req model.UpdateProductAttributeRequest,
 ) *entity.ProductAttribute {
@@ -46,8 +34,8 @@ func (f *ProductAttributeFactory) UpdateEntity(
 	return productAttribute
 }
 
-// BuildDetailResponse builds ProductAttributeDetailResponse from entity
-func (f *ProductAttributeFactory) BuildDetailResponse(
+// BuildProductAttributeDetailResponse builds ProductAttributeDetailResponse from entity
+func BuildProductAttributeDetailResponse(
 	productAttribute *entity.ProductAttribute,
 ) *model.ProductAttributeDetailResponse {
 	response := &model.ProductAttributeDetailResponse{
@@ -56,8 +44,8 @@ func (f *ProductAttributeFactory) BuildDetailResponse(
 		AttributeDefinitionID: productAttribute.AttributeDefinitionID,
 		Value:                 productAttribute.Value,
 		SortOrder:             productAttribute.SortOrder,
-		CreatedAt:             productAttribute.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:             productAttribute.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:             helper.FormatTimestamp(productAttribute.CreatedAt),
+		UpdatedAt:             helper.FormatTimestamp(productAttribute.UpdatedAt),
 	}
 
 	// Add attribute definition details if loaded
@@ -70,15 +58,18 @@ func (f *ProductAttributeFactory) BuildDetailResponse(
 	return response
 }
 
-// BuildListResponse builds ProductAttributesListResponse from entities
-func (f *ProductAttributeFactory) BuildListResponse(
+// BuildProductAttributesListResponse builds ProductAttributesListResponse from entities
+func BuildProductAttributesListResponse(
 	productID uint,
 	productAttributes []entity.ProductAttribute,
 ) *model.ProductAttributesListResponse {
 	attributes := make([]model.ProductAttributeDetailResponse, 0, len(productAttributes))
 
 	for i := range productAttributes {
-		attributes = append(attributes, *f.BuildDetailResponse(&productAttributes[i]))
+		attributes = append(
+			attributes,
+			*BuildProductAttributeDetailResponse(&productAttributes[i]),
+		)
 	}
 
 	return &model.ProductAttributesListResponse{
@@ -86,4 +77,29 @@ func (f *ProductAttributeFactory) BuildListResponse(
 		Attributes: attributes,
 		Total:      len(attributes),
 	}
+}
+
+// ConvertDetailToSimpleAttributeResponse converts ProductAttributeDetailResponse to ProductAttributeResponse
+func ConvertDetailToSimpleAttributeResponse(
+	detail *model.ProductAttributeDetailResponse,
+) model.ProductAttributeResponse {
+	return model.ProductAttributeResponse{
+		ID:        detail.ID,
+		Key:       detail.AttributeKey,
+		Value:     detail.Value,
+		Name:      detail.AttributeName,
+		Unit:      detail.Unit,
+		SortOrder: detail.SortOrder,
+	}
+}
+
+// ConvertDetailListToSimpleAttributeResponses converts list of ProductAttributeDetailResponse to ProductAttributeResponse
+func ConvertDetailListToSimpleAttributeResponses(
+	details []model.ProductAttributeDetailResponse,
+) []model.ProductAttributeResponse {
+	responses := make([]model.ProductAttributeResponse, 0, len(details))
+	for i := range details {
+		responses = append(responses, ConvertDetailToSimpleAttributeResponse(&details[i]))
+	}
+	return responses
 }
