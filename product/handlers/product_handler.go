@@ -200,7 +200,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	productResponse, err := h.productService.GetProductByID(productID, sellerIDPtr)
+	productResponse, err := h.productQueryService.GetProductByID(productID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_MSG)
 		return
@@ -320,7 +320,7 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 	}
 
 	// Verify product exists before getting related products
-	_, err = h.productService.GetProductByID(productID, sellerID)
+	_, err = h.productQueryService.GetProductByID(productID, sellerID)
 	if err != nil {
 		h.HandleError(c, productErrors.ErrProductNotFound, utils.PRODUCT_NOT_FOUND_MSG)
 		return

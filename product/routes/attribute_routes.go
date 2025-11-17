@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,11 +15,10 @@ type AttributeModule struct {
 
 // NewAttributeModule creates a new instance of AttributeModule
 func NewAttributeModule() *AttributeModule {
-	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
-	attributeService := service.NewAttributeDefinitionService(attributeRepo)
+	f := singleton.GetInstance()
 
 	return &AttributeModule{
-		attributeHandler: handlers.NewAttributeHandler(attributeService),
+		attributeHandler: f.GetAttributeHandler(),
 	}
 }
 

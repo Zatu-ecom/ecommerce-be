@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,37 +15,10 @@ type ProductModule struct {
 
 // NewProductModule creates a new instance of ProductModule
 func NewProductModule() *ProductModule {
-	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
-	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
-	productRepo := repositories.NewProductRepository(db.GetDB())
-	variantRepo := repositories.NewVariantRepository(db.GetDB())
-	optionRepo := repositories.NewProductOptionRepository(db.GetDB())
-	productAttrRepo := repositories.NewProductAttributeRepository(db.GetDB())
-
-	// Initialize services needed by ProductQueryService
-	variantService := service.NewVariantService(variantRepo, productRepo)
-	categoryService := service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
-	productAttributeService := service.NewProductAttributeService(productAttrRepo, productRepo, attributeRepo)
-
-	// Initialize ProductQueryService for read operations
-	productQueryService := service.NewProductQueryService(
-		productRepo,
-		variantService,
-		categoryService,
-		productAttributeService,
-	)
-
-	// Initialize ProductService for write operations
-	productService := service.NewProductService(
-		productRepo,
-		categoryRepo,
-		attributeRepo,
-		variantRepo,
-		optionRepo,
-	)
+	f := singleton.GetInstance()
 
 	return &ProductModule{
-		productHandler: handlers.NewProductHandler(productService, productQueryService),
+		productHandler: f.GetProductHandler(),
 	}
 }
 

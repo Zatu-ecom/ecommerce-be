@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,13 +15,10 @@ type VariantModule struct {
 
 // NewVariantModule creates a new instance of VariantModule
 func NewVariantModule() *VariantModule {
-	variantRepo := repositories.NewVariantRepository(db.GetDB())
-	productRepo := repositories.NewProductRepository(db.GetDB())
-
-	variantService := service.NewVariantService(variantRepo, productRepo)
+	f := singleton.GetInstance()
 
 	return &VariantModule{
-		variantHandler: handlers.NewVariantHandler(variantService),
+		variantHandler: f.GetVariantHandler(),
 	}
 }
 

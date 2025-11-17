@@ -7,7 +7,6 @@ import (
 	"ecommerce-be/common/db"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
@@ -33,14 +32,6 @@ type ProductService interface {
 		id uint,
 		sellerId *uint,
 	) error
-	GetAllProducts(
-		page, limit int,
-		filters map[string]interface{},
-	) (*model.ProductsResponse, error)
-	GetProductByID(
-		id uint,
-		sellerID *uint,
-	) (*model.ProductResponse, error)
 	SearchProducts(
 		query string,
 		filters map[string]interface{},
@@ -60,11 +51,12 @@ type ProductService interface {
 
 // ProductServiceImpl implements the ProductService interface
 type ProductServiceImpl struct {
-	productRepo   repositories.ProductRepository
-	categoryRepo  repositories.CategoryRepository
-	attributeRepo repositories.AttributeDefinitionRepository
-	variantRepo   repositories.VariantRepository
-	optionRepo    repositories.ProductOptionRepository
+	productRepo         repositories.ProductRepository
+	categoryRepo        repositories.CategoryRepository
+	attributeRepo       repositories.AttributeDefinitionRepository
+	variantRepo         repositories.VariantRepository
+	productQueryService ProductQueryService
+	optionRepo          repositories.ProductOptionRepository
 }
 
 // NewProductService creates a new instance of ProductService
@@ -74,13 +66,15 @@ func NewProductService(
 	attributeRepo repositories.AttributeDefinitionRepository,
 	variantRepo repositories.VariantRepository,
 	optionRepo repositories.ProductOptionRepository,
+	productQueryService ProductQueryService,
 ) ProductService {
 	return &ProductServiceImpl{
-		productRepo:   productRepo,
-		categoryRepo:  categoryRepo,
-		attributeRepo: attributeRepo,
-		variantRepo:   variantRepo,
-		optionRepo:    optionRepo,
+		productRepo:         productRepo,
+		categoryRepo:        categoryRepo,
+		attributeRepo:       attributeRepo,
+		variantRepo:         variantRepo,
+		optionRepo:          optionRepo,
+		productQueryService: productQueryService,
 	}
 }
 
@@ -149,7 +143,7 @@ func (s *ProductServiceImpl) CreateProduct(
 
 	// Return created product with full details
 	// No seller check needed here since we just created it with this sellerID
-	return s.GetProductByID(product.ID, nil)
+	return s.productQueryService.GetProductByID(product.ID, nil)
 }
 
 // Helper to create product options (uses factory for entity creation)
@@ -841,82 +835,6 @@ func (s *ProductServiceImpl) buildProductResponsesWithVariants(
 	}
 
 	return productsResponse, nil
-}
-
-/*******************************************************************
-* GetAllProducts gets all products with pagination and filters     *
-* Now includes variant data for each product                       *
-********************************************************************/
-func (s *ProductServiceImpl) GetAllProducts(
-	page,
-	limit int,
-	filters map[string]interface{},
-) (*model.ProductsResponse, error) {
-	// Set default values
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	products, total, err := s.productRepo.FindAll(filters, page, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build product responses with variant data using shared helper
-	productsResponse, err := s.buildProductResponsesWithVariants(products)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate pagination
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-	hasNext := page < totalPages
-	hasPrev := page > 1
-
-	pagination := model.PaginationResponse{
-		CurrentPage:  page,
-		TotalPages:   totalPages,
-		TotalItems:   int(total),
-		ItemsPerPage: limit,
-		HasNext:      hasNext,
-		HasPrev:      hasPrev,
-	}
-
-	return &model.ProductsResponse{
-		Products:   productsResponse,
-		Pagination: pagination,
-	}, nil
-}
-
-/**********************************************************************
-* GetProductByID gets a product by ID with detailed information       *
-* Now includes complete variant data                                  *
-* Multi-tenant: If sellerID is provided, verify product belongs to    *
-* that seller. If nil (admin), allow access to any product.           *
-***********************************************************************/
-func (s *ProductServiceImpl) GetProductByID(
-	id uint,
-	sellerID *uint,
-) (*model.ProductResponse, error) {
-	product, err := s.productRepo.FindByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Multi-tenant check: If seller ID is provided, verify product belongs to that seller
-	// If sellerID is nil (admin role or no seller context), skip this check
-	if sellerID != nil && product.SellerID != *sellerID {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Use the helper method that fetches variant data
-	return s.buildProductResponseFromEntity(product)
 }
 
 /******************************************************************************

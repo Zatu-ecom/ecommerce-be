@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,15 +16,11 @@ type ProductOptionModule struct {
 
 // NewProductOptionModule creates a new instance of ProductOptionModule
 func NewProductOptionModule() *ProductOptionModule {
-	optionRepo := repositories.NewProductOptionRepository(db.GetDB())
-	productRepo := repositories.NewProductRepository(db.GetDB())
-
-	optionService := service.NewProductOptionService(optionRepo, productRepo)
-	valueService := service.NewProductOptionValueService(optionRepo, productRepo)
+	f := singleton.GetInstance()
 
 	return &ProductOptionModule{
-		optionHandler: handlers.NewProductOptionHandler(optionService),
-		valueHandler:  handlers.NewProductOptionValueHandler(valueService),
+		optionHandler: f.GetProductOptionHandler(),
+		valueHandler:  f.GetProductOptionValueHandler(),
 	}
 }
 
