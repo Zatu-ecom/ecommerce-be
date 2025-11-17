@@ -62,7 +62,7 @@ type VariantService interface {
 
 	// GetProductVariantsWithOptions retrieves all variants with their selected option values
 	// Optimized single query to prevent N+1 issues when fetching variant details
-	GetProductVariantsWithOptions(productID uint) ([]mapper.VariantWithOptions, error)
+	GetProductVariantsWithOptions(productID uint) ([]model.VariantDetailResponse, error)
 }
 
 // VariantServiceImpl implements the VariantService interface
@@ -558,6 +558,12 @@ func (s *VariantServiceImpl) GetProductOptionsWithVariantCounts(
 // Returns complete variant information including selected options for each variant
 func (s *VariantServiceImpl) GetProductVariantsWithOptions(
 	productID uint,
-) ([]mapper.VariantWithOptions, error) {
-	return s.variantRepo.GetProductVariantsWithOptions(productID)
+) ([]model.VariantDetailResponse, error) {
+	variantsWithOptions, err := s.variantRepo.GetProductVariantsWithOptions(productID)
+	if err == nil && len(variantsWithOptions) > 0 {
+		// Use factory to build variants detail response
+		response := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+		return response, nil
+	}
+	return nil, err
 }

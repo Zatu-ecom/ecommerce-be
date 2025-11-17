@@ -58,6 +58,7 @@ func (f *ServiceFactory) initialize() {
 			f.variantService,
 			f.categoryService,
 			f.productAttributeService,
+			f.productOptionService,
 		)
 
 		// Initialize ProductService with its dependencies

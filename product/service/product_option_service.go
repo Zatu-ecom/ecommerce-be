@@ -36,6 +36,10 @@ type ProductOptionService interface {
 		productID uint,
 		sellerID *uint,
 	) (*model.GetAvailableOptionsResponse, error)
+
+	// GetProductsOptionsWithValues retrieves all options with their values for multiple products
+	// Batch operation to prevent N+1 queries
+	GetProductsOptionsWithValues(productIDs []uint) (map[uint][]entity.ProductOption, error)
 }
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
@@ -354,4 +358,13 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 		UpdatedCount: len(optionsToUpdate),
 		Message:      utils.PRODUCT_OPTIONS_BULK_UPDATED_MSG,
 	}, nil
+}
+
+// GetProductsOptionsWithValues retrieves all options with their values for multiple products
+// Batch operation optimized to prevent N+1 queries
+func (s *ProductOptionServiceImpl) GetProductsOptionsWithValues(
+	productIDs []uint,
+) (map[uint][]entity.ProductOption, error) {
+	// Use the option repository's batch method to fetch all options at once
+	return s.optionRepo.FindOptionsByProductIDs(productIDs)
 }

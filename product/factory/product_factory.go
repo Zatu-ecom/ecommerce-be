@@ -389,3 +389,102 @@ func BuildProductResponse(
 
 	return productResp
 }
+
+// BuildRelatedProductItemScored builds a RelatedProductItemScored from RelatedProductScored mapper
+// Used for related products API with scoring information
+func BuildRelatedProductItemScored(
+	scoredResult *mapper.RelatedProductScored,
+	optionsPreview []model.OptionPreview,
+) model.RelatedProductItemScored {
+	// Build category hierarchy info
+	var parentInfo *model.CategoryInfo
+	if scoredResult.ParentCategoryID != nil && scoredResult.ParentCategoryName != nil {
+		parentInfo = &model.CategoryInfo{
+			ID:   *scoredResult.ParentCategoryID,
+			Name: *scoredResult.ParentCategoryName,
+		}
+	}
+
+	categoryInfo := model.CategoryHierarchyInfo{
+		ID:     scoredResult.CategoryID,
+		Name:   scoredResult.CategoryName,
+		Parent: parentInfo,
+	}
+
+	// Build base product response
+	productResponse := model.ProductResponse{
+		ID:               scoredResult.ProductID,
+		Name:             scoredResult.ProductName,
+		CategoryID:       scoredResult.CategoryID,
+		Category:         categoryInfo,
+		Brand:            scoredResult.Brand,
+		SKU:              scoredResult.SKU,
+		ShortDescription: scoredResult.ShortDescription,
+		LongDescription:  scoredResult.LongDescription,
+		Tags:             scoredResult.Tags,
+		SellerID:         scoredResult.SellerID,
+		HasVariants:      scoredResult.HasVariants,
+		PriceRange: &model.PriceRange{
+			Min: scoredResult.MinPrice,
+			Max: scoredResult.MaxPrice,
+		},
+		AllowPurchase: scoredResult.AllowPurchase,
+		Images:        []string{},
+	}
+
+	// Add variant preview if available
+	if scoredResult.TotalVariants > 0 && len(optionsPreview) > 0 {
+		productResponse.VariantPreview = &model.VariantPreview{
+			TotalVariants: int(scoredResult.TotalVariants),
+			Options:       optionsPreview,
+		}
+	}
+
+	// Build scored item with relation metadata
+	return model.RelatedProductItemScored{
+		ProductResponse: productResponse,
+		RelationReason:  scoredResult.RelationReason,
+		Score:           scoredResult.FinalScore,
+		StrategyUsed:    scoredResult.StrategyUsed,
+	}
+}
+
+// BuildOptionsPreview builds option preview list from product options
+// Reusable helper for variant preview construction
+func BuildOptionsPreview(options []entity.ProductOption) []model.OptionPreview {
+	optionsPreview := make([]model.OptionPreview, 0, len(options))
+
+	for _, option := range options {
+		// Extract available values from option values
+		availableValues := make([]string, 0, len(option.Values))
+		for _, val := range option.Values {
+			availableValues = append(availableValues, val.Value)
+		}
+
+		optionsPreview = append(optionsPreview, model.OptionPreview{
+			Name:            option.Name,
+			DisplayName:     option.DisplayName,
+			AvailableValues: availableValues,
+		})
+	}
+
+	return optionsPreview
+}
+
+func BuildRelatedProductsScoredResponse(
+	relatedItems []model.RelatedProductItemScored,
+	strategiesUsed []string,
+	avgScore float64,
+	pagination model.PaginationResponse,
+	totalStrategies int,
+) *model.RelatedProductsScoredResponse {
+	return &model.RelatedProductsScoredResponse{
+		RelatedProducts: relatedItems,
+		Pagination:      pagination,
+		Meta: model.RelatedProductsMeta{
+			StrategiesUsed:  strategiesUsed,
+			AvgScore:        avgScore,
+			TotalStrategies: totalStrategies,
+		},
+	}
+}

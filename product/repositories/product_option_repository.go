@@ -16,6 +16,7 @@ type ProductOptionRepository interface {
 	UpdateOption(option *entity.ProductOption) error
 	FindOptionByID(id uint) (*entity.ProductOption, error)
 	FindOptionsByProductID(productID uint) ([]entity.ProductOption, error)
+	FindOptionsByProductIDs(productIDs []uint) (map[uint][]entity.ProductOption, error)
 	DeleteOption(id uint) error
 	CheckOptionInUse(optionID uint) (bool, []uint, error)
 	BulkUpdateOptions(options []*entity.ProductOption) error
@@ -87,6 +88,39 @@ func (r *ProductOptionRepositoryImpl) FindOptionsByProductID(
 		return nil, err
 	}
 	return options, nil
+}
+
+// FindOptionsByProductIDs finds all options for multiple products in batch
+// Returns a map of productID -> []ProductOption to prevent N+1 queries
+func (r *ProductOptionRepositoryImpl) FindOptionsByProductIDs(
+	productIDs []uint,
+) (map[uint][]entity.ProductOption, error) {
+	if len(productIDs) == 0 {
+		return make(map[uint][]entity.ProductOption), nil
+	}
+
+	var options []entity.ProductOption
+	err := r.db.Where("product_id IN ?", productIDs).
+		Preload("Values", func(db *gorm.DB) *gorm.DB {
+			return db.Order("position ASC")
+		}).
+		Order("product_id ASC, position ASC").
+		Find(&options).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Group options by product ID
+	productOptionsMap := make(map[uint][]entity.ProductOption)
+	for _, option := range options {
+		productOptionsMap[option.ProductID] = append(
+			productOptionsMap[option.ProductID],
+			option,
+		)
+	}
+
+	return productOptionsMap, nil
 }
 
 // DeleteOption deletes a product option

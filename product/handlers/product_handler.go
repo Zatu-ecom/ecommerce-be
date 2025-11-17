@@ -242,7 +242,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		filters["sellerId"] = sellerID
 	}
 
-	searchResponse, err := h.productService.SearchProducts(query, filters, page, limit)
+	searchResponse, err := h.productQueryService.SearchProducts(query, filters, page, limit)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_SEARCH_PRODUCTS_MSG)
 		return
@@ -261,7 +261,7 @@ func (h *ProductHandler) GetProductFilters(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	filters, err := h.productService.GetProductFilters(sellerIDPtr)
+	filters, err := h.productQueryService.GetProductFilters(sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_FILTERS_MSG)
 		return
@@ -326,7 +326,7 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 		return
 	}
 
-	relatedProductsResponse, err := h.productService.GetRelatedProductsScored(
+	relatedProductsResponse, err := h.productQueryService.GetRelatedProductsScored(
 		productID,
 		limit,
 		page,
