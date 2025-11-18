@@ -64,6 +64,7 @@ func BuildProductOptionResponse(
 // BuildProductOptionDetailResponse builds ProductOptionDetailResponse from entity
 func BuildProductOptionDetailResponse(
 	option *entity.ProductOption,
+	variantCountMp map[uint]int,
 ) *model.ProductOptionDetailResponse {
 	response := &model.ProductOptionDetailResponse{
 		OptionID:          option.ID,
@@ -75,12 +76,17 @@ func BuildProductOptionDetailResponse(
 
 	// Convert option values
 	for _, value := range option.Values {
+		variantCount := 0
+		if count, exists := variantCountMp[value.ID]; exists {
+			variantCount = count
+		}
 		response.Values = append(response.Values, model.OptionValueResponse{
-			ValueID:     value.ID,
-			Value:       value.Value,
-			DisplayName: value.DisplayName,
-			ColorCode:   value.ColorCode,
-			Position:    value.Position,
+			ValueID:      value.ID,
+			Value:        value.Value,
+			DisplayName:  value.DisplayName,
+			ColorCode:    value.ColorCode,
+			Position:     value.Position,
+			VariantCount: variantCount,
 		})
 	}
 
@@ -90,10 +96,11 @@ func BuildProductOptionDetailResponse(
 // BuildProductOptionsDetailResponse builds multiple ProductOptionDetailResponse from entities
 func BuildProductOptionsDetailResponse(
 	options []entity.ProductOption,
+	variantCount map[uint]int,
 ) []model.ProductOptionDetailResponse {
 	result := make([]model.ProductOptionDetailResponse, 0, len(options))
 	for _, option := range options {
-		result = append(result, *BuildProductOptionDetailResponse(&option))
+		result = append(result, *BuildProductOptionDetailResponse(&option, variantCount))
 	}
 	return result
 }

@@ -10,6 +10,7 @@ import (
 // ProductAttributeRepository defines the interface for product attribute data operations
 type ProductAttributeRepository interface {
 	Create(productAttribute *entity.ProductAttribute) error
+	BulkCreate(productAttributes []*entity.ProductAttribute) error
 	Update(productAttribute *entity.ProductAttribute) error
 	Delete(id uint) error
 	FindByID(id uint) (*entity.ProductAttribute, error)
@@ -31,6 +32,16 @@ func NewProductAttributeRepository(db *gorm.DB) ProductAttributeRepository {
 // Create creates a new product attribute
 func (r *ProductAttributeRepositoryImpl) Create(productAttribute *entity.ProductAttribute) error {
 	return r.db.Create(productAttribute).Error
+}
+
+// BulkCreate creates multiple product attributes in a single INSERT query
+// Uses RETURNING clause to get generated IDs efficiently
+func (r *ProductAttributeRepositoryImpl) BulkCreate(productAttributes []*entity.ProductAttribute) error {
+	if len(productAttributes) == 0 {
+		return nil
+	}
+	// GORM's Create with slice automatically uses bulk insert and populates IDs
+	return r.db.Create(&productAttributes).Error
 }
 
 // Update updates an existing product attribute

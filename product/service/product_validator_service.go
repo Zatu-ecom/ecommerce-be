@@ -13,6 +13,10 @@ type ProductValidatorService interface {
 		productID uint,
 		sellerID *uint,
 	) (*entity.Product, error)
+	GetAndValidateProductOwnershipNonPtr(
+		productID uint,
+		sellerID uint,
+	) (*entity.Product, error)
 	GetAndValidateProduct(
 		productID uint,
 	) (*entity.Product, error)
@@ -54,6 +58,22 @@ func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnership(
 	}
 
 	return product, nil
+}
+
+// GetAndValidateProductOwnershipNonPtr fetches a product and validates seller ownership (non-pointer sellerID)
+// This method is for services that use uint instead of *uint for sellerID
+// Converts uint to *uint internally and calls GetAndValidateProductOwnership
+func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnershipNonPtr(
+	productID uint,
+	sellerID uint,
+) (*entity.Product, error) {
+	// Convert uint to *uint
+	var sellerIDPtr *uint
+	if sellerID != 0 {
+		sellerIDPtr = &sellerID
+	}
+
+	return s.GetAndValidateProductOwnership(productID, sellerIDPtr)
 }
 
 // GetAndValidateProduct fetches a product and validates that it exists

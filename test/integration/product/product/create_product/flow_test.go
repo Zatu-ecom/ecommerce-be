@@ -47,11 +47,11 @@ func TestCreateProductIntegration(t *testing.T) {
 			"brand":      "IntegrationBrand",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "White", "displayName": "White"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "white", "displayName": "White"},
 					},
 				},
 			},
@@ -60,14 +60,14 @@ func TestCreateProductIntegration(t *testing.T) {
 					"sku":   "TEST-INTEG-FETCH-001-BLK",
 					"price": 129.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
 					"sku":   "TEST-INTEG-FETCH-001-WHT",
 					"price": 129.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
+						{"optionName": "color", "value": "white"},
 					},
 				},
 			},
@@ -112,11 +112,11 @@ func TestCreateProductIntegration(t *testing.T) {
 			"baseSku":    "TEST-ADD-VAR-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "Red", "displayName": "Red"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "red", "displayName": "Red"},
 					},
 				},
 			},
@@ -125,7 +125,7 @@ func TestCreateProductIntegration(t *testing.T) {
 					"sku":   "TEST-ADD-VAR-001-BLK",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -148,7 +148,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			"sku":   "TEST-ADD-VAR-001-RED",
 			"price": 99.99,
 			"options": []map[string]interface{}{
-				{"optionName": "Color", "value": "Red"},
+				{"optionName": "color", "value": "red"},
 			},
 		}
 
@@ -209,10 +209,10 @@ func TestCreateProductIntegration(t *testing.T) {
 					"baseSku":    fmt.Sprintf("TEST-CONC-%03d", index),
 					"options": []map[string]interface{}{
 						{
-							"name":        "Color",
+							"name":        "color",
 							"displayName": "Color",
 							"values": []map[string]interface{}{
-								{"value": "Black", "displayName": "Black"},
+								{"value": "black", "displayName": "Black"},
 							},
 						},
 					},
@@ -221,7 +221,7 @@ func TestCreateProductIntegration(t *testing.T) {
 							"sku":   fmt.Sprintf("TEST-CONC-%03d-V1", index),
 							"price": 99.99,
 							"options": []map[string]interface{}{
-								{"optionName": "Color", "value": "Black"},
+								{"optionName": "color", "value": "black"},
 							},
 						},
 					},
@@ -335,8 +335,8 @@ func TestCreateProductIntegration(t *testing.T) {
 					"sku":   sku,
 					"price": prices[storage.value],
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": color.value},
-						{"optionName": "Storage", "value": storage.value},
+						{"optionName": "color", "value": color.value},
+						{"optionName": "storage", "value": storage.value},
 					},
 				})
 			}
@@ -352,12 +352,12 @@ func TestCreateProductIntegration(t *testing.T) {
 			"tags":             []string{"premium", "flagship", "5g", "titanium"},
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values":      colorValues,
 				},
 				{
-					"name":        "Storage",
+					"name":        "storage",
 					"displayName": "Storage",
 					"values":      storageValues,
 				},

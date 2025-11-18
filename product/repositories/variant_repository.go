@@ -20,15 +20,8 @@ type VariantRepository interface {
 		optionValues map[string]string,
 	) (*entity.ProductVariant, error)
 	GetVariantOptionValues(variantID uint) ([]entity.VariantOptionValue, error)
-	GetProductOptionByName(productID uint, optionName string) (*entity.ProductOption, error)
-	GetProductOptionValueByValue(optionID uint, value string) (*entity.ProductOptionValue, error)
-	GetAvailableOptionsForProduct(productID uint) (map[string][]string, error)
-	GetProductOptionsWithVariantCounts(productID uint) ([]entity.ProductOption, map[uint]int, error)
-	GetProductOptionByID(optionID uint) (*entity.ProductOption, error)
-	GetOptionValueByID(
-		optionValueID uint,
-	) (*entity.ProductOptionValue, error)
 	CreateVariant(variant *entity.ProductVariant) error
+	BulkCreateVariants(variants []*entity.ProductVariant) error
 	CreateVariantOptionValues(variantOptionValues []entity.VariantOptionValue) error
 	UpdateVariant(variant *entity.ProductVariant) error
 	DeleteVariant(variantID uint) error
@@ -179,153 +172,19 @@ func (r *VariantRepositoryImpl) GetVariantOptionValues(
 	return variantOptionValues, nil
 }
 
-// GetProductOptionByName retrieves a product option by name for a specific product
-func (r *VariantRepositoryImpl) GetProductOptionByName(
-	productID uint,
-	optionName string,
-) (*entity.ProductOption, error) {
-	var option entity.ProductOption
-	result := r.db.Where("product_id = ? AND name = ?", productID, optionName).First(&option)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, producterrors.ErrProductOptionNotFound.WithMessagef(
-				"Product option not found: %s",
-				optionName,
-			)
-		}
-		return nil, result.Error
-	}
-
-	return &option, nil
-}
-
-// GetProductOptionValueByValue retrieves an option value by its value string
-func (r *VariantRepositoryImpl) GetProductOptionValueByValue(
-	optionID uint,
-	value string,
-) (*entity.ProductOptionValue, error) {
-	var optionValue entity.ProductOptionValue
-	result := r.db.Where("option_id = ? AND value = ?", optionID, value).First(&optionValue)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, producterrors.ErrProductOptionValueNotFound.WithMessagef(
-				"Product option value not found: %s",
-				value,
-			)
-		}
-		return nil, result.Error
-	}
-
-	return &optionValue, nil
-}
-
-// GetAvailableOptionsForProduct retrieves all available options and their values for a product
-func (r *VariantRepositoryImpl) GetAvailableOptionsForProduct(
-	productID uint,
-) (map[string][]string, error) {
-	// Get all options for the product
-	var options []entity.ProductOption
-	if err := r.db.Where("product_id = ?", productID).Find(&options).Error; err != nil {
-		return nil, err
-	}
-
-	availableOptions := make(map[string][]string)
-
-	for _, option := range options {
-		// Get all values for this option
-		var optionValues []entity.ProductOptionValue
-		if err := r.db.Where("option_id = ?", option.ID).Find(&optionValues).Error; err != nil {
-			continue
-		}
-
-		values := make([]string, 0, len(optionValues))
-		for _, ov := range optionValues {
-			values = append(values, ov.Value)
-		}
-
-		availableOptions[option.Name] = values
-	}
-
-	return availableOptions, nil
-}
-
-// GetProductOptionsWithVariantCounts retrieves detailed options with variant counts for each value
-func (r *VariantRepositoryImpl) GetProductOptionsWithVariantCounts(
-	productID uint,
-) ([]entity.ProductOption, map[uint]int, error) {
-	// Get all options for the product with their values preloaded
-	var options []entity.ProductOption
-	if err := r.db.
-		Where("product_id = ?", productID).
-		Order("position ASC").
-		Preload("Values", func(db *gorm.DB) *gorm.DB {
-			return db.Order("position ASC")
-		}).
-		Find(&options).Error; err != nil {
-		return nil, nil, err
-	}
-
-	// Count variants for each option value
-	variantCounts := make(map[uint]int)
-
-	for _, option := range options {
-		for _, value := range option.Values {
-			// Count how many variants use this option value
-			var count int64
-			r.db.Model(&entity.VariantOptionValue{}).
-				Where("option_value_id = ?", value.ID).
-				Count(&count)
-
-			variantCounts[value.ID] = int(count)
-		}
-	}
-
-	return options, variantCounts, nil
-}
-
-// GetProductOptionByID retrieves a product option by its ID
-func (r *VariantRepositoryImpl) GetProductOptionByID(optionID uint) (*entity.ProductOption, error) {
-	var option entity.ProductOption
-	result := r.db.Where("id = ?", optionID).First(&option)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, producterrors.ErrProductOptionNotFound.WithMessagef(
-				"Product option not found with ID: %d",
-				optionID,
-			)
-		}
-		return nil, result.Error
-	}
-
-	return &option, nil
-}
-
-// GetOptionValueByID retrieves an option value by its ID
-func (r *VariantRepositoryImpl) GetOptionValueByID(
-	optionValueID uint,
-) (*entity.ProductOptionValue, error) {
-	var optionValue entity.ProductOptionValue
-	result := r.db.Where("id = ?", optionValueID).First(&optionValue)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, producterrors.ErrProductOptionValueNotFound.WithMessagef(
-				"Product option value not found with ID: %d",
-				optionValueID,
-			)
-		}
-		return nil, result.Error
-	}
-
-	return &optionValue, nil
-}
-
 // CreateVariant creates a new variant for a product
 func (r *VariantRepositoryImpl) CreateVariant(variant *entity.ProductVariant) error {
 	return r.db.Create(variant).Error
+}
+
+// BulkCreateVariants creates multiple variants in a single INSERT query
+// Uses RETURNING clause to get generated IDs efficiently
+func (r *VariantRepositoryImpl) BulkCreateVariants(variants []*entity.ProductVariant) error {
+	if len(variants) == 0 {
+		return nil
+	}
+	// GORM's Create with slice automatically uses bulk insert and populates IDs
+	return r.db.Create(&variants).Error
 }
 
 // CreateVariantOptionValues creates variant option value associations

@@ -39,6 +39,14 @@ type ProductAttributeService interface {
 		sellerID uint,
 		req model.BulkUpdateProductAttributesRequest,
 	) (*model.BulkUpdateProductAttributesResponse, error)
+
+	// CreateProductAttributesBulk creates multiple product attributes in bulk
+	// Returns models for immediate use in responses
+	CreateProductAttributesBulk(
+		productID uint,
+		sellerID uint,
+		requests []model.ProductAttributeRequest,
+	) ([]model.ProductAttributeResponse, error)
 }
 
 // ProductAttributeServiceImpl implements the ProductAttributeService interface
@@ -302,4 +310,160 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		UpdatedCount: updatedCount,
 		Attributes:   attributeResponses,
 	}, nil
+}
+
+/***********************************************
+ *      CreateProductAttributesBulk            *
+ ***********************************************/
+// CreateProductAttributesBulk creates multiple product attributes in bulk
+// This method handles both attribute definition creation/update and product attribute linking
+// Moved from ProductService for proper separation of concerns
+func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
+	productID uint,
+	sellerID uint,
+	requests []model.ProductAttributeRequest,
+) ([]model.ProductAttributeResponse, error) {
+	if len(requests) == 0 {
+		return []model.ProductAttributeResponse{}, nil
+	}
+
+	// Verify product exists and user has access (single query)
+	product, err := s.productRepo.FindByID(productID)
+	if err != nil {
+		return nil, prodErrors.ErrProductNotFound
+	}
+
+	// Check if user has permission to modify this product
+	if sellerID != 0 && product.SellerID != sellerID {
+		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+	}
+
+	// Extract unique keys and fetch existing attribute definitions (single query)
+	keys := extractUniqueKeys(requests)
+	attributeMap, err := s.attributeRepo.FindByKeys(keys)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process attributes and prepare bulk operations
+	operations := processAttributesForBulkOperations(productID, requests, attributeMap)
+
+	// Execute all bulk operations
+	if err = s.executeBulkOperations(operations); err != nil {
+		return nil, err
+	}
+
+	// Convert entities to models using factory
+	return s.convertAttributesToModels(operations.productAttributesToCreate), nil
+}
+
+// extractUniqueKeys extracts unique keys from attribute requests
+func extractUniqueKeys(requests []model.ProductAttributeRequest) []string {
+	keys := make([]string, 0, len(requests))
+	keySet := make(map[string]bool)
+	for _, attr := range requests {
+		if !keySet[attr.Key] {
+			keys = append(keys, attr.Key)
+			keySet[attr.Key] = true
+		}
+	}
+	return keys
+}
+
+// BulkAttributeOperations holds all bulk operations to be executed
+type BulkAttributeOperations struct {
+	attributesToUpdate        []*entity.AttributeDefinition
+	attributesToCreate        []*entity.AttributeDefinition
+	productAttributesToCreate []*entity.ProductAttribute
+}
+
+// processAttributesForBulkOperations processes attributes and prepares bulk operations using factory
+func processAttributesForBulkOperations(
+	productID uint,
+	requests []model.ProductAttributeRequest,
+	attributeMap map[string]*entity.AttributeDefinition,
+) *BulkAttributeOperations {
+	operations := &BulkAttributeOperations{
+		attributesToUpdate:        make([]*entity.AttributeDefinition, 0),
+		attributesToCreate:        make([]*entity.AttributeDefinition, 0),
+		productAttributesToCreate: make([]*entity.ProductAttribute, 0),
+	}
+
+	for _, attr := range requests {
+		attribute, exists := attributeMap[attr.Key]
+
+		if exists {
+			// Update existing attribute using factory
+			if factory.UpdateAttributeDefinitionValues(attribute, attr.Value) {
+				operations.attributesToUpdate = append(operations.attributesToUpdate, attribute)
+			}
+		} else {
+			// Create new attribute definition using factory
+			attribute = factory.CreateNewAttributeDefinition(attr)
+			operations.attributesToCreate = append(operations.attributesToCreate, attribute)
+			attributeMap[attr.Key] = attribute
+		}
+	}
+
+	// Create product attributes using factory
+	productAttributes := factory.CreateProductAttributesFromRequests(
+		productID,
+		requests,
+		attributeMap,
+	)
+	operations.productAttributesToCreate = productAttributes
+
+	return operations
+}
+
+// executeBulkOperations executes all bulk database operations
+func (s *ProductAttributeServiceImpl) executeBulkOperations(
+	operations *BulkAttributeOperations,
+) error {
+	// Bulk create new attribute definitions
+	if len(operations.attributesToCreate) > 0 {
+		if err := s.attributeRepo.CreateBulk(operations.attributesToCreate); err != nil {
+			return err
+		}
+	}
+
+	// Bulk update modified attributes
+	if len(operations.attributesToUpdate) > 0 {
+		if err := s.attributeRepo.UpdateBulk(operations.attributesToUpdate); err != nil {
+			return err
+		}
+	}
+
+	// BULK: Create ALL product attributes in ONE query
+	if len(operations.productAttributesToCreate) > 0 {
+		if err := s.productAttrRepo.BulkCreate(
+			operations.productAttributesToCreate,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// convertAttributesToModels converts product attribute entities to model responses
+func (s *ProductAttributeServiceImpl) convertAttributesToModels(
+	attributes []*entity.ProductAttribute,
+) []model.ProductAttributeResponse {
+	if len(attributes) == 0 {
+		return []model.ProductAttributeResponse{}
+	}
+
+	responses := make([]model.ProductAttributeResponse, 0, len(attributes))
+	for _, attr := range attributes {
+		if attr.AttributeDefinition != nil {
+			responses = append(responses, model.ProductAttributeResponse{
+				Name:  attr.AttributeDefinition.Name,
+				Key:   attr.AttributeDefinition.Key,
+				Value: attr.Value,
+				Unit:  attr.AttributeDefinition.Unit,
+			})
+		}
+	}
+	return responses
 }

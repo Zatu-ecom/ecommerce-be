@@ -52,23 +52,21 @@ func TestCreateProduct(t *testing.T) {
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
-				{
-					"sku":   "TEST-SINGLE-001-V1",
-					"price": 99.99,
-					"options": []map[string]interface{}{
-						{
-							"optionName": "Color",
-							"value":      "Black",
-						},
+		"variants": []map[string]interface{}{
+			{
+				"sku":   "TEST-SINGLE-001-V1",
+				"price": 99.99,
+				"options": []map[string]interface{}{
+					{
+						"optionName": "color",
+						"value":      "black",
 					},
 				},
 			},
-		}
+		},
+	}
 
-		w := client.Post(t, "/api/products", requestBody)
-
-		// Debug: Print response if not successful
+	w := client.Post(t, "/api/products", requestBody)		// Debug: Print response if not successful
 		if w.Code != http.StatusCreated {
 			t.Logf("Response Status: %d", w.Code)
 			t.Logf("Response Body: %s", w.Body.String())
@@ -127,16 +125,16 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "White", "displayName": "White"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "white", "displayName": "White"},
 					},
 				},
 				{
 					"name":        "Size",
 					"displayName": "Size",
 					"values": []map[string]interface{}{
-						{"value": "M", "displayName": "Medium"},
-						{"value": "L", "displayName": "Large"},
+						{"value": "m", "displayName": "Medium"},
+						{"value": "l", "displayName": "Large"},
 					},
 				},
 			},
@@ -145,32 +143,32 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-TSHIRT-BLK-M",
 					"price": 29.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
-						{"optionName": "Size", "value": "M"},
+						{"optionName": "color", "value": "black"},
+						{"optionName": "size", "value": "m"},
 					},
 				},
 				{
 					"sku":   "TEST-TSHIRT-BLK-L",
 					"price": 29.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
-						{"optionName": "Size", "value": "L"},
+						{"optionName": "color", "value": "black"},
+						{"optionName": "size", "value": "l"},
 					},
 				},
 				{
 					"sku":   "TEST-TSHIRT-WHT-M",
 					"price": 29.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
-						{"optionName": "Size", "value": "M"},
+						{"optionName": "color", "value": "white"},
+						{"optionName": "size", "value": "m"},
 					},
 				},
 				{
 					"sku":   "TEST-TSHIRT-WHT-L",
 					"price": 29.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
-						{"optionName": "Size", "value": "L"},
+						{"optionName": "color", "value": "white"},
+						{"optionName": "size", "value": "l"},
 					},
 				},
 			},
@@ -227,15 +225,15 @@ func TestCreateProduct(t *testing.T) {
 
 			values := option["values"].([]interface{})
 			switch name {
-			case "Color":
-				assert.Len(t, values, 2, "Color should have 2 values (Black, White)")
-			case "Size":
-				assert.Len(t, values, 2, "Size should have 2 values (M, L)")
+			case "color":
+				assert.Len(t, values, 2, "Color should have 2 values (black, white)")
+			case "size":
+				assert.Len(t, values, 2, "Size should have 2 values (m, l)")
 			}
 		}
 
-		assert.Equal(t, 1, optionNames["Color"], "Should have Color option")
-		assert.Equal(t, 1, optionNames["Size"], "Should have Size option")
+		assert.Equal(t, 1, optionNames["color"], "Should have Color option")
+			assert.Equal(t, 1, optionNames["size"], "Should have Size option")
 	})
 
 	t.Run("Success - Create product with 3 options", func(t *testing.T) {
@@ -252,24 +250,24 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Silver", "displayName": "Silver"},
-						{"value": "Black", "displayName": "Black"},
+						{"value": "silver", "displayName": "Silver"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 				{
 					"name":        "Memory",
 					"displayName": "RAM",
 					"values": []map[string]interface{}{
-						{"value": "8GB", "displayName": "8GB"},
-						{"value": "16GB", "displayName": "16GB"},
+						{"value": "8gb", "displayName": "8GB"},
+						{"value": "16gb", "displayName": "16GB"},
 					},
 				},
 				{
 					"name":        "Storage",
 					"displayName": "Storage",
 					"values": []map[string]interface{}{
-						{"value": "256GB", "displayName": "256GB"},
-						{"value": "512GB", "displayName": "512GB"},
+						{"value": "256gb", "displayName": "256GB"},
+						{"value": "512gb", "displayName": "512GB"},
 					},
 				},
 			},
@@ -278,27 +276,27 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-LAPTOP-SLV-8-256",
 					"price": 1299.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Silver"},
-						{"optionName": "Memory", "value": "8GB"},
-						{"optionName": "Storage", "value": "256GB"},
+						{"optionName": "color", "value": "silver"},
+						{"optionName": "memory", "value": "8gb"},
+						{"optionName": "storage", "value": "256gb"},
 					},
 				},
 				{
 					"sku":   "TEST-LAPTOP-SLV-16-512",
 					"price": 1799.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Silver"},
-						{"optionName": "Memory", "value": "16GB"},
-						{"optionName": "Storage", "value": "512GB"},
+						{"optionName": "color", "value": "silver"},
+						{"optionName": "memory", "value": "16gb"},
+						{"optionName": "storage", "value": "512gb"},
 					},
 				},
 				{
 					"sku":   "TEST-LAPTOP-BLK-8-256",
 					"price": 1299.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
-						{"optionName": "Memory", "value": "8GB"},
-						{"optionName": "Storage", "value": "256GB"},
+						{"optionName": "color", "value": "black"},
+						{"optionName": "memory", "value": "8gb"},
+						{"optionName": "storage", "value": "256gb"},
 					},
 				},
 			},
@@ -359,8 +357,8 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "White", "displayName": "White"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "white", "displayName": "White"},
 					},
 				},
 			},
@@ -370,14 +368,14 @@ func TestCreateProduct(t *testing.T) {
 					"price":     39.99,
 					"isDefault": isDefault,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
 					"sku":   "TEST-DEFAULT-001-WHT",
 					"price": 39.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
+						{"optionName": "color", "value": "white"},
 					},
 				},
 			},
@@ -420,8 +418,8 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "Red", "displayName": "Red"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "red", "displayName": "Red"},
 					},
 				},
 			},
@@ -431,14 +429,14 @@ func TestCreateProduct(t *testing.T) {
 					"price":     49.99,
 					"isPopular": isPopular,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
 					"sku":   "TEST-POPULAR-001-RED",
 					"price": 49.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Red"},
+						{"optionName": "color", "value": "red"},
 					},
 				},
 			},
@@ -484,7 +482,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Gold", "displayName": "Gold"},
+						{"value": "gold", "displayName": "Gold"},
 					},
 				},
 			},
@@ -497,7 +495,7 @@ func TestCreateProduct(t *testing.T) {
 						"https://example.com/image2.jpg",
 					},
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Gold"},
+						{"optionName": "color", "value": "gold"},
 					},
 				},
 			},
@@ -615,7 +613,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Blue", "displayName": "Blue"},
+						{"value": "blue", "displayName": "Blue"},
 					},
 				},
 			},
@@ -624,7 +622,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-ATTR-001-V1",
 					"price": 699.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Blue"},
+						{"optionName": "color", "value": "blue"},
 					},
 				},
 			},
@@ -696,7 +694,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Green", "displayName": "Green"},
+						{"value": "green", "displayName": "Green"},
 					},
 				},
 			},
@@ -705,7 +703,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-PKG-001-V1",
 					"price": 499.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Green"},
+						{"optionName": "color", "value": "green"},
 					},
 				},
 			},
@@ -770,8 +768,8 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "Red", "displayName": "Red"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "red", "displayName": "Red"},
 					},
 				},
 			},
@@ -787,7 +785,7 @@ func TestCreateProduct(t *testing.T) {
 						"https://example.com/img5.jpg",
 					},
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
@@ -799,7 +797,7 @@ func TestCreateProduct(t *testing.T) {
 						"https://example.com/red3.jpg",
 					},
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Red"},
+						{"optionName": "color", "value": "red"},
 					},
 				},
 			},
@@ -861,14 +859,14 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-COLOR-001-BLK",
 					"price": 59.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
 					"sku":   "TEST-COLOR-001-WHT",
 					"price": 59.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
+						{"optionName": "color", "value": "white"},
 					},
 				},
 			},
@@ -884,7 +882,7 @@ func TestCreateProduct(t *testing.T) {
 		assert.Len(t, productOptions, 1)
 
 		option := productOptions[0].(map[string]interface{})
-		assert.Equal(t, "Color", option["optionName"])
+		assert.Equal(t, "color", option["optionName"])
 
 		values, ok := option["values"].([]interface{})
 		assert.True(t, ok)
@@ -915,7 +913,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Silver", "displayName": "Silver"},
+						{"value": "silver", "displayName": "Silver"},
 					},
 				},
 			},
@@ -924,7 +922,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-ELEC-001-V1",
 					"price": 299.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Silver"},
+						{"optionName": "color", "value": "silver"},
 					},
 				},
 			},
@@ -945,7 +943,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Size",
 					"displayName": "Size",
 					"values": []map[string]interface{}{
-						{"value": "L", "displayName": "Large"},
+						{"value": "l", "displayName": "Large"},
 					},
 				},
 			},
@@ -954,7 +952,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-FASH-001-V1",
 					"price": 49.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Size", "value": "L"},
+						{"optionName": "size", "value": "l"},
 					},
 				},
 			},
@@ -975,7 +973,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Material",
 					"displayName": "Material",
 					"values": []map[string]interface{}{
-						{"value": "Wood", "displayName": "Wood"},
+						{"value": "wood", "displayName": "Wood"},
 					},
 				},
 			},
@@ -984,7 +982,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-FURN-001-V1",
 					"price": 599.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Material", "value": "Wood"},
+						{"optionName": "material", "value": "wood"},
 					},
 				},
 			},
@@ -1010,7 +1008,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Size",
 					"displayName": "Size",
 					"values": []map[string]interface{}{
-						{"value": "M", "displayName": "Medium"},
+						{"value": "m", "displayName": "Medium"},
 					},
 				},
 			},
@@ -1019,7 +1017,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-SPECIAL-001-V1",
 					"price": 89.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Size", "value": "M"},
+						{"optionName": "size", "value": "m"},
 					},
 				},
 			},
@@ -1047,7 +1045,7 @@ func TestCreateProduct(t *testing.T) {
 					"name":        "Color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black/White", "displayName": "Black/White"},
+						{"value": "black/white", "displayName": "Black/White"},
 					},
 				},
 				{
@@ -1063,8 +1061,8 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-ENCODE-001-BW",
 					"price": 129.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black/White"},
-						{"optionName": "Size", "value": "10"},
+						{"optionName": "color", "value": "black/white"},
+						{"optionName": "size", "value": "10"},
 					},
 				},
 			},
@@ -1110,7 +1108,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-NONAME-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1133,7 +1131,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-NOCAT-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1171,7 +1169,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-SHORT-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1200,7 +1198,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-LONG-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1223,7 +1221,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-BADCAT-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1246,7 +1244,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku": "TEST-NOPRICE-001-V1",
 					// price is missing
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1269,7 +1267,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-ZEROPRICE-001-V1",
 					"price": 0, // Zero price
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1292,7 +1290,7 @@ func TestCreateProduct(t *testing.T) {
 					"sku":   "TEST-NEGPRICE-001-V1",
 					"price": -50.00, // Negative price
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -1362,7 +1360,7 @@ func TestCreateProduct(t *testing.T) {
 					"options": []map[string]interface{}{
 						{
 							// optionName is missing
-							"value": "Black",
+							"value": "black",
 						},
 					},
 				},
@@ -1387,7 +1385,7 @@ func TestCreateProduct(t *testing.T) {
 					"price": 99.99,
 					"options": []map[string]interface{}{
 						{
-							"optionName": "Color",
+							"optionName": "color",
 							// value is missing
 						},
 					},

@@ -55,7 +55,7 @@ func NewProductQueryService(
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
 	productOptionService ProductOptionService,
-) ProductQueryService {
+) *ProductQueryServiceImpl {
 	return &ProductQueryServiceImpl{
 		productRepo:             productRepo,
 		variantService:          variantService,
@@ -180,8 +180,8 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	response := factory.BuildProductResponse(product, variantAgg)
 
 	// Enhance with additional details for the detailed view
-
 	// Get product attributes using ProductAttributeService
+
 	attrResponse, err := s.productAttributeService.GetProductAttributes(product.ID)
 	if err == nil && attrResponse != nil {
 		// Use factory to convert ProductAttributeDetailResponse to ProductAttributeResponse
@@ -196,11 +196,14 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
 	}
 
-	// Get all product options with their values using VariantService
-	productOptions, _, err := s.variantService.GetProductOptionsWithVariantCounts(product.ID)
+	// Get all product options with their values using ProductOptionService
+	productOptions, err := s.productOptionService.GetProductOptionsWithVariantCounts(
+		product.ID,
+		nil,
+	)
 	if err == nil && len(productOptions) > 0 {
 		// Use factory to build options detail response
-		response.Options = factory.BuildProductOptionsDetailResponse(productOptions)
+		response.Options = productOptions
 	}
 
 	// Get all variants with their selected option values using VariantService

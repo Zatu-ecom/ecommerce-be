@@ -40,10 +40,10 @@ func TestCreateProductValidation(t *testing.T) {
 			"baseSku":    "TEST-INVALID-TYPE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -52,7 +52,7 @@ func TestCreateProductValidation(t *testing.T) {
 					"sku":   "TEST-INVALID-TYPE-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -74,10 +74,10 @@ func TestCreateProductValidation(t *testing.T) {
 			"baseSku":    "TEST-INVALID-PRICE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -86,7 +86,7 @@ func TestCreateProductValidation(t *testing.T) {
 					"sku":   "TEST-INVALID-PRICE-001-V1",
 					"price": "not-a-number", // Invalid: string instead of number
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -148,10 +148,10 @@ func TestCreateProductValidation(t *testing.T) {
 			"baseSku":    "TEST-INVALID-BOOL-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -161,7 +161,7 @@ func TestCreateProductValidation(t *testing.T) {
 					"price":     99.99,
 					"isDefault": "yes", // Invalid: string instead of boolean
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},

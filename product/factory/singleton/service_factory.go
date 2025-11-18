@@ -39,8 +39,19 @@ func (f *ServiceFactory) initialize() {
 		optionRepo := f.repoFactory.GetProductOptionRepository()
 		productAttrRepo := f.repoFactory.GetProductAttributeRepository()
 
+		// Initialize validator service first (used by other services)
+		f.validatorService = service.NewProductValidatorService(productRepo)
+
+		// Initialize product option service (used by variant service)
+		f.productOptionService = service.NewProductOptionService(optionRepo, f.validatorService)
+		f.optionValueService = service.NewProductOptionValueService(optionRepo, productRepo)
+
 		// Initialize services with dependencies
-		f.variantService = service.NewVariantService(variantRepo, productRepo)
+		f.variantService = service.NewVariantService(
+			variantRepo,
+			f.productOptionService,
+			f.validatorService,
+		)
 		f.categoryService = service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
 		f.attributeService = service.NewAttributeDefinitionService(attributeRepo)
 		f.productAttributeService = service.NewProductAttributeService(
@@ -48,9 +59,6 @@ func (f *ServiceFactory) initialize() {
 			productRepo,
 			attributeRepo,
 		)
-		f.productOptionService = service.NewProductOptionService(optionRepo, productRepo)
-		f.optionValueService = service.NewProductOptionValueService(optionRepo, productRepo)
-		f.validatorService = service.NewProductValidatorService(productRepo)
 
 		// Initialize ProductQueryService with its dependencies
 		f.productQueryService = service.NewProductQueryService(
@@ -65,10 +73,15 @@ func (f *ServiceFactory) initialize() {
 		f.productService = service.NewProductService(
 			productRepo,
 			categoryRepo,
-			attributeRepo,
+			f.productQueryService,
+			f.validatorService,
+			f.variantService,
+			f.productOptionService,
+			f.productAttributeService,
+			// TODO: Remove these once DeleteProduct is refactored
 			variantRepo,
 			optionRepo,
-			f.productQueryService,
+			attributeRepo,
 		)
 	})
 }

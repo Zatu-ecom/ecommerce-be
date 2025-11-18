@@ -13,8 +13,10 @@ import (
 type ProductOptionRepository interface {
 	// Option operations
 	CreateOption(option *entity.ProductOption) error
+	BulkCreateOptions(options []*entity.ProductOption) error
 	UpdateOption(option *entity.ProductOption) error
 	FindOptionByID(id uint) (*entity.ProductOption, error)
+	FindOptionByName(productID uint, optionName string) (*entity.ProductOption, error)
 	FindOptionsByProductID(productID uint) ([]entity.ProductOption, error)
 	FindOptionsByProductIDs(productIDs []uint) (map[uint][]entity.ProductOption, error)
 	DeleteOption(id uint) error
@@ -24,8 +26,10 @@ type ProductOptionRepository interface {
 	// Option value operations
 	CreateOptionValue(value *entity.ProductOptionValue) error
 	CreateOptionValues(values []entity.ProductOptionValue) error
+	BulkCreateOptionValues(values []*entity.ProductOptionValue) error
 	UpdateOptionValue(value *entity.ProductOptionValue) error
 	FindOptionValueByID(id uint) (*entity.ProductOptionValue, error)
+	FindOptionValueByValue(optionID uint, value string) (*entity.ProductOptionValue, error)
 	FindOptionValuesByOptionID(optionID uint) ([]entity.ProductOptionValue, error)
 	DeleteOptionValue(id uint) error
 	CheckOptionValueInUse(valueID uint) (bool, []uint, error)
@@ -57,6 +61,16 @@ func (r *ProductOptionRepositoryImpl) CreateOption(option *entity.ProductOption)
 	return r.db.Create(option).Error
 }
 
+// BulkCreateOptions creates multiple product options in a single INSERT query
+// Uses RETURNING clause to get generated IDs efficiently
+func (r *ProductOptionRepositoryImpl) BulkCreateOptions(options []*entity.ProductOption) error {
+	if len(options) == 0 {
+		return nil
+	}
+	// GORM's Create with slice automatically uses bulk insert and populates IDs
+	return r.db.Create(&options).Error
+}
+
 // UpdateOption updates an existing product option
 func (r *ProductOptionRepositoryImpl) UpdateOption(option *entity.ProductOption) error {
 	return r.db.Save(option).Error
@@ -72,6 +86,27 @@ func (r *ProductOptionRepositoryImpl) FindOptionByID(id uint) (*entity.ProductOp
 		}
 		return nil, err
 	}
+	return &option, nil
+}
+
+// FindOptionByName retrieves a product option by name for a specific product
+func (r *ProductOptionRepositoryImpl) FindOptionByName(
+	productID uint,
+	optionName string,
+) (*entity.ProductOption, error) {
+	var option entity.ProductOption
+	result := r.db.Where("product_id = ? AND name = ?", productID, optionName).First(&option)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, prodErrors.ErrProductOptionNotFound.WithMessagef(
+				"Product option not found: %s",
+				optionName,
+			)
+		}
+		return nil, result.Error
+	}
+
 	return &option, nil
 }
 
@@ -106,7 +141,6 @@ func (r *ProductOptionRepositoryImpl) FindOptionsByProductIDs(
 		}).
 		Order("product_id ASC, position ASC").
 		Find(&options).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +193,18 @@ func (r *ProductOptionRepositoryImpl) CreateOptionValues(values []entity.Product
 	return r.db.Create(&values).Error
 }
 
+// BulkCreateOptionValues creates multiple product option values in a single INSERT query
+// Uses RETURNING clause to get generated IDs efficiently
+func (r *ProductOptionRepositoryImpl) BulkCreateOptionValues(
+	values []*entity.ProductOptionValue,
+) error {
+	if len(values) == 0 {
+		return nil
+	}
+	// GORM's Create with slice automatically uses bulk insert and populates IDs
+	return r.db.Create(&values).Error
+}
+
 // UpdateOptionValue updates an existing product option value
 func (r *ProductOptionRepositoryImpl) UpdateOptionValue(value *entity.ProductOptionValue) error {
 	return r.db.Save(value).Error
@@ -177,6 +223,27 @@ func (r *ProductOptionRepositoryImpl) FindOptionValueByID(
 		return nil, err
 	}
 	return &value, nil
+}
+
+// FindOptionValueByValue retrieves an option value by its value string
+func (r *ProductOptionRepositoryImpl) FindOptionValueByValue(
+	optionID uint,
+	value string,
+) (*entity.ProductOptionValue, error) {
+	var optionValue entity.ProductOptionValue
+	result := r.db.Where("option_id = ? AND value = ?", optionID, value).First(&optionValue)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, prodErrors.ErrProductOptionValueNotFound.WithMessagef(
+				"Product option value not found: %s",
+				value,
+			)
+		}
+		return nil, result.Error
+	}
+
+	return &optionValue, nil
 }
 
 // FindOptionValuesByOptionID finds all values for an option

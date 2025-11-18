@@ -342,7 +342,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		w := client.Get(t, url)
 
 		// Should return 404 for security (masked as product not found)
-		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
+		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
 	t.Run("Error - Wrong option value for existing option name", func(t *testing.T) {

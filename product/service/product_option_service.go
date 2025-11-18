@@ -37,25 +37,40 @@ type ProductOptionService interface {
 		sellerID *uint,
 	) (*model.GetAvailableOptionsResponse, error)
 
+	// GetProductOptionsWithVariantCounts retrieves all options with their values and variant counts
+	// Used for detailed product views to show available options
+	GetProductOptionsWithVariantCounts(
+		productID uint,
+		sellerID *uint,
+	) ([]model.ProductOptionDetailResponse, error)
+
 	// GetProductsOptionsWithValues retrieves all options with their values for multiple products
 	// Batch operation to prevent N+1 queries
 	GetProductsOptionsWithValues(productIDs []uint) (map[uint][]entity.ProductOption, error)
+
+	// CreateOptionsBulk creates multiple product options with their values in bulk
+	// Returns models for immediate use in responses
+	CreateOptionsBulk(
+		productID uint,
+		sellerID uint,
+		requests []model.ProductOptionCreateRequest,
+	) ([]model.ProductOptionDetailResponse, error)
 }
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
 type ProductOptionServiceImpl struct {
-	optionRepo    repositories.ProductOptionRepository
-	productRepo   repositories.ProductRepository
+	optionRepo       repositories.ProductOptionRepository
+	validatorService ProductValidatorService
 }
 
 // NewProductOptionService creates a new instance of ProductOptionService
 func NewProductOptionService(
 	optionRepo repositories.ProductOptionRepository,
-	productRepo repositories.ProductRepository,
+	validatorService ProductValidatorService,
 ) ProductOptionService {
 	return &ProductOptionServiceImpl{
-		optionRepo:    optionRepo,
-		productRepo:   productRepo,
+		optionRepo:       optionRepo,
+		validatorService: validatorService,
 	}
 }
 
@@ -67,19 +82,10 @@ func (s *ProductOptionServiceImpl) CreateOption(
 	sellerId uint,
 	req model.ProductOptionCreateRequest,
 ) (*model.ProductOptionResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product exists and seller has access using validator service
+	sellerIDPtr := &sellerId
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
 	if err != nil {
-		return nil, err
-	}
-
-	// Validate product exists
-	if err := validator.ValidateProductExists(product); err != nil {
-		return nil, err
-	}
-
-	// Validate product belongs to seller
-	if err := validator.ValidateProductBelongsToSeller(product, sellerId); err != nil {
 		return nil, err
 	}
 
@@ -148,8 +154,9 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	sellerId uint,
 	req model.ProductOptionUpdateRequest,
 ) (*model.ProductOptionResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product exists and seller has access using validator service
+	sellerIDPtr := &sellerId
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +167,9 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 		return nil, err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerId, productID, product, option); err != nil {
-		return nil, err
+	// Validate option belongs to product (ownership already validated by validator service)
+	if option == nil || option.ProductID != productID {
+		return nil, prodErrors.ErrProductOptionMismatch
 	}
 
 	// Update option entity using factory
@@ -192,8 +199,9 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	sellerId uint,
 	optionID uint,
 ) error {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product exists and seller has access using validator service
+	sellerIDPtr := &sellerId
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
 	if err != nil {
 		return err
 	}
@@ -204,9 +212,9 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 		return err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerId, productID, product, option); err != nil {
-		return err
+	// Validate option belongs to product (ownership already validated by validator service)
+	if option == nil || option.ProductID != productID {
+		return prodErrors.ErrProductOptionMismatch
 	}
 
 	// Check if option is in use by variants
@@ -231,15 +239,10 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 	productID uint,
 	sellerID *uint,
 ) (*model.GetAvailableOptionsResponse, error) {
-	// Validate that the product exists and validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate that the product exists and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
 	if err != nil {
 		return nil, err
-	}
-
-	// Validate seller access: if sellerID is provided (non-admin), check ownership
-	if sellerID != nil && product.SellerID != *sellerID {
-		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Get all options with variant counts
@@ -255,11 +258,11 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 		values := make([]model.OptionValueResponse, 0, len(option.Values))
 
 		for _, value := range option.Values {
-		valueResponse := model.OptionValueResponse{
-			ValueID:      value.ID,
-			Value:        value.Value,
-			DisplayName:  helper.GetDisplayNameOrDefault(value.DisplayName, value.Value),
-			VariantCount: variantCounts[value.ID],
+			valueResponse := model.OptionValueResponse{
+				ValueID:      value.ID,
+				Value:        value.Value,
+				DisplayName:  helper.GetDisplayNameOrDefault(value.DisplayName, value.Value),
+				VariantCount: variantCounts[value.ID],
 				Position:     value.Position,
 			}
 
@@ -289,6 +292,32 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 }
 
 /***********************************************
+ *    GetProductOptionsWithVariantCounts       *
+ ***********************************************/
+// GetProductOptionsWithVariantCounts retrieves all options with their values and variant counts
+// Used for detailed product views to show available options
+func (s *ProductOptionServiceImpl) GetProductOptionsWithVariantCounts(
+	productID uint,
+	sellerID *uint,
+) ([]model.ProductOptionDetailResponse, error) {
+	// Validate product exists and seller has access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get options with variant counts from repository
+	productOptions, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response model using factory
+	options := factory.BuildProductOptionsDetailResponse(productOptions, variantCounts)
+	return options, nil
+}
+
+/***********************************************
  *         BulkUpdateOptions                   *
  ***********************************************/
 func (s *ProductOptionServiceImpl) BulkUpdateOptions(
@@ -296,19 +325,10 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 	sellerId uint,
 	req model.ProductOptionBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product exists and seller has access using validator service
+	sellerIDPtr := &sellerId
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
 	if err != nil {
-		return nil, err
-	}
-
-	// Validate product exists
-	if err := validator.ValidateProductExists(product); err != nil {
-		return nil, err
-	}
-
-	// Validate product belongs to seller
-	if err := validator.ValidateProductBelongsToSeller(product, sellerId); err != nil {
 		return nil, err
 	}
 
@@ -367,4 +387,112 @@ func (s *ProductOptionServiceImpl) GetProductsOptionsWithValues(
 ) (map[uint][]entity.ProductOption, error) {
 	// Use the option repository's batch method to fetch all options at once
 	return s.optionRepo.FindOptionsByProductIDs(productIDs)
+}
+
+/***********************************************
+ *         CreateOptionsBulk                   *
+ ***********************************************/
+// CreateOptionsBulk creates multiple product options with their values in bulk
+// TRUE BULK: Single INSERT for all options, single INSERT for all option values
+func (s *ProductOptionServiceImpl) CreateOptionsBulk(
+	productID uint,
+	sellerID uint,
+	requests []model.ProductOptionCreateRequest,
+) ([]model.ProductOptionDetailResponse, error) {
+	if len(requests) == 0 {
+		return []model.ProductOptionDetailResponse{}, nil
+	}
+
+	// Validate product exists and seller has access using validator service (single query)
+	sellerIDPtr := &sellerID
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch existing options for uniqueness validation (single query)
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build map of existing option names for quick lookup
+	existingNames := make(map[string]bool)
+	for _, opt := range existingOptions {
+		existingNames[opt.Name] = true
+	}
+
+	// Validate all option names are unique (against existing and within request)
+	requestNames := make(map[string]bool)
+	for _, req := range requests {
+		// Check against existing options
+		if existingNames[req.Name] {
+			return nil, prodErrors.ErrProductOptionNameExists
+		}
+		// Check for duplicates within request
+		if requestNames[req.Name] {
+			return nil, prodErrors.ErrProductOptionNameExists
+		}
+		requestNames[req.Name] = true
+	}
+
+	// Prepare all options for bulk insert
+	optionsToCreate := make([]*entity.ProductOption, 0, len(requests))
+
+	for _, req := range requests {
+		// Create option entity using factory
+		option := factory.CreateOptionFromRequest(productID, req)
+		optionsToCreate = append(optionsToCreate, option)
+	}
+
+	// ✅ TRUE BULK: Create ALL options in ONE query with RETURNING
+	if err := s.optionRepo.BulkCreateOptions(optionsToCreate); err != nil {
+		return nil, err
+	}
+
+	// Now prepare all option values with the generated option IDs
+	allOptionValues := make([]*entity.ProductOptionValue, 0)
+
+	for i, req := range requests {
+		option := optionsToCreate[i] // Has ID now from BulkCreateOptions
+
+		if len(req.Values) > 0 {
+			// Validate bulk values uniqueness within the request
+			valueSet := make(map[string]bool)
+			for _, v := range req.Values {
+				if valueSet[v.Value] {
+					return nil, prodErrors.ErrProductOptionValueExists
+				}
+				valueSet[v.Value] = true
+			}
+
+			// Create option values using factory
+			optionValues := factory.CreateOptionValuesFromRequests(option.ID, req.Values)
+
+			// Add to bulk insert list
+			for j := range optionValues {
+				allOptionValues = append(allOptionValues, &optionValues[j])
+			}
+
+			// Set values on option for return
+			option.Values = optionValues
+		}
+	}
+
+	// ✅ TRUE BULK: Insert ALL option values in ONE query
+	if len(allOptionValues) > 0 {
+		if err := s.optionRepo.BulkCreateOptionValues(allOptionValues); err != nil {
+			return nil, err
+		}
+	}
+
+	// Convert pointers to values for factory
+	createdOptions := make([]entity.ProductOption, 0, len(optionsToCreate))
+	for _, opt := range optionsToCreate {
+		createdOptions = append(createdOptions, *opt)
+	}
+
+	// Convert entities to models using factory (no variant counts yet)
+	emptyVariantCounts := make(map[uint]int)
+	return factory.BuildProductOptionsDetailResponse(createdOptions, emptyVariantCounts), nil
 }

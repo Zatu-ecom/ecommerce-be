@@ -44,10 +44,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-PRECISE-PRICE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -56,7 +56,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-PRECISE-PRICE-001-V1",
 					"price": 19.999999, // Many decimal places
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -91,10 +91,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-STD-PRICE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -103,7 +103,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-STD-PRICE-001-V1",
 					"price": 99.99, // Standard 2 decimal places
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -132,10 +132,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-UNICODE-JP-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -144,7 +144,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-UNICODE-JP-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -169,10 +169,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-UNICODE-FR-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -181,7 +181,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-UNICODE-FR-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -211,10 +211,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-LONG-URL-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -226,7 +226,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 						veryLongURL, // Very long URL (1000+ chars)
 					},
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -265,10 +265,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-NO-PURCHASE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -278,7 +278,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"price":         99.99,
 					"allowPurchase": allowPurchase, // Not purchasable
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -318,10 +318,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"longDescription":  "", // Empty optional field
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -330,7 +330,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-EMPTY-OPT-001-V1",
 					"price": 99.99,
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},
@@ -356,10 +356,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"baseSku":    "TEST-MAX-PRICE-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
@@ -368,7 +368,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 					"sku":   "TEST-MAX-PRICE-001-V1",
 					"price": 999999.99, // Very high price
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 			},

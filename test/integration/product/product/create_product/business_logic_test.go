@@ -44,11 +44,11 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			"baseSku":    "TEST-MULTI-DEFAULT-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "White", "displayName": "White"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "white", "displayName": "White"},
 					},
 				},
 			},
@@ -58,7 +58,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 					"price":     99.99,
 					"isDefault": isDefault, // First default
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
@@ -66,7 +66,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 					"price":     99.99,
 					"isDefault": isDefault, // Second default - last one wins
 					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "White"},
+						{"optionName": "color", "value": "white"},
 					},
 				},
 			},
@@ -112,19 +112,19 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			"baseSku":    "TEST-INVALID-COMBO-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
-						{"value": "White", "displayName": "White"},
+						{"value": "black", "displayName": "Black"},
+						{"value": "white", "displayName": "White"},
 					},
 				},
 				{
-					"name":        "Size",
+					"name":        "size",
 					"displayName": "Size",
 					"values": []map[string]interface{}{
-						{"value": "M", "displayName": "Medium"},
-						{"value": "L", "displayName": "Large"},
+						{"value": "m", "displayName": "Medium"},
+						{"value": "l", "displayName": "Large"},
 					},
 				},
 			},
@@ -134,10 +134,10 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 					"price": 99.99,
 					"options": []map[string]interface{}{
 						{
-							"optionName": "Color",
-							"value":      "Red",
+							"optionName": "color",
+							"value":      "red",
 						}, // Invalid: Red not in defined values
-						{"optionName": "Size", "value": "M"},
+						{"optionName": "size", "value": "m"},
 					},
 				},
 			},
@@ -159,26 +159,26 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			"baseSku":    "TEST-MISSING-OPT-001",
 			"options": []map[string]interface{}{
 				{
-					"name":        "Color",
+					"name":        "color",
 					"displayName": "Color",
 					"values": []map[string]interface{}{
-						{"value": "Black", "displayName": "Black"},
+						{"value": "black", "displayName": "Black"},
 					},
 				},
 				{
-					"name":        "Size",
+					"name":        "size",
 					"displayName": "Size",
 					"values": []map[string]interface{}{
-						{"value": "M", "displayName": "Medium"},
+						{"value": "m", "displayName": "Medium"},
 					},
 				},
 			},
 			"variants": []map[string]interface{}{
 				{
 					"sku":   "TEST-MISSING-OPT-001-V1",
-					"price": 99.99,
-					"options": []map[string]interface{}{
-						{"optionName": "Color", "value": "Black"},
+				"price": 299.99,
+				"options": []map[string]interface{}{
+					{"optionName": "color", "value": "black"},
 						// Missing Size option - should fail validation
 					},
 				},

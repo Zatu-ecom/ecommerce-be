@@ -1,12 +1,14 @@
 package service
 
 import (
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/utils/helper"
 	"ecommerce-be/product/validator"
 )
 
@@ -56,29 +58,37 @@ type VariantService interface {
 	// GetProductVariantAggregation retrieves aggregated variant data for a single product
 	GetProductVariantAggregation(productID uint) (*mapper.VariantAggregation, error)
 
-	// GetProductOptionsWithVariantCounts retrieves all options with their values for a product
-	// Used for detailed product views to show available options
-	GetProductOptionsWithVariantCounts(productID uint) ([]entity.ProductOption, map[uint]int, error)
-
 	// GetProductVariantsWithOptions retrieves all variants with their selected option values
 	// Optimized single query to prevent N+1 issues when fetching variant details
 	GetProductVariantsWithOptions(productID uint) ([]model.VariantDetailResponse, error)
+
+	// CreateVariantsBulk creates multiple variants at once with bulk option value linking
+	// Returns models for immediate use in responses
+	// Fetches product options internally for validation
+	CreateVariantsBulk(
+		productID uint,
+		sellerID uint,
+		requests []model.CreateVariantRequest,
+	) ([]model.VariantDetailResponse, error)
 }
 
 // VariantServiceImpl implements the VariantService interface
 type VariantServiceImpl struct {
-	variantRepo repositories.VariantRepository
-	productRepo repositories.ProductRepository
+	variantRepo      repositories.VariantRepository
+	optionService    ProductOptionService
+	validatorService ProductValidatorService
 }
 
 // NewVariantService creates a new instance of VariantService
 func NewVariantService(
 	variantRepo repositories.VariantRepository,
-	productRepo repositories.ProductRepository,
+	optionService ProductOptionService,
+	validatorService ProductValidatorService,
 ) VariantService {
 	return &VariantServiceImpl{
-		variantRepo: variantRepo,
-		productRepo: productRepo,
+		variantRepo:      variantRepo,
+		optionService:    optionService,
+		validatorService: validatorService,
 	}
 }
 
@@ -106,14 +116,9 @@ func (s *VariantServiceImpl) GetVariantByID(
 	productID, variantID uint,
 	sellerID uint,
 ) (*model.VariantDetailResponse, error) {
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, err
-	}
-
-	// Validate that the product exists and seller has access
-	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -135,7 +140,8 @@ func (s *VariantServiceImpl) GetVariantByID(
 	}
 
 	// Get product options and option values to build the response
-	selectedOptions, err := s.buildVariantOptions(variantOptionValues)
+	sellerIDPtr := &sellerID
+	selectedOptions, err := s.buildVariantOptions(productID, variantOptionValues, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -159,15 +165,10 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 		return nil, err
 	}
 
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
 	if err != nil {
 		return nil, err
-	}
-
-	// Validate seller access: if sellerID is provided (non-admin), check ownership
-	if sellerID != nil && product.SellerID != *sellerID {
-		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Find the variant by options
@@ -185,7 +186,7 @@ func (s *VariantServiceImpl) FindVariantByOptions(
 	}
 
 	// Get product options and option values to build the response
-	selectedOptions, err := s.buildVariantOptions(variantOptionValues)
+	selectedOptions, err := s.buildVariantOptions(productID, variantOptionValues, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,49 +201,57 @@ func (s *VariantServiceImpl) FindVariantByOptions(
  *    Helper Methods                           *
  ***********************************************/
 
-// buildVariantOptions builds the variant option response objects
+// buildVariantOptions builds the variant option response objects from variant option values
+// Uses ProductOptionService to get option details as models
 func (s *VariantServiceImpl) buildVariantOptions(
+	productID uint,
 	variantOptionValues []entity.VariantOptionValue,
+	sellerID *uint,
 ) ([]model.VariantOptionResponse, error) {
 	if len(variantOptionValues) == 0 {
 		return []model.VariantOptionResponse{}, nil
 	}
 
-	// Collect all unique option IDs and option value IDs
-	optionIDMap := make(map[uint]bool)
-	optionValueIDMap := make(map[uint]bool)
-
-	for _, vov := range variantOptionValues {
-		optionIDMap[vov.OptionID] = true
-		optionValueIDMap[vov.OptionValueID] = true
+	// Get all options with their values using service (returns models)
+	optionsResponse, err := s.optionService.GetAvailableOptions(productID, sellerID)
+	if err != nil {
+		return nil, err
 	}
 
-	// Fetch all product options for this product
-	productOptions := []entity.ProductOption{}
-	for optionID := range optionIDMap {
-		option, err := s.variantRepo.GetProductOptionByID(optionID)
-		if err != nil {
-			continue
+	// Build lookup maps from the response models
+	optionMap := make(map[uint]model.ProductOptionDetailResponse)
+	valueMap := make(map[uint]model.OptionValueResponse)
+
+	for _, opt := range optionsResponse.Options {
+		optionMap[opt.OptionID] = opt
+		for _, val := range opt.Values {
+			valueMap[val.ValueID] = val
 		}
-		productOptions = append(productOptions, *option)
 	}
 
-	// Fetch all option values
-	optionValues := []entity.ProductOptionValue{}
+	// Build variant option responses from the selected values
+	variantOptions := make([]model.VariantOptionResponse, 0, len(variantOptionValues))
 	for _, vov := range variantOptionValues {
-		optionValue, err := s.variantRepo.GetOptionValueByID(vov.OptionValueID)
-		if err != nil {
-			continue
+		opt, optExists := optionMap[vov.OptionID]
+		val, valExists := valueMap[vov.OptionValueID]
+
+		if optExists && valExists {
+			variantOption := model.VariantOptionResponse{
+				OptionID:          opt.OptionID,
+				OptionName:        opt.OptionName,
+				OptionDisplayName: opt.OptionDisplayName,
+				ValueID:           val.ValueID,
+				Value:             val.Value,
+				ValueDisplayName:  val.DisplayName,
+			}
+			if val.ColorCode != "" {
+				variantOption.ColorCode = val.ColorCode
+			}
+			variantOptions = append(variantOptions, variantOption)
 		}
-		optionValues = append(optionValues, *optionValue)
 	}
 
-	// Map to response
-	return factory.BuildVariantOptionResponses(
-		variantOptionValues,
-		productOptions,
-		optionValues,
-	), nil
+	return variantOptions, nil
 }
 
 /***********************************************
@@ -253,15 +262,28 @@ func (s *VariantServiceImpl) CreateVariant(
 	sellerID uint,
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate that the product exists and seller has access
-	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
+	// Get all available options using service
+	optionsResponse, err := s.optionService.GetAvailableOptions(productID, &sellerID)
+	if err != nil {
 		return nil, err
+	}
+
+	// Build lookup maps for validation
+	optionNameToID := make(map[string]uint)
+	optionValueMap := make(map[uint]map[string]uint) // optionID -> value -> valueID
+
+	for _, opt := range optionsResponse.Options {
+		optionNameToID[opt.OptionName] = opt.OptionID
+		optionValueMap[opt.OptionID] = make(map[string]uint)
+		for _, val := range opt.Values {
+			optionValueMap[opt.OptionID][val.Value] = val.ValueID
+		}
 	}
 
 	// Validate options and get option value IDs
@@ -269,31 +291,26 @@ func (s *VariantServiceImpl) CreateVariant(
 	optionsMap := make(map[string]string) // For checking duplicate combination
 
 	for _, optionInput := range request.Options {
-		// Fetch option by name
-		option, err := s.variantRepo.GetProductOptionByName(productID, optionInput.OptionName)
-		if err != nil {
-			return nil, err
+		// Find option ID by name
+		optionID, optExists := optionNameToID[optionInput.OptionName]
+		if !optExists {
+			return nil, prodErrors.ErrProductOptionNotFound.WithMessagef(
+				"Product option not found: %s",
+				optionInput.OptionName,
+			)
 		}
 
-		// Validate option exists and get option ID
-		optionID, err := validator.ValidateProductOptionExists(option)
-		if err != nil {
-			return nil, err
+		// Find option value ID
+		valueID, valExists := optionValueMap[optionID][optionInput.Value]
+		if !valExists {
+			return nil, prodErrors.ErrProductOptionValueNotFound.WithMessagef(
+				"Product option value not found: %s for option: %s",
+				optionInput.Value,
+				optionInput.OptionName,
+			)
 		}
 
-		// Fetch option value
-		optionValue, err := s.variantRepo.GetProductOptionValueByValue(*optionID, optionInput.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		// Validate option value exists and get option value ID
-		optionValueID, err := validator.ValidateProductOptionValueExists(optionValue)
-		if err != nil {
-			return nil, err
-		}
-
-		optionValueIDs[*optionID] = *optionValueID
+		optionValueIDs[optionID] = valueID
 		optionsMap[optionInput.OptionName] = optionInput.Value
 	}
 
@@ -331,14 +348,9 @@ func (s *VariantServiceImpl) UpdateVariant(
 	sellerID uint,
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, err
-	}
-
-	// Validate that the product exists and seller has access
-	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -377,14 +389,9 @@ func (s *VariantServiceImpl) UpdateVariant(
  *                DeleteVariant                *
  ***********************************************/
 func (s *VariantServiceImpl) DeleteVariant(productID, variantID uint, sellerID uint) error {
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return err
-	}
-
-	// Validate that the product exists and seller has access
-	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return err
 	}
 
@@ -425,14 +432,9 @@ func (s *VariantServiceImpl) BulkUpdateVariants(
 	productID, sellerID uint,
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
-	// Get product to validate seller access
-	product, err := s.productRepo.FindByID(productID)
+	// Get product and validate seller access using validator service
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, err
-	}
-
-	// Validate that the product exists and seller has access
-	if err := validator.ValidateVariantProductAndSeller(product, sellerID); err != nil {
 		return nil, err
 	}
 
@@ -544,15 +546,6 @@ func (s *VariantServiceImpl) GetProductVariantAggregation(
 	return s.variantRepo.GetProductVariantAggregation(productID)
 }
 
-// GetProductOptionsWithVariantCounts retrieves all options with their values for a product
-// Returns options and a map of variant counts per option value
-// Used for detailed product views to show available options
-func (s *VariantServiceImpl) GetProductOptionsWithVariantCounts(
-	productID uint,
-) ([]entity.ProductOption, map[uint]int, error) {
-	return s.variantRepo.GetProductOptionsWithVariantCounts(productID)
-}
-
 // GetProductVariantsWithOptions retrieves all variants with their selected option values
 // Optimized with a single query to prevent N+1 issues when fetching variant details
 // Returns complete variant information including selected options for each variant
@@ -566,4 +559,356 @@ func (s *VariantServiceImpl) GetProductVariantsWithOptions(
 		return response, nil
 	}
 	return nil, err
+}
+
+/***********************************************
+ *          CreateVariantsBulk                 *
+ ***********************************************/
+// CreateVariantsBulk creates multiple variants at once for a product
+// Handles default variant logic ("last one wins") and bulk option value linking
+// Returns models for immediate use in responses
+func (s *VariantServiceImpl) CreateVariantsBulk(
+	productID uint,
+	sellerID uint,
+	requests []model.CreateVariantRequest,
+) ([]model.VariantDetailResponse, error) {
+	if len(requests) == 0 {
+		return nil, commonError.ErrValidation.WithMessage("at least one variant is required")
+	}
+
+	// Validate product ownership
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch product options for validation (service-to-service call)
+	productOptions, err := s.fetchProductOptionsForValidation(productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build lookup maps for options and values
+	optionMap, optionValueMap := s.buildOptionLookupMaps(productOptions)
+
+	// Find last default variant index and handle default logic
+	lastDefaultIndex := s.findLastDefaultVariantIndex(requests)
+	if lastDefaultIndex != -1 {
+		if err := s.handleDefaultVariantLogic(productID, true); err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate and map variant option combinations
+	variantOptionCombinations, err := s.validateAndMapVariantOptions(
+		requests,
+		productOptions,
+		optionMap,
+		optionValueMap,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create variants and link to option values
+	createdVariants, err := s.createVariantsAndLinkOptions(
+		productID,
+		requests,
+		lastDefaultIndex,
+		variantOptionCombinations,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert entities to models using factory
+	return s.buildVariantDetailResponses(createdVariants, variantOptionCombinations, productOptions), nil
+}
+
+// buildOptionLookupMaps builds lookup maps for quick option and value access
+func (s *VariantServiceImpl) buildOptionLookupMaps(
+	productOptions []entity.ProductOption,
+) (map[string]*entity.ProductOption, map[uint]map[string]uint) {
+	optionMap := make(map[string]*entity.ProductOption)
+	optionValueMap := make(map[uint]map[string]uint)
+
+	for i := range productOptions {
+		optionMap[productOptions[i].Name] = &productOptions[i]
+		optionValueMap[productOptions[i].ID] = make(map[string]uint)
+
+		for _, val := range productOptions[i].Values {
+			optionValueMap[productOptions[i].ID][val.Value] = val.ID
+		}
+	}
+
+	return optionMap, optionValueMap
+}
+
+// findLastDefaultVariantIndex finds the last variant marked as default
+// Returns -1 if no variant is explicitly marked as default
+func (s *VariantServiceImpl) findLastDefaultVariantIndex(
+	requests []model.CreateVariantRequest,
+) int {
+	lastDefaultIndex := -1
+	for i := range requests {
+		if requests[i].IsDefault != nil && *requests[i].IsDefault {
+			lastDefaultIndex = i
+		}
+	}
+	return lastDefaultIndex
+}
+
+// validateAndMapVariantOptions validates all variant option combinations and maps them to IDs
+// Returns a map of variant index to option value IDs for bulk linking
+func (s *VariantServiceImpl) validateAndMapVariantOptions(
+	requests []model.CreateVariantRequest,
+	productOptions []entity.ProductOption,
+	optionMap map[string]*entity.ProductOption,
+	optionValueMap map[uint]map[string]uint,
+) ([]map[uint]uint, error) {
+	combinationSet := make(map[string]bool)
+	variantOptionCombinations := make([]map[uint]uint, len(requests))
+
+	for i, req := range requests {
+		if len(req.Options) == 0 {
+			continue
+		}
+
+		// Validate all required options are provided
+		if len(productOptions) > 0 && len(req.Options) != len(productOptions) {
+			return nil, commonError.ErrValidation.WithMessagef(
+				"variant must specify all product options (%d required, %d provided)",
+				len(productOptions),
+				len(req.Options),
+			)
+		}
+
+		// Map options to IDs and build combination key
+		optionValueIDs, combinationKey, err := s.mapVariantOptionsToIDs(
+			req.Options,
+			optionMap,
+			optionValueMap,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check for duplicate combinations
+		if combinationSet[combinationKey] {
+			return nil, prodErrors.ErrVariantCombinationExists
+		}
+		combinationSet[combinationKey] = true
+		variantOptionCombinations[i] = optionValueIDs
+	}
+
+	return variantOptionCombinations, nil
+}
+
+// mapVariantOptionsToIDs maps variant option inputs to option and value IDs
+// Returns the option value ID map and a combination key for uniqueness checking
+func (s *VariantServiceImpl) mapVariantOptionsToIDs(
+	options []model.VariantOptionInput,
+	optionMap map[string]*entity.ProductOption,
+	optionValueMap map[uint]map[string]uint,
+) (map[uint]uint, string, error) {
+	optionValueIDs := make(map[uint]uint)
+	combinationKey := ""
+
+	for _, optInput := range options {
+		option, exists := optionMap[optInput.OptionName]
+		if !exists {
+			return nil, "", commonError.ErrValidation.WithMessagef(
+				"option not found: %s",
+				optInput.OptionName,
+			)
+		}
+
+		valueID, exists := optionValueMap[option.ID][optInput.Value]
+		if !exists {
+			return nil, "", commonError.ErrValidation.WithMessagef(
+				"option value not found: %s for option: %s",
+				optInput.Value,
+				optInput.OptionName,
+			)
+		}
+
+		optionValueIDs[option.ID] = valueID
+		combinationKey += optInput.OptionName + ":" + optInput.Value + ";"
+	}
+
+	return optionValueIDs, combinationKey, nil
+}
+
+// createVariantsAndLinkOptions creates all variants and links them to option values in bulk
+// TRUE BULK: Single INSERT for all variants, single INSERT for all option values
+func (s *VariantServiceImpl) createVariantsAndLinkOptions(
+	productID uint,
+	requests []model.CreateVariantRequest,
+	lastDefaultIndex int,
+	variantOptionCombinations []map[uint]uint,
+) ([]entity.ProductVariant, error) {
+	// Prepare all variants for bulk insert
+	variantsToCreate := make([]*entity.ProductVariant, 0, len(requests))
+
+	for i, req := range requests {
+		// Determine default value based on "last one wins" rule
+		isDefault := s.calculateIsDefault(i, lastDefaultIndex)
+
+		// Create variant entity using factory
+		variant := factory.CreateVariantFromRequest(productID, &req)
+		variant.IsDefault = isDefault
+
+		variantsToCreate = append(variantsToCreate, variant)
+	}
+
+	// ✅ TRUE BULK: Create ALL variants in ONE query with RETURNING
+	if err := s.variantRepo.BulkCreateVariants(variantsToCreate); err != nil {
+		return nil, err
+	}
+
+	// Now prepare variant option values with the generated IDs
+	allVariantOptionValues := make([]entity.VariantOptionValue, 0)
+
+	for i, variant := range variantsToCreate {
+		// Prepare variant option values for bulk insert
+		if optionValueIDs := variantOptionCombinations[i]; len(optionValueIDs) > 0 {
+			for optionID, valueID := range optionValueIDs {
+				allVariantOptionValues = append(allVariantOptionValues, entity.VariantOptionValue{
+					VariantID:     variant.ID, // ID populated from BulkCreateVariants
+					OptionID:      optionID,
+					OptionValueID: valueID,
+				})
+			}
+		}
+	}
+
+	// ✅ TRUE BULK: Insert all variant option values in ONE query
+	if len(allVariantOptionValues) > 0 {
+		if err := s.variantRepo.CreateVariantOptionValues(allVariantOptionValues); err != nil {
+			return nil, err
+		}
+	}
+
+	// Convert pointers back to values for return
+	createdVariants := make([]entity.ProductVariant, 0, len(variantsToCreate))
+	for _, v := range variantsToCreate {
+		createdVariants = append(createdVariants, *v)
+	}
+
+	return createdVariants, nil
+}
+
+// calculateIsDefault determines if a variant should be default based on "last one wins" rule
+func (s *VariantServiceImpl) calculateIsDefault(index, lastDefaultIndex int) bool {
+	if lastDefaultIndex != -1 {
+		return index == lastDefaultIndex
+	}
+	// No explicit defaults, first variant is default
+	return index == 0
+}
+
+// buildVariantDetailResponses converts created variants to models
+// Maps variant options using the combinations and product options data
+func (s *VariantServiceImpl) buildVariantDetailResponses(
+	variants []entity.ProductVariant,
+	variantOptionCombinations []map[uint]uint,
+	productOptions []entity.ProductOption,
+) []model.VariantDetailResponse {
+	// Build option lookup maps for quick access
+	optionMap := make(map[uint]*entity.ProductOption)
+	optionValueMap := make(map[uint]*entity.ProductOptionValue)
+
+	for i := range productOptions {
+		optionMap[productOptions[i].ID] = &productOptions[i]
+		for j := range productOptions[i].Values {
+			optionValueMap[productOptions[i].Values[j].ID] = &productOptions[i].Values[j]
+		}
+	}
+
+	// Build variant responses
+	responses := make([]model.VariantDetailResponse, 0, len(variants))
+
+	for i, variant := range variants {
+		variantResp := model.VariantDetailResponse{
+			ID:              variant.ID,
+			SKU:             variant.SKU,
+			Price:           variant.Price,
+			Images:          variant.Images,
+			AllowPurchase:   variant.AllowPurchase,
+			IsPopular:       variant.IsPopular,
+			IsDefault:       variant.IsDefault,
+			SelectedOptions: []model.VariantOptionResponse{},
+			CreatedAt:       helper.FormatTimestamp(variant.CreatedAt),
+			UpdatedAt:       helper.FormatTimestamp(variant.UpdatedAt),
+		}
+
+		// Build selected options from combinations
+		if optionValueIDs := variantOptionCombinations[i]; len(optionValueIDs) > 0 {
+			for optionID, valueID := range optionValueIDs {
+				option := optionMap[optionID]
+				value := optionValueMap[valueID]
+
+				if option != nil && value != nil {
+					optionResp := model.VariantOptionResponse{
+						OptionID:          option.ID,
+						OptionName:        option.Name,
+						OptionDisplayName: option.DisplayName,
+						ValueID:           value.ID,
+						Value:             value.Value,
+						ValueDisplayName:  value.DisplayName,
+						ColorCode:         value.ColorCode,
+					}
+					variantResp.SelectedOptions = append(variantResp.SelectedOptions, optionResp)
+				}
+			}
+		}
+
+		responses = append(responses, variantResp)
+	}
+
+	return responses
+}
+
+// fetchProductOptionsForValidation fetches product options as entities for variant validation
+// Uses the option service's available method and converts back to entities
+func (s *VariantServiceImpl) fetchProductOptionsForValidation(
+	productID uint,
+	sellerID uint,
+) ([]entity.ProductOption, error) {
+	// Use option service to get available options
+	sellerIDPtr := &sellerID
+	optionsResponse, err := s.optionService.GetAvailableOptions(productID, sellerIDPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert response back to entities for validation
+	// This is temporary - options are already validated in database
+	productOptions := make([]entity.ProductOption, 0, len(optionsResponse.Options))
+	for _, optResp := range optionsResponse.Options {
+		opt := entity.ProductOption{
+			ProductID:   productID,
+			Name:        optResp.OptionName,
+			DisplayName: optResp.OptionDisplayName,
+			Position:    optResp.Position,
+			Values:      make([]entity.ProductOptionValue, 0, len(optResp.Values)),
+		}
+		opt.ID = optResp.OptionID // Set BaseEntity ID
+
+		for _, valResp := range optResp.Values {
+			val := entity.ProductOptionValue{
+				OptionID:    optResp.OptionID,
+				Value:       valResp.Value,
+				DisplayName: valResp.DisplayName,
+				ColorCode:   valResp.ColorCode,
+				Position:    valResp.Position,
+			}
+			val.ID = valResp.ValueID // Set BaseEntity ID
+			opt.Values = append(opt.Values, val)
+		}
+
+		productOptions = append(productOptions, opt)
+	}
+
+	return productOptions, nil
 }

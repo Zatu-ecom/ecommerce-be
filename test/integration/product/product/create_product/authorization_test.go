@@ -37,10 +37,10 @@ func TestCreateProductAuthorization(t *testing.T) {
 		"baseSku":    "TEST-AUTH-001",
 		"options": []map[string]interface{}{
 			{
-				"name":        "Color",
+				"name":        "color",
 				"displayName": "Color",
 				"values": []map[string]interface{}{
-					{"value": "Black", "displayName": "Black"},
+					{"value": "black", "displayName": "Black"},
 				},
 			},
 		},
@@ -49,7 +49,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 				"sku":   "TEST-AUTH-001-V1",
 				"price": 99.99,
 				"options": []map[string]interface{}{
-					{"optionName": "Color", "value": "Black"},
+					{"optionName": "color", "value": "black"},
 				},
 			},
 		},
