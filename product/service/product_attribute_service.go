@@ -47,6 +47,9 @@ type ProductAttributeService interface {
 		sellerID uint,
 		requests []model.ProductAttributeRequest,
 	) ([]model.ProductAttributeResponse, error)
+
+	// DeleteAttributesByProductID deletes all product attributes for a product
+	DeleteAttributesByProductID(productID uint) error
 }
 
 // ProductAttributeServiceImpl implements the ProductAttributeService interface
@@ -466,4 +469,9 @@ func (s *ProductAttributeServiceImpl) convertAttributesToModels(
 		}
 	}
 	return responses
+}
+
+// DeleteAttributesByProductID deletes all product attributes for a product
+func (s *ProductAttributeServiceImpl) DeleteAttributesByProductID(productID uint) error {
+	return s.attributeRepo.DeleteProductAttributesByProductID(productID)
 }

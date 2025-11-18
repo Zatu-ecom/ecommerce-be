@@ -38,10 +38,6 @@ type ProductServiceImpl struct {
 	variantService          VariantService
 	productOptionService    ProductOptionService
 	productAttributeService ProductAttributeService
-	// TODO: Remove these once DeleteProduct is refactored to use services
-	variantRepo   repositories.VariantRepository
-	optionRepo    repositories.ProductOptionRepository
-	attributeRepo repositories.AttributeDefinitionRepository
 }
 
 // NewProductService creates a new instance of ProductService
@@ -53,10 +49,6 @@ func NewProductService(
 	variantService VariantService,
 	productOptionService ProductOptionService,
 	productAttributeService ProductAttributeService,
-	// TODO: Remove these once DeleteProduct is refactored
-	variantRepo repositories.VariantRepository,
-	optionRepo repositories.ProductOptionRepository,
-	attributeRepo repositories.AttributeDefinitionRepository,
 ) ProductService {
 	return &ProductServiceImpl{
 		productRepo:             productRepo,
@@ -66,85 +58,132 @@ func NewProductService(
 		variantService:          variantService,
 		productOptionService:    productOptionService,
 		productAttributeService: productAttributeService,
-		variantRepo:             variantRepo,
-		optionRepo:              optionRepo,
-		attributeRepo:           attributeRepo,
 	}
 }
 
 /***********************************************
  *    CreateProduct creates a new product      *
- *    Implements PRD Section 3.1.3             *
  ***********************************************/
+
+type productCreationResult struct {
+	product        *entity.Product
+	category       *entity.Category
+	options        []model.ProductOptionDetailResponse
+	variants       []model.VariantDetailResponse
+	attributes     []model.ProductAttributeResponse
+	packageOptions []entity.PackageOption
+}
+
 func (s *ProductServiceImpl) CreateProduct(
 	req model.ProductCreateRequest,
 	sellerID uint,
 ) (*model.ProductResponse, error) {
-	var product *entity.Product
-	var category *entity.Category
-	var optionsModel []model.ProductOptionDetailResponse
-	var variantsModel []model.VariantDetailResponse
-	var attributesModel []model.ProductAttributeResponse
-	var packageOptions []entity.PackageOption
+	var result productCreationResult
 
 	err := db.Atomic(func(tx *gorm.DB) error {
-		// Fetch category for validation
-		var err error
-		category, err = s.categoryRepo.FindByID(req.CategoryID)
-		if err != nil {
-			return err
-		}
-
-		// Validate request
-		if err := validator.ValidateProductCreateRequest(req, category); err != nil {
-			return err
-		}
-
-		// Create product
-		product = factory.CreateProductFromRequest(req, sellerID)
-		if err := s.productRepo.Create(product); err != nil {
-			return err
-		}
-
-		// Create options (returns models)
-		if len(req.Options) > 0 {
-			optionsModel, err = s.productOptionService.CreateOptionsBulk(product.ID, sellerID, req.Options)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Create variants (returns models)
-		variantsModel, err = s.variantService.CreateVariantsBulk(product.ID, sellerID, req.Variants)
-		if err != nil {
-			return err
-		}
-
-		// Create attributes (returns models)
-		if len(req.Attributes) > 0 {
-			attributesModel, err = s.productAttributeService.CreateProductAttributesBulk(product.ID, sellerID, req.Attributes)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Create package options
-		if len(req.PackageOptions) > 0 {
-			packageOptions, err = s.createPackageOption(product.ID, req.PackageOptions)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return s.executeProductCreation(&result, req, sellerID)
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Build final response from models (no extra DB query!)
-	product.Category = category
-	return s.buildProductResponseFromModels(product, variantsModel, optionsModel, attributesModel, packageOptions), nil
+	result.product.Category = result.category
+	return s.buildProductResponseFromModels(
+		result.product,
+		result.variants,
+		result.options,
+		result.attributes,
+		result.packageOptions,
+	), nil
+}
+
+// executeProductCreation orchestrates all product creation steps in transaction
+func (s *ProductServiceImpl) executeProductCreation(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
+	// Validate and create base product
+	if err := s.validateAndCreateProduct(result, req, sellerID); err != nil {
+		return err
+	}
+
+	// Create all associated entities
+	return s.createProductAssociations(result, req, sellerID)
+}
+
+// validateAndCreateProduct validates request and creates base product entity
+func (s *ProductServiceImpl) validateAndCreateProduct(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
+	category, err := s.categoryRepo.FindByID(req.CategoryID)
+	if err != nil {
+		return err
+	}
+
+	if err := validator.ValidateProductCreateRequest(req, category); err != nil {
+		return err
+	}
+
+	product := factory.CreateProductFromRequest(req, sellerID)
+	if err := s.productRepo.Create(product); err != nil {
+		return err
+	}
+
+	result.product = product
+	result.category = category
+	return nil
+}
+
+// createProductAssociations creates options, variants, attributes, and package options
+func (s *ProductServiceImpl) createProductAssociations(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
+	productID := result.product.ID
+
+	// Create options if provided
+	if len(req.Options) > 0 {
+		options, err := s.productOptionService.CreateOptionsBulk(productID, sellerID, req.Options)
+		if err != nil {
+			return err
+		}
+		result.options = options
+	}
+
+	// Create variants (required)
+	variants, err := s.variantService.CreateVariantsBulk(productID, sellerID, req.Variants)
+	if err != nil {
+		return err
+	}
+	result.variants = variants
+
+	// Create attributes if provided
+	if len(req.Attributes) > 0 {
+		attributes, err := s.productAttributeService.CreateProductAttributesBulk(
+			productID,
+			sellerID,
+			req.Attributes,
+		)
+		if err != nil {
+			return err
+		}
+		result.attributes = attributes
+	}
+
+	// Create package options if provided
+	if len(req.PackageOptions) > 0 {
+		packageOptions, err := s.createPackageOption(productID, req.PackageOptions)
+		if err != nil {
+			return err
+		}
+		result.packageOptions = packageOptions
+	}
+
+	return nil
 }
 
 // buildProductResponseFromModels combines models from different services into final product response
@@ -172,7 +211,9 @@ func (s *ProductServiceImpl) buildProductResponseFromModels(
 }
 
 // calculateVariantAggFromModels calculates aggregation data from variant models
-func calculateVariantAggFromModels(variants []model.VariantDetailResponse) *mapper.VariantAggregation {
+func calculateVariantAggFromModels(
+	variants []model.VariantDetailResponse,
+) *mapper.VariantAggregation {
 	agg := &mapper.VariantAggregation{
 		HasVariants:   len(variants) > 0,
 		TotalVariants: len(variants),
@@ -288,19 +329,17 @@ func (s *ProductServiceImpl) UpdateProduct(
 /***************************************************
 * Deletes a product and all associated data        *
 * Implements PRD Section 3.1.5                     *
-* Cascading deletes:                               *
-* - Variants                                       *
-* - Variant option values                          *
-* - Product options                                *
-* - Product option values                          *
-* - Product attributes                             *
-* - Package options                                *
+* Cascading deletes handled by respective services:*
+* - Variants (via VariantService)                  *
+* - Product options (via ProductOptionService)     *
+* - Product attributes (via ProductAttributeService)*
+* - Package options (direct)                       *
 ****************************************************/
 func (s *ProductServiceImpl) DeleteProduct(
 	id uint,
 	sellerId *uint,
 ) error {
-	// Verify product exists and validate ownership using validator service
+	// Verify product exists and validate ownership
 	_, err := s.validatorService.GetAndValidateProductOwnership(id, sellerId)
 	if err != nil {
 		return err
@@ -308,66 +347,27 @@ func (s *ProductServiceImpl) DeleteProduct(
 
 	// Use atomic transaction to delete everything
 	return db.Atomic(func(tx *gorm.DB) error {
-		// Step 1: Get all variants for this product
-		variants, err := s.variantRepo.FindVariantsByProductID(id)
-		if err != nil {
+		// Delete variants and their associated data (variant_option_values)
+		if err := s.variantService.DeleteVariantsByProductID(id); err != nil {
 			return err
 		}
 
-		// Step 2: Delete variant option values for all variants
-		if len(variants) > 0 {
-			variantIDs := make([]uint, len(variants))
-			for i, v := range variants {
-				variantIDs[i] = v.ID
-			}
-
-			// Delete all variant option values
-			if err := s.variantRepo.DeleteVariantOptionValuesByVariantIDs(variantIDs); err != nil {
-				return err
-			}
-
-			// Delete all variants
-			if err := s.variantRepo.DeleteVariantsByProductID(id); err != nil {
-				return err
-			}
-		}
-
-		// Step 3: Get all product options
-		productOptions, err := s.optionRepo.FindOptionsByProductID(id)
-		if err != nil && err != gorm.ErrRecordNotFound {
+		// Delete product options and their values
+		if err := s.productOptionService.DeleteOptionsByProductID(id); err != nil {
 			return err
 		}
 
-		// Step 4: Delete product option values and options
-		if len(productOptions) > 0 {
-			for _, option := range productOptions {
-				// Delete option values (CASCADE should handle, but explicit is safer)
-				if err := s.optionRepo.DeleteOptionValuesByOptionID(option.ID); err != nil {
-					return err
-				}
-
-				// Delete the option itself
-				if err := s.optionRepo.DeleteOption(option.ID); err != nil {
-					return err
-				}
-			}
-		}
-
-		// Step 5: Delete product attributes
-		if err := s.attributeRepo.DeleteProductAttributesByProductID(id); err != nil {
+		// Delete product attributes
+		if err := s.productAttributeService.DeleteAttributesByProductID(id); err != nil {
 			return err
 		}
 
-		// Step 6: Delete package options
+		// Delete package options (no separate service yet)
 		if err := s.productRepo.DeletePackageOptionsByProductID(id); err != nil {
 			return err
 		}
 
-		// Step 7: Finally, delete the product itself
-		if err := s.productRepo.Delete(id); err != nil {
-			return err
-		}
-
-		return nil
+		// Finally, delete the product itself
+		return s.productRepo.Delete(id)
 	})
 }

@@ -70,6 +70,10 @@ type VariantService interface {
 		sellerID uint,
 		requests []model.CreateVariantRequest,
 	) ([]model.VariantDetailResponse, error)
+
+	// DeleteVariantsByProductID deletes all variants and their associated data for a product
+	// Handles cascade deletion of variant_option_values
+	DeleteVariantsByProductID(productID uint) error
 }
 
 // VariantServiceImpl implements the VariantService interface
@@ -622,7 +626,11 @@ func (s *VariantServiceImpl) CreateVariantsBulk(
 	}
 
 	// Convert entities to models using factory
-	return s.buildVariantDetailResponses(createdVariants, variantOptionCombinations, productOptions), nil
+	return s.buildVariantDetailResponses(
+		createdVariants,
+		variantOptionCombinations,
+		productOptions,
+	), nil
 }
 
 // buildOptionLookupMaps builds lookup maps for quick option and value access
@@ -911,4 +919,32 @@ func (s *VariantServiceImpl) fetchProductOptionsForValidation(
 	}
 
 	return productOptions, nil
+}
+
+// DeleteVariantsByProductID deletes all variants and their associated data for a product
+// Handles cascade deletion of variant_option_values
+func (s *VariantServiceImpl) DeleteVariantsByProductID(productID uint) error {
+	// Get all variants for this product
+	variants, err := s.variantRepo.FindVariantsByProductID(productID)
+	if err != nil {
+		return err
+	}
+
+	if len(variants) == 0 {
+		return nil // No variants to delete
+	}
+
+	// Collect all variant IDs
+	variantIDs := make([]uint, len(variants))
+	for i, v := range variants {
+		variantIDs[i] = v.ID
+	}
+
+	// Delete all variant option values first (foreign key constraint)
+	if err := s.variantRepo.DeleteVariantOptionValuesByVariantIDs(variantIDs); err != nil {
+		return err
+	}
+
+	// Delete all variants
+	return s.variantRepo.DeleteVariantsByProductID(productID)
 }

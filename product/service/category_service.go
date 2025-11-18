@@ -56,9 +56,9 @@ type CategoryService interface {
 
 // CategoryServiceImpl implements the CategoryService interface
 type CategoryServiceImpl struct {
-	categoryRepo     repositories.CategoryRepository
-	productRepo      repositories.ProductRepository
-	attributeRepo    repositories.AttributeDefinitionRepository
+	categoryRepo  repositories.CategoryRepository
+	productRepo   repositories.ProductRepository
+	attributeRepo repositories.AttributeDefinitionRepository
 }
 
 // NewCategoryService creates a new instance of CategoryService
@@ -68,9 +68,9 @@ func NewCategoryService(
 	attributeRepo repositories.AttributeDefinitionRepository,
 ) CategoryService {
 	return &CategoryServiceImpl{
-		categoryRepo:     categoryRepo,
-		productRepo:      productRepo,
-		attributeRepo:    attributeRepo,
+		categoryRepo:  categoryRepo,
+		productRepo:   productRepo,
+		attributeRepo: attributeRepo,
 	}
 }
 

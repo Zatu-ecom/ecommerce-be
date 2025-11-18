@@ -78,10 +78,6 @@ func (f *ServiceFactory) initialize() {
 			f.variantService,
 			f.productOptionService,
 			f.productAttributeService,
-			// TODO: Remove these once DeleteProduct is refactored
-			variantRepo,
-			optionRepo,
-			attributeRepo,
 		)
 	})
 }

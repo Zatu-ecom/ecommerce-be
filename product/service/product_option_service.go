@@ -48,6 +48,10 @@ type ProductOptionService interface {
 	// Batch operation to prevent N+1 queries
 	GetProductsOptionsWithValues(productIDs []uint) (map[uint][]entity.ProductOption, error)
 
+	// DeleteOptionsByProductID deletes all product options and their values for a product
+	// Handles cascade deletion of option_values
+	DeleteOptionsByProductID(productID uint) error
+
 	// CreateOptionsBulk creates multiple product options with their values in bulk
 	// Returns models for immediate use in responses
 	CreateOptionsBulk(
@@ -230,6 +234,35 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 
 	// Delete option (cascade deletes option values)
 	return s.optionRepo.DeleteOption(optionID)
+}
+
+// DeleteOptionsByProductID deletes all product options and their values for a product
+// Handles cascade deletion of option_values
+func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(productID uint) error {
+	// Get all product options
+	productOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	if err != nil {
+		return nil // If error or no options, nothing to delete
+	}
+
+	if len(productOptions) == 0 {
+		return nil
+	}
+
+	// Delete each option and its values
+	for _, option := range productOptions {
+		// Delete option values (CASCADE should handle, but explicit is safer)
+		if err := s.optionRepo.DeleteOptionValuesByOptionID(option.ID); err != nil {
+			return err
+		}
+
+		// Delete the option itself
+		if err := s.optionRepo.DeleteOption(option.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 /***********************************************
