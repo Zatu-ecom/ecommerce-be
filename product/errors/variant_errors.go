@@ -45,6 +45,20 @@ var (
 		Message:    utils.LAST_VARIANT_DELETE_NOT_ALLOWED_MSG,
 	}
 
+	// ErrVariantImageLimitExceeded is returned when variant has more than 20 images
+	ErrVariantImageLimitExceeded = &commonerrors.AppError{
+		StatusCode: http.StatusBadRequest,
+		Code:       "VARIANT_IMAGE_LIMIT_EXCEEDED",
+		Message:    "Variant cannot have more than 20 images",
+	}
+
+	// ErrVariantSKURequired is returned when SKU is empty or whitespace
+	ErrVariantSKURequired = &commonerrors.AppError{
+		StatusCode: http.StatusBadRequest,
+		Code:       "VARIANT_SKU_REQUIRED",
+		Message:    "SKU is required and cannot be empty",
+	}
+
 	// ErrInvalidStockOperation is returned when an invalid stock operation is requested
 	ErrInvalidStockOperation = &commonerrors.AppError{
 		StatusCode: http.StatusBadRequest,

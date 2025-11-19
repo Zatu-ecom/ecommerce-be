@@ -15,6 +15,8 @@ type ServiceFactory struct {
 	productService          service.ProductService
 	productQueryService     service.ProductQueryService
 	variantService          service.VariantService
+	variantQueryService     service.VariantQueryService
+	variantBulkService      service.VariantBulkService
 	productAttributeService service.ProductAttributeService
 	productOptionService    service.ProductOptionService
 	optionValueService      service.ProductOptionValueService
@@ -42,16 +44,32 @@ func (f *ServiceFactory) initialize() {
 		// Initialize validator service first (used by other services)
 		f.validatorService = service.NewProductValidatorService(productRepo)
 
-		// Initialize product option service (used by variant service)
+		// Initialize product option service (used by variant services)
 		f.productOptionService = service.NewProductOptionService(optionRepo, f.validatorService)
 		f.optionValueService = service.NewProductOptionValueService(optionRepo, productRepo)
 
-		// Initialize services with dependencies
-		f.variantService = service.NewVariantService(
+		// Initialize VariantQueryService (query operations only - no circular dependencies)
+		f.variantQueryService = service.NewVariantQueryService(
 			variantRepo,
 			f.productOptionService,
 			f.validatorService,
 		)
+
+		// Initialize VariantService with VariantQueryService dependency
+		f.variantService = service.NewVariantService(
+			variantRepo,
+			f.productOptionService,
+			f.validatorService,
+			f.variantQueryService,
+		)
+
+		// Initialize VariantBulkService for bulk operations
+		f.variantBulkService = service.NewVariantBulkService(
+			variantRepo,
+			f.productOptionService,
+			f.validatorService,
+		)
+
 		f.categoryService = service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
 		f.attributeService = service.NewAttributeDefinitionService(attributeRepo)
 		f.productAttributeService = service.NewProductAttributeService(
@@ -60,10 +78,10 @@ func (f *ServiceFactory) initialize() {
 			attributeRepo,
 		)
 
-		// Initialize ProductQueryService with its dependencies
+		// Initialize ProductQueryService with VariantQueryService
 		f.productQueryService = service.NewProductQueryService(
 			productRepo,
-			f.variantService,
+			f.variantQueryService,
 			f.categoryService,
 			f.productAttributeService,
 			f.productOptionService,
@@ -76,6 +94,7 @@ func (f *ServiceFactory) initialize() {
 			f.productQueryService,
 			f.validatorService,
 			f.variantService,
+			f.variantBulkService,
 			f.productOptionService,
 			f.productAttributeService,
 		)
@@ -110,6 +129,18 @@ func (f *ServiceFactory) GetProductQueryService() service.ProductQueryService {
 func (f *ServiceFactory) GetVariantService() service.VariantService {
 	f.initialize()
 	return f.variantService
+}
+
+// GetVariantQueryService returns the singleton variant query service
+func (f *ServiceFactory) GetVariantQueryService() service.VariantQueryService {
+	f.initialize()
+	return f.variantQueryService
+}
+
+// GetVariantBulkService returns the singleton variant bulk service
+func (f *ServiceFactory) GetVariantBulkService() service.VariantBulkService {
+	f.initialize()
+	return f.variantBulkService
 }
 
 // GetProductAttributeService returns the singleton product attribute service

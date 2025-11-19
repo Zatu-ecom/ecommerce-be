@@ -92,7 +92,7 @@ type VariantOptionInput struct {
 type CreateVariantRequest struct {
 	SKU           string               `json:"sku"`
 	Price         float64              `json:"price"         binding:"required,gt=0"`
-	Images        []string             `json:"images"`
+	Images        []string             `json:"images"        binding:"max=20"`
 	AllowPurchase *bool                `json:"allowPurchase"`
 	IsPopular     *bool                `json:"isPopular"`
 	IsDefault     *bool                `json:"isDefault"`
@@ -103,7 +103,7 @@ type CreateVariantRequest struct {
 type UpdateVariantRequest struct {
 	SKU           *string  `json:"sku"`
 	Price         *float64 `json:"price"         binding:"omitempty,gt=0"`
-	Images        []string `json:"images"`
+	Images        []string `json:"images"        binding:"max=20"`
 	AllowPurchase *bool    `json:"allowPurchase"`
 	IsPopular     *bool    `json:"isPopular"`
 	IsDefault     *bool    `json:"isDefault"`
@@ -114,7 +114,7 @@ type BulkUpdateVariantItem struct {
 	ID            uint     `json:"id"                      binding:"required"`
 	SKU           *string  `json:"sku,omitempty"`
 	Price         *float64 `json:"price,omitempty"         binding:"omitempty,gt=0"`
-	Images        []string `json:"images,omitempty"`
+	Images        []string `json:"images,omitempty"        binding:"omitempty,max=20"`
 	AllowPurchase *bool    `json:"allowPurchase,omitempty"`
 	IsPopular     *bool    `json:"isPopular,omitempty"`
 	IsDefault     *bool    `json:"isDefault,omitempty"`

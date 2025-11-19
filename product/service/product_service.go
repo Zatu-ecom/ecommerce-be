@@ -36,6 +36,7 @@ type ProductServiceImpl struct {
 	productQueryService     ProductQueryService
 	validatorService        ProductValidatorService
 	variantService          VariantService
+	variantBulkService      VariantBulkService
 	productOptionService    ProductOptionService
 	productAttributeService ProductAttributeService
 }
@@ -47,6 +48,7 @@ func NewProductService(
 	productQueryService ProductQueryService,
 	validatorService ProductValidatorService,
 	variantService VariantService,
+	variantBulkService VariantBulkService,
 	productOptionService ProductOptionService,
 	productAttributeService ProductAttributeService,
 ) ProductService {
@@ -56,6 +58,7 @@ func NewProductService(
 		productQueryService:     productQueryService,
 		validatorService:        validatorService,
 		variantService:          variantService,
+		variantBulkService:      variantBulkService,
 		productOptionService:    productOptionService,
 		productAttributeService: productAttributeService,
 	}
@@ -155,7 +158,7 @@ func (s *ProductServiceImpl) createProductAssociations(
 	}
 
 	// Create variants (required)
-	variants, err := s.variantService.CreateVariantsBulk(productID, sellerID, req.Variants)
+	variants, err := s.variantBulkService.CreateVariantsBulk(productID, sellerID, req.Variants)
 	if err != nil {
 		return err
 	}
@@ -348,7 +351,7 @@ func (s *ProductServiceImpl) DeleteProduct(
 	// Use atomic transaction to delete everything
 	return db.Atomic(func(tx *gorm.DB) error {
 		// Delete variants and their associated data (variant_option_values)
-		if err := s.variantService.DeleteVariantsByProductID(id); err != nil {
+		if err := s.variantBulkService.DeleteVariantsByProductID(id); err != nil {
 			return err
 		}
 

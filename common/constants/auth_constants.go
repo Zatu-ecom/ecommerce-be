@@ -21,15 +21,25 @@ const (
 	TOKEN_REQUIRED_CODE      = "TOKEN_REQUIRED"
 
 	// Context keys
-	USER_ID_KEY    = "user_id"
-	EMAIL_KEY      = "email"
-	ROLE_ID_KEY    = "role_id"
-	ROLE_NAME_KEY  = "role_name"
-	ROLE_LEVEL_KEY = "role_level"
-	SELLER_ID_KEY  = "seller_id"
+	USER_ID_KEY        = "user_id"
+	EMAIL_KEY          = "email"
+	ROLE_ID_KEY        = "role_id"
+	ROLE_NAME_KEY      = "role_name"
+	ROLE_LEVEL_KEY     = "role_level"
+	SELLER_ID_KEY      = "seller_id"
+	CORRELATION_ID_KEY = "correlation_id"
 
 	// Header keys
-	SELLER_ID_HEADER = "X-Seller-ID"
+	SELLER_ID_HEADER      = "X-Seller-ID"
+	CORRELATION_ID_HEADER = "X-Correlation-ID"
+
+	// Correlation ID messages
+	CORRELATION_ID_REQUIRED_MSG = "Correlation ID is required in X-Correlation-ID header"
+	CORRELATION_ID_INVALID_MSG  = "Invalid correlation ID provided"
+
+	// Correlation ID error codes
+	CORRELATION_ID_REQUIRED_CODE = "CORRELATION_ID_REQUIRED"
+	CORRELATION_ID_INVALID_CODE  = "CORRELATION_ID_INVALID"
 
 	// Seller validation messages
 	SELLER_ID_REQUIRED_MSG = "Seller ID is required in X-Seller-ID header"

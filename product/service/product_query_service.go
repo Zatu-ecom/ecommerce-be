@@ -42,7 +42,7 @@ type ProductQueryService interface {
 // ProductQueryServiceImpl implements the ProductQueryService interface
 type ProductQueryServiceImpl struct {
 	productRepo             repositories.ProductRepository
-	variantService          VariantService
+	variantQueryService     VariantQueryService
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
 	productOptionService    ProductOptionService
@@ -51,14 +51,14 @@ type ProductQueryServiceImpl struct {
 // NewProductQueryService creates a new instance of ProductQueryService
 func NewProductQueryService(
 	productRepo repositories.ProductRepository,
-	variantService VariantService,
+	variantQueryService VariantQueryService,
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
 	productOptionService ProductOptionService,
 ) *ProductQueryServiceImpl {
 	return &ProductQueryServiceImpl{
 		productRepo:             productRepo,
-		variantService:          variantService,
+		variantQueryService:     variantQueryService,
 		categoryService:         categoryService,
 		productAttributeService: productAttributeService,
 		productOptionService:    productOptionService,
@@ -117,7 +117,7 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 
 	// Fetch variant aggregations for all products in ONE query via VariantService
 	// This is the key optimization to prevent N+1 queries
-	variantAggs, err := s.variantService.GetProductsVariantAggregations(productIDs)
+	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(productIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	product *entity.Product,
 ) (*model.ProductResponse, error) {
 	// Get variant aggregation for summary info using VariantService
-	variantAgg, err := s.variantService.GetProductVariantAggregation(product.ID)
+	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(product.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 
 	// Get all variants with their selected option values using VariantService
 	// This is optimized with a single query to prevent N+1 issues
-	variants, err := s.variantService.GetProductVariantsWithOptions(product.ID)
+	variants, err := s.variantQueryService.GetProductVariantsWithOptions(product.ID)
 	if err == nil && len(variants) > 0 {
 		// Use factory to build variants detail response
 		response.Variants = variants

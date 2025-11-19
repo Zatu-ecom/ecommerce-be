@@ -1,8 +1,9 @@
 package singleton
 
 import (
-	"ecommerce-be/product/handlers"
 	"sync"
+
+	"ecommerce-be/product/handlers"
 )
 
 // HandlerFactory manages all handler singleton instances
@@ -29,15 +30,27 @@ func NewHandlerFactory(serviceFactory *ServiceFactory) *HandlerFactory {
 func (f *HandlerFactory) initialize() {
 	f.once.Do(func() {
 		f.categoryHandler = handlers.NewCategoryHandler(f.serviceFactory.GetCategoryService())
-		f.attributeHandler = handlers.NewAttributeHandler(f.serviceFactory.GetAttributeDefinitionService())
+		f.attributeHandler = handlers.NewAttributeHandler(
+			f.serviceFactory.GetAttributeDefinitionService(),
+		)
 		f.productHandler = handlers.NewProductHandler(
 			f.serviceFactory.GetProductService(),
 			f.serviceFactory.GetProductQueryService(),
 		)
-		f.variantHandler = handlers.NewVariantHandler(f.serviceFactory.GetVariantService())
-		f.productAttributeHandler = handlers.NewProductAttributeHandler(f.serviceFactory.GetProductAttributeService())
-		f.productOptionHandler = handlers.NewProductOptionHandler(f.serviceFactory.GetProductOptionService())
-		f.optionValueHandler = handlers.NewProductOptionValueHandler(f.serviceFactory.GetProductOptionValueService())
+		f.variantHandler = handlers.NewVariantHandler(
+			f.serviceFactory.GetVariantService(),
+			f.serviceFactory.GetVariantQueryService(),
+			f.serviceFactory.GetVariantBulkService(),
+		)
+		f.productAttributeHandler = handlers.NewProductAttributeHandler(
+			f.serviceFactory.GetProductAttributeService(),
+		)
+		f.productOptionHandler = handlers.NewProductOptionHandler(
+			f.serviceFactory.GetProductOptionService(),
+		)
+		f.optionValueHandler = handlers.NewProductOptionValueHandler(
+			f.serviceFactory.GetProductOptionValueService(),
+		)
 	})
 }
 

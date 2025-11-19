@@ -79,7 +79,11 @@ func ValidateBulkVariantUpdateRequest(request *model.BulkUpdateVariantsRequest) 
 
 // ValidateBulkVariantsExist validates that all variants in bulk update exist and belong to product
 // existingVariants should be the fetched variants, variantIDs is the requested IDs
-func ValidateBulkVariantsExist(productID uint, variantIDs []uint, existingVariants []entity.ProductVariant) error {
+func ValidateBulkVariantsExist(
+	productID uint,
+	variantIDs []uint,
+	existingVariants []entity.ProductVariant,
+) error {
 	// Validate count matches
 	if len(existingVariants) != len(variantIDs) {
 		return prodErrors.ErrBulkUpdateVariantNotFound

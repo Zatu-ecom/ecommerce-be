@@ -255,3 +255,43 @@ func BuildVariantsDetailResponseFromMapper(
 	}
 	return result
 }
+
+// BuildVariantOptionResponsesFromAvailableOptions builds variant option responses from variant option values
+// and available options response. This is optimized for the CreateVariant flow where we already have
+// the GetAvailableOptionsResponse structure.
+func BuildVariantOptionResponsesFromAvailableOptions(
+	variantOptionValues []entity.VariantOptionValue,
+	optionsResponse *model.GetAvailableOptionsResponse,
+) []model.VariantOptionResponse {
+	// Create lookup maps for O(1) access
+	optionMap := make(map[uint]model.ProductOptionDetailResponse)
+	valueMap := make(map[uint]model.OptionValueResponse)
+
+	for _, opt := range optionsResponse.Options {
+		optionMap[opt.OptionID] = opt
+		for _, val := range opt.Values {
+			valueMap[val.ValueID] = val
+		}
+	}
+
+	// Build selected options responses
+	selectedOptions := make([]model.VariantOptionResponse, 0, len(variantOptionValues))
+	for _, vov := range variantOptionValues {
+		opt, optExists := optionMap[vov.OptionID]
+		val, valExists := valueMap[vov.OptionValueID]
+
+		if optExists && valExists {
+			selectedOptions = append(selectedOptions, model.VariantOptionResponse{
+				OptionID:          opt.OptionID,
+				OptionName:        opt.OptionName,
+				OptionDisplayName: opt.OptionDisplayName,
+				ValueID:           val.ValueID,
+				Value:             val.Value,
+				ValueDisplayName:  val.DisplayName,
+				ColorCode:         val.ColorCode,
+			})
+		}
+	}
+
+	return selectedOptions
+}

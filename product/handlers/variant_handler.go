@@ -19,14 +19,18 @@ import (
 // VariantHandler handles HTTP requests related to product variants
 type VariantHandler struct {
 	*handler.BaseHandler
-	variantService service.VariantService
+	variantService      service.VariantService
+	variantQueryService service.VariantQueryService
+	variantBulkService  service.VariantBulkService
 }
 
 // NewVariantHandler creates a new instance of VariantHandler
-func NewVariantHandler(variantService service.VariantService) *VariantHandler {
+func NewVariantHandler(variantService service.VariantService, variantQueryService service.VariantQueryService, variantBulkService service.VariantBulkService) *VariantHandler {
 	return &VariantHandler{
-		BaseHandler:    handler.NewBaseHandler(),
-		variantService: variantService,
+		BaseHandler:         handler.NewBaseHandler(),
+		variantService:      variantService,
+		variantQueryService: variantQueryService,
+		variantBulkService:  variantBulkService,
 	}
 }
 
@@ -52,8 +56,8 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	// Extract seller ID from context (set by PublicAPIAuth middleware)
 	sellerID, _ := auth.GetSellerIDFromContext(c)
 
-	// Call service
-	variantResponse, err := h.variantService.GetVariantByID(productID, variantID, sellerID)
+	// Call query service
+	variantResponse, err := h.variantQueryService.GetVariantByID(productID, variantID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -98,8 +102,8 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 		sellerID = &id
 	}
 
-	// Call service
-	variantResponse, err := h.variantService.FindVariantByOptions(productID, optionValues, sellerID)
+	// Call query service
+	variantResponse, err := h.variantQueryService.FindVariantByOptions(productID, optionValues, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_FIND_VARIANT_MSG)
 		return
@@ -262,14 +266,14 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 		return
 	}
 
-	_, sellerId, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
 	if err != nil {
 		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
 
-	// Call service
-	response, err := h.variantService.BulkUpdateVariants(productID, sellerId, &request)
+	// Call bulk service
+	response, err := h.variantBulkService.BulkUpdateVariants(productID, sellerID, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_VARIANTS_MSG)
 		return

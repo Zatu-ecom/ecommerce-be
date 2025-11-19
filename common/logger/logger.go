@@ -1,8 +1,10 @@
 package logger
 
 import (
+	"ecommerce-be/common/constants"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -54,6 +56,42 @@ func WithFields(fields logrus.Fields) *logrus.Entry {
 	return GetLogger().WithFields(fields)
 }
 
+// WithContext creates a new logger entry with context fields (correlation ID and seller ID)
+func WithContext(c *gin.Context) *logrus.Entry {
+	fields := logrus.Fields{}
+	
+	// Add correlation ID if present
+	if correlationID, exists := c.Get(constants.CORRELATION_ID_KEY); exists {
+		fields["correlationId"] = correlationID
+	}
+	
+	// Add seller ID if present
+	if sellerID, exists := c.Get(constants.SELLER_ID_KEY); exists {
+		fields["sellerId"] = sellerID
+	}
+	
+	return GetLogger().WithFields(fields)
+}
+
+// WithContextAndFields creates a new logger entry with both context and additional fields
+func WithContextAndFields(c *gin.Context, fields logrus.Fields) *logrus.Entry {
+	if fields == nil {
+		fields = logrus.Fields{}
+	}
+	
+	// Add correlation ID if present
+	if correlationID, exists := c.Get(constants.CORRELATION_ID_KEY); exists {
+		fields["correlationId"] = correlationID
+	}
+	
+	// Add seller ID if present
+	if sellerID, exists := c.Get(constants.SELLER_ID_KEY); exists {
+		fields["sellerId"] = sellerID
+	}
+	
+	return GetLogger().WithFields(fields)
+}
+
 // Debug logs a debug message with fields
 func Debug(msg string, fields logrus.Fields) {
 	GetLogger().WithFields(fields).Debug(msg)
@@ -89,4 +127,30 @@ func Fatal(msg string, err error, fields logrus.Fields) {
 		fields["error"] = err.Error()
 	}
 	GetLogger().WithFields(fields).Fatal(msg)
+}
+
+// DebugWithContext logs a debug message with context and fields
+func DebugWithContext(c *gin.Context, msg string, fields logrus.Fields) {
+	WithContextAndFields(c, fields).Debug(msg)
+}
+
+// InfoWithContext logs an info message with context and fields
+func InfoWithContext(c *gin.Context, msg string, fields logrus.Fields) {
+	WithContextAndFields(c, fields).Info(msg)
+}
+
+// WarnWithContext logs a warning message with context and fields
+func WarnWithContext(c *gin.Context, msg string, fields logrus.Fields) {
+	WithContextAndFields(c, fields).Warn(msg)
+}
+
+// ErrorWithContext logs an error message with context and fields
+func ErrorWithContext(c *gin.Context, msg string, err error, fields logrus.Fields) {
+	if fields == nil {
+		fields = logrus.Fields{}
+	}
+	if err != nil {
+		fields["error"] = err.Error()
+	}
+	WithContextAndFields(c, fields).Error(msg)
 }

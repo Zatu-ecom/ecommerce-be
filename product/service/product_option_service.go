@@ -478,7 +478,7 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 		optionsToCreate = append(optionsToCreate, option)
 	}
 
-	// ✅ TRUE BULK: Create ALL options in ONE query with RETURNING
+	// BULK: Create ALL options in ONE query with RETURNING
 	if err := s.optionRepo.BulkCreateOptions(optionsToCreate); err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 		}
 	}
 
-	// ✅ TRUE BULK: Insert ALL option values in ONE query
+	// BULK: Insert ALL option values in ONE query
 	if len(allOptionValues) > 0 {
 		if err := s.optionRepo.BulkCreateOptionValues(allOptionValues); err != nil {
 			return nil, err
