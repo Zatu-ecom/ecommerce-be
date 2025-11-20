@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -152,4 +153,12 @@ func GetOrEmptySlice[T any](slice []T) []T {
 		return slice
 	}
 	return []T{}
+}
+
+func MapToPrettyJSON(data map[string]interface{}) (string, error) {
+	b, err := json.MarshalIndent(data, "", "  ") // 2-space indent
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

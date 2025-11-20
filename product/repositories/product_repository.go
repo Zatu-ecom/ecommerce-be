@@ -3,13 +3,13 @@ package repositories
 import (
 	"errors"
 
-	"ecommerce-be/common/logger"
+	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
 	productError "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
 	productQuery "ecommerce-be/product/query"
+	"ecommerce-be/product/utils/helper"
 
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -92,7 +92,6 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 	}
 	return &product, nil
 }
-
 
 // FindAll finds all products with filtering and pagination
 // Updated to work with variant-based pricing and stock
@@ -301,7 +300,8 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 
 	// Call stored procedure for related products using query constants
 	err := r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
-		Scan(&results).Error
+		Scan(&results).
+		Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -309,7 +309,8 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	// Get total count for pagination
 	var totalCount int64
 	err = r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
-		Scan(&totalCount).Error
+		Scan(&totalCount).
+		Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -445,15 +446,19 @@ func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 		return nil, nil, nil, nil, nil, nil, err
 	}
 
-	// Log filter data (replaces fmt.Println debug statements)
-	logger.Debug("Product filters fetched", logrus.Fields{
+	logmap := map[string]interface{}{
 		"categories":     len(categories),
 		"attributes":     len(attributes),
 		"brands":         len(brands),
 		"priceRange":     priceRange,
 		"variantOptions": len(variantOptions),
 		"stockStatus":    stockStatus,
-	})
+	}
+
+	prettyLogmap, _ := helper.MapToPrettyJSON(logmap)
+
+	// Log filter data (replaces fmt.Println debug statements)
+	log.Debug("Product filters fetched" + prettyLogmap)
 
 	return brands, categories, attributes, &priceRange, variantOptions, &stockStatus, nil
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
+	"ecommerce-be/common/log"
 	"net/http"
 	"strings"
 	"time"
@@ -42,7 +43,8 @@ func Logger() gin.HandlerFunc {
 			fields["sellerId"] = sellerID
 		}
 		
-		logrus.WithFields(fields).Info("Request processed")
+		// Use logger package to ensure consistent JSON formatting
+		log.GetLogger().WithFields(fields).Info("Request processed")
 	}
 }
 

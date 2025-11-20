@@ -41,6 +41,11 @@ func PublicAPIAuth() gin.HandlerFunc {
 			authMiddleware := auth.AuthMiddleware(secret)
 			authMiddleware(c)
 
+			// Check if auth middleware aborted the request
+			if c.IsAborted() {
+				return // ← ADD THIS CHECK
+			}
+
 			_, role, exists := auth.GetUserRoleFromContext(c)
 
 			if !exists {
