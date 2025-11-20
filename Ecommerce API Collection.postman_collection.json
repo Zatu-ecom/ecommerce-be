@@ -1,0 +1,2470 @@
+{
+	"info": {
+		"_postman_id": "0f344366-c641-4e3d-a54b-d2f4658923d9",
+		"name": "Ecommerce API - Collection",
+		"description": "Complete API collection for Ecommerce Backend with User Management, Product Management, Categories, Attributes, Variants, and Options. Updated for singular table names.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19338586"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data && response.data.id) {",
+									"        pm.collectionVariables.set('userId', response.data.id);",
+									"        console.log('User ID saved:', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"confirmPassword\": \"password123\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"male\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user account. Creates entry in singular `user` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.token) {",
+									"        pm.collectionVariables.set('authToken', response.data.token);",
+									"        pm.collectionVariables.set('userId', response.data.user.id);",
+									"        console.log('Token saved:', response.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"alice.j@example.com\",\n  \"password\": \"customer123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with email and password. Returns JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refresh authentication token."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logout user and invalidate token."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user registration, login, and token management."
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						},
+						"description": "Get current user's profile from `user` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Smith\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"gender\": \"male\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						},
+						"description": "Update user profile information."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\",\n  \"confirmPassword\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"password"
+							]
+						},
+						"description": "Change user password."
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management endpoints."
+		},
+		{
+			"name": "Address Management",
+			"item": [
+				{
+					"name": "Get All Addresses",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/addresses",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"addresses"
+							]
+						},
+						"description": "Get all addresses for current user from `address` table (singular)."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Address",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"street\": \"123 Main Street\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"zipCode\": \"10001\",\n  \"country\": \"USA\",\n  \"isDefault\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/addresses",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"addresses"
+							]
+						},
+						"description": "Add new address. Uses `street` and `zipCode` fields (not address_line1/postal_code)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Address",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"street\": \"456 Oak Avenue\",\n  \"city\": \"Los Angeles\",\n  \"state\": \"CA\",\n  \"zipCode\": \"90001\",\n  \"country\": \"USA\",\n  \"isDefault\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/addresses/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"addresses",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update existing address."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Address",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/addresses/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"addresses",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete address by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Set Default Address",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/addresses/:id/default",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"addresses",
+								":id",
+								"default"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Set address as default."
+					},
+					"response": []
+				}
+			],
+			"description": "Address management endpoints. Note: Uses singular `address` table with `street` and `zipCode` fields."
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories?X-Seller-ID={{sellerId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories"
+							],
+							"query": [
+								{
+									"key": "X-Seller-ID",
+									"value": "{{sellerId}}"
+								}
+							]
+						},
+						"description": "Get all categories from singular `category` table. Supports hierarchical structure."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Category by ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "4"
+								}
+							]
+						},
+						"description": "Get single category by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Categories by Parent",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/by-parent?parentId=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								"by-parent"
+							],
+							"query": [
+								{
+									"key": "parentId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get child categories by parent ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Category Attributes with Inheritance",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId",
+								"attributes"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "4"
+								}
+							]
+						},
+						"description": "Get all attributes for a category including inherited from parent categories."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Laptops\",\n  \"parentId\": 1,\n  \"description\": \"Laptop computers\",\n  \"isGlobal\": true,\n  \"sellerId\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/categories",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories"
+							]
+						},
+						"description": "Create new category. Requires seller authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Category",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Category Name\",\n  \"description\": \"Updated description\",\n  \"isGlobal\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update existing category."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete category by ID."
+					},
+					"response": []
+				}
+			],
+			"description": "Category management endpoints. Uses singular `category` table with `isGlobal` and `sellerId` fields for multi-tenancy."
+		},
+		{
+			"name": "Attributes",
+			"item": [
+				{
+					"name": "Get All Attributes",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes"
+							]
+						},
+						"description": "Get all attribute definitions from `attribute_definition` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Attribute by ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "attributeId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get single attribute definition by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Attribute",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"key\": \"screen_size\",\n  \"name\": \"Screen Size\",\n  \"unit\": \"inches\",\n  \"allowedValues\": [\"5.5\", \"6.1\", \"6.7\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes"
+							]
+						},
+						"description": "Create new attribute definition. Note: uses `key` field for unique identifier."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Attribute",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Name\",\n  \"unit\": \"cm\",\n  \"allowedValues\": [\"Small\", \"Medium\", \"Large\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "attributeId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update existing attribute definition."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Attribute",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "attributeId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete attribute definition."
+					},
+					"response": []
+				},
+				{
+					"name": "Link Attribute to Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"attributeDefinitionId\": 5,\n  \"isRequired\": true,\n  \"isSearchable\": true,\n  \"isFilterable\": true,\n  \"defaultValue\": \"128\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attributes",
+								":attributeId",
+								"categories"
+							],
+							"variable": [
+								{
+									"key": "attributeId",
+									"value": "5"
+								}
+							]
+						},
+						"description": "Link attribute to category. Creates entry in `category_attribute` table with `attributeDefinitionId`."
+					},
+					"response": []
+				},
+				{
+					"name": "Unlink Attribute from Category",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/:categoryId/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "4"
+								},
+								{
+									"key": "attributeId",
+									"value": "5"
+								}
+							]
+						},
+						"description": "Unlink attribute from category."
+					},
+					"response": []
+				}
+			],
+			"description": "Attribute definition management. Uses singular `attribute_definition` table with `key`, `name`, `unit`, and `allowedValues` fields."
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products?page=1&limit=10&sellerId=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "categoryId",
+									"value": "1",
+									"description": "Filter by category",
+									"disabled": true
+								},
+								{
+									"key": "sellerId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Get all products from singular `product` table with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data && response.data.id) {",
+									"        pm.collectionVariables.set('productId', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "11"
+								}
+							]
+						},
+						"description": "Get product details with variants and attributes."
+					},
+					"response": []
+				},
+				{
+					"name": "Search Products",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/search?q=iphone&categoryId=4&minPrice=500&maxPrice=1500",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "iphone"
+								},
+								{
+									"key": "categoryId",
+									"value": "4"
+								},
+								{
+									"key": "minPrice",
+									"value": "500"
+								},
+								{
+									"key": "maxPrice",
+									"value": "1500"
+								}
+							]
+						},
+						"description": "Search products with filters."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product Filters",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/filters?categoryId=4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"filters"
+							],
+							"query": [
+								{
+									"key": "categoryId",
+									"value": "4"
+								}
+							]
+						},
+						"description": "Get available filters for products in a category."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Related Products",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/related",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"related"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get related products based on category and attributes."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Premium Leather Jacket\",\n  \"categoryId\": 7,\n  \"brand\": \"Zara\",\n  \"baseSku\": \"ZARA-JACKET-001\",\n  \"shortDescription\": \"Genuine leather jacket for men\",\n  \"longDescription\": \"Classic leather jacket made from premium genuine leather. Perfect for casual and semi-formal occasions.\",\n  \"tags\": [\"jacket\", \"leather\", \"mens\", \"fashion\", \"winter\"],\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Zara\"\n    },\n    {\n      \"key\": \"material\",\n      \"name\": \"Material\",\n      \"value\": \"Leather\"\n    },\n    {\n      \"key\": \"fit\",\n      \"name\": \"Fit Type\",\n      \"value\": \"Regular\"\n    }\n  ],\n  \"options\": [\n    {\n      \"name\": \"Size\",\n      \"displayName\": \"Size\",\n      \"position\": 1,\n      \"values\": [\n        {\n          \"value\": \"M\",\n          \"displayName\": \"Medium\",\n          \"position\": 1\n        },\n        {\n          \"value\": \"L\",\n          \"displayName\": \"Large\",\n          \"position\": 2\n        },\n        {\n          \"value\": \"XL\",\n          \"displayName\": \"Extra Large\",\n          \"position\": 3\n        }\n      ]\n    },\n    {\n      \"name\": \"Color\",\n      \"displayName\": \"Color\",\n      \"position\": 2,\n      \"values\": [\n        {\n          \"value\": \"Black\",\n          \"displayName\": \"Black\",\n          \"colorCode\": \"#000000\",\n          \"position\": 1\n        },\n        {\n          \"value\": \"Brown\",\n          \"displayName\": \"Brown\",\n          \"colorCode\": \"#8B4513\",\n          \"position\": 2\n        }\n      ]\n    }\n  ],\n  \"variants\": [\n    {\n      \"sku\": \"ZARA-JACKET-001-M-BLACK\",\n      \"price\": 249.99,\n      \"stock\": 20,\n      \"images\": [\"https://example.com/jacket-black-1.jpg\", \"https://example.com/jacket-black-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": true,\n      \"isDefault\": true,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"M\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Black\"\n        }\n      ]\n    },\n    {\n      \"sku\": \"ZARA-JACKET-001-L-BLACK\",\n      \"price\": 249.99,\n      \"stock\": 15,\n      \"images\": [\"https://example.com/jacket-black-1.jpg\", \"https://example.com/jacket-black-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": false,\n      \"isDefault\": false,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"L\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Black\"\n        }\n      ]\n    },\n    {\n      \"sku\": \"ZARA-JACKET-001-M-BROWN\",\n      \"price\": 249.99,\n      \"stock\": 10,\n      \"images\": [\"https://example.com/jacket-brown-1.jpg\", \"https://example.com/jacket-brown-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": false,\n      \"isDefault\": false,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"M\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Brown\"\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products"
+							]
+						},
+						"description": "Create new product. Requires seller authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Premium Leather Jacket - Winter Collection\",\n  \"categoryId\": 7,\n  \"brand\": \"Zara\",\n  \"shortDescription\": \"Genuine leather jacket for men - Premium quality\",\n  \"longDescription\": \"Classic leather jacket made from premium genuine leather with soft inner lining. Perfect for casual and semi-formal occasions. Features high-quality stitching and modern fit design.\",\n  \"tags\": [\n    \"jacket\",\n    \"leather\",\n    \"mens\",\n    \"fashion\",\n    \"winter\",\n    \"premium\",\n    \"casual\"\n  ],\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Zara\",\n      \"sortOrder\": 1\n    },\n    {\n      \"key\": \"material\",\n      \"name\": \"Material\",\n      \"value\": \"Genuine Leather\",\n      \"sortOrder\": 2\n    },\n    {\n      \"key\": \"fit\",\n      \"name\": \"Fit Type\",\n      \"value\": \"Regular\",\n      \"sortOrder\": 3\n    }\n  ],\n  \"packageOptions\": [\n    {\n      \"name\": \"Leather Care Kit\",\n      \"description\": \"Professional leather cleaning and conditioning kit\",\n      \"price\": 24.99,\n      \"quantity\": 1\n    },\n    {\n      \"name\": \"Gift Wrapping\",\n      \"description\": \"Premium gift box with ribbon\",\n      \"price\": 9.99,\n      \"quantity\": 1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "11"
+								}
+							]
+						},
+						"description": "Update existing product."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Delete product by ID."
+					},
+					"response": []
+				}
+			],
+			"description": "Product management endpoints. Uses singular `product` table with simplified structure (no extra fields like status, isActive, etc.)."
+		},
+		{
+			"name": "Product Options",
+			"item": [
+				{
+					"name": "Get Available Options",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get all available options for a product (Color, Size, Storage, etc.) from `product_option` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Option",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\":\"rem\",\n  \"displayName\":\"Rem\",\n  \"position\" : 3,\n  \"values\" : [\n    {\n        \"value\":\"1_GB\",\n        \"displayName\":\"1 GB\",\n        \"position\":1\n    },\n    {\n        \"value\":\"2_GB\",\n        \"displayName\":\"2 GB\",\n        \"position\":2\n    },\n    {\n        \"value\":\"4_GB\",\n        \"displayName\":\"4 GB\",\n        \"position\":3\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Create new product option."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Option",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"displayName\":\"ram\",\n  \"position\": 3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "16"
+								}
+							]
+						},
+						"description": "Update existing product option."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Option",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "16"
+								}
+							]
+						},
+						"description": "Delete product option."
+					},
+					"response": []
+				}
+			],
+			"description": "Product options management (for variant selection like Color, Size, Storage). Uses singular `product_option` table."
+		},
+		{
+			"name": "Product Variants",
+			"item": [
+				{
+					"name": "Find Variant by Options",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/find?Color=Natural Titanium&Storage=128GB",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								"find"
+							],
+							"query": [
+								{
+									"key": "Color",
+									"value": "Natural Titanium"
+								},
+								{
+									"key": "Storage",
+									"value": "128GB"
+								}
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Find specific variant by option values. Links through `variant_option_value` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Variant by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data && response.data.id) {",
+									"        pm.collectionVariables.set('variantId', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/:variantId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								":variantId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "variantId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get variant details by ID from `product_variant` table."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Variant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sku\": \"IPHONE-15-PRO-WHT-256\",\n    \"price\": 15.00,\n    \"images\": [\n        \"https://example.com/iphone-15-pro-black titanium-4-tb.jpg\"\n    ],\n    \"stock\": 10,\n    \"inStock\": true,\n    \"isPopular\": false,\n    \"isDefault\": false,\n    \"options\": [\n        {\n            \"optionName\": \"Storage\",\n            \"value\": \"4_tb\"\n        },\n        {\n            \"optionName\": \"Color\",\n            \"value\": \"Black Titanium\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Create new product variant. Requires seller authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Variant",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sku\": \"IPHONE-15-PRO-NAT-128\",\n    \"price\": 999,\n    \"images\": [\n        \"https://example.com/iphone-15-pro-natural-128.jpg\"\n    ],\n    \"inStock\": true,\n    \"isPopular\": true,\n    \"stock\": 50,\n    \"isDefault\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/:variantId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								":variantId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "variantId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update existing variant."
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update Variants",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"variants\": [\n        {\n            \"id\": 1,\n            \"sku\": \"IPHONE-15-PRO-NAT-128\",\n            \"price\": 999,\n            \"images\": [\n                \"https://example.com/iphone-15-pro-natural-128.jpg\"\n            ],\n            \"inStock\": true,\n            \"isPopular\": false,\n            \"stock\": 50,\n            \"isDefault\": true\n        },\n        {\n            \"id\": 2,\n            \"price\": 1099.00,\n            \"stockQuantity\": 45,\n            \"sku\": \"IPHONE-15-PRO-NAT-256\",\n            \"images\": [\n                \"https://example.com/iphone-15-pro-natural-128.jpg\"\n            ],\n            \"inStock\": true,\n            \"isPopular\": false,\n            \"stock\": 99,\n            \"isDefault\": false\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/bulk",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								"bulk"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Bulk update multiple variants at once."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Variant Stock",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stock\": 50,\n  \"operation\": \"add\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/:variantId/stock",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								":variantId",
+								"stock"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "variantId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update only stock quantity for a variant."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Variant",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/variants/:variantId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"variants",
+								":variantId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "variantId",
+									"value": "19"
+								}
+							]
+						},
+						"description": "Delete product variant."
+					},
+					"response": []
+				}
+			],
+			"description": "Product variant management. Uses singular `product_variant` table with `variant_option_value` junction table for linking options."
+		},
+		{
+			"name": "Product Option value",
+			"item": [
+				{
+					"name": "Create Value",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"value\":\"2_TB\",\n    \"displayName\":\"2 TB\",\n    \"position\":1\n    // \"colorCode\":\"#vddg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId/values",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId",
+								"values"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Create new product option."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Value Bulk",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"values\": [\n        {\n            \"value\": \"4_TB\",\n            \"displayName\": \"4 TB\",\n            \"position\": 6\n            // \"colorCode\":\"#vddg\"\n        },\n        {\n            \"value\": \"8_TB\",\n            \"displayName\": \"8 TB\",\n            \"position\": 7\n            // \"colorCode\":\"#vddg\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId/values/bulk",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId",
+								"values",
+								"bulk"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Create new product option."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Option Value",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    // \"displayName\":\"\",\n    \"colorCode\":\"#dbtdgr\"\n    // \"position\":2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId/values/:valueId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId",
+								"values",
+								":valueId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "2"
+								},
+								{
+									"key": "valueId",
+									"value": "58"
+								}
+							]
+						},
+						"description": "Create new product option."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Option Value",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/options/:optionId/values/:valueId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"options",
+								":optionId",
+								"values",
+								":valueId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "optionId",
+									"value": "2"
+								},
+								{
+									"key": "valueId",
+									"value": "60"
+								}
+							]
+						},
+						"description": "Create new product option."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Product Attributes",
+			"item": [
+				{
+					"name": "Get Product Attributes",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Seller-ID",
+								"value": "{{sellerId}}",
+								"type": "text"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"attributes"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get all attributes for a product."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Product Attribute",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"key\": \"processor\",\n  \"name\": \"Processor\",\n  \"value\": \"A15 Bionic\",\n  \"sortOrder\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/attributes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"attributes"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Add a new attribute to a product."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product Attribute",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Processor Type\",\n  \"value\": \"A16 Bionic\",\n  \"sortOrder\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "attributeId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update an existing product attribute."
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update Product Attributes",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Apple\",\n      \"sortOrder\": 1\n    },\n    {\n      \"key\": \"processor\",\n      \"name\": \"Processor\",\n      \"value\": \"A16 Bionic\",\n      \"sortOrder\": 2\n    },\n    {\n      \"key\": \"display\",\n      \"name\": \"Display\",\n      \"value\": \"Super Retina XDR\",\n      \"sortOrder\": 3\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/attributes/bulk",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"attributes",
+								"bulk"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Bulk update product attributes."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product Attribute",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-Correlation-ID",
+								"value": "{{$randomUUID}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/:productId/attributes/:attributeId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								":productId",
+								"attributes",
+								":attributeId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								},
+								{
+									"key": "attributeId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete a product attribute."
+					},
+					"response": []
+				}
+			],
+			"description": "Product attribute management endpoints for managing product-specific attributes."
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "authToken",
+			"value": ""
+		},
+		{
+			"key": "userId",
+			"value": ""
+		},
+		{
+			"key": "productId",
+			"value": ""
+		},
+		{
+			"key": "categoryId",
+			"value": ""
+		},
+		{
+			"key": "variantId",
+			"value": ""
+		},
+		{
+			"key": "attributeId",
+			"value": ""
+		},
+		{
+			"key": "sellerId",
+			"value": ""
+		}
+	]
+}
