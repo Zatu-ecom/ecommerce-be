@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,36 +15,35 @@ type ProductModule struct {
 
 // NewProductModule creates a new instance of ProductModule
 func NewProductModule() *ProductModule {
-	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
-	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
-	productRepo := repositories.NewProductRepository(db.GetDB())
-
-	productService := service.NewProductService(productRepo, categoryRepo, attributeRepo)
+	f := singleton.GetInstance()
 
 	return &ProductModule{
-		productHandler: handlers.NewProductHandler(productService),
+		productHandler: f.GetProductHandler(),
 	}
 }
 
 // RegisterRoutes registers all product-related routes
 func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
-	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	sellerAuth := middleware.SellerAuth()
+	publicRoutesAuth := middleware.PublicAPIAuth()
 
 	// Product routes
 	productRoutes := router.Group("/api/products")
 	{
 		// Public routes
-		productRoutes.GET("", m.productHandler.GetAllProducts)
-		productRoutes.GET("/:productId", m.productHandler.GetProductByID)
-		productRoutes.GET("/search", m.productHandler.SearchProducts)
-		productRoutes.GET("/filters", m.productHandler.GetProductFilters)
-		productRoutes.GET("/:productId/related", m.productHandler.GetRelatedProducts)
+		productRoutes.GET("", publicRoutesAuth, m.productHandler.GetAllProducts)
+		productRoutes.GET("/:productId", publicRoutesAuth, m.productHandler.GetProductByID)
+		productRoutes.GET("/search", publicRoutesAuth, m.productHandler.SearchProducts)
+		productRoutes.GET("/filters", publicRoutesAuth, m.productHandler.GetProductFilters)
+		productRoutes.GET(
+			"/:productId/related",
+			publicRoutesAuth,
+			m.productHandler.GetRelatedProductsScored,
+		)
 
 		// Admin/Seller routes (protected)
-		productRoutes.POST("", auth, m.productHandler.CreateProduct)
-		productRoutes.PUT("/:productId", auth, m.productHandler.UpdateProduct)
-		productRoutes.DELETE("/:productId", auth, m.productHandler.DeleteProduct)
-		productRoutes.PATCH("/:productId/stock", auth, m.productHandler.UpdateProductStock)
+		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)
+		productRoutes.PUT("/:productId", sellerAuth, m.productHandler.UpdateProduct)
+		productRoutes.DELETE("/:productId", sellerAuth, m.productHandler.DeleteProduct)
 	}
 }

@@ -2,10 +2,13 @@ package service
 
 import (
 	"errors"
+	"log"
 	"os"
 	"time"
 
-	"ecommerce-be/common"
+	"ecommerce-be/common/auth"
+	"ecommerce-be/common/cache"
+	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
@@ -61,7 +64,13 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 		return nil, err
 	}
 
-	// Create user entity
+	// Get customer role from database
+	customerRole, err := s.userRepo.FindRoleByName(constants.CUSTOMER_ROLE_NAME)
+	if err != nil {
+		return nil, errors.New("failed to find customer role")
+	}
+
+	// Create user entity with default customer role
 	user := &entity.User{
 		FirstName:   req.FirstName,
 		LastName:    req.LastName,
@@ -71,6 +80,8 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 		DateOfBirth: req.DateOfBirth,
 		Gender:      req.Gender,
 		IsActive:    true,
+		RoleID:      customerRole.ID,
+		SellerID:    req.SellerID,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -82,8 +93,17 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 		return nil, err
 	}
 
-	// Generate JWT token
-	token, err := common.GenerateToken(user.ID, user.Email, os.Getenv("JWT_SECRET"))
+	// Generate JWT token with role information
+	tokenInfo := auth.TokenUserInfo{
+		UserID:    user.ID,
+		Email:     user.Email,
+		RoleID:    user.RoleID,
+		RoleName:  customerRole.Name.ToString(),
+		RoleLevel: customerRole.Level.ToUint(),
+		SellerID:  &user.SellerID,
+	}
+
+	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +133,8 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 
 // Login authenticates a user and returns a token
 func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse, error) {
-	// Find user by email
-	user, err := s.userRepo.FindByEmail(req.Email)
+	// Find user by email with role information
+	user, role, err := s.userRepo.FindByEmailWithRole(req.Email)
 	if err != nil {
 		return nil, errors.New(utils.InvalidCredentialsMsg)
 	}
@@ -129,8 +149,26 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 		return nil, errors.New(utils.InvalidCredentialsMsg)
 	}
 
-	// Generate JWT token
-	token, err := common.GenerateToken(user.ID, user.Email, os.Getenv("JWT_SECRET"))
+	// Prepare seller ID if user is associated with a seller
+	var sellerID *uint
+	if user.SellerID != 0 {
+		sellerID = &user.SellerID
+	}
+	if role.Name.ToString() == constants.SELLER_ROLE_NAME {
+		sellerID = &user.ID
+	}
+
+	// Generate JWT token with role information
+	tokenInfo := auth.TokenUserInfo{
+		UserID:    user.ID,
+		Email:     user.Email,
+		RoleID:    user.RoleID,
+		RoleName:  role.Name.ToString(),
+		RoleLevel: role.Level.ToUint(),
+		SellerID:  sellerID,
+	}
+
+	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +268,18 @@ func (s *UserServiceImpl) UpdateProfile(
 		return nil, err
 	}
 
+	// Invalidate seller cache if user is associated with a seller
+	if user.SellerID != 0 {
+		if err := cache.InvalidateSellerDetailsCache(user.SellerID); err != nil {
+			// Log the error but don't fail the request
+			log.Printf(
+				"Failed to invalidate seller details cache for seller %d: %v",
+				user.SellerID,
+				err,
+			)
+		}
+	}
+
 	// Create response
 	userResponse := &model.UserResponse{
 		ID:          user.ID,
@@ -281,7 +331,29 @@ func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChan
 
 // RefreshToken generates a new JWT token
 func (s *UserServiceImpl) RefreshToken(userID uint, email string) (*model.TokenResponse, error) {
-	token, err := common.GenerateToken(userID, email, os.Getenv("JWT_SECRET"))
+	// Get user with role information
+	user, role, err := s.userRepo.FindByIDWithRole(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare seller ID if user is associated with a seller
+	var sellerID *uint
+	if user.SellerID != 0 {
+		sellerID = &user.SellerID
+	}
+
+	// Generate JWT token with role information
+	tokenInfo := auth.TokenUserInfo{
+		UserID:    user.ID,
+		Email:     user.Email,
+		RoleID:    user.RoleID,
+		RoleName:  role.Name.ToString(),
+		RoleLevel: role.Level.ToUint(),
+		SellerID:  sellerID,
+	}
+
+	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/cache"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/service"
 	"ecommerce-be/user/utils"
@@ -306,7 +307,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 
 	// Add token to blacklist in Redis
 	// The token will be blacklisted for the same duration as the token's validity
-	err := common.BlacklistToken(tokenString, utils.TokenExpireDuration)
+	err := cache.BlacklistToken(tokenString, utils.TokenExpireDuration)
 	if err != nil {
 		fmt.Printf("Warning: Failed to blacklist token: %v\n", err)
 		// Continue anyway, as this is not critical

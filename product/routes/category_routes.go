@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,35 +15,46 @@ type CategoryModule struct {
 
 // NewCategoryModule creates a new instance of CategoryModule
 func NewCategoryModule() *CategoryModule {
-	categoryRepo := repositories.NewCategoryRepository(db.GetDB())
-	categoryService := service.NewCategoryService(categoryRepo)
+	f := singleton.GetInstance()
 
 	return &CategoryModule{
-		categoryHandler: handlers.NewCategoryHandler(categoryService),
+		categoryHandler: f.GetCategoryHandler(),
 	}
 }
 
 // RegisterRoutes registers all category-related routes
 func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
-	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	sellerAuth := middleware.SellerAuth()
+	publicRoutesAuth := middleware.PublicAPIAuth()
 
 	// Category routes
 	categoryRoutes := router.Group("/api/categories")
 	{
 		// Public routes
-		categoryRoutes.GET("", m.categoryHandler.GetAllCategories)
-		categoryRoutes.GET("/:categoryId", m.categoryHandler.GetCategoryByID)
-		categoryRoutes.GET("/by-parent", m.categoryHandler.GetCategoriesByParent)
-
-		// Admin routes (protected)
-		categoryRoutes.POST("", auth, m.categoryHandler.CreateCategory)
-		categoryRoutes.PUT("/:categoryId", auth, m.categoryHandler.UpdateCategory)
-		categoryRoutes.DELETE("/:categoryId", auth, m.categoryHandler.DeleteCategory)
+		categoryRoutes.GET("", publicRoutesAuth, m.categoryHandler.GetAllCategories)
+		categoryRoutes.GET("/:categoryId", publicRoutesAuth, m.categoryHandler.GetCategoryByID)
+		categoryRoutes.GET("/by-parent", publicRoutesAuth, m.categoryHandler.GetCategoriesByParent)
 		categoryRoutes.GET(
 			"/:categoryId/attributes",
-			auth,
+			publicRoutesAuth,
 			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
+		)
+
+		// Admin routes (protected)
+		categoryRoutes.POST("", sellerAuth, m.categoryHandler.CreateCategory)
+		categoryRoutes.PUT("/:categoryId", sellerAuth, m.categoryHandler.UpdateCategory)
+		categoryRoutes.DELETE("/:categoryId", sellerAuth, m.categoryHandler.DeleteCategory)
+
+		// Link/Unlink attribute routes (protected)
+		categoryRoutes.POST(
+			"/:categoryId/attributes",
+			sellerAuth,
+			m.categoryHandler.LinkAttributeToCategory,
+		)
+		categoryRoutes.DELETE(
+			"/:categoryId/attributes/:attributeId",
+			sellerAuth,
+			m.categoryHandler.UnlinkAttributeFromCategory,
 		)
 	}
 }

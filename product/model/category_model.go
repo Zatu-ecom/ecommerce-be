@@ -20,6 +20,8 @@ type CategoryResponse struct {
 	Name        string             `json:"name"`
 	ParentID    *uint              `json:"parentId"`
 	Description string             `json:"description"`
+	IsGlobal    bool               `json:"isGlobal"`
+	SellerID    *uint              `json:"sellerId,omitempty"`
 	CreatedAt   string             `json:"createdAt"`
 	UpdatedAt   string             `json:"updatedAt"`
 	Children    []CategoryResponse `json:"children"`
@@ -44,4 +46,16 @@ type CategoriesResponse struct {
 type CategoryListResponse struct {
 	Categories []CategoryResponse `json:"categories"`
 	Pagination PaginationResponse `json:"pagination"`
+}
+
+// LinkAttributeRequest represents the request body for linking an attribute to a category
+type LinkAttributeRequest struct {
+	AttributeDefinitionID uint `json:"attributeDefinitionId" binding:"required"`
+}
+
+// LinkAttributeResponse represents the response after linking an attribute
+type LinkAttributeResponse struct {
+	CategoryID            uint   `json:"categoryId"`
+	AttributeDefinitionID uint   `json:"attributeDefinitionId"`
+	CreatedAt             string `json:"createdAt"`
 }

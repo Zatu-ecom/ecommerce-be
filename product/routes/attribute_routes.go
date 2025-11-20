@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,25 +15,24 @@ type AttributeModule struct {
 
 // NewAttributeModule creates a new instance of AttributeModule
 func NewAttributeModule() *AttributeModule {
-	attributeRepo := repositories.NewAttributeDefinitionRepository(db.GetDB())
-	attributeService := service.NewAttributeDefinitionService(attributeRepo)
+	f := singleton.GetInstance()
 
 	return &AttributeModule{
-		attributeHandler: handlers.NewAttributeHandler(attributeService),
+		attributeHandler: f.GetAttributeHandler(),
 	}
 }
 
 // RegisterRoutes registers all attribute-related routes
 func (m *AttributeModule) RegisterRoutes(router *gin.Engine) {
-	// Auth middleware for protected routes
-	auth := middleware.Auth()
+	publicRoutesAuth := middleware.PublicAPIAuth()
+	auth := middleware.SellerAuth()
 
 	// Attribute routes
 	attributeRoutes := router.Group("/api/attributes")
 	{
-		// Public routes
-		attributeRoutes.GET("", m.attributeHandler.GetAllAttributes)
-		attributeRoutes.GET("/:attributeId", m.attributeHandler.GetAttributeByID)
+
+		attributeRoutes.GET("", publicRoutesAuth, m.attributeHandler.GetAllAttributes)
+		attributeRoutes.GET("/:attributeId", publicRoutesAuth, m.attributeHandler.GetAttributeByID)
 
 		attributeRoutes.POST("", auth, m.attributeHandler.CreateAttribute)
 		attributeRoutes.PUT("/:attributeId", auth, m.attributeHandler.UpdateAttribute)
