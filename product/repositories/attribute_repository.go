@@ -24,6 +24,9 @@ type AttributeDefinitionRepository interface {
 	CreateProductAttribute(attribute *entity.ProductAttribute) error
 	CreateProductAttributesBulk(attributes []*entity.ProductAttribute) error
 	FindProductAttributeByProductID(productID uint) ([]entity.ProductAttribute, error)
+
+	// Bulk deletion methods for product cleanup
+	DeleteProductAttributesByProductID(productID uint) error
 }
 
 // AttributeDefinitionRepositoryImpl implements the AttributeDefinitionRepository interface
@@ -197,4 +200,15 @@ func (r *AttributeDefinitionRepositoryImpl) FindProductAttributeByProductID(
 		return nil, result.Error
 	}
 	return attributes, nil
+}
+
+/***********************************************
+ *    Bulk Deletion Methods for Product Cleanup
+ ***********************************************/
+
+// DeleteProductAttributesByProductID deletes all product attributes for a given product
+func (r *AttributeDefinitionRepositoryImpl) DeleteProductAttributesByProductID(
+	productID uint,
+) error {
+	return r.db.Where("product_id = ?", productID).Delete(&entity.ProductAttribute{}).Error
 }

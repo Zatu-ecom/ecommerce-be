@@ -2,21 +2,21 @@ package db
 
 import (
 	"fmt"
-	"log"
 	"os"
+
+	"ecommerce-be/common/log"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
 var db *gorm.DB
 
-func ConnectDB(autoMigrations []AutoMigrate) {
+func ConnectDB() {
 	/* PostgreSQL connection string */
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=UTC",
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
@@ -25,34 +25,37 @@ func ConnectDB(autoMigrations []AutoMigrate) {
 		os.Getenv("DB_SSLMODE"),
 	)
 
-	fmt.Println(dsn)
+	log.Info(
+		"Connecting to database host: " + os.Getenv(
+			"DB_HOST",
+		) + ", dbname: " + os.Getenv(
+			"DB_NAME",
+		) + ", port: " + os.Getenv(
+			"DB_PORT",
+		),
+	)
 
 	/* Initialize database */
 	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		// Logger: logger.Default.LogMode(logger.Info),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // Use singular table names
 		},
 	})
 	if err != nil {
-		log.Fatal("Failed to connect to database: ", err)
+		log.Fatal("Failed to connect to database", err)
 	}
 
 	db = _db
-	fmt.Println("🚀 Database connected successfully!")
-
-	
-	// /* Auto-migrate tables */
-	for _, migration := range autoMigrations {
-		err := db.AutoMigrate(migration.AutoMigrate()...)
-		if err != nil {
-			log.Fatal("Failed to migrate database: ", err)
-		}
-	}
+	log.Info("Database connected successfully")
 }
 
 func GetDB() *gorm.DB {
 	return db
+}
+
+func SetDB(database *gorm.DB) {
+	db = database
 }
 
 func Atomic(fn func(tx *gorm.DB) error) error {
@@ -66,17 +69,13 @@ func Atomic(fn func(tx *gorm.DB) error) error {
 func CloseDB() {
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Printf("Error getting SQL DB instance: %v", err)
+		log.Error("Error getting SQL DB instance", err)
 		return
 	}
 
 	if err := sqlDB.Close(); err != nil {
-		log.Printf("Error closing database connection: %v", err)
+		log.Error("Error closing database connection", err)
 	} else {
-		log.Println("Database connection closed")
+		log.Info("Database connection closed")
 	}
-}
-
-type AutoMigrate interface {
-	AutoMigrate() []interface{}
 }

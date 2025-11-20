@@ -154,6 +154,9 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 	if user.SellerID != 0 {
 		sellerID = &user.SellerID
 	}
+	if role.Name.ToString() == constants.SELLER_ROLE_NAME {
+		sellerID = &user.ID
+	}
 
 	// Generate JWT token with role information
 	tokenInfo := auth.TokenUserInfo{

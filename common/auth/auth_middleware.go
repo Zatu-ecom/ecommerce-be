@@ -67,12 +67,69 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		// Set user info in context
-		c.Set(constants.USER_ID_KEY, claims.UserID)
-		c.Set(constants.EMAIL_KEY, claims.Email)
-		c.Set(constants.ROLE_ID_KEY, claims.RoleID)
-		c.Set(constants.ROLE_NAME_KEY, claims.RoleName)
-		c.Set(constants.ROLE_LEVEL_KEY, claims.RoleLevel)
+		// Validate required JWT fields (all fields except SellerID are required)
+		// Check for nil pointers to detect missing fields
+		if claims.UserID == nil {
+			common.ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				"Invalid token: UserID is required",
+				constants.TOKEN_INVALID_CODE,
+			)
+			c.Abort()
+			return
+		}
+
+		if claims.Email == nil || *claims.Email == "" {
+			common.ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				"Invalid token: Email is required",
+				constants.TOKEN_INVALID_CODE,
+			)
+			c.Abort()
+			return
+		}
+
+		if claims.RoleID == nil {
+			common.ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				"Invalid token: RoleID is required",
+				constants.TOKEN_INVALID_CODE,
+			)
+			c.Abort()
+			return
+		}
+
+		if claims.RoleName == nil || *claims.RoleName == "" {
+			common.ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				"Invalid token: RoleName is required",
+				constants.TOKEN_INVALID_CODE,
+			)
+			c.Abort()
+			return
+		}
+
+		if claims.RoleLevel == nil {
+			common.ErrorWithCode(
+				c,
+				http.StatusUnauthorized,
+				"Invalid token: RoleLevel is required",
+				constants.TOKEN_INVALID_CODE,
+			)
+			c.Abort()
+			return
+		}
+
+		// Set user info in context (dereference pointers)
+		c.Set(constants.USER_ID_KEY, *claims.UserID)
+		c.Set(constants.EMAIL_KEY, *claims.Email)
+		c.Set(constants.ROLE_ID_KEY, *claims.RoleID)
+		c.Set(constants.ROLE_NAME_KEY, *claims.RoleName)
+		c.Set(constants.ROLE_LEVEL_KEY, *claims.RoleLevel)
 		if claims.SellerID != nil {
 			c.Set(constants.SELLER_ID_KEY, *claims.SellerID)
 		}

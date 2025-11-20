@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"os"
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/db"
+	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
@@ -21,20 +20,27 @@ import (
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Println("No .env file found")
+		logger.Info("No .env file found")
 	}
 
+	/* Initialize Logger */
+	logger.InitLogger()
+
 	/* Connect Database */
-	db.ConnectDB(autoMigrations())
+	db.ConnectDB()
 
 	/* Connect Redis */
 	cache.ConnectRedis()
 
 	/* Initialize Gin Router */
 	gin.SetMode(gin.ReleaseMode) // Set to release mode for production
-	router := gin.Default()
+
+	// Use gin.New() instead of gin.Default() to disable default logging
+	router := gin.New()
+	router.Use(gin.Recovery()) // Add recovery middleware
 
 	/* Apply middleware */
+	router.Use(middleware.CorrelationID()) // Mandatory correlation ID middleware
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
 
@@ -46,8 +52,10 @@ func main() {
 	if port == "" {
 		port = "8080" // Default port
 	}
-	fmt.Println("🚀 Server running on port:", port)
-	router.Run(":" + port)
+	logger.Info("Server starting on port " + port)
+	if err := router.Run(":" + port); err != nil {
+		logger.Fatal("Failed to start server on port "+port, err)
+	}
 }
 
 func registerContainer(router *gin.Engine) {
@@ -56,11 +64,4 @@ func registerContainer(router *gin.Engine) {
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
 	_ = notification.NewContainer(router)
-}
-
-func autoMigrations() []db.AutoMigrate {
-	return []db.AutoMigrate{
-		user.NewUserAutoMigrate(),
-		product.NewProductAutoMigrate(),
-	}
 }

@@ -9,6 +9,9 @@ type Category struct {
 	Name        string `json:"name"        binding:"required" gorm:"column:name"`
 	ParentID    *uint  `json:"parentId"                       gorm:"column:parent_id"`
 	Description string `json:"description"                    gorm:"column:description"`
+	// Multi-tenant fields
+	IsGlobal bool  `json:"isGlobal"                       gorm:"column:is_global"`
+	SellerID *uint `json:"sellerId"                       gorm:"column:seller_id"`
 
 	// Relationships - use pointers to avoid N+1 queries
 	Parent   *Category  `json:"parent,omitempty"   gorm:"foreignKey:parent_id;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`

@@ -12,12 +12,12 @@ import (
 
 // JWT claims struct with enhanced role-based information
 type Claims struct {
-	UserID    uint   `json:"user_id"`
-	Email     string `json:"email"`
-	RoleID    uint   `json:"role_id"`
-	RoleName  string `json:"role_name"`
-	RoleLevel uint   `json:"role_level"`
-	SellerID  *uint  `json:"seller_id,omitempty"` // Optional - only for seller-related users
+	UserID    *uint   `json:"user_id"`    // Required - pointer to detect missing field
+	Email     *string `json:"email"`      // Required - pointer to detect missing field
+	RoleID    *uint   `json:"role_id"`    // Required - pointer to detect missing field
+	RoleName  *string `json:"role_name"`  // Required - pointer to detect missing field
+	RoleLevel *uint   `json:"role_level"` // Required - pointer to detect missing field
+	SellerID  *uint   `json:"seller_id,omitempty"` // Optional - only for seller-related users
 	jwt.StandardClaims
 }
 
@@ -33,13 +33,13 @@ type TokenUserInfo struct {
 
 // GenerateToken generates a JWT token for a user with role-based information
 func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
-	// Create the claims
+	// Create the claims with pointers
 	claims := Claims{
-		UserID:    userInfo.UserID,
-		Email:     userInfo.Email,
-		RoleID:    userInfo.RoleID,
-		RoleName:  userInfo.RoleName,
-		RoleLevel: userInfo.RoleLevel,
+		UserID:    &userInfo.UserID,
+		Email:     &userInfo.Email,
+		RoleID:    &userInfo.RoleID,
+		RoleName:  &userInfo.RoleName,
+		RoleLevel: &userInfo.RoleLevel,
 		SellerID:  userInfo.SellerID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(constants.TOKEN_EXPIRE_DURATION).Unix(),

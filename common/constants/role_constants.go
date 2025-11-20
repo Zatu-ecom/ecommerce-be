@@ -7,6 +7,7 @@ const (
 	SELLER_SUBSCRIPTION_INACTIVE_MSG = "Seller subscription is inactive"
 	SELLER_NOT_VERIFIED_MSG          = "Seller account is not verified"
 	INVALID_SELLER_MSG               = "Invalid seller information"
+	ROLE_NOT_FOUND_MSG               = "User Role not found"
 
 	// Customer-specific messages (when associated seller has issues)
 	CUSTOMER_NO_SELLER_MSG                        = "Customer account must be associated with a seller"
@@ -19,6 +20,7 @@ const (
 	SELLER_SUBSCRIPTION_INACTIVE_CODE = "SELLER_SUBSCRIPTION_INACTIVE"
 	SELLER_NOT_VERIFIED_CODE          = "SELLER_NOT_VERIFIED"
 	INVALID_SELLER_CODE               = "INVALID_SELLER"
+	ROLE_NOT_FOUND_CODE               = "ROLE_NOT_FOUND"
 
 	// Customer-specific error codes
 	CUSTOMER_NO_SELLER_CODE = "CUSTOMER_NO_SELLER"

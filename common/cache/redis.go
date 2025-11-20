@@ -36,6 +36,10 @@ func ConnectRedis() error {
 	return InitializeRedis()
 }
 
+func SetRedisClient(client *redis.Client) {
+	redisClient = client
+}
+
 // GetRedisClient returns the Redis client instance
 func GetRedisClient() (*redis.Client, error) {
 	if redisClient == nil {

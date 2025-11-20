@@ -35,9 +35,12 @@ type AttributeFilter struct {
 
 // ProductFilters represents available filters for product search
 type ProductFilters struct {
-	Categories []CategoryFilter  `json:"categories"`
-	Brands     []BrandFilter     `json:"brands"`
-	Attributes []AttributeFilter `json:"attributes"`
+	Categories   []CategoryFilter    `json:"categories"`
+	Brands       []BrandFilter       `json:"brands"`
+	Attributes   []AttributeFilter   `json:"attributes"`
+	PriceRange   *PriceRangeFilter   `json:"priceRange,omitempty"`   // Price range from variants
+	VariantTypes []VariantTypeFilter `json:"variantTypes,omitempty"` // Available variant options (Color, Size, etc.)
+	StockStatus  *StockStatusFilter  `json:"stockStatus,omitempty"`  // Stock availability
 }
 
 // CategoryFilter represents category filter option
@@ -59,4 +62,27 @@ type PriceRangeFilter struct {
 	Min          float64 `json:"min"`
 	Max          float64 `json:"max"`
 	ProductCount uint    `json:"productCount"`
+}
+
+// VariantTypeFilter represents variant option types (e.g., Color, Size)
+type VariantTypeFilter struct {
+	Name         string                `json:"name"`        // Option name (e.g., "Color", "Size")
+	DisplayName  string                `json:"displayName"` // Display name
+	Values       []VariantOptionFilter `json:"values"`      // Available values for this option
+	ProductCount uint                  `json:"productCount"`
+}
+
+// VariantOptionFilter represents individual variant option values
+type VariantOptionFilter struct {
+	Value        string `json:"value"`               // Option value (e.g., "Red", "Large")
+	DisplayName  string `json:"displayName"`         // Display name
+	ColorCode    string `json:"colorCode,omitempty"` // For color options
+	ProductCount uint   `json:"productCount"`        // Number of products with this option
+}
+
+// StockStatusFilter represents stock availability filter
+type StockStatusFilter struct {
+	InStock       uint `json:"inStock"`    // Products with stock
+	OutOfStock    uint `json:"outOfStock"` // Products without stock
+	TotalProducts uint `json:"totalProducts"`
 }

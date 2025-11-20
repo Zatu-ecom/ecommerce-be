@@ -1,669 +1,376 @@
 package service
 
 import (
-	"errors"
-	"math"
-	"time"
-
 	"ecommerce-be/common/db"
-	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
-	"ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
 
 	"gorm.io/gorm"
 )
 
 // ProductService defines the interface for product-related business logic
 type ProductService interface {
-	CreateProduct(req model.ProductCreateRequest) (*model.ProductResponse, error)
-	UpdateProduct(id uint, req model.ProductUpdateRequest) (*model.ProductResponse, error)
-	DeleteProduct(id uint) error
-	GetAllProducts(page, limit int, filters map[string]interface{}) (*model.ProductsResponse, error)
-	GetProductByID(id uint) (*model.ProductResponse, error)
-	UpdateProductStock(id uint, req model.ProductStockUpdateRequest) error
-	SearchProducts(
-		query string,
-		filters map[string]interface{},
-		page, limit int,
-	) (*model.SearchResponse, error)
-	GetProductFilters() (*model.ProductFilters, error)
-	GetRelatedProducts(productID uint, limit int) (*model.RelatedProductsResponse, error)
+	CreateProduct(
+		req model.ProductCreateRequest,
+		sellerID uint,
+	) (*model.ProductResponse, error)
+	UpdateProduct(
+		id uint,
+		sellerId *uint,
+		req model.ProductUpdateRequest,
+	) (*model.ProductResponse, error)
+	DeleteProduct(
+		id uint,
+		sellerId *uint,
+	) error
 }
 
 // ProductServiceImpl implements the ProductService interface
 type ProductServiceImpl struct {
-	productRepo   repositories.ProductRepository
-	categoryRepo  repositories.CategoryRepository
-	attributeRepo repositories.AttributeDefinitionRepository
+	productRepo             repositories.ProductRepository
+	categoryRepo            repositories.CategoryRepository
+	productQueryService     ProductQueryService
+	validatorService        ProductValidatorService
+	variantService          VariantService
+	variantBulkService      VariantBulkService
+	productOptionService    ProductOptionService
+	productAttributeService ProductAttributeService
 }
 
 // NewProductService creates a new instance of ProductService
 func NewProductService(
 	productRepo repositories.ProductRepository,
 	categoryRepo repositories.CategoryRepository,
-	attributeRepo repositories.AttributeDefinitionRepository,
+	productQueryService ProductQueryService,
+	validatorService ProductValidatorService,
+	variantService VariantService,
+	variantBulkService VariantBulkService,
+	productOptionService ProductOptionService,
+	productAttributeService ProductAttributeService,
 ) ProductService {
 	return &ProductServiceImpl{
-		productRepo:   productRepo,
-		categoryRepo:  categoryRepo,
-		attributeRepo: attributeRepo,
+		productRepo:             productRepo,
+		categoryRepo:            categoryRepo,
+		productQueryService:     productQueryService,
+		validatorService:        validatorService,
+		variantService:          variantService,
+		variantBulkService:      variantBulkService,
+		productOptionService:    productOptionService,
+		productAttributeService: productAttributeService,
 	}
 }
 
 /***********************************************
  *    CreateProduct creates a new product      *
  ***********************************************/
+
+type productCreationResult struct {
+	product        *entity.Product
+	category       *entity.Category
+	options        []model.ProductOptionDetailResponse
+	variants       []model.VariantDetailResponse
+	attributes     []model.ProductAttributeResponse
+	packageOptions []entity.PackageOption
+}
+
 func (s *ProductServiceImpl) CreateProduct(
 	req model.ProductCreateRequest,
+	sellerID uint,
 ) (*model.ProductResponse, error) {
-	var product *entity.Product
-	var attributes []*entity.ProductAttribute
-	var packageOptions []entity.PackageOption
+	var result productCreationResult
 
 	err := db.Atomic(func(tx *gorm.DB) error {
-		// Validate request
-		if err := s.validateProductCreateRequest(req); err != nil {
-			return err
-		}
-
-		product = utils.ConvertProductCreateRequestToEntity(req)
-		if err := s.productRepo.Create(product); err != nil {
-			return err
-		}
-
-		attrs, err := s.createProductAttributes(product.ID, req.Attributes)
-		if err != nil {
-			return err
-		}
-		attributes = attrs
-
-		opts, err := s.createPackageOption(product.ID, req.PackageOptions)
-		if err != nil {
-			return err
-		}
-		packageOptions = opts
-
-		return nil
+		return s.executeProductCreation(&result, req, sellerID)
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildProductCreateResponse(product, req.CategoryID, attributes, packageOptions), nil
+	result.product.Category = result.category
+	return s.buildProductResponseFromModels(
+		result.product,
+		result.variants,
+		result.options,
+		result.attributes,
+		result.packageOptions,
+	), nil
 }
 
-// Helper to validate product creation request
-func (s *ProductServiceImpl) validateProductCreateRequest(req model.ProductCreateRequest) error {
-	existingProduct, err := s.productRepo.FindBySKU(req.SKU)
-	if err != nil {
+// executeProductCreation orchestrates all product creation steps in transaction
+func (s *ProductServiceImpl) executeProductCreation(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
+	// Validate and create base product
+	if err := s.validateAndCreateProduct(result, req, sellerID); err != nil {
 		return err
 	}
-	if existingProduct != nil {
-		return errors.New(utils.PRODUCT_EXISTS_MSG)
-	}
+
+	// Create all associated entities
+	return s.createProductAssociations(result, req, sellerID)
+}
+
+// validateAndCreateProduct validates request and creates base product entity
+func (s *ProductServiceImpl) validateAndCreateProduct(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
 	category, err := s.categoryRepo.FindByID(req.CategoryID)
 	if err != nil {
 		return err
 	}
-	if category == nil {
-		return errors.New(utils.PRODUCT_CATEGORY_INVALID_MSG)
+
+	if err := validator.ValidateProductCreateRequest(req, category); err != nil {
+		return err
 	}
+
+	product := factory.CreateProductFromRequest(req, sellerID)
+	if err := s.productRepo.Create(product); err != nil {
+		return err
+	}
+
+	result.product = product
+	result.category = category
 	return nil
 }
 
-// Helper to build product response
-func (s *ProductServiceImpl) buildProductCreateResponse(
+// createProductAssociations creates options, variants, attributes, and package options
+func (s *ProductServiceImpl) createProductAssociations(
+	result *productCreationResult,
+	req model.ProductCreateRequest,
+	sellerID uint,
+) error {
+	productID := result.product.ID
+
+	// Create options if provided
+	if len(req.Options) > 0 {
+		options, err := s.productOptionService.CreateOptionsBulk(productID, sellerID, req.Options)
+		if err != nil {
+			return err
+		}
+		result.options = options
+	}
+
+	// Create variants (required)
+	variants, err := s.variantBulkService.CreateVariantsBulk(productID, sellerID, req.Variants)
+	if err != nil {
+		return err
+	}
+	result.variants = variants
+
+	// Create attributes if provided
+	if len(req.Attributes) > 0 {
+		attributes, err := s.productAttributeService.CreateProductAttributesBulk(
+			productID,
+			sellerID,
+			req.Attributes,
+		)
+		if err != nil {
+			return err
+		}
+		result.attributes = attributes
+	}
+
+	// Create package options if provided
+	if len(req.PackageOptions) > 0 {
+		packageOptions, err := s.createPackageOption(productID, req.PackageOptions)
+		if err != nil {
+			return err
+		}
+		result.packageOptions = packageOptions
+	}
+
+	return nil
+}
+
+// buildProductResponseFromModels combines models from different services into final product response
+// Uses factory builder for base response, then adds detailed fields from services
+func (s *ProductServiceImpl) buildProductResponseFromModels(
 	product *entity.Product,
-	categoryID uint,
-	attributes []*entity.ProductAttribute,
+	variants []model.VariantDetailResponse,
+	options []model.ProductOptionDetailResponse,
+	attributes []model.ProductAttributeResponse,
 	packageOptions []entity.PackageOption,
 ) *model.ProductResponse {
-	category, _ := s.categoryRepo.FindByID(categoryID)
-	categoryInfo := model.CategoryHierarchyInfo{ID: category.ID, Name: category.Name}
-	attributeResponses := utils.ConvertProductAttributesEntityToResponse(
-		flattenAttributes(attributes),
-	)
-	packageOptionResponses := utils.ConvertPackageOptionsEntityToResponse(packageOptions)
-	return utils.ConvertProductResponse(
-		product,
-		categoryInfo,
-		attributeResponses,
-		packageOptionResponses,
-	)
+	// Calculate variant aggregation from models
+	variantAgg := calculateVariantAggFromModels(variants)
+
+	// Use factory builder for base response
+	response := factory.BuildProductResponse(product, variantAgg)
+
+	// Add detailed fields from services (not included in base builder)
+	response.Options = options
+	response.Variants = variants
+	response.Attributes = attributes
+	response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
+
+	return &response
 }
 
-// Helper to flatten []*entity.ProductAttribute to []entity.ProductAttribute
-func flattenAttributes(attrs []*entity.ProductAttribute) []entity.ProductAttribute {
-	var result []entity.ProductAttribute
-	for _, attr := range attrs {
-		result = append(result, *attr)
-	}
-	return result
-}
-
-// createProductAttributes creates product attributes for a given product
-func (s *ProductServiceImpl) createProductAttributes(
-	productID uint,
-	attributes []model.ProductAttributeRequest,
-) ([]*entity.ProductAttribute, error) {
-	// Extract unique keys and fetch existing attributes
-	keys := s.extractUniqueKeys(attributes)
-	attributeMap, err := s.attributeRepo.FindByKeys(keys)
-	if err != nil {
-		return nil, err
+// calculateVariantAggFromModels calculates aggregation data from variant models
+func calculateVariantAggFromModels(
+	variants []model.VariantDetailResponse,
+) *mapper.VariantAggregation {
+	agg := &mapper.VariantAggregation{
+		HasVariants:   len(variants) > 0,
+		TotalVariants: len(variants),
+		AllowPurchase: false,
+		OptionNames:   []string{},
+		OptionValues:  make(map[string][]string),
 	}
 
-	// Process attributes and prepare bulk operations
-	operations := s.processAttributesForBulkOperations(productID, attributes, attributeMap)
-
-	// Execute all bulk operations
-	if err = s.executeBulkOperations(operations); err != nil {
-		return nil, err
+	if len(variants) == 0 {
+		return agg
 	}
 
-	return operations.productAttributesToCreate, nil
-}
+	minPrice := variants[0].Price
+	maxPrice := variants[0].Price
+	optionValuesMap := make(map[string]map[string]bool) // optionName -> set of unique values
 
-// extractUniqueKeys extracts unique keys from attribute requests
-func (s *ProductServiceImpl) extractUniqueKeys(
-	attributes []model.ProductAttributeRequest,
-) []string {
-	keys := make([]string, 0, len(attributes))
-	keySet := make(map[string]bool)
-	for _, attr := range attributes {
-		if !keySet[attr.Key] {
-			keys = append(keys, attr.Key)
-			keySet[attr.Key] = true
+	for _, v := range variants {
+		if v.Price < minPrice {
+			minPrice = v.Price
 		}
-	}
-	return keys
-}
-
-// BulkOperations holds all bulk operations to be executed
-type BulkOperations struct {
-	attributesToUpdate        []*entity.AttributeDefinition
-	attributesToCreate        []*entity.AttributeDefinition
-	productAttributesToCreate []*entity.ProductAttribute
-}
-
-// processAttributesForBulkOperations processes attributes and prepares bulk operations
-func (s *ProductServiceImpl) processAttributesForBulkOperations(
-	productID uint,
-	attributes []model.ProductAttributeRequest,
-	attributeMap map[string]*entity.AttributeDefinition,
-) *BulkOperations {
-	operations := &BulkOperations{
-		attributesToUpdate:        make([]*entity.AttributeDefinition, 0),
-		attributesToCreate:        make([]*entity.AttributeDefinition, 0),
-		productAttributesToCreate: make([]*entity.ProductAttribute, 0),
-	}
-
-	for _, attr := range attributes {
-		attribute, exists := attributeMap[attr.Key]
-
-		if exists {
-			s.processExistingAttribute(attribute, attr.Value, operations)
-		} else {
-			attribute = s.createNewAttributeDefinition(attr, operations)
-			attributeMap[attr.Key] = attribute
+		if v.Price > maxPrice {
+			maxPrice = v.Price
+		}
+		if v.AllowPurchase {
+			agg.AllowPurchase = true
+		}
+		if agg.MainImage == "" && len(v.Images) > 0 {
+			agg.MainImage = v.Images[0]
 		}
 
-		// Prepare product attribute for bulk creation
-		productAttribute := &entity.ProductAttribute{
-			ProductID:             productID,
-			AttributeDefinitionID: attribute.ID,
-			Value:                 attr.Value,
-			SortOrder:             attr.SortOrder,
-			AttributeDefinition:   attribute,
-		}
-		operations.productAttributesToCreate = append(
-			operations.productAttributesToCreate,
-			productAttribute,
-		)
-	}
-
-	return operations
-}
-
-// processExistingAttribute processes an existing attribute definition
-func (s *ProductServiceImpl) processExistingAttribute(
-	attribute *entity.AttributeDefinition,
-	value string,
-	operations *BulkOperations,
-) {
-	// Check if value already exists using map for O(1) lookup
-	valueMap := make(map[string]bool)
-	for _, val := range attribute.AllowedValues {
-		valueMap[val] = true
-	}
-
-	// Only add if value doesn't exist
-	if !valueMap[value] {
-		attribute.AllowedValues = append(attribute.AllowedValues, value)
-		operations.attributesToUpdate = append(operations.attributesToUpdate, attribute)
-	}
-}
-
-// createNewAttributeDefinition creates a new attribute definition
-func (s *ProductServiceImpl) createNewAttributeDefinition(
-	attr model.ProductAttributeRequest,
-	operations *BulkOperations,
-) *entity.AttributeDefinition {
-	attribute := &entity.AttributeDefinition{
-		Key:           attr.Key,
-		Name:          attr.Name,
-		Unit:          attr.Unit,
-		AllowedValues: []string{attr.Value},
-	}
-	operations.attributesToCreate = append(operations.attributesToCreate, attribute)
-	return attribute
-}
-
-// executeBulkOperations executes all bulk database operations
-func (s *ProductServiceImpl) executeBulkOperations(operations *BulkOperations) error {
-	// Bulk create new attribute definitions
-	if len(operations.attributesToCreate) > 0 {
-		if err := s.attributeRepo.CreateBulk(operations.attributesToCreate); err != nil {
-			return err
+		// Collect unique option values
+		for _, opt := range v.SelectedOptions {
+			if optionValuesMap[opt.OptionName] == nil {
+				optionValuesMap[opt.OptionName] = make(map[string]bool)
+			}
+			optionValuesMap[opt.OptionName][opt.Value] = true
 		}
 	}
 
-	// Bulk update modified attributes
-	if len(operations.attributesToUpdate) > 0 {
-		if err := s.attributeRepo.UpdateBulk(operations.attributesToUpdate); err != nil {
-			return err
+	agg.MinPrice = minPrice
+	agg.MaxPrice = maxPrice
+
+	// Build OptionNames and OptionValues
+	for optName, valuesSet := range optionValuesMap {
+		agg.OptionNames = append(agg.OptionNames, optName)
+		values := []string{}
+		for v := range valuesSet {
+			values = append(values, v)
 		}
+		agg.OptionValues[optName] = values
 	}
 
-	// Bulk create product attributes
-	if len(operations.productAttributesToCreate) > 0 {
-		if err := s.attributeRepo.CreateProductAttributesBulk(operations.productAttributesToCreate); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return agg
 }
 
+// createPackageOption creates package options using factory
 func (s *ProductServiceImpl) createPackageOption(
 	parentID uint,
 	options []model.PackageOptionRequest,
 ) ([]entity.PackageOption, error) {
-	var packageOptions []entity.PackageOption
-	for _, option := range options {
-		packageOption := entity.PackageOption{
-			Name:        option.Name,
-			Description: option.Description,
-			Price:       option.Price,
-			Quantity:    option.Quantity,
-			ProductID:   parentID,
-			BaseEntity: commonEntity.BaseEntity{
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-		}
-		packageOptions = append(packageOptions, packageOption)
-	}
-
+	// Create package options using factory
+	packageOptions := factory.CreatePackageOptionsFromRequests(parentID, options)
 	return packageOptions, s.productRepo.CreatePackageOptions(packageOptions)
 }
 
-/********************************************************
- *		UpdateProduct updates an existing product 		*
- ********************************************************/
-// TODO: Implement product attributes update and package options update as well
+/************************************************************
+ *	UpdateProduct updates an existing product 		        *
+ *	Note: Price, images, stock are managed at variant level *
+ ************************************************************/
 func (s *ProductServiceImpl) UpdateProduct(
 	id uint,
+	sellerId *uint,
 	req model.ProductUpdateRequest,
 ) (*model.ProductResponse, error) {
+	// Fetch product to validate
 	product, err := s.productRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate and update category
-	if err := s.updateProductCategory(product, req.CategoryID); err != nil {
+	// Fetch category if being updated
+	var category *entity.Category
+	if req.CategoryID != nil && *req.CategoryID != 0 {
+		category, err = s.categoryRepo.FindByID(*req.CategoryID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate product exists and category if provided
+	if err := validator.ValidateProductUpdateRequest(product, sellerId, req, category); err != nil {
 		return nil, err
 	}
 
-	// Update fields
-	s.updateProductFields(product, req)
-	product.UpdatedAt = time.Now()
+	// Update product entity using factory
+	product = factory.CreateProductEntityFromUpdateRequest(product, req)
+
+	// Clear preloaded associations to avoid GORM sync issues
+	// When CategoryID is updated but Category is preloaded, GORM may not update correctly
+	product.Category = nil
 
 	// Save updated product
 	if err := s.productRepo.Update(product); err != nil {
 		return nil, err
 	}
 
-	// Build response
-	return s.buildProductResponse(product), nil
+	// TODO: Update attributes and package options if provided in request
+
+	// Return updated product with full details
+	return s.productQueryService.GetProductByID(product.ID, sellerId)
 }
 
-// Helper to validate and update category
-func (s *ProductServiceImpl) updateProductCategory(
-	product *entity.Product,
-	categoryID uint,
+/***************************************************
+* Deletes a product and all associated data        *
+* Implements PRD Section 3.1.5                     *
+* Cascading deletes handled by respective services:*
+* - Variants (via VariantService)                  *
+* - Product options (via ProductOptionService)     *
+* - Product attributes (via ProductAttributeService)*
+* - Package options (direct)                       *
+****************************************************/
+func (s *ProductServiceImpl) DeleteProduct(
+	id uint,
+	sellerId *uint,
 ) error {
-	if categoryID != 0 {
-		category, err := s.categoryRepo.FindByID(categoryID)
-		if err != nil {
+	// Verify product exists and validate ownership
+	_, err := s.validatorService.GetAndValidateProductOwnership(id, sellerId)
+	if err != nil {
+		return err
+	}
+
+	// Use atomic transaction to delete everything
+	return db.Atomic(func(tx *gorm.DB) error {
+		// Delete variants and their associated data (variant_option_values)
+		if err := s.variantBulkService.DeleteVariantsByProductID(id); err != nil {
 			return err
 		}
-		if category == nil {
-			return errors.New(utils.PRODUCT_CATEGORY_INVALID_MSG)
+
+		// Delete product options and their values
+		if err := s.productOptionService.DeleteOptionsByProductID(id); err != nil {
+			return err
 		}
-		product.CategoryID = categoryID
-	}
-	return nil
-}
 
-// Helper to update product fields
-func (s *ProductServiceImpl) updateProductFields(
-	product *entity.Product,
-	req model.ProductUpdateRequest,
-) {
-	if req.Name != "" {
-		product.Name = req.Name
-	}
-	if req.Brand != "" {
-		product.Brand = req.Brand
-	}
-	if req.Price > 0 {
-		product.Price = req.Price
-	}
-	if req.Currency != "" {
-		product.Currency = req.Currency
-	}
-	if req.ShortDescription != "" {
-		product.ShortDescription = req.ShortDescription
-	}
-	if req.LongDescription != "" {
-		product.LongDescription = req.LongDescription
-	}
-	if len(req.Images) > 0 {
-		product.Images = req.Images
-	}
-	product.IsPopular = req.IsPopular
-	if req.Discount >= 0 {
-		product.Discount = req.Discount
-	}
-	if len(req.Tags) > 0 {
-		product.Tags = req.Tags
-	}
-}
-
-// Helper to build response
-func (s *ProductServiceImpl) buildProductResponse(product *entity.Product) *model.ProductResponse {
-	category, _ := s.categoryRepo.FindByID(product.CategoryID)
-	categoryInfo := model.CategoryHierarchyInfo{ID: category.ID, Name: category.Name}
-	return utils.ConvertProductResponse(product, categoryInfo, nil, nil)
-}
-
-/**********************************************************
-*                     Deletes a product                   *
-***********************************************************/
-func (s *ProductServiceImpl) DeleteProduct(id uint) error {
-	return s.productRepo.Delete(id)
-}
-
-/*************************************************************************
-*       GetAllProducts gets all products with pagination and filters     *
-**************************************************************************/
-func (s *ProductServiceImpl) GetAllProducts(
-	page,
-	limit int,
-	filters map[string]interface{},
-) (*model.ProductsResponse, error) {
-	// Set default values
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	products, total, err := s.productRepo.FindAll(filters, page, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to response models
-	var productsResponse []model.ProductResponse
-	for _, product := range products {
-		CategoryHierarchyInfo := model.CategoryHierarchyInfo{
-			ID:   product.Category.ID,
-			Name: product.Category.Name,
+		// Delete product attributes
+		if err := s.productAttributeService.DeleteAttributesByProductID(id); err != nil {
+			return err
 		}
-		if product.Category.Parent != nil {
-			CategoryHierarchyInfo.Parent = &model.CategoryInfo{
-				ID:   product.Category.Parent.ID,
-				Name: product.Category.Parent.Name,
-			}
+
+		// Delete package options (no separate service yet)
+		if err := s.productRepo.DeletePackageOptionsByProductID(id); err != nil {
+			return err
 		}
-		pr := utils.ConvertProductResponse(&product, CategoryHierarchyInfo, nil, nil)
-		productsResponse = append(productsResponse, *pr)
-	}
 
-	// Calculate pagination
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-	hasNext := page < totalPages
-	hasPrev := page > 1
-
-	pagination := model.PaginationResponse{
-		CurrentPage:  page,
-		TotalPages:   totalPages,
-		TotalItems:   int(total),
-		ItemsPerPage: limit,
-		HasNext:      hasNext,
-		HasPrev:      hasPrev,
-	}
-
-	return &model.ProductsResponse{
-		Products:   productsResponse,
-		Pagination: pagination,
-	}, nil
-}
-
-/*****************************************************************************
-*        GetProductByID gets a product by ID with detailed information       *
-******************************************************************************/
-func (s *ProductServiceImpl) GetProductByID(id uint) (*model.ProductResponse, error) {
-	product, err := s.productRepo.FindByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get category with parent info
-	category, err := s.categoryRepo.FindByID(product.CategoryID)
-	if err != nil {
-		return nil, err
-	}
-
-	var parentCategory *entity.Category
-	if category.ParentID != nil && *category.ParentID != 0 {
-		if pc, err := s.categoryRepo.FindByID(*category.ParentID); err == nil {
-			parentCategory = pc
-		}
-	}
-	categoryInfo := utils.ConvertCategoryToHierarchyInfo(category, parentCategory)
-
-	// Get product attributes
-	productAttributes, err := s.attributeRepo.FindProductAttributeByProductID(id)
-	var attribute []model.ProductAttributeResponse
-	if err == nil {
-		attribute = utils.ConvertProductAttributesEntityToResponse(productAttributes)
-	}
-
-	packageOptions, err := s.productRepo.FindPackageOptionByProductID(id)
-	var packageOptionResponses []model.PackageOptionResponse
-	if err == nil {
-		packageOptionResponses = utils.ConvertPackageOptionsEntityToResponse(packageOptions)
-	}
-
-	// Create detailed response using converter
-	productDetailResponse := utils.ConvertProductResponse(
-		product,
-		*categoryInfo,
-		attribute,
-		packageOptionResponses)
-	return productDetailResponse, nil
-}
-
-/**********************************************************************
-*      UpdateProductStock updates the stock status of a product       *
-***********************************************************************/
-func (s *ProductServiceImpl) UpdateProductStock(
-	id uint,
-	req model.ProductStockUpdateRequest,
-) error {
-	return s.productRepo.UpdateStock(id, req.InStock)
-}
-
-/**********************************************************************************
-*     SearchProducts searches for products with the given query and filters       *
-***********************************************************************************/
-func (s *ProductServiceImpl) SearchProducts(
-	query string,
-	filters map[string]interface{},
-	page, limit int,
-) (*model.SearchResponse, error) {
-	// Set default values
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	products, total, err := s.productRepo.Search(query, filters, page, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to search results
-	var searchResults []model.SearchResult
-	for _, product := range products {
-		result := utils.ConvertProductToSearchResult(&product)
-		searchResults = append(searchResults, *result)
-	}
-
-	// Calculate pagination
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-
-	pagination := model.PaginationResponse{
-		CurrentPage:  page,
-		TotalPages:   totalPages,
-		TotalItems:   int(total),
-		ItemsPerPage: limit,
-		HasNext:      page < totalPages,
-		HasPrev:      page > 1,
-	}
-
-	return &model.SearchResponse{
-		Query:      query,
-		Results:    searchResults,
-		Pagination: pagination,
-		SearchTime: "0.05s", // Placeholder
-	}, nil
-}
-
-/****************************************************************************
-*        GetProductFilters gets available filters for product search		*
-*****************************************************************************/
-func (s *ProductServiceImpl) GetProductFilters() (*model.ProductFilters, error) {
-	brands, categories, attributes, err := s.productRepo.GetProductFilters()
-	if err != nil {
-		return nil, err
-	}
-	filters := &model.ProductFilters{
-		Brands:     utils.ConvertBrandsToFilters(brands),
-		Categories: s.convertCategoriesToFilters(categories),
-		Attributes: utils.ConvertAttributesToFilters(attributes),
-	}
-
-	return filters, nil
-}
-
-func (s *ProductServiceImpl) convertCategoriesToFilters(
-	categories []mapper.CategoryWithProductCount,
-) []model.CategoryFilter {
-	mp := make(map[uint]model.CategoryFilter)
-	var categoryFilter []model.CategoryFilter
-	for _, category := range categories {
-		mp[category.CategoryID] = utils.ConvertCategoriesToFilters(category)
-
-		if category.ParentID == nil || *category.ParentID == 0 {
-			categoryFilter = append(
-				categoryFilter,
-				utils.ConvertCategoriesToFilters(category),
-			)
-		}
-	}
-
-	for _, category := range categories {
-		if category.ParentID != nil && *category.ParentID != 0 {
-			parentFilter, exist := mp[*category.ParentID]
-			if exist {
-				parentFilter.Children = append(
-					parentFilter.Children,
-					utils.ConvertCategoriesToFilters(category),
-				)
-			} else {
-				categoryFilter = append(
-					categoryFilter,
-					utils.ConvertCategoriesToFilters(category),
-				)
-			}
-		}
-	}
-
-	return categoryFilter
-}
-
-/*****************************************************************************
-*      GetRelatedProducts gets products related to a specific product        *
-******************************************************************************/
-func (s *ProductServiceImpl) GetRelatedProducts(
-	productID uint,
-	limit int,
-) (*model.RelatedProductsResponse, error) {
-	// Get the product to find its category
-	product, err := s.productRepo.FindByID(productID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set default limit
-	if limit < 1 {
-		limit = 5
-	}
-	if limit > 20 {
-		limit = 20
-	}
-
-	// Find related products in the same category
-	relatedProducts, err := s.productRepo.FindRelated(product.CategoryID, productID, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to response models
-	var relatedProductsResponse []model.RelatedProductResponse
-	for _, relatedProduct := range relatedProducts {
-		r := utils.ConvertProductToRelatedProduct(&relatedProduct)
-		relatedProductsResponse = append(relatedProductsResponse, *r)
-	}
-
-	return &model.RelatedProductsResponse{
-		RelatedProducts: relatedProductsResponse,
-	}, nil
+		// Finally, delete the product itself
+		return s.productRepo.Delete(id)
+	})
 }

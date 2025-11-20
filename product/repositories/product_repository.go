@@ -2,12 +2,13 @@ package repositories
 
 import (
 	"errors"
-	"fmt"
 
+	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
+	productError "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
-	"ecommerce-be/product/query"
-	"ecommerce-be/product/utils"
+	productQuery "ecommerce-be/product/query"
+	"ecommerce-be/product/utils/helper"
 
 	"gorm.io/gorm"
 )
@@ -17,7 +18,7 @@ type ProductRepository interface {
 	Create(product *entity.Product) error
 	Update(product *entity.Product) error
 	FindByID(id uint) (*entity.Product, error)
-	FindBySKU(sku string) (*entity.Product, error)
+	// FindBySKU removed - BaseSKU validation no longer required
 	FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
 	Search(
 		query string,
@@ -26,16 +27,34 @@ type ProductRepository interface {
 	) ([]entity.Product, int64, error)
 	Delete(id uint) error
 	UpdateStock(id uint, inStock bool) error
-	FindRelated(categoryID, excludeProductID uint, limit int) ([]entity.Product, error)
+	FindRelated(
+		categoryID, excludeProductID uint,
+		limit int,
+		sellerID *uint,
+	) ([]entity.Product, error)
+	// New method for intelligent related products with scoring
+	FindRelatedScored(
+		productID uint,
+		sellerID *uint,
+		limit int,
+		offset int,
+		strategies string,
+	) ([]mapper.RelatedProductScored, int64, error)
 	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
 	CreatePackageOptions(option []entity.PackageOption) error
 	UpdatePackageOptions(option []entity.PackageOption) error
-	GetProductFilters() (
+	GetProductFilters(sellerID *uint) (
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
 		[]mapper.AttributeWithProductCount,
+		*mapper.PriceRangeData,
+		[]mapper.VariantOptionData,
+		*mapper.StockStatusData,
 		error,
 	)
+
+	// Bulk deletion methods for product cleanup
+	DeletePackageOptionsByProductID(productID uint) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -67,20 +86,7 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 		First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.PRODUCT_NOT_FOUND_MSG)
-		}
-		return nil, result.Error
-	}
-	return &product, nil
-}
-
-// FindBySKU finds a product by SKU
-func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
-	var product entity.Product
-	result := r.db.Where("sku = ?", sku).First(&product)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil // Not found, but not an error
+			return nil, productError.ErrProductNotFound
 		}
 		return nil, result.Error
 	}
@@ -88,6 +94,7 @@ func (r *ProductRepositoryImpl) FindBySKU(sku string) (*entity.Product, error) {
 }
 
 // FindAll finds all products with filtering and pagination
+// Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) FindAll(
 	filters map[string]interface{},
 	page, limit int,
@@ -98,23 +105,37 @@ func (r *ProductRepositoryImpl) FindAll(
 	query := r.db.Model(&entity.Product{})
 
 	// Apply filters
+	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
+	if sellerID, exists := filters["sellerId"]; exists {
+		query = query.Where("seller_id = ?", sellerID)
+	}
 	if categoryID, exists := filters["categoryId"]; exists {
 		query = query.Where("category_id = ?", categoryID)
 	}
 	if brand, exists := filters["brand"]; exists {
 		query = query.Where("brand = ?", brand)
 	}
+
+	// Price filters - now based on variants
 	if minPrice, exists := filters["minPrice"]; exists {
-		query = query.Where("price >= ?", minPrice)
+		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, minPrice)
 	}
 	if maxPrice, exists := filters["maxPrice"]; exists {
-		query = query.Where("price <= ?", maxPrice)
+		query = query.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, maxPrice)
 	}
+
+	// Stock filter - now based on variants
 	if inStock, exists := filters["inStock"]; exists {
-		query = query.Where("in_stock = ?", inStock)
+		if inStock.(bool) {
+			query = query.Where(productQuery.FILTER_IN_STOCK_SUBQUERY)
+		} else {
+			query = query.Where(productQuery.FILTER_OUT_OF_STOCK_SUBQUERY)
+		}
 	}
+
+	// Popularity filter - now based on variants
 	if isPopular, exists := filters["isPopular"]; exists {
-		query = query.Where("is_popular = ?", isPopular)
+		query = query.Where(productQuery.FILTER_IS_POPULAR_SUBQUERY, isPopular)
 	}
 
 	// Count total
@@ -149,6 +170,7 @@ func (r *ProductRepositoryImpl) FindAll(
 }
 
 // Search searches products with query and filters
+// Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) Search(
 	query string,
 	filters map[string]interface{},
@@ -170,17 +192,37 @@ func (r *ProductRepositoryImpl) Search(
 	}
 
 	// Apply filters
+	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
+	if sellerID, exists := filters["sellerId"]; exists {
+		dbQuery = dbQuery.Where("seller_id = ?", sellerID)
+	}
 	if categoryID, exists := filters["categoryId"]; exists {
 		dbQuery = dbQuery.Where("category_id = ?", categoryID)
 	}
 	if brand, exists := filters["brand"]; exists {
 		dbQuery = dbQuery.Where("brand = ?", brand)
 	}
+
+	// Price filters - now based on variants
 	if minPrice, exists := filters["minPrice"]; exists {
-		dbQuery = dbQuery.Where("price >= ?", minPrice)
+		dbQuery = dbQuery.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, minPrice)
 	}
 	if maxPrice, exists := filters["maxPrice"]; exists {
-		dbQuery = dbQuery.Where("price <= ?", maxPrice)
+		dbQuery = dbQuery.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, maxPrice)
+	}
+
+	// Stock filter - now based on variants
+	if inStock, exists := filters["inStock"]; exists {
+		if inStock.(bool) {
+			dbQuery = dbQuery.Where(productQuery.FILTER_IN_STOCK_SUBQUERY)
+		} else {
+			dbQuery = dbQuery.Where(productQuery.FILTER_OUT_OF_STOCK_SUBQUERY)
+		}
+	}
+
+	// Popularity filter - now based on variants
+	if isPopular, exists := filters["isPopular"]; exists {
+		dbQuery = dbQuery.Where(productQuery.FILTER_IS_POPULAR_SUBQUERY, isPopular)
 	}
 
 	// Count total
@@ -217,11 +259,18 @@ func (r *ProductRepositoryImpl) UpdateStock(id uint, inStock bool) error {
 func (r *ProductRepositoryImpl) FindRelated(
 	categoryID, excludeProductID uint,
 	limit int,
+	sellerID *uint,
 ) ([]entity.Product, error) {
 	var products []entity.Product
-	result := r.db.Preload("Category").
-		Where("category_id = ? AND id != ?", categoryID, excludeProductID).
-		Order("created_at DESC").
+	query := r.db.Preload("Category").
+		Where("category_id = ? AND id != ?", categoryID, excludeProductID)
+
+	// Apply seller filter if sellerID is provided (non-admin)
+	if sellerID != nil {
+		query = query.Where("seller_id = ?", *sellerID)
+	}
+
+	result := query.Order("created_at DESC").
 		Limit(limit).
 		Find(&products)
 
@@ -229,6 +278,44 @@ func (r *ProductRepositoryImpl) FindRelated(
 		return nil, result.Error
 	}
 	return products, nil
+}
+
+// FindRelatedScored finds related products using stored procedure with intelligent scoring
+func (r *ProductRepositoryImpl) FindRelatedScored(
+	productID uint,
+	sellerID *uint,
+	limit int,
+	offset int,
+	strategies string,
+) ([]mapper.RelatedProductScored, int64, error) {
+	var results []mapper.RelatedProductScored
+
+	// Convert sellerID to BIGINT or NULL
+	var sellerParam interface{}
+	if sellerID != nil {
+		sellerParam = *sellerID
+	} else {
+		sellerParam = nil
+	}
+
+	// Call stored procedure for related products using query constants
+	err := r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
+		Scan(&results).
+		Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get total count for pagination
+	var totalCount int64
+	err = r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
+		Scan(&totalCount).
+		Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return results, totalCount, nil
 }
 
 func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
@@ -250,36 +337,137 @@ func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOpt
 	return r.db.Save(options).Error
 }
 
-// GetProductFilters fetches all filter data in optimized queries
-func (r *ProductRepositoryImpl) GetProductFilters() (
+// GetProductFilters fetches all filter data in optimized queries including variant-based filters
+// Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
+func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 	[]mapper.BrandWithProductCount,
 	[]mapper.CategoryWithProductCount,
 	[]mapper.AttributeWithProductCount,
+	*mapper.PriceRangeData,
+	[]mapper.VariantOptionData,
+	*mapper.StockStatusData,
 	error,
 ) {
 	var brands []mapper.BrandWithProductCount
 	var categories []mapper.CategoryWithProductCount
 	var attributes []mapper.AttributeWithProductCount
+	var priceRange mapper.PriceRangeData
+	var variantOptions []mapper.VariantOptionData
+	var stockStatus mapper.StockStatusData
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Raw(query.FIND_BRANDS_WITH_PRODUCT_COUNT_QUERY).Scan(&brands).Error; err != nil {
-			return err
+		// Brands query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Filter by seller_id
+			if err := tx.Raw(productQuery.FIND_BRANDS_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID).
+				Scan(&brands).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all brands
+			if err := tx.Raw(productQuery.FIND_BRANDS_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&brands).Error; err != nil {
+				return err
+			}
 		}
 
-		if err := tx.Raw(query.FIND_CATEGORIES_WITH_PRODUCT_COUNT_QUERY).Scan(&categories).Error; err != nil {
-			return err
+		// Categories query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Global categories + seller-specific categories
+			if err := tx.Raw(productQuery.FIND_CATEGORIES_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID, *sellerID).
+				Scan(&categories).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all categories
+			if err := tx.Raw(productQuery.FIND_CATEGORIES_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&categories).Error; err != nil {
+				return err
+			}
 		}
 
-		if err := tx.Raw(query.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_QUERY).Scan(&attributes).Error; err != nil {
-			return err
+		// Attributes query with optional seller filter
+		if sellerID != nil {
+			// Multi-tenant: Filter by seller's products
+			if err := tx.Raw(productQuery.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_BY_SELLER_QUERY, *sellerID).
+				Scan(&attributes).Error; err != nil {
+				return err
+			}
+		} else {
+			// Admin: Get all attributes
+			if err := tx.Raw(productQuery.FIND_ATTRIBUTES_WITH_PRODUCT_COUNT_QUERY).
+				Scan(&attributes).Error; err != nil {
+				return err
+			}
+		}
+
+		// Price range query from variants
+		if sellerID != nil {
+			if err := tx.Raw(productQuery.FIND_PRICE_RANGE_BY_SELLER_QUERY, *sellerID).
+				Scan(&priceRange).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(productQuery.FIND_PRICE_RANGE_QUERY).
+				Scan(&priceRange).Error; err != nil {
+				return err
+			}
+		}
+
+		// Variant options query (Color, Size, etc.)
+		if sellerID != nil {
+			if err := tx.Raw(productQuery.FIND_VARIANT_OPTIONS_BY_SELLER_QUERY, *sellerID).
+				Scan(&variantOptions).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(productQuery.FIND_VARIANT_OPTIONS_QUERY).
+				Scan(&variantOptions).Error; err != nil {
+				return err
+			}
+		}
+
+		// Stock status query
+		if sellerID != nil {
+			if err := tx.Raw(productQuery.FIND_STOCK_STATUS_BY_SELLER_QUERY, *sellerID).
+				Scan(&stockStatus).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Raw(productQuery.FIND_STOCK_STATUS_QUERY).
+				Scan(&stockStatus).Error; err != nil {
+				return err
+			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, nil, nil, nil, nil, nil, err
+	}
 
-	fmt.Println("categories : ", categories)
-	fmt.Println("attributes : ", attributes)
-	fmt.Println("brands : ", brands)
+	logmap := map[string]interface{}{
+		"categories":     len(categories),
+		"attributes":     len(attributes),
+		"brands":         len(brands),
+		"priceRange":     priceRange,
+		"variantOptions": len(variantOptions),
+		"stockStatus":    stockStatus,
+	}
 
-	return brands, categories, attributes, err
+	prettyLogmap, _ := helper.MapToPrettyJSON(logmap)
+
+	// Log filter data (replaces fmt.Println debug statements)
+	log.Debug("Product filters fetched" + prettyLogmap)
+
+	return brands, categories, attributes, &priceRange, variantOptions, &stockStatus, nil
+}
+
+/***********************************************
+ *    Bulk Deletion Methods for Product Cleanup
+ ***********************************************/
+
+// DeletePackageOptionsByProductID deletes all package options for a given product
+func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(productID uint) error {
+	return r.db.Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
 }
