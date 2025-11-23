@@ -47,18 +47,21 @@ type ProductOptionValueService interface {
 
 // ProductOptionValueServiceImpl implements the ProductOptionValueService interface
 type ProductOptionValueServiceImpl struct {
-	optionRepo  repositories.ProductOptionRepository
-	productRepo repositories.ProductRepository
+	optionRepo       repositories.ProductOptionRepository
+	productRepo      repositories.ProductRepository
+	validatorService ProductValidatorService
 }
 
 // NewProductOptionValueService creates a new instance of ProductOptionValueService
 func NewProductOptionValueService(
 	optionRepo repositories.ProductOptionRepository,
 	productRepo repositories.ProductRepository,
+	validatorService ProductValidatorService,
 ) ProductOptionValueService {
 	return &ProductOptionValueServiceImpl{
-		optionRepo:  optionRepo,
-		productRepo: productRepo,
+		optionRepo:       optionRepo,
+		productRepo:      productRepo,
+		validatorService: validatorService,
 	}
 }
 
@@ -71,8 +74,8 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	sellerID uint,
 	req model.ProductOptionValueRequest,
 ) (*model.ProductOptionValueResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +86,8 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 		return nil, err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerID, productID, product, option); err != nil {
+	// Validate option belongs to product
+	if err := validator.ValidateProductOptionBelongsToProduct(productID, option); err != nil {
 		return nil, err
 	}
 
@@ -122,8 +125,8 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	sellerID uint,
 	req model.ProductOptionValueUpdateRequest,
 ) (*model.ProductOptionValueResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +137,8 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 		return nil, err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerID, productID, product, option); err != nil {
+	// Validate option belongs to product
+	if err := validator.ValidateProductOptionBelongsToProduct(productID, option); err != nil {
 		return nil, err
 	}
 
@@ -172,8 +175,8 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	sellerID uint,
 	valueID uint,
 ) error {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return err
 	}
@@ -184,8 +187,8 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 		return err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerID, productID, product, option); err != nil {
+	// Validate option belongs to product
+	if err := validator.ValidateProductOptionBelongsToProduct(productID, option); err != nil {
 		return err
 	}
 
@@ -223,8 +226,8 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	sellerID uint,
 	req model.ProductOptionValueBulkAddRequest,
 ) ([]model.ProductOptionValueResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +238,8 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 		return nil, err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerID, productID, product, option); err != nil {
+	// Validate option belongs to product
+	if err := validator.ValidateProductOptionBelongsToProduct(productID, option); err != nil {
 		return nil, err
 	}
 
@@ -284,8 +287,8 @@ func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
 	sellerID uint,
 	req model.ProductOptionValueBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
-	// Fetch product for validation
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -296,8 +299,8 @@ func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
 		return nil, err
 	}
 
-	// Validate product and option
-	if err := validator.ValidateSellerProductAndOption(sellerID, productID, product, option); err != nil {
+	// Validate option belongs to product
+	if err := validator.ValidateProductOptionBelongsToProduct(productID, option); err != nil {
 		return nil, err
 	}
 

@@ -54,9 +54,10 @@ type ProductAttributeService interface {
 
 // ProductAttributeServiceImpl implements the ProductAttributeService interface
 type ProductAttributeServiceImpl struct {
-	productAttrRepo repositories.ProductAttributeRepository
-	productRepo     repositories.ProductRepository
-	attributeRepo   repositories.AttributeDefinitionRepository
+	productAttrRepo  repositories.ProductAttributeRepository
+	productRepo      repositories.ProductRepository
+	attributeRepo    repositories.AttributeDefinitionRepository
+	validatorService ProductValidatorService
 }
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
@@ -64,11 +65,13 @@ func NewProductAttributeService(
 	productAttrRepo repositories.ProductAttributeRepository,
 	productRepo repositories.ProductRepository,
 	attributeRepo repositories.AttributeDefinitionRepository,
+	validatorService ProductValidatorService,
 ) ProductAttributeService {
 	return &ProductAttributeServiceImpl{
-		productAttrRepo: productAttrRepo,
-		productRepo:     productRepo,
-		attributeRepo:   attributeRepo,
+		productAttrRepo:  productAttrRepo,
+		productRepo:      productRepo,
+		attributeRepo:    attributeRepo,
+		validatorService: validatorService,
 	}
 }
 
@@ -78,15 +81,10 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	sellerID uint,
 	req model.AddProductAttributeRequest,
 ) (*model.ProductAttributeDetailResponse, error) {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Verify attribute definition exists
@@ -141,15 +139,10 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	sellerID uint,
 	req model.UpdateProductAttributeRequest,
 ) (*model.ProductAttributeDetailResponse, error) {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Find the product attribute
@@ -198,15 +191,10 @@ func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
 	attributeID uint,
 	sellerID uint,
 ) error {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return prodErrors.ErrUnauthorizedAttributeAccess
+		return err
 	}
 
 	// Find the product attribute
@@ -250,14 +238,10 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 	sellerID uint,
 	req model.BulkUpdateProductAttributesRequest,
 ) (*model.BulkUpdateProductAttributesResponse, error) {
-	// Verify product exists and belongs to seller
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Track updated attributes
@@ -330,15 +314,10 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 		return []model.ProductAttributeResponse{}, nil
 	}
 
-	// Verify product exists and user has access (single query)
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Extract unique keys and fetch existing attribute definitions (single query)
