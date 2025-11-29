@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/user/factory/singleton"
 	"ecommerce-be/user/handlers"
-	"ecommerce-be/user/repositories"
-	"ecommerce-be/user/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,14 +15,9 @@ type UserModule struct {
 
 // NewUserModule creates a new instance of UserModule
 func NewUserModule() *UserModule {
-	addressRepo := repositories.NewAddressRepository(db.GetDB())
-	addressService := service.NewAddressService(addressRepo)
-
-	userRepo := repositories.NewUserRepository(db.GetDB())
-	userService := service.NewUserService(userRepo, addressService)
-
+	f := singleton.GetInstance()
 	return &UserModule{
-		userHandler: handlers.NewUserHandler(userService),
+		userHandler: f.GetUserHandler(),
 	}
 }
 

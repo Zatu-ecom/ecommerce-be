@@ -101,6 +101,7 @@ const (
 	PASSWORD_CHANGED_MSG        = "Password changed successfully"
 	TOKEN_REFRESHED_MSG         = "Token refreshed successfully"
 	ADDRESS_CREATED_MSG         = "Address created successfully"
+	ADDRESS_RETRIEVED_MSG       = "Address retrieved successfully"
 	ADDRESS_UPDATED_MSG         = "Address updated successfully"
 	ADDRESS_DELETED_MSG         = "Address deleted successfully"
 	ADDRESSES_RETRIEVED_MSG     = "Addresses retrieved successfully"
@@ -185,6 +186,7 @@ const (
 	PasswordChangedMsg       = PASSWORD_CHANGED_MSG
 	TokenRefreshedMsg        = TOKEN_REFRESHED_MSG
 	AddressCreatedMsg        = ADDRESS_CREATED_MSG
+	AddressRetrievedMsg      = ADDRESS_RETRIEVED_MSG
 	AddressUpdatedMsg        = ADDRESS_UPDATED_MSG
 	AddressDeletedMsg        = ADDRESS_DELETED_MSG
 	AddressesRetrievedMsg    = ADDRESSES_RETRIEVED_MSG

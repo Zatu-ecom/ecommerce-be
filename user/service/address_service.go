@@ -1,7 +1,7 @@
 package service
 
 import (
-	"ecommerce-be/user/entity"
+	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/repositories"
 )
@@ -9,11 +9,12 @@ import (
 // AddressService defines the interface for address-related business logic
 type AddressService interface {
 	GetAddresses(userID uint) ([]model.AddressResponse, error)
+	GetAddressByID(addressID uint, userID uint) (*model.AddressResponse, error)
 	AddAddress(userID uint, req model.AddressRequest) (*model.AddressResponse, error)
 	UpdateAddress(
 		addressID uint,
 		userID uint,
-		req model.AddressRequest,
+		req model.AddressUpdateRequest,
 	) (*model.AddressResponse, error)
 	DeleteAddress(addressID uint, userID uint) error
 	SetDefaultAddress(addressID uint, userID uint) (*model.AddressResponse, error)
@@ -38,21 +39,29 @@ func (s *AddressServiceImpl) GetAddresses(userID uint) ([]model.AddressResponse,
 		return nil, err
 	}
 
-	// Transform addresses
+	// Transform addresses using factory
 	var addressResponses []model.AddressResponse
 	for _, address := range addresses {
-		addressResponses = append(addressResponses, model.AddressResponse{
-			ID:        address.ID,
-			Street:    address.Street,
-			City:      address.City,
-			State:     address.State,
-			ZipCode:   address.ZipCode,
-			Country:   address.Country,
-			IsDefault: address.IsDefault,
-		})
+		addressResponses = append(addressResponses, factory.BuildAddressResponse(&address))
 	}
 
 	return addressResponses, nil
+}
+
+// GetAddressByID retrieves a specific address by ID for a user
+func (s *AddressServiceImpl) GetAddressByID(
+	addressID uint,
+	userID uint,
+) (*model.AddressResponse, error) {
+	address, err := s.addressRepo.FindByID(addressID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response using factory
+	addressResponse := factory.BuildAddressResponse(address)
+
+	return &addressResponse, nil
 }
 
 // AddAddress adds a new address for a user
@@ -60,30 +69,15 @@ func (s *AddressServiceImpl) AddAddress(
 	userID uint,
 	req model.AddressRequest,
 ) (*model.AddressResponse, error) {
-	address := &entity.Address{
-		UserID:    userID,
-		Street:    req.Street,
-		City:      req.City,
-		State:     req.State,
-		ZipCode:   req.ZipCode,
-		Country:   req.Country,
-		IsDefault: req.IsDefault,
-	}
+	// Build address entity using factory
+	address := factory.BuildAddressEntity(userID, req)
 
 	if err := s.addressRepo.Create(address); err != nil {
 		return nil, err
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
+	// Build response using factory
+	addressResponse := factory.BuildAddressResponse(address)
 
 	return &addressResponse, nil
 }
@@ -92,7 +86,7 @@ func (s *AddressServiceImpl) AddAddress(
 func (s *AddressServiceImpl) UpdateAddress(
 	addressID uint,
 	userID uint,
-	req model.AddressRequest,
+	req model.AddressUpdateRequest,
 ) (*model.AddressResponse, error) {
 	// Find the address by ID and user ID
 	address, err := s.addressRepo.FindByID(addressID, userID)
@@ -100,29 +94,16 @@ func (s *AddressServiceImpl) UpdateAddress(
 		return nil, err
 	}
 
-	// Update address fields
-	address.Street = req.Street
-	address.City = req.City
-	address.State = req.State
-	address.ZipCode = req.ZipCode
-	address.Country = req.Country
-	address.IsDefault = req.IsDefault
+	// Update address fields using factory (only non-nil fields)
+	factory.UpdateAddressEntity(address, req)
 
 	// Save changes to database
 	if err := s.addressRepo.Update(address); err != nil {
 		return nil, err
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
+	// Build response using factory
+	addressResponse := factory.BuildAddressResponse(address)
 
 	return &addressResponse, nil
 }
@@ -146,16 +127,8 @@ func (s *AddressServiceImpl) SetDefaultAddress(
 		return nil, err
 	}
 
-	// Create response
-	addressResponse := model.AddressResponse{
-		ID:        address.ID,
-		Street:    address.Street,
-		City:      address.City,
-		State:     address.State,
-		ZipCode:   address.ZipCode,
-		Country:   address.Country,
-		IsDefault: address.IsDefault,
-	}
+	// Build response using factory
+	addressResponse := factory.BuildAddressResponse(address)
 
 	return &addressResponse, nil
 }

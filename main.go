@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/common/db"
 	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
 	"ecommerce-be/payment"
@@ -61,6 +62,7 @@ func main() {
 func registerContainer(router *gin.Engine) {
 	_ = user.NewContainer(router)
 	_ = product.NewContainer(router)
+	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
 	_ = notification.NewContainer(router)

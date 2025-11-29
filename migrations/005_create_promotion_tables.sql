@@ -4,10 +4,10 @@
 -- Updated: 2025-11-26 (Consolidated customer segments and cleanup)
 
 -- =====================================================
--- 1. CUSTOMER SEGMENTS (Dynamic Rules)
+-- 1. CUSTOMER SEGMENT (Dynamic Rules)
 -- =====================================================
 
-CREATE TABLE IF NOT EXISTS customer_segments (
+CREATE TABLE IF NOT EXISTS customer_segment (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS customer_segments (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE INDEX IF NOT EXISTS idx_customer_segments_seller_id ON customer_segments(seller_id);
+CREATE INDEX IF NOT EXISTS idx_customer_segment_seller_id ON customer_segment(seller_id);
 
 -- =====================================================
 -- 2. PROMOTION (Sales/Offers created by sellers)
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS promotion (
     
     -- Customer Eligibility
     eligible_for VARCHAR(50) DEFAULT 'everyone',
-    customer_segment_id INTEGER REFERENCES customer_segments(id),
+    customer_segment_id INTEGER REFERENCES customer_segment(id),
     
     -- Usage Limits
     usage_limit_total INT,
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS discount_code (
     
     -- Customer Eligibility
     customer_eligibility VARCHAR(50) DEFAULT 'everyone',
-    customer_segment_id INTEGER REFERENCES customer_segments(id),
+    customer_segment_id INTEGER REFERENCES customer_segment(id),
     
     -- Usage Limits
     usage_limit_total INT,
@@ -284,8 +284,8 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_customer_segments_updated_at') THEN
-        CREATE TRIGGER update_customer_segments_updated_at BEFORE UPDATE ON customer_segments
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_customer_segment_updated_at') THEN
+        CREATE TRIGGER update_customer_segment_updated_at BEFORE UPDATE ON customer_segment
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;
