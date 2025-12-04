@@ -49,3 +49,7 @@ func ResetInstance() {
 func (f *SingletonFactory) GetLocationHandler() *handler.LocationHandler {
 	return f.handlerFactory.GetLocationHandler()
 }
+
+func (f *SingletonFactory) GetInventoryHandler() *handler.InventoryHandler {
+	return f.handlerFactory.GetInventoryHandler()
+}

@@ -14,6 +14,7 @@ type LocationRepository interface {
 	Create(location *entity.Location) error
 	Update(location *entity.Location) error
 	FindByID(id uint, sellerID uint) (*entity.Location, error)
+	FindByIDs(ids []uint, sellerID uint) ([]entity.Location, error)
 	FindByName(name string, sellerID uint) (*entity.Location, error)
 	FindAll(sellerID uint, isActive *bool) ([]entity.Location, error)
 	Delete(id uint) error
@@ -93,6 +94,20 @@ func (r *LocationRepositoryImpl) FindAll(sellerID uint, isActive *bool) ([]entit
 // Delete soft deletes a location
 func (r *LocationRepositoryImpl) Delete(id uint) error {
 	return r.db.Delete(&entity.Location{}, id).Error
+}
+
+// FindByIDs finds multiple locations by IDs for a seller (bulk query - avoids N+1)
+func (r *LocationRepositoryImpl) FindByIDs(ids []uint, sellerID uint) ([]entity.Location, error) {
+	var locations []entity.Location
+	if len(ids) == 0 {
+		return locations, nil
+	}
+	
+	result := r.db.Where("id IN ? AND seller_id = ?", ids, sellerID).Find(&locations)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return locations, nil
 }
 
 // Exists checks if a location exists for a seller

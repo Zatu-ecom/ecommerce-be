@@ -20,8 +20,9 @@ CREATE TABLE IF NOT EXISTS inventory (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     variant_id INTEGER NOT NULL,
     location_id INTEGER NOT NULL REFERENCES location(id),
-    quantity INTEGER DEFAULT 0 CHECK (quantity >= 0),
-    reserved_quantity INTEGER DEFAULT 0 CHECK (reserved_quantity >= 0),
+    quantity INTEGER DEFAULT 0,
+    reserved_quantity INTEGER DEFAULT 0,
+    threshold INTEGER DEFAULT 0,
     bin_location VARCHAR(50),
     low_stock_threshold INTEGER DEFAULT 10,
     is_active BOOLEAN DEFAULT TRUE
@@ -39,8 +40,10 @@ CREATE TABLE IF NOT EXISTS inventory_transaction (
     quantity INTEGER NOT NULL,
     before_quantity INTEGER NOT NULL,
     after_quantity INTEGER NOT NULL,
+    performed_by INTEGER NOT NULL,
     reference_id VARCHAR(255),
     reference_type VARCHAR(50),
+    reason TEXT NOT NULL,
     note TEXT
 );
 

@@ -26,5 +26,6 @@ func NewContainer(router *gin.Engine) *common.Container {
 // addModules registers all inventory-related modules
 func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewLocationModule())
-	// TODO: Add other inventory modules here (inventory, stock transfer, etc.)
+	c.RegisterModule(routes.NewInventoryModule())
+	// TODO: Add other inventory modules here (stock transfer, etc.)
 }
