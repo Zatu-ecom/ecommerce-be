@@ -3,8 +3,8 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/user/handlers"
-	"ecommerce-be/user/repositories"
+	"ecommerce-be/user/handler"
+	"ecommerce-be/user/repository"
 	"ecommerce-be/user/service"
 )
 
@@ -49,12 +49,16 @@ func ResetInstance() {
 // Handler Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetUserHandler() *handlers.UserHandler {
+func (f *SingletonFactory) GetUserHandler() *handler.UserHandler {
 	return f.handlerFactory.GetUserHandler()
 }
 
-func (f *SingletonFactory) GetAddressHandler() *handlers.AddressHandler {
+func (f *SingletonFactory) GetAddressHandler() *handler.AddressHandler {
 	return f.handlerFactory.GetAddressHandler()
+}
+
+func (f *SingletonFactory) GetUserQueryHandler() *handler.UserQueryHandler {
+	return f.handlerFactory.GetUserQueryHandler()
 }
 
 // ===============================
@@ -69,14 +73,18 @@ func (f *SingletonFactory) GetAddressService() service.AddressService {
 	return f.serviceFactory.GetAddressService()
 }
 
+func (f *SingletonFactory) GetUserQueryService() service.UserQueryService {
+	return f.serviceFactory.GetUserQueryService()
+}
+
 // ===============================
 // Repository Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetUserRepository() repositories.UserRepository {
+func (f *SingletonFactory) GetUserRepository() repository.UserRepository {
 	return f.repoFactory.GetUserRepository()
 }
 
-func (f *SingletonFactory) GetAddressRepository() repositories.AddressRepository {
+func (f *SingletonFactory) GetAddressRepository() repository.AddressRepository {
 	return f.repoFactory.GetAddressRepository()
 }

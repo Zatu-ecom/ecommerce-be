@@ -13,6 +13,7 @@ import (
 type InventoryRepository interface {
 	FindByVariantAndLocation(variantID uint, locationID uint) (*entity.Inventory, error)
 	FindByVariantAndLocationBatch(variantIDs []uint, locationIDs []uint) ([]entity.Inventory, error)
+	FindByIDs(ids []uint) ([]entity.Inventory, error)
 	Create(inventory *entity.Inventory) error
 	CreateBatch(inventories []*entity.Inventory) error
 	Update(inventory *entity.Inventory) error
@@ -130,4 +131,18 @@ func (r *InventoryRepositoryImpl) Exists(variantID uint, locationID uint) (bool,
 		return false, result.Error
 	}
 	return count > 0, nil
+}
+
+// FindByIDs finds multiple inventory records by IDs (bulk query - avoids N+1)
+func (r *InventoryRepositoryImpl) FindByIDs(ids []uint) ([]entity.Inventory, error) {
+	var inventories []entity.Inventory
+	if len(ids) == 0 {
+		return inventories, nil
+	}
+
+	result := r.db.Where("id IN ?", ids).Find(&inventories)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return inventories, nil
 }

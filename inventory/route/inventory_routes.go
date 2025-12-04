@@ -40,5 +40,8 @@ func (m *InventoryModule) RegisterRoutes(router *gin.Engine) {
 		
 		// Get inventory by location (all variants at location)
 		inventoryRoutes.GET("/locations/:locationId/inventory", sellerAuth, m.inventoryHandler.GetInventoryByLocation)
+
+		// List inventory transactions with filters
+		inventoryRoutes.GET("/transactions", sellerAuth, m.inventoryHandler.ListTransactions)
 	}
 }

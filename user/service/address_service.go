@@ -3,7 +3,7 @@ package service
 import (
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/repositories"
+	"ecommerce-be/user/repository"
 )
 
 // AddressService defines the interface for address-related business logic
@@ -22,11 +22,11 @@ type AddressService interface {
 
 // AddressServiceImpl implements the AddressService interface
 type AddressServiceImpl struct {
-	addressRepo repositories.AddressRepository
+	addressRepo repository.AddressRepository
 }
 
 // NewAddressService creates a new instance of AddressService
-func NewAddressService(addressRepo repositories.AddressRepository) AddressService {
+func NewAddressService(addressRepo repository.AddressRepository) AddressService {
 	return &AddressServiceImpl{
 		addressRepo: addressRepo,
 	}

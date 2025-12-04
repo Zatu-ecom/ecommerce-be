@@ -16,6 +16,7 @@ type ServiceFactory struct {
 
 	locationService             service.LocationService
 	inventoryService            service.InventoryManageService
+	inventoryQueryService       service.InventoryQueryService
 	inventoryTransactionService service.InventoryTransactionService
 
 	once sync.Once
@@ -46,9 +47,18 @@ func (f *ServiceFactory) initialize() {
 			userfac.GetAddressService(),
 		)
 
-		// Initialize transaction service first (used by inventory service)
+		// Initialize query service
+		f.inventoryQueryService = service.NewInventoryQueryServiceImpl(
+			inventoryRepository,
+			locationRepository,
+		)
+
+		// Initialize transaction service (used by inventory service and for listing)
 		f.inventoryTransactionService = service.NewInventoryTransactionService(
 			inventoryTransactionRepository,
+			inventoryRepository,
+			locationRepository,
+			userfac.GetUserQueryService(),
 		)
 
 		f.setManageInventoryService(
@@ -69,6 +79,12 @@ func (f *ServiceFactory) GetLocationService() service.LocationService {
 func (f *ServiceFactory) GetInventoryService() service.InventoryManageService {
 	f.initialize()
 	return f.inventoryService
+}
+
+// GetInventoryQueryService returns the singleton inventory query service
+func (f *ServiceFactory) GetInventoryQueryService() service.InventoryQueryService {
+	f.initialize()
+	return f.inventoryQueryService
 }
 
 // GetInventoryTransactionService returns the singleton inventory transaction service

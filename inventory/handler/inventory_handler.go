@@ -16,19 +16,22 @@ import (
 // InventoryHandler handles HTTP requests related to inventory
 type InventoryHandler struct {
 	*handler.BaseHandler
-	inventoryService service.InventoryManageService
+	inventoryService    service.InventoryManageService
 	inventoryQueryService service.InventoryQueryService
+	transactionService  service.InventoryTransactionService
 }
 
 // NewInventoryHandler creates a new instance of InventoryHandler
 func NewInventoryHandler(
 	inventoryService service.InventoryManageService,
 	inventoryQueryService service.InventoryQueryService,
+	transactionService service.InventoryTransactionService,
 ) *InventoryHandler {
 	return &InventoryHandler{
-		BaseHandler:      handler.NewBaseHandler(),
-		inventoryService: inventoryService,
+		BaseHandler:         handler.NewBaseHandler(),
+		inventoryService:    inventoryService,
 		inventoryQueryService: inventoryQueryService,
+		transactionService:  transactionService,
 	}
 }
 
@@ -152,4 +155,33 @@ func (h *InventoryHandler) GetInventoryByLocation(c *gin.Context) {
 		invConstants.INVENTORIES_FIELD_NAME,
 		inventories,
 	)
+}
+
+// ListTransactions handles listing inventory transactions with filters
+func (h *InventoryHandler) ListTransactions(c *gin.Context) {
+	var params model.ListTransactionsQueryParams
+
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Get seller ID from authenticated user
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
+	// Convert query params to filter and set seller ID for isolation
+	filter := params.ToFilter()
+	filter.SellerID = sellerID
+
+	response, err := h.transactionService.ListTransactions(c, filter)
+	if err != nil {
+		h.HandleError(c, err, invConstants.FAILED_TO_LIST_TRANSACTIONS_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, invConstants.TRANSACTIONS_RETRIEVED_MSG, response)
 }

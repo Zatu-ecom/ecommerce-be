@@ -3,13 +3,13 @@ package routes
 import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/user/factory/singleton"
-	"ecommerce-be/user/handlers"
+	"ecommerce-be/user/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AddressModule struct {
-	addressHandler *handlers.AddressHandler
+	addressHandler *handler.AddressHandler
 }
 
 func NewAddressModule() *AddressModule {

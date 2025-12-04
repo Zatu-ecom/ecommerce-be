@@ -27,7 +27,8 @@ func (f *HandlerFactory) initialize() {
 		f.locationHandler = handler.NewLocationHandler(f.serviceFactory.GetLocationService())
 		f.inventoryHandler = handler.NewInventoryHandler(
 			f.serviceFactory.GetInventoryService(),
-			nil, // TODO: You can replace nil with the actual InventoryQueryService when available
+			f.serviceFactory.GetInventoryQueryService(),
+			f.serviceFactory.GetInventoryTransactionService(),
 		)
 	})
 }

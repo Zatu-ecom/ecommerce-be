@@ -11,7 +11,7 @@ import (
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/repositories"
+	"ecommerce-be/user/repository"
 	"ecommerce-be/user/utils"
 
 	"golang.org/x/crypto/bcrypt"
@@ -29,13 +29,13 @@ type UserService interface {
 
 // UserServiceImpl implements the UserService interface
 type UserServiceImpl struct {
-	userRepo       repositories.UserRepository
+	userRepo       repository.UserRepository
 	addressService AddressService
 }
 
 // NewUserService creates a new instance of UserService
 func NewUserService(
-	userRepo repositories.UserRepository,
+	userRepo repository.UserRepository,
 	addressService AddressService,
 ) UserService {
 	return &UserServiceImpl{

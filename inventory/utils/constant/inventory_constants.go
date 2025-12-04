@@ -7,6 +7,7 @@ const (
 	INVENTORY_RETRIEVED_MSG           = "Inventory retrieved successfully"
 	INVENTORIES_RETRIEVED_MSG         = "Inventories retrieved successfully"
 	INVENTORY_TRANSACTION_CREATED_MSG = "Inventory transaction created successfully"
+	TRANSACTIONS_RETRIEVED_MSG        = "Transactions retrieved successfully"
 )
 
 // Inventory error messages
@@ -20,24 +21,26 @@ const (
 	VARIANT_NOT_FOUND_MSG            = "Product variant not found"
 	INVALID_TRANSACTION_TYPE_MSG     = "Invalid transaction type"
 	INVALID_ADJUSTMENT_TYPE_MSG      = "Invalid adjustment type. Must be ADD or REMOVE"
-	DIRECTION_REQUIRED_MSG          = "Direction is required for ADJUSTMENT type"
-	DIRECTION_NOT_ALLOWED_MSG       = "Direction is not allowed for this transaction type"
-	NOT_MANUAL_TRANSACTION_MSG      = "Transaction type not allowed for adjust API"
-	REFERENCE_REQUIRED_MSG          = "Reference ID is required for this transaction type (Order ID, PO Number, Transfer ID, etc.)"
+	DIRECTION_REQUIRED_MSG           = "Direction is required for ADJUSTMENT type"
+	DIRECTION_NOT_ALLOWED_MSG        = "Direction is not allowed for this transaction type"
+	NOT_MANUAL_TRANSACTION_MSG       = "Transaction type not allowed for adjust API"
+	REFERENCE_REQUIRED_MSG           = "Reference ID is required for this transaction type (Order ID, PO Number, Transfer ID, etc.)"
 )
 
 // Inventory operation failure messages
 const (
-	FAILED_TO_ADJUST_INVENTORY_MSG  = "Failed to adjust inventory"
-	FAILED_TO_GET_INVENTORY_MSG     = "Failed to get inventory"
+	FAILED_TO_ADJUST_INVENTORY_MSG   = "Failed to adjust inventory"
+	FAILED_TO_GET_INVENTORY_MSG      = "Failed to get inventory"
 	FAILED_TO_CREATE_TRANSACTION_MSG = "Failed to create inventory transaction"
+	FAILED_TO_LIST_TRANSACTIONS_MSG  = "Failed to list transactions"
 )
 
 // Inventory field names
 const (
-	INVENTORY_FIELD_NAME   = "inventory"
-	INVENTORIES_FIELD_NAME = "inventories"
-	TRANSACTION_FIELD_NAME = "transaction"
+	INVENTORY_FIELD_NAME    = "inventory"
+	INVENTORIES_FIELD_NAME  = "inventories"
+	TRANSACTION_FIELD_NAME  = "transaction"
+	TRANSACTIONS_FIELD_NAME = "transactions"
 )
 
 // Inventory validation messages

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"ecommerce-be/common/helper"
@@ -187,14 +188,10 @@ func FindResultIndex(
 // Variant Fetching Helpers (Concurrent Batch Processing)
 // ============================================================================
 
-// variantBatchResult holds the result from a single batch fetch operation
-type variantBatchResult struct {
-	variants map[uint]*productModel.VariantDetailResponse
-	err      error
-}
-
 // GetVariantDetails fetches variant details in batches using goroutines
+// Uses helper.BatchFetch for concurrent batch fetching with panic recovery
 func (h *BulkInventoryHelper) GetVariantDetails(
+	ctx context.Context,
 	sellerID *uint,
 	variantIDs []uint,
 ) (map[uint]*productModel.VariantDetailResponse, error) {
@@ -203,90 +200,40 @@ func (h *BulkInventoryHelper) GetVariantDetails(
 	}
 
 	const batchSize = 100
-	totalBatches := (len(variantIDs) + batchSize - 1) / batchSize
-	resultsChan := make(chan variantBatchResult, totalBatches)
 
-	h.launchVariantBatchFetchers(variantIDs, sellerID, batchSize, resultsChan)
-	return h.collectVariantBatchResults(resultsChan, totalBatches)
+	// Use generic batch fetcher with closure for fetch logic
+	return helper.BatchFetch(
+		ctx,
+		variantIDs,
+		batchSize,
+		func(batchIDs []uint) (map[uint]*productModel.VariantDetailResponse, error) {
+			return h.fetchVariantBatchByIDs(batchIDs, sellerID)
+		},
+	)
 }
 
-// launchVariantBatchFetchers launches goroutines to fetch variants in batches
-func (h *BulkInventoryHelper) launchVariantBatchFetchers(
+// fetchVariantBatchByIDs fetches a batch of variants by IDs
+func (h *BulkInventoryHelper) fetchVariantBatchByIDs(
 	variantIDs []uint,
 	sellerID *uint,
-	batchSize int,
-	resultsChan chan<- variantBatchResult,
-) {
-	totalBatches := (len(variantIDs) + batchSize - 1) / batchSize
-
-	for i := 0; i < totalBatches; i++ {
-		start := i * batchSize
-		end := start + batchSize
-		if end > len(variantIDs) {
-			end = len(variantIDs)
-		}
-
-		batchIDs := variantIDs[start:end]
-		go h.fetchVariantBatch(batchIDs, i+1, sellerID, resultsChan)
-	}
-}
-
-// fetchVariantBatch fetches a single batch of variants and sends result to channel
-func (h *BulkInventoryHelper) fetchVariantBatch(
-	batchIDs []uint,
-	batchNum int,
-	sellerID *uint,
-	resultsChan chan<- variantBatchResult,
-) {
-	variantIDsStr := helper.JoinToCommaSeparated(batchIDs)
+) (map[uint]*productModel.VariantDetailResponse, error) {
+	variantIDsStr := helper.JoinToCommaSeparated(variantIDs)
 	filters := &productModel.ListVariantsRequest{
 		IDs:      variantIDsStr,
 		Page:     1,
-		PageSize: len(batchIDs),
+		PageSize: len(variantIDs),
 	}
 
 	response, err := h.variantQueryService.ListVariants(filters, sellerID, nil)
 	if err != nil {
-		resultsChan <- variantBatchResult{
-			err: fmt.Errorf("batch %d failed: %w", batchNum, err),
-		}
-		return
+		return nil, err
 	}
 
 	variantMap := make(map[uint]*productModel.VariantDetailResponse)
 	for i := range response.Variants {
 		variantMap[response.Variants[i].ID] = &response.Variants[i]
 	}
-
-	resultsChan <- variantBatchResult{variants: variantMap, err: nil}
-}
-
-// collectVariantBatchResults collects results from all batch goroutines
-func (h *BulkInventoryHelper) collectVariantBatchResults(
-	resultsChan <-chan variantBatchResult,
-	totalBatches int,
-) (map[uint]*productModel.VariantDetailResponse, error) {
-	allVariants := make(map[uint]*productModel.VariantDetailResponse)
-	var firstError error
-
-	for i := 0; i < totalBatches; i++ {
-		result := <-resultsChan
-		if result.err != nil {
-			if firstError == nil {
-				firstError = result.err
-			}
-			continue
-		}
-
-		for id, variant := range result.variants {
-			allVariants[id] = variant
-		}
-	}
-
-	if firstError != nil {
-		return nil, firstError
-	}
-	return allVariants, nil
+	return variantMap, nil
 }
 
 // ============================================================================

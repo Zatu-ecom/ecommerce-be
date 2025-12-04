@@ -183,7 +183,7 @@ func (s *InventoryServiceImpl) prepareBulkData(
 		return nil, err
 	}
 
-	validVariants, err := s.bulkHelper.GetVariantDetails(&sellerID, variantIDs)
+	validVariants, err := s.bulkHelper.GetVariantDetails(ctx, &sellerID, variantIDs)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to batch validate variants", err)
 		return nil, err

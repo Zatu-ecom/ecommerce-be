@@ -10,8 +10,9 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	userService    service.UserService
-	addressService service.AddressService
+	userService      service.UserService
+	addressService   service.AddressService
+	userQueryService service.UserQueryService
 
 	once sync.Once
 }
@@ -36,6 +37,9 @@ func (f *ServiceFactory) initialize() {
 			userRepo,
 			f.addressService,
 		)
+		f.userQueryService = service.NewUserQueryService(
+			userRepo,
+		)
 	})
 }
 
@@ -49,4 +53,10 @@ func (f *ServiceFactory) GetUserService() service.UserService {
 func (f *ServiceFactory) GetAddressService() service.AddressService {
 	f.initialize()
 	return f.addressService
+}
+
+// GetUserQueryService returns the singleton user query service
+func (f *ServiceFactory) GetUserQueryService() service.UserQueryService {
+	f.initialize()
+	return f.userQueryService
 }
