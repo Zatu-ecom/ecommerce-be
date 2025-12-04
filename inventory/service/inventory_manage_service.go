@@ -9,6 +9,7 @@ import (
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/repository"
+	"ecommerce-be/inventory/utils/helper"
 	productModel "ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 
@@ -21,7 +22,6 @@ type InventoryServiceImpl struct {
 	transactionService  InventoryTransactionService
 	locationRepo        repository.LocationRepository
 	variantQueryService service.VariantQueryService
-	helper              *InventoryHelper
 	bulkHelper          *BulkInventoryHelper
 }
 
@@ -31,7 +31,6 @@ func NewInventoryService(
 	transactionService InventoryTransactionService,
 	locationRepo repository.LocationRepository,
 	variantQueryService service.VariantQueryService,
-	helper *InventoryHelper,
 	bulkHelper *BulkInventoryHelper,
 ) *InventoryServiceImpl {
 	return &InventoryServiceImpl{
@@ -39,7 +38,6 @@ func NewInventoryService(
 		transactionService:  transactionService,
 		locationRepo:        locationRepo,
 		variantQueryService: variantQueryService,
-		helper:              helper,
 		bulkHelper:          bulkHelper,
 	}
 }
@@ -84,14 +82,6 @@ func (s *InventoryServiceImpl) extractSingleResponse(
 	return result.Response, nil
 }
 
-// saveInventory saves inventory (create or update based on isNew flag)
-func (s *InventoryServiceImpl) saveInventory(inventory *entity.Inventory, isNew bool) error {
-	if isNew {
-		return s.inventoryRepo.Create(inventory)
-	}
-	return s.inventoryRepo.Update(inventory)
-}
-
 // buildTransactionParams builds CreateTransactionParams from inventory operation data
 func (s *InventoryServiceImpl) buildTransactionParams(
 	inventory *entity.Inventory,
@@ -105,7 +95,7 @@ func (s *InventoryServiceImpl) buildTransactionParams(
 	beforeQty, afterQty := s.determineBeforeAfterQuantities(
 		inventory, previousQuantity, previousReserved, updatesReserved,
 	)
-	referenceType := DetermineReferenceType(req.TransactionType)
+	referenceType := helper.DetermineReferenceType(req.TransactionType)
 
 	return model.CreateTransactionParams{
 		InventoryID:     inventory.ID,
@@ -234,7 +224,7 @@ func (s *InventoryServiceImpl) processSingleBulkItem(
 	collector *BulkOperationCollector,
 ) {
 	// Validate request
-	if err := s.helper.ValidateManageRequest(item); err != nil {
+	if err := helper.ValidateManageRequest(item); err != nil {
 		collector.AddFailure(item, err.Error())
 		return
 	}
@@ -281,7 +271,7 @@ func (s *InventoryServiceImpl) applyBulkItemChanges(
 		existingMap, item.VariantID, item.LocationID,
 	)
 
-	quantityChange, err := s.helper.CalculateQuantityChange(item, inventory.Quantity, isNew)
+	quantityChange, err := helper.CalculateQuantityChange(item, inventory.Quantity, isNew)
 	if err != nil {
 		collector.AddFailure(item, err.Error())
 		return
@@ -290,11 +280,11 @@ func (s *InventoryServiceImpl) applyBulkItemChanges(
 	previousQuantity := inventory.Quantity
 	previousReserved := inventory.ReservedQuantity
 
-	if err := s.helper.ApplyInventoryChanges(inventory, item, quantityChange); err != nil {
+	if err := helper.ApplyInventoryChanges(inventory, item, quantityChange); err != nil {
 		collector.AddFailure(item, err.Error())
 		return
 	}
-	s.helper.UpdateThreshold(inventory, item.Threshold)
+	helper.UpdateThreshold(inventory, item.Threshold)
 
 	collector.AddSuccess(
 		item,
@@ -397,7 +387,7 @@ func (s *InventoryServiceImpl) updateResultsWithTransactionIDs(
 
 		resultIndex := FindResultIndex(collector.Results, item.VariantID, item.LocationID, true)
 		if resultIndex >= 0 {
-			collector.Results[resultIndex].Response = s.helper.BuildManageResponse(
+			collector.Results[resultIndex].Response = helper.BuildManageResponse(
 				pending.Inventory, pending.PreviousQuantity,
 				pending.QuantityChange, transaction.ID,
 			)

@@ -82,7 +82,6 @@ func (f *ServiceFactory) setManageInventoryService(
 	inventoryRepository repository.InventoryRepository,
 	variantQueryService productService.VariantQueryService,
 ) service.InventoryManageService {
-	helper := service.NewInventoryHelper()
 	bulkHelper := service.NewBulkInventoryHelper(
 		inventoryRepository,
 		locationRepository,
@@ -93,7 +92,6 @@ func (f *ServiceFactory) setManageInventoryService(
 		f.inventoryTransactionService,
 		locationRepository,
 		variantQueryService,
-		helper,
 		bulkHelper,
 	)
 	return f.inventoryService
