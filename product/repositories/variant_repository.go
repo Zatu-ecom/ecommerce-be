@@ -2,10 +2,13 @@ package repositories
 
 import (
 	"errors"
+	"strings"
 
+	"ecommerce-be/common/helper"
 	"ecommerce-be/product/entity"
 	producterrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
+	"ecommerce-be/product/model"
 	productQuery "ecommerce-be/product/query"
 
 	"gorm.io/gorm"
@@ -36,6 +39,11 @@ type VariantRepository interface {
 	FindVariantsByProductID(productID uint) ([]entity.ProductVariant, error)
 	DeleteVariantsByProductID(productID uint) error
 	DeleteVariantOptionValuesByVariantIDs(variantIDs []uint) error
+	ListVariantsWithFilters(
+		filters *model.ListVariantsRequest,
+		sellerID *uint,
+		optionFilters map[string]string,
+	) ([]mapper.VariantWithOptions, int64, error)
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
@@ -520,10 +528,6 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	return result, nil
 }
 
-/*******************************************************************************
-*  GetProductVariantsWithOptions retrieves all variants for a product          *
-*  with their selected option values in a single optimized query               *
-*******************************************************************************/
 func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	productID uint,
 ) ([]mapper.VariantWithOptions, error) {
@@ -596,10 +600,6 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	return result, nil
 }
 
-/***********************************************
- *    Bulk Deletion Methods for Product Cleanup
- ***********************************************/
-
 // FindVariantsByProductID retrieves all variants for a product
 func (r *VariantRepositoryImpl) FindVariantsByProductID(
 	productID uint,
@@ -620,4 +620,162 @@ func (r *VariantRepositoryImpl) DeleteVariantOptionValuesByVariantIDs(variantIDs
 		return nil
 	}
 	return r.db.Where("variant_id IN ?", variantIDs).Delete(&entity.VariantOptionValue{}).Error
+}
+
+// ListVariantsWithFilters retrieves variants with comprehensive filtering and pagination
+func (r *VariantRepositoryImpl) ListVariantsWithFilters(
+	filters *model.ListVariantsRequest,
+	sellerID *uint,
+	optionFilters map[string]string,
+) ([]mapper.VariantWithOptions, int64, error) {
+	// Start building query
+	query := r.db.Model(&entity.ProductVariant{})
+
+	// Apply seller filter (multi-tenancy)
+	if sellerID != nil {
+		query = query.Joins("JOIN product ON product_variant.product_id = product.id").
+			Where("product.seller_id = ?", *sellerID)
+	}
+
+	// Apply variant ID filter (for home page recommendations)
+	if strings.TrimSpace(filters.IDs) != "" {
+		ids := helper.ParseCommaSeparated[uint](filters.IDs)
+		if len(ids) > 0 {
+			query = query.Where("product_variant.id IN ?", ids)
+		}
+	}
+
+	// Apply product ID filter
+	if strings.TrimSpace(filters.ProductIDs) != "" {
+		pids := helper.ParseCommaSeparated[uint](filters.ProductIDs)
+		if len(pids) > 0 {
+			query = query.Where("product_variant.product_id IN ?", pids)
+		}
+	}
+
+	// Apply price range filters
+	if filters.MinPrice != nil {
+		query = query.Where("product_variant.price >= ?", *filters.MinPrice)
+	}
+	if filters.MaxPrice != nil {
+		query = query.Where("product_variant.price <= ?", *filters.MaxPrice)
+	}
+
+	// Apply status filters
+	if filters.AllowPurchase != nil {
+		query = query.Where("product_variant.allow_purchase = ?", *filters.AllowPurchase)
+	}
+	if filters.IsPopular != nil {
+		query = query.Where("product_variant.is_popular = ?", *filters.IsPopular)
+	}
+	if filters.IsDefault != nil {
+		query = query.Where("product_variant.is_default = ?", *filters.IsDefault)
+	}
+
+	// Apply SKU search (partial match, case-insensitive)
+	if filters.SKU != "" {
+		query = query.Where("product_variant.sku ILIKE ?", "%"+filters.SKU+"%")
+	}
+
+	// Apply option filters (e.g., color=red, size=M)
+	if len(optionFilters) > 0 {
+		// For each option filter, we need to ensure the variant has that option value
+		for optionName, optionValue := range optionFilters {
+			query = query.Where(`
+				EXISTS (
+					SELECT 1 FROM variant_option_value vov
+					JOIN product_option_value pov ON vov.option_value_id = pov.id
+					JOIN product_option po ON pov.option_id = po.id
+					WHERE vov.variant_id = product_variant.id
+					AND po.name = ?
+					AND pov.value = ?
+				)
+			`, optionName, optionValue)
+		}
+	}
+
+	// Get total count before pagination
+	var total int64
+	countQuery := query
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	sortColumn := "product_variant." + filters.SortBy
+	sortDirection := filters.SortOrder
+	query = query.Order(sortColumn + " " + sortDirection)
+
+	// Apply pagination
+	offset := (filters.Page - 1) * filters.PageSize
+	query = query.Limit(filters.PageSize).Offset(offset)
+
+	// Execute query to get variants
+	var variants []entity.ProductVariant
+	if err := query.Find(&variants).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if len(variants) == 0 {
+		return []mapper.VariantWithOptions{}, total, nil
+	}
+
+	// Extract variant IDs for batch fetching options
+	variantIDs := make([]uint, len(variants))
+	variantMap := make(map[uint]*entity.ProductVariant)
+	for i := range variants {
+		variantIDs[i] = variants[i].ID
+		variantCopy := variants[i]
+		variantMap[variants[i].ID] = &variantCopy
+	}
+
+	// Batch fetch option values for all variants
+	var optionData []mapper.OptionValueData
+	err := r.db.Table("variant_option_value AS vov").
+		Select(`
+			vov.variant_id,
+			po.id AS option_id,
+			po.name AS option_name,
+			po.display_name AS option_display_name,
+			pov.id AS value_id,
+			pov.value,
+			pov.display_name AS value_display_name,
+			pov.color_code
+		`).
+		Joins("JOIN product_option po ON vov.option_id = po.id").
+		Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
+		Where("vov.variant_id IN ?", variantIDs).
+		Order("po.position ASC, pov.position ASC").
+		Find(&optionData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Group option values by variant ID
+	variantOptionsMap := make(map[uint][]mapper.SelectedOptionValue)
+	for _, od := range optionData {
+		variantOptionsMap[od.VariantID] = append(
+			variantOptionsMap[od.VariantID],
+			mapper.SelectedOptionValue{
+				OptionID:          od.OptionID,
+				OptionName:        od.OptionName,
+				OptionDisplayName: od.OptionDisplayName,
+				ValueID:           od.ValueID,
+				Value:             od.Value,
+				ValueDisplayName:  od.ValueDisplayName,
+				ColorCode:         od.ColorCode,
+			},
+		)
+	}
+
+	// Build result maintaining original sort order
+	result := make([]mapper.VariantWithOptions, 0, len(variants))
+	for _, variant := range variants {
+		result = append(result, mapper.VariantWithOptions{
+			Variant:         variant,
+			SelectedOptions: variantOptionsMap[variant.ID],
+		})
+	}
+
+	return result, total, nil
 }

@@ -1,10 +1,11 @@
 package singleton
 
 import (
+	"sync"
+
 	"ecommerce-be/product/handlers"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/service"
-	"sync"
 )
 
 // SingletonFactory is the main facade for accessing all factories
@@ -96,6 +97,10 @@ func (f *SingletonFactory) GetVariantService() service.VariantService {
 	return f.serviceFactory.GetVariantService()
 }
 
+func (f *SingletonFactory) GetVariantQueryService() service.VariantQueryService {
+	return f.serviceFactory.GetVariantQueryService()
+}
+
 func (f *SingletonFactory) GetProductAttributeService() service.ProductAttributeService {
 	return f.serviceFactory.GetProductAttributeService()
 }
@@ -143,4 +148,3 @@ func (f *SingletonFactory) GetProductOptionHandler() *handlers.ProductOptionHand
 func (f *SingletonFactory) GetProductOptionValueHandler() *handlers.ProductOptionValueHandler {
 	return f.handlerFactory.GetProductOptionValueHandler()
 }
-

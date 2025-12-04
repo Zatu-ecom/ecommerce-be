@@ -140,11 +140,9 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 	return productsResponse, nil
 }
 
-/*
- * GetProductByID - Retrieve product by ID with complete details
- * Includes variants, options, attributes, and package options
- * Uses service layer to prevent N+1 queries
- */
+// GetProductByID - Retrieve product by ID with complete details
+// Includes variants, options, attributes, and package options
+// Uses service layer to prevent N+1 queries
 func (s *ProductQueryServiceImpl) GetProductByID(
 	id uint,
 	sellerID *uint,

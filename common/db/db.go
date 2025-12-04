@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -37,7 +38,7 @@ func ConnectDB() {
 
 	/* Initialize database */
 	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		// Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Info),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // Use singular table names
 		},

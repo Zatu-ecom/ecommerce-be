@@ -35,6 +35,14 @@ type VariantQueryService interface {
 	// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 	// This is optimized for batch operations to prevent N+1 queries
 	GetProductsVariantAggregations(productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+
+	// ListVariants lists variants with comprehensive filtering support
+	// Used for: home page recommendations, search results, filtered listings
+	ListVariants(
+		request *model.ListVariantsRequest,
+		sellerID *uint,
+		optionFilters map[string]string,
+	) (*model.ListVariantsResponse, error)
 }
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
@@ -188,4 +196,50 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 
 	// Build and return response
 	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+}
+
+/***********************************************
+ *              ListVariants                   *
+ ***********************************************/
+// ListVariants lists variants with comprehensive filtering support
+func (s *VariantQueryServiceImpl) ListVariants(
+	request *model.ListVariantsRequest,
+	sellerID *uint,
+	optionFilters map[string]string,
+) (*model.ListVariantsResponse, error) {
+	// Set default pagination if not provided
+	if request.Page == 0 {
+		request.Page = 1
+	}
+	if request.PageSize == 0 {
+		request.PageSize = 20 // Default page size
+	}
+
+	// Set default sorting if not provided
+	if request.SortBy == "" {
+		request.SortBy = "created_at"
+	}
+	if request.SortOrder == "" {
+		request.SortOrder = "desc"
+	}
+
+	// Call repository to get filtered variants with options in one query (prevents N+1)
+	variantsWithOptions, total, err := s.variantRepo.ListVariantsWithFilters(
+		request,
+		sellerID,
+		optionFilters,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response using factory method (reduces code duplication)
+	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+
+	return &model.ListVariantsResponse{
+		Variants: variantResponses,
+		Total:    total,
+		Page:     request.Page,
+		PageSize: request.PageSize,
+	}, nil
 }
