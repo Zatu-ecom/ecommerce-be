@@ -299,7 +299,6 @@ func (s *InventoryTransactionServiceImpl) fetchLocationMap(
 }
 
 // fetchUserMap fetches user names using UserQueryService with batch processing
-// TODO: When moving to microservices, replace this with HTTP call to User Service
 //
 // Uses helper.BatchFetch for concurrent batch fetching with goroutines.
 // This prevents memory issues and improves performance for large user sets.
@@ -321,9 +320,14 @@ func (s *InventoryTransactionServiceImpl) fetchUserMap(
 	const batchSize = 100
 
 	// Use generic batch fetcher with closure for fetch logic
-	return helper.BatchFetch(ctx, userIDs, batchSize, func(batchIDs []uint) (map[uint]string, error) {
-		return s.fetchUserBatchByIDs(batchIDs, sellerIDPtr)
-	})
+	return helper.BatchFetch(
+		ctx,
+		userIDs,
+		batchSize,
+		func(batchIDs []uint) (map[uint]string, error) {
+			return s.fetchUserBatchByIDs(batchIDs, sellerIDPtr)
+		},
+	)
 }
 
 // fetchUserBatchByIDs fetches a batch of users by IDs
@@ -339,6 +343,7 @@ func (s *InventoryTransactionServiceImpl) fetchUserBatchByIDs(
 		IDs: userIDs,
 	}
 
+	// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP call to User Service
 	response, err := s.userQueryService.ListUsers(filter, sellerIDPtr)
 	if err != nil {
 		return nil, err

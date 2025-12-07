@@ -32,6 +32,24 @@ type Primitive interface {
 		~bool | ~string
 }
 
+// ParseCommaSeparated parses a comma-separated string pointer type into a slice of any primitive type
+// Supports: integers, floats, bools, strings
+//
+// Examples:
+//   - "1,2,3" -> []uint{1, 2, 3}
+//   - "10,20,30" -> []int{10, 20, 30}
+//   - "1.5,2.7,3.9" -> []float64{1.5, 2.7, 3.9}
+//   - "true,false,true" -> []bool{true, false, true}
+//   - "apple,banana,orange" -> []string{"apple", "banana", "orange"}
+//
+// Handles spaces and empty values gracefully
+func ParseCommaSeparatedPtr[T Primitive](value *string) []T {
+	if value == nil {
+		return []T{}
+	}
+	return ParseCommaSeparated[T](*value)
+}
+
 // ParseCommaSeparated parses a comma-separated string into a slice of any primitive type
 // Supports: integers, floats, bools, strings
 //

@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/product/entity"
 	productError "ecommerce-be/product/errors"
 	"ecommerce-be/product/mapper"
+	"ecommerce-be/product/model"
 	productQuery "ecommerce-be/product/query"
 	"ecommerce-be/product/utils/helper"
 
@@ -19,7 +20,7 @@ type ProductRepository interface {
 	Update(product *entity.Product) error
 	FindByID(id uint) (*entity.Product, error)
 	// FindBySKU removed - BaseSKU validation no longer required
-	FindAll(filters map[string]interface{}, page, limit int) ([]entity.Product, int64, error)
+	FindAll(filter model.GetProductsFilter, page, limit int) ([]entity.Product, int64, error)
 	Search(
 		query string,
 		filters map[string]interface{},
@@ -96,7 +97,7 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 // FindAll finds all products with filtering and pagination
 // Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) FindAll(
-	filters map[string]interface{},
+	filter model.GetProductsFilter,
 	page, limit int,
 ) ([]entity.Product, int64, error) {
 	var products []entity.Product
@@ -106,27 +107,30 @@ func (r *ProductRepositoryImpl) FindAll(
 
 	// Apply filters
 	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
-	if sellerID, exists := filters["sellerId"]; exists {
-		query = query.Where("seller_id = ?", sellerID)
+	if filter.SellerID != nil {
+		query = query.Where("seller_id = ?", *filter.SellerID)
 	}
-	if categoryID, exists := filters["categoryId"]; exists {
-		query = query.Where("category_id = ?", categoryID)
+	if len(filter.CategoryIDs) > 0 {
+		query = query.Where("category_id IN ?", filter.CategoryIDs)
 	}
-	if brand, exists := filters["brand"]; exists {
-		query = query.Where("brand = ?", brand)
+	if len(filter.Brands) > 0 {
+		query = query.Where("brand IN ?", filter.Brands)
+	}
+	if len(filter.IDs) > 0 {
+		query = query.Where("id IN ?", filter.IDs)
 	}
 
 	// Price filters - now based on variants
-	if minPrice, exists := filters["minPrice"]; exists {
-		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, minPrice)
+	if filter.MinPrice != nil {
+		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, *filter.MinPrice)
 	}
-	if maxPrice, exists := filters["maxPrice"]; exists {
-		query = query.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, maxPrice)
+	if filter.MaxPrice != nil {
+		query = query.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, *filter.MaxPrice)
 	}
 
 	// Stock filter - now based on variants
-	if inStock, exists := filters["inStock"]; exists {
-		if inStock.(bool) {
+	if filter.InStock != nil {
+		if *filter.InStock {
 			query = query.Where(productQuery.FILTER_IN_STOCK_SUBQUERY)
 		} else {
 			query = query.Where(productQuery.FILTER_OUT_OF_STOCK_SUBQUERY)
@@ -134,8 +138,8 @@ func (r *ProductRepositoryImpl) FindAll(
 	}
 
 	// Popularity filter - now based on variants
-	if isPopular, exists := filters["isPopular"]; exists {
-		query = query.Where(productQuery.FILTER_IS_POPULAR_SUBQUERY, isPopular)
+	if filter.IsPopular != nil {
+		query = query.Where(productQuery.FILTER_IS_POPULAR_SUBQUERY, *filter.IsPopular)
 	}
 
 	// Count total
@@ -145,14 +149,14 @@ func (r *ProductRepositoryImpl) FindAll(
 
 	// Apply pagination and sorting
 	offset := (page - 1) * limit
-	sortBy := "created_at"
-	sortOrder := "desc"
+	sortBy := filter.SortBy
+	sortOrder := filter.SortOrder
 
-	if sort, exists := filters["sortBy"]; exists {
-		sortBy = sort.(string)
+	if sortBy == "" {
+		sortBy = "created_at"
 	}
-	if order, exists := filters["sortOrder"]; exists {
-		sortOrder = order.(string)
+	if sortOrder == "" {
+		sortOrder = "desc"
 	}
 
 	// Use eager loading to avoid N+1 queries

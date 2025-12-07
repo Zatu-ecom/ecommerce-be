@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS collection (
 CREATE INDEX IF NOT EXISTS idx_collection_seller_id ON collection(seller_id);
 CREATE INDEX IF NOT EXISTS idx_collection_slug ON collection(slug);
 CREATE INDEX IF NOT EXISTS idx_collection_is_active ON collection(is_active);
-CREATE INDEX IF NOT EXISTS idx_collection_deleted_at ON collection(deleted_at);
 
 -- =====================================================
 -- 2. COLLECTION_PRODUCT TABLE (Junction table)

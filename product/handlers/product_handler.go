@@ -133,49 +133,33 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 // GetAllProducts handles getting all products with filtering and pagination
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	// Parse query parameters
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	categoryID, _ := strconv.ParseUint(c.Query("categoryId"), 10, 32)
-	brand := c.Query("brand")
-	minPrice, _ := strconv.ParseFloat(c.Query("minPrice"), 64)
-	maxPrice, _ := strconv.ParseFloat(c.Query("maxPrice"), 64)
-	inStock, _ := strconv.ParseBool(c.Query("inStock"))
-	isPopular, _ := strconv.ParseBool(c.Query("isPopular"))
-	sortBy := c.DefaultQuery("sortBy", "created_at")
-	sortOrder := c.DefaultQuery("sortOrder", "desc")
+	var params model.GetProductsParams
 
-	// Build filters
-	filters := make(map[string]interface{})
-	if categoryID > 0 {
-		filters["categoryId"] = uint(categoryID)
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
 	}
-	if brand != "" {
-		filters["brand"] = brand
-	}
-	if minPrice > 0 {
-		filters["minPrice"] = minPrice
-	}
-	if maxPrice > 0 {
-		filters["maxPrice"] = maxPrice
-	}
-	if c.Query("inStock") != "" {
-		filters["inStock"] = inStock
-	}
-	if c.Query("isPopular") != "" {
-		filters["isPopular"] = isPopular
-	}
-	filters["sortBy"] = sortBy
-	filters["sortOrder"] = sortOrder
 
 	// Add seller ID filter if present in context (for multi-tenant isolation)
 	// Seller ID will be present from PublicAPIAuth or Auth middleware
 	// If not present (admin without seller context), don't filter by seller
+	var sellerIDPtr *uint
 	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
-		filters["sellerId"] = sellerID
+		sellerIDPtr = &sellerID
 	}
 
+	// Convert params to filter model (parses comma-separated values)
+	filter := params.ToGetProductsFilter(sellerIDPtr)
+
+	// Set pagination defaults
+	params.SetDefaults()
+
 	// Use ProductQueryService for read operations (optimized for queries)
-	productsResponse, err := h.productQueryService.GetAllProducts(page, limit, filters)
+	productsResponse, err := h.productQueryService.GetAllProducts(
+		params.Page,
+		params.PageSize,
+		filter,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCTS_MSG)
 		return

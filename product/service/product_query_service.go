@@ -16,7 +16,7 @@ import (
 type ProductQueryService interface {
 	GetAllProducts(
 		page, limit int,
-		filters map[string]interface{},
+		filter model.GetProductsFilter,
 	) (*model.ProductsResponse, error)
 	GetProductByID(
 		id uint,
@@ -72,13 +72,13 @@ func NewProductQueryService(
 func (s *ProductQueryServiceImpl) GetAllProducts(
 	page,
 	limit int,
-	filters map[string]interface{},
+	filter model.GetProductsFilter,
 ) (*model.ProductsResponse, error) {
 	// Validate and set default pagination values
 	page, limit = s.validatePaginationParams(page, limit)
 
 	// Fetch products from repository with filters
-	products, total, err := s.productRepo.FindAll(filters, page, limit)
+	products, total, err := s.productRepo.FindAll(filter, page, limit)
 	if err != nil {
 		return nil, err
 	}
