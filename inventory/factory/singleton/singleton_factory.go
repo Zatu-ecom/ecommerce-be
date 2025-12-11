@@ -50,6 +50,10 @@ func (f *SingletonFactory) GetLocationHandler() *handler.LocationHandler {
 	return f.handlerFactory.GetLocationHandler()
 }
 
+func (f *SingletonFactory) GetInventorySummaryHandler() *handler.InventorySummaryHandler {
+	return f.handlerFactory.GetInventorySummaryHandler()
+}
+
 func (f *SingletonFactory) GetInventoryHandler() *handler.InventoryHandler {
 	return f.handlerFactory.GetInventoryHandler()
 }

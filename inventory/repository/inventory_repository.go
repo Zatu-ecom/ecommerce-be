@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
+	"ecommerce-be/inventory/mapper"
 
 	"gorm.io/gorm"
 )
@@ -21,6 +22,8 @@ type InventoryRepository interface {
 	FindByVariantID(variantID uint) ([]entity.Inventory, error)
 	FindByLocationID(locationID uint) ([]entity.Inventory, error)
 	Exists(variantID uint, locationID uint) (bool, error)
+	GetLocationInventorySummary(locationID uint) (*mapper.LocationInventorySummaryAggregate, error)
+	GetLocationInventorySummaryBatch(locationIDs []uint) (map[uint]*mapper.LocationInventorySummaryAggregate, error)
 }
 
 // InventoryRepositoryImpl implements the InventoryRepository interface
@@ -111,7 +114,7 @@ func (r *InventoryRepositoryImpl) FindByVariantAndLocationBatch(
 	if len(variantIDs) == 0 || len(locationIDs) == 0 {
 		return inventories, nil
 	}
-	
+
 	result := r.db.Where("variant_id IN ? AND location_id IN ?", variantIDs, locationIDs).
 		Find(&inventories)
 	if result.Error != nil {
@@ -145,4 +148,126 @@ func (r *InventoryRepositoryImpl) FindByIDs(ids []uint) ([]entity.Inventory, err
 		return nil, result.Error
 	}
 	return inventories, nil
+}
+
+// GetLocationInventorySummary aggregates inventory statistics for a location
+// Returns: LocationInventorySummaryAggregate with all metrics
+// Microservice-ready: Only queries inventory table, no product joins
+func (r *InventoryRepositoryImpl) GetLocationInventorySummary(
+	locationID uint,
+) (*mapper.LocationInventorySummaryAggregate, error) {
+	var result mapper.LocationInventorySummaryAggregate
+
+	// Single aggregation query - no N+1 problem
+	err := r.db.Model(&entity.Inventory{}).
+		Select(
+			"COUNT(DISTINCT variant_id) as variant_count",
+			"COALESCE(SUM(quantity), 0) as total_stock",
+			"COALESCE(SUM(reserved_quantity), 0) as total_reserved",
+			"COUNT(CASE WHEN quantity > 0 AND quantity <= threshold THEN 1 END) as low_stock_count",
+			"COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count",
+		).
+		Where("location_id = ?", locationID).
+		Scan(&result).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Get distinct variant IDs for product count calculation
+	err = r.db.Model(&entity.Inventory{}).
+		Select("DISTINCT variant_id").
+		Where("location_id = ?", locationID).
+		Pluck("variant_id", &result.VariantIDs).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+// GetLocationInventorySummaryBatch aggregates inventory statistics for multiple locations
+// Efficient batch query - avoids N+1 problem by fetching all locations at once
+// Returns: map[locationID] -> LocationInventorySummaryAggregate
+func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
+	locationIDs []uint,
+) (map[uint]*mapper.LocationInventorySummaryAggregate, error) {
+	if len(locationIDs) == 0 {
+		return make(map[uint]*mapper.LocationInventorySummaryAggregate), nil
+	}
+
+	// Batch aggregation query for all locations
+	type AggregateResult struct {
+		LocationID      uint
+		VariantCount    uint
+		TotalStock      uint
+		TotalReserved   uint
+		LowStockCount   uint
+		OutOfStockCount uint
+	}
+
+	var results []AggregateResult
+	err := r.db.Model(&entity.Inventory{}).
+		Select(
+			"location_id",
+			"COUNT(DISTINCT variant_id) as variant_count",
+			"COALESCE(SUM(quantity), 0) as total_stock",
+			"COALESCE(SUM(reserved_quantity), 0) as total_reserved",
+			"COUNT(CASE WHEN quantity > 0 AND quantity <= threshold THEN 1 END) as low_stock_count",
+			"COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count",
+		).
+		Where("location_id IN ?", locationIDs).
+		Group("location_id").
+		Scan(&results).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Batch fetch variant IDs for all locations
+	type VariantIDResult struct {
+		LocationID uint
+		VariantID  uint
+	}
+
+	var variantResults []VariantIDResult
+	err = r.db.Model(&entity.Inventory{}).
+		Select("DISTINCT location_id, variant_id").
+		Where("location_id IN ?", locationIDs).
+		Scan(&variantResults).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Group variant IDs by location
+	variantIDsByLocation := make(map[uint][]uint)
+	for _, vr := range variantResults {
+		variantIDsByLocation[vr.LocationID] = append(variantIDsByLocation[vr.LocationID], vr.VariantID)
+	}
+
+	// Build result map
+	summaryMap := make(map[uint]*mapper.LocationInventorySummaryAggregate)
+	for _, aggResult := range results {
+		summaryMap[aggResult.LocationID] = &mapper.LocationInventorySummaryAggregate{
+			VariantCount:    aggResult.VariantCount,
+			TotalStock:      aggResult.TotalStock,
+			TotalReserved:   aggResult.TotalReserved,
+			LowStockCount:   aggResult.LowStockCount,
+			OutOfStockCount: aggResult.OutOfStockCount,
+			VariantIDs:      variantIDsByLocation[aggResult.LocationID],
+		}
+	}
+
+	// Add empty results for locations with no inventory
+	for _, locationID := range locationIDs {
+		if _, exists := summaryMap[locationID]; !exists {
+			summaryMap[locationID] = &mapper.LocationInventorySummaryAggregate{
+				VariantIDs: []uint{},
+			}
+		}
+	}
+
+	return summaryMap, nil
 }

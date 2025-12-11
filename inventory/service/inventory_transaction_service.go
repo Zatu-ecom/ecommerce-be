@@ -287,7 +287,7 @@ func (s *InventoryTransactionServiceImpl) fetchLocationMap(
 		return result, nil
 	}
 
-	locations, err := s.locationRepo.FindAll(sellerID, nil)
+	locations, err := s.locationRepo.FindAll(sellerID, model.LocationsFilter{})
 	if err != nil {
 		return nil, err
 	}

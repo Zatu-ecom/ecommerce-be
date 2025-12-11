@@ -1,9 +1,10 @@
-package mapper
+package factory
 
 import (
 	"time"
 
 	"ecommerce-be/inventory/entity"
+	"ecommerce-be/inventory/mapper"
 	"ecommerce-be/inventory/model"
 	userEntity "ecommerce-be/user/entity"
 	userModel "ecommerce-be/user/model"
@@ -101,5 +102,29 @@ func BuildInventoryUserUpdateReqToUserAddressUpdateReq(
 		State:   userAddress.State,
 		ZipCode: userAddress.ZipCode,
 		Country: userAddress.Country,
+	}
+}
+
+// BuildLocationSummaryResponse creates a LocationSummaryResponse with inventory data
+func BuildLocationSummaryResponse(
+	locationResp model.LocationResponse,
+	productCount uint,
+	invSummary mapper.LocationInventorySummaryAggregate,
+	averageStockValue float64,
+	stockStatus model.StockStatus,
+) model.LocationSummaryResponse {
+	return model.LocationSummaryResponse{
+		LocationResponse: locationResp,
+		InventorySummary: model.InventorySummary{
+			ProductCount:      productCount,
+			VariantCount:      invSummary.VariantCount,
+			TotalStock:        invSummary.TotalStock,
+			TotalReserved:     invSummary.TotalReserved,
+			TotalAvailable:    invSummary.TotalStock - invSummary.TotalReserved,
+			LowStockCount:     invSummary.LowStockCount,
+			OutOfStockCount:   invSummary.OutOfStockCount,
+			AverageStockValue: averageStockValue,
+			StockStatus:       stockStatus,
+		},
 	}
 }

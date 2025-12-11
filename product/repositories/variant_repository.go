@@ -44,6 +44,7 @@ type VariantRepository interface {
 		sellerID *uint,
 		optionFilters map[string]string,
 	) ([]mapper.VariantWithOptions, int64, error)
+	GetProductCountByVariantIDs(variantIDs []uint, sellerID *uint) (uint, error)
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
@@ -628,7 +629,43 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 	sellerID *uint,
 	optionFilters map[string]string,
 ) ([]mapper.VariantWithOptions, int64, error) {
-	// Start building query
+	// Build query with all filters
+	query := r.buildVariantFilterQuery(filters, sellerID, optionFilters)
+
+	// Get total count before pagination
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting and pagination
+	query = r.applySortingAndPagination(query, filters)
+
+	// Fetch variants
+	variants, err := r.fetchVariants(query)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(variants) == 0 {
+		return []mapper.VariantWithOptions{}, total, nil
+	}
+
+	// Fetch options for variants
+	result, err := r.enrichVariantsWithOptions(variants)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return result, total, nil
+}
+
+// buildVariantFilterQuery constructs the base query with all filters applied
+func (r *VariantRepositoryImpl) buildVariantFilterQuery(
+	filters *model.ListVariantsRequest,
+	sellerID *uint,
+	optionFilters map[string]string,
+) *gorm.DB {
 	query := r.db.Model(&entity.ProductVariant{})
 
 	// Apply seller filter (multi-tenancy)
@@ -637,7 +674,29 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 			Where("product.seller_id = ?", *sellerID)
 	}
 
-	// Apply variant ID filter (for home page recommendations)
+	// Apply ID and product filters
+	query = r.applyIDFilters(query, filters)
+
+	// Apply price and status filters
+	query = r.applyPriceAndStatusFilters(query, filters)
+
+	// Apply SKU search
+	if filters.SKU != "" {
+		query = query.Where("product_variant.sku ILIKE ?", "%"+filters.SKU+"%")
+	}
+
+	// Apply option filters
+	query = r.applyOptionFilters(query, optionFilters)
+
+	return query
+}
+
+// applyIDFilters applies variant ID and product ID filters
+func (r *VariantRepositoryImpl) applyIDFilters(
+	query *gorm.DB,
+	filters *model.ListVariantsRequest,
+) *gorm.DB {
+	// Apply variant ID filter
 	if strings.TrimSpace(filters.IDs) != "" {
 		ids := helper.ParseCommaSeparated[uint](filters.IDs)
 		if len(ids) > 0 {
@@ -653,6 +712,14 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 		}
 	}
 
+	return query
+}
+
+// applyPriceAndStatusFilters applies price range and status filters
+func (r *VariantRepositoryImpl) applyPriceAndStatusFilters(
+	query *gorm.DB,
+	filters *model.ListVariantsRequest,
+) *gorm.DB {
 	// Apply price range filters
 	if filters.MinPrice != nil {
 		query = query.Where("product_variant.price >= ?", *filters.MinPrice)
@@ -672,35 +739,40 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 		query = query.Where("product_variant.is_default = ?", *filters.IsDefault)
 	}
 
-	// Apply SKU search (partial match, case-insensitive)
-	if filters.SKU != "" {
-		query = query.Where("product_variant.sku ILIKE ?", "%"+filters.SKU+"%")
+	return query
+}
+
+// applyOptionFilters applies option-based filters (e.g., color=red, size=M)
+func (r *VariantRepositoryImpl) applyOptionFilters(
+	query *gorm.DB,
+	optionFilters map[string]string,
+) *gorm.DB {
+	if len(optionFilters) == 0 {
+		return query
 	}
 
-	// Apply option filters (e.g., color=red, size=M)
-	if len(optionFilters) > 0 {
-		// For each option filter, we need to ensure the variant has that option value
-		for optionName, optionValue := range optionFilters {
-			query = query.Where(`
-				EXISTS (
-					SELECT 1 FROM variant_option_value vov
-					JOIN product_option_value pov ON vov.option_value_id = pov.id
-					JOIN product_option po ON pov.option_id = po.id
-					WHERE vov.variant_id = product_variant.id
-					AND po.name = ?
-					AND pov.value = ?
-				)
-			`, optionName, optionValue)
-		}
+	// For each option filter, ensure the variant has that option value
+	for optionName, optionValue := range optionFilters {
+		query = query.Where(`
+			EXISTS (
+				SELECT 1 FROM variant_option_value vov
+				JOIN product_option_value pov ON vov.option_value_id = pov.id
+				JOIN product_option po ON pov.option_id = po.id
+				WHERE vov.variant_id = product_variant.id
+				AND po.name = ?
+				AND pov.value = ?
+			)
+		`, optionName, optionValue)
 	}
 
-	// Get total count before pagination
-	var total int64
-	countQuery := query
-	if err := countQuery.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	return query
+}
 
+// applySortingAndPagination applies sorting and pagination to the query
+func (r *VariantRepositoryImpl) applySortingAndPagination(
+	query *gorm.DB,
+	filters *model.ListVariantsRequest,
+) *gorm.DB {
 	// Apply sorting
 	sortColumn := "product_variant." + filters.SortBy
 	sortDirection := filters.SortOrder
@@ -710,26 +782,45 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 	offset := (filters.Page - 1) * filters.PageSize
 	query = query.Limit(filters.PageSize).Offset(offset)
 
-	// Execute query to get variants
+	return query
+}
+
+// fetchVariants executes the query and returns variants
+func (r *VariantRepositoryImpl) fetchVariants(query *gorm.DB) ([]entity.ProductVariant, error) {
 	var variants []entity.ProductVariant
 	if err := query.Find(&variants).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
+	return variants, nil
+}
 
-	if len(variants) == 0 {
-		return []mapper.VariantWithOptions{}, total, nil
-	}
-
-	// Extract variant IDs for batch fetching options
+// enrichVariantsWithOptions fetches option values for variants and builds result
+func (r *VariantRepositoryImpl) enrichVariantsWithOptions(
+	variants []entity.ProductVariant,
+) ([]mapper.VariantWithOptions, error) {
+	// Extract variant IDs
 	variantIDs := make([]uint, len(variants))
-	variantMap := make(map[uint]*entity.ProductVariant)
 	for i := range variants {
 		variantIDs[i] = variants[i].ID
-		variantCopy := variants[i]
-		variantMap[variants[i].ID] = &variantCopy
 	}
 
-	// Batch fetch option values for all variants
+	// Batch fetch option values
+	optionData, err := r.fetchVariantOptions(variantIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Group options by variant ID
+	variantOptionsMap := r.groupOptionsByVariantID(optionData)
+
+	// Build final result
+	return r.buildVariantWithOptionsResult(variants, variantOptionsMap), nil
+}
+
+// fetchVariantOptions retrieves option values for given variant IDs
+func (r *VariantRepositoryImpl) fetchVariantOptions(
+	variantIDs []uint,
+) ([]mapper.OptionValueData, error) {
 	var optionData []mapper.OptionValueData
 	err := r.db.Table("variant_option_value AS vov").
 		Select(`
@@ -747,12 +838,16 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 		Where("vov.variant_id IN ?", variantIDs).
 		Order("po.position ASC, pov.position ASC").
 		Find(&optionData).Error
-	if err != nil {
-		return nil, 0, err
-	}
 
-	// Group option values by variant ID
+	return optionData, err
+}
+
+// groupOptionsByVariantID groups option values by variant ID
+func (r *VariantRepositoryImpl) groupOptionsByVariantID(
+	optionData []mapper.OptionValueData,
+) map[uint][]mapper.SelectedOptionValue {
 	variantOptionsMap := make(map[uint][]mapper.SelectedOptionValue)
+
 	for _, od := range optionData {
 		variantOptionsMap[od.VariantID] = append(
 			variantOptionsMap[od.VariantID],
@@ -768,8 +863,16 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 		)
 	}
 
-	// Build result maintaining original sort order
+	return variantOptionsMap
+}
+
+// buildVariantWithOptionsResult builds final result with variants and their options
+func (r *VariantRepositoryImpl) buildVariantWithOptionsResult(
+	variants []entity.ProductVariant,
+	variantOptionsMap map[uint][]mapper.SelectedOptionValue,
+) []mapper.VariantWithOptions {
 	result := make([]mapper.VariantWithOptions, 0, len(variants))
+
 	for _, variant := range variants {
 		result = append(result, mapper.VariantWithOptions{
 			Variant:         variant,
@@ -777,5 +880,35 @@ func (r *VariantRepositoryImpl) ListVariantsWithFilters(
 		})
 	}
 
-	return result, total, nil
+	return result
+}
+
+// GetProductCountByVariantIDs counts unique products from variant IDs
+// Microservice-ready: Enables inventory service to count products without DB joins
+// Filters by seller_id if provided for multi-tenant isolation
+func (r *VariantRepositoryImpl) GetProductCountByVariantIDs(
+	variantIDs []uint,
+	sellerID *uint,
+) (uint, error) {
+	if len(variantIDs) == 0 {
+		return 0, nil
+	}
+
+	// Query to count distinct product_ids from variant_ids
+	var count int64
+	query := r.db.Model(&entity.ProductVariant{}).
+		Where("product_variant.id IN ?", variantIDs)
+
+	// Apply seller filter if provided (for multi-tenant isolation)
+	if sellerID != nil {
+		query = query.Joins("INNER JOIN product ON product.id = product_variant.product_id").
+			Where("product.seller_id = ?", *sellerID)
+	}
+
+	err := query.Distinct("product_id").Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(count), nil
 }

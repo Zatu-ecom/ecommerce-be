@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"ecommerce-be/common"
 	"ecommerce-be/common/db"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
@@ -36,8 +37,8 @@ type LocationService interface {
 	GetAllLocations(
 		c context.Context,
 		sellerID uint,
-		isActive *bool,
-	) ([]model.LocationResponse, error)
+		filter model.LocationsFilter,
+	) (*model.LocationsResponse, error)
 	DeleteLocation(c context.Context, id uint, sellerID uint) error
 }
 
@@ -166,13 +167,30 @@ func (s *LocationServiceImpl) GetLocationByID(
 	return response, nil
 }
 
-// GetAllLocations retrieves all locations for a seller
+// GetAllLocations retrieves all locations for a seller with pagination
 func (s *LocationServiceImpl) GetAllLocations(
 	c context.Context,
 	sellerID uint,
-	isActive *bool,
-) ([]model.LocationResponse, error) {
-	locations, err := s.locationRepo.FindAll(sellerID, isActive)
+	filter model.LocationsFilter,
+) (*model.LocationsResponse, error) {
+	// Set pagination defaults
+	filter.SetDefaults()
+
+	// Get total count for pagination
+	totalCount, err := s.locationRepo.CountAll(sellerID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if totalCount == 0 {
+		return &model.LocationsResponse{
+			Locations:  []model.LocationResponse{},
+			Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, 0),
+		}, nil
+	}
+
+	// Fetch locations
+	locations, err := s.locationRepo.FindAll(sellerID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +215,13 @@ func (s *LocationServiceImpl) GetAllLocations(
 		locationResponses = append(locationResponses, *response)
 	}
 
-	return locationResponses, nil
+	// Build paginated response
+	pagination := common.NewPaginationResponse(filter.Page, filter.PageSize, totalCount)
+
+	return &model.LocationsResponse{
+		Locations:  locationResponses,
+		Pagination: pagination,
+	}, nil
 }
 
 // DeleteLocation soft deletes a location

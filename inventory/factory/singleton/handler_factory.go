@@ -10,8 +10,9 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	locationHandler  *handler.LocationHandler
-	inventoryHandler *handler.InventoryHandler
+	locationHandler         *handler.LocationHandler
+	inventoryHandler        *handler.InventoryHandler
+	inventorySummaryHandler *handler.InventorySummaryHandler
 
 	once sync.Once
 }
@@ -30,6 +31,9 @@ func (f *HandlerFactory) initialize() {
 			f.serviceFactory.GetInventoryQueryService(),
 			f.serviceFactory.GetInventoryTransactionService(),
 		)
+		f.inventorySummaryHandler = handler.NewInventorySummaryHandler(
+			f.serviceFactory.GetInventorySummaryService(),
+		)
 	})
 }
 
@@ -43,4 +47,10 @@ func (f *HandlerFactory) GetLocationHandler() *handler.LocationHandler {
 func (f *HandlerFactory) GetInventoryHandler() *handler.InventoryHandler {
 	f.initialize()
 	return f.inventoryHandler
+}
+
+// GetInventorySummaryHandler returns the singleton inventory summary handler
+func (f *HandlerFactory) GetInventorySummaryHandler() *handler.InventorySummaryHandler {
+	f.initialize()
+	return f.inventorySummaryHandler
 }

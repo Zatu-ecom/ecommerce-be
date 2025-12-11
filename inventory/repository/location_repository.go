@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
+	"ecommerce-be/inventory/model"
 
 	"gorm.io/gorm"
 )
@@ -16,7 +17,8 @@ type LocationRepository interface {
 	FindByID(id uint, sellerID uint) (*entity.Location, error)
 	FindByIDs(ids []uint, sellerID uint) ([]entity.Location, error)
 	FindByName(name string, sellerID uint) (*entity.Location, error)
-	FindAll(sellerID uint, isActive *bool) ([]entity.Location, error)
+	FindAll(sellerID uint, filter model.LocationsFilter) ([]entity.Location, error)
+	CountAll(sellerID uint, filter model.LocationsFilter) (int64, error)
 	Delete(id uint) error
 	Exists(id uint, sellerID uint) error
 }
@@ -75,20 +77,64 @@ func (r *LocationRepositoryImpl) FindByName(name string, sellerID uint) (*entity
 	return &location, nil
 }
 
-// FindAll finds all locations for a seller with optional active filter
-func (r *LocationRepositoryImpl) FindAll(sellerID uint, isActive *bool) ([]entity.Location, error) {
+// FindAll finds all locations for a seller with optional filters
+func (r *LocationRepositoryImpl) FindAll(
+	sellerID uint,
+	filter model.LocationsFilter,
+) ([]entity.Location, error) {
 	var locations []entity.Location
 	query := r.db.Where("seller_id = ?", sellerID)
 
-	if isActive != nil {
-		query = query.Where("is_active = ?", *isActive)
+	// Apply isActive filter
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
 	}
 
-	result := query.Order("priority DESC, name ASC").Find(&locations)
+	// Apply location type filter
+	if len(filter.LocationTypes) > 0 {
+		query = query.Where("type IN ?", filter.LocationTypes)
+	}
+
+	// Apply sorting (default to priority DESC if not specified)
+	sortField := filter.SortBy
+	sortOrder := filter.SortOrder
+
+	if sortField == "" {
+		sortField = "priority"
+	}
+	if sortOrder == "" {
+		sortOrder = "DESC"
+	}
+
+	orderClause := sortField + " " + sortOrder
+	if sortField != "priority" {
+		orderClause += ", priority DESC" // Secondary sort by priority
+	}
+
+	result := query.Order(orderClause).Find(&locations)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return locations, nil
+}
+
+// CountAll counts total locations for a seller with filters applied
+func (r *LocationRepositoryImpl) CountAll(sellerID uint, filter model.LocationsFilter) (int64, error) {
+	query := r.db.Model(&entity.Location{}).Where("seller_id = ?", sellerID)
+
+	// Apply isActive filter if specified
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
+	// Apply location type filter if specified
+	if len(filter.LocationTypes) > 0 {
+		query = query.Where("type IN ?", filter.LocationTypes)
+	}
+
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
 }
 
 // Delete soft deletes a location
@@ -102,7 +148,7 @@ func (r *LocationRepositoryImpl) FindByIDs(ids []uint, sellerID uint) ([]entity.
 	if len(ids) == 0 {
 		return locations, nil
 	}
-	
+
 	result := r.db.Where("id IN ? AND seller_id = ?", ids, sellerID).Find(&locations)
 	if result.Error != nil {
 		return nil, result.Error

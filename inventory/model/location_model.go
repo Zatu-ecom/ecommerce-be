@@ -1,6 +1,14 @@
 package model
 
-import "ecommerce-be/inventory/entity"
+import (
+	"ecommerce-be/common"
+	"ecommerce-be/common/helper"
+	"ecommerce-be/inventory/entity"
+)
+
+// ===========================================================================
+// Request Models
+// ===========================================================================
 
 // LocationCreateRequest represents the request body for creating a location
 type LocationCreateRequest struct {
@@ -37,6 +45,34 @@ type AddressUpdateRequest struct {
 	Country *string `json:"country" binding:"omitempty,min=2"`
 }
 
+// Locations filter API paramters
+
+type LocationsFilter struct {
+	LocationsFilterBase
+	LocationTypes []string
+}
+
+type LocationsParam struct {
+	LocationsFilterBase
+	LocationTypes *string `form:"locationTypes"`
+}
+
+type LocationsFilterBase struct {
+	common.BaseListParams
+	IsActive *bool `form:"isActive"`
+}
+
+func (p *LocationsParam) ToLocationSummaryFilter() LocationsFilter {
+	return LocationsFilter{
+		LocationsFilterBase: p.LocationsFilterBase,
+		LocationTypes:       helper.ParseCommaSeparatedPtr[string](p.LocationTypes),
+	}
+}
+
+/// ===========================================================================
+// Response Models
+// ============================================================================
+
 // LocationResponse represents the location data returned in API responses
 type LocationResponse struct {
 	ID       uint                `json:"id"`
@@ -57,7 +93,8 @@ type AddressResponse struct {
 	Country string `json:"country,omitempty"`
 }
 
-// LocationsResponse represents the response for getting all locations
+// LocationsResponse represents the paginated response for getting all locations
 type LocationsResponse struct {
-	Locations []LocationResponse `json:"locations"`
+	Locations  []LocationResponse       `json:"locations"`
+	Pagination common.PaginationResponse `json:"pagination"`
 }

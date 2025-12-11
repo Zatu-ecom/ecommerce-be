@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
@@ -141,20 +140,23 @@ func (h *LocationHandler) GetAllLocations(c *gin.Context) {
 		return
 	}
 
-	// Parse optional isActive query parameter
-	var isActive *bool
-	if isActiveStr := c.Query("isActive"); isActiveStr != "" {
-		if activeVal, err := strconv.ParseBool(isActiveStr); err == nil {
-			isActive = &activeVal
-		}
+	// Parse query parameters using LocationsParam
+	var params model.LocationsParam
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
 	}
 
-	locationsResponse, err := h.locationService.GetAllLocations(c, sellerID, isActive)
+	// Convert to filter for service layer
+	filter := params.ToLocationSummaryFilter()
+
+	locationsResponse, err := h.locationService.GetAllLocations(c, sellerID, filter)
 	if err != nil {
 		h.HandleError(c, err, invConstants.FAILED_TO_GET_LOCATIONS_MSG)
 		return
 	}
 
+	// Return paginated response directly (includes locations array and pagination metadata)
 	h.SuccessWithData(
 		c,
 		http.StatusOK,

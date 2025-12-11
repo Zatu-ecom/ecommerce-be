@@ -43,6 +43,11 @@ type VariantQueryService interface {
 		sellerID *uint,
 		optionFilters map[string]string,
 	) (*model.ListVariantsResponse, error)
+
+	// GetProductCountByVariantIDs counts unique products from variant IDs
+	// Microservice-ready: Enables inventory service to count products without DB joins
+	// Used by inventory module to aggregate product counts per location
+	GetProductCountByVariantIDs(variantIDs []uint, sellerID *uint) (uint, error)
 }
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
@@ -242,4 +247,14 @@ func (s *VariantQueryServiceImpl) ListVariants(
 		Page:     request.Page,
 		PageSize: request.PageSize,
 	}, nil
+}
+
+// GetProductCountByVariantIDs counts unique products from variant IDs
+// Microservice-ready: Allows inventory service to get product count without product_variant joins
+// Returns the count of unique products that these variants belong to
+func (s *VariantQueryServiceImpl) GetProductCountByVariantIDs(
+	variantIDs []uint,
+	sellerID *uint,
+) (uint, error) {
+	return s.variantRepo.GetProductCountByVariantIDs(variantIDs, sellerID)
 }
