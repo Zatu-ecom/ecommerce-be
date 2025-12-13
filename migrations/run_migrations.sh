@@ -19,9 +19,9 @@ if [ -f ../.env ]; then
     set -a
     source ../.env
     set +a
+    echo -e "${GREEN}✓${NC} Loaded environment from .env file"
 else
-    echo -e "${RED}Error: .env file not found!${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠${NC} .env file not found, using environment variables"
 fi
 
 # Database connection string

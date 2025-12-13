@@ -1,0 +1,69 @@
+# Git files
+.git
+.gitignore
+.github
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Documentation
+*.md
+!migrations/README.md
+ARCHITECTURE.md
+CODING_STANDARDS.md
+backend-prd.md
+PRODUCT_SERVICE_PRD.md
+
+# Test files and directories
+test/
+*_test.go
+coverage.out
+*.test
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+build/
+
+# Dependency directories
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Postman collections (not needed in container)
+*.postman_collection.json
+
+# CI/CD files (not needed in container)
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker files (avoid recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
