@@ -11,6 +11,18 @@ const (
 	StockStatusOutOfStock StockStatus = "OUT_OF_STOCK" // At least one item has zero stock
 )
 
+// CalculateStockStatus determines stock status for a single inventory record
+func CalculateStockStatus(quantity, threshold int) StockStatus {
+	available := quantity // Available = Quantity - Reserved (but for status, we use raw quantity)
+	if available <= 0 {
+		return StockStatusOutOfStock
+	}
+	if quantity <= threshold {
+		return StockStatusLowStock
+	}
+	return StockStatusInStock
+}
+
 type InventorySummary struct {
 	ProductCount      uint        `json:"productCount"`
 	VariantCount      uint        `json:"variantCount"`

@@ -23,7 +23,19 @@ type InventoryRepository interface {
 	FindByLocationID(locationID uint) ([]entity.Inventory, error)
 	Exists(variantID uint, locationID uint) (bool, error)
 	GetLocationInventorySummary(locationID uint) (*mapper.LocationInventorySummaryAggregate, error)
-	GetLocationInventorySummaryBatch(locationIDs []uint) (map[uint]*mapper.LocationInventorySummaryAggregate, error)
+	GetLocationInventorySummaryBatch(
+		locationIDs []uint,
+	) (map[uint]*mapper.LocationInventorySummaryAggregate, error)
+	GetVariantInventoriesAtLocation(locationID uint) ([]mapper.VariantInventoryRow, error)
+	// GetVariantInventoriesAtLocationWithSort retrieves variant inventories with sorting
+	// sortBy: quantity, reserved_quantity, threshold, available_quantity (computed)
+	// sortOrder: asc, desc
+	GetVariantInventoriesAtLocationWithSort(
+		locationID uint,
+		variantIDs []uint,
+		sortBy string,
+		sortOrder string,
+	) ([]mapper.VariantInventoryRow, error)
 }
 
 // InventoryRepositoryImpl implements the InventoryRepository interface
@@ -244,7 +256,10 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
 	// Group variant IDs by location
 	variantIDsByLocation := make(map[uint][]uint)
 	for _, vr := range variantResults {
-		variantIDsByLocation[vr.LocationID] = append(variantIDsByLocation[vr.LocationID], vr.VariantID)
+		variantIDsByLocation[vr.LocationID] = append(
+			variantIDsByLocation[vr.LocationID],
+			vr.VariantID,
+		)
 	}
 
 	// Build result map
@@ -270,4 +285,93 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
 	}
 
 	return summaryMap, nil
+}
+
+// GetVariantInventoriesAtLocation retrieves all variant inventory records at a location
+// Returns flat list of variant inventory data for aggregation by product
+// Microservice-ready: Only queries inventory table, no product joins
+func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocation(
+	locationID uint,
+) ([]mapper.VariantInventoryRow, error) {
+	var results []mapper.VariantInventoryRow
+
+	err := r.db.Model(&entity.Inventory{}).
+		Select(
+			"variant_id",
+			"quantity",
+			"reserved_quantity",
+			"threshold",
+			"bin_location",
+		).
+		Where("location_id = ?", locationID).
+		Scan(&results).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Return empty slice instead of nil for consistency
+	if results == nil {
+		results = []mapper.VariantInventoryRow{}
+	}
+
+	return results, nil
+}
+
+// GetVariantInventoriesAtLocationWithSort retrieves variant inventories with DB-side sorting
+func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
+	locationID uint,
+	variantIDs []uint,
+	sortBy string,
+	sortOrder string,
+) ([]mapper.VariantInventoryRow, error) {
+	var results []mapper.VariantInventoryRow
+
+	// Map sortBy to actual DB column names
+	columnMap := map[string]string{
+		"quantity":          "quantity",
+		"reservedQuantity":  "reserved_quantity",
+		"threshold":         "threshold",
+		"availableQuantity": "(quantity - reserved_quantity)",
+	}
+
+	// Default sorting
+	orderColumn := "quantity"
+	if col, ok := columnMap[sortBy]; ok {
+		orderColumn = col
+	}
+
+	// Validate sort order
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "asc"
+	}
+
+	query := r.db.Model(&entity.Inventory{}).
+		Select(
+			"variant_id",
+			"quantity",
+			"reserved_quantity",
+			"threshold",
+			"bin_location",
+		).
+		Where("location_id = ?", locationID)
+
+	// Filter by variant IDs if provided
+	if len(variantIDs) > 0 {
+		query = query.Where("variant_id IN ?", variantIDs)
+	}
+
+	// Apply ordering
+	query = query.Order(orderColumn + " " + sortOrder)
+
+	err := query.Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if results == nil {
+		results = []mapper.VariantInventoryRow{}
+	}
+
+	return results, nil
 }

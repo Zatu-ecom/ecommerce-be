@@ -52,7 +52,8 @@ func (s *InventoryQueryServiceImpl) GetInventoryByVariant(
 				ReservedQuantity:  inv.ReservedQuantity,
 				Threshold:         inv.Threshold,
 				AvailableQuantity: inv.Quantity - inv.ReservedQuantity,
-				BelowThreshold:    inv.Quantity < inv.Threshold,
+				StockStatus:       model.CalculateStockStatus(inv.Quantity, inv.Threshold),
+				BinLocation:       inv.BinLocation,
 			},
 			LocationName: location.Name,
 			LocationType: string(location.Type),
@@ -88,7 +89,8 @@ func (s *InventoryQueryServiceImpl) GetInventoryByLocation(
 			ReservedQuantity:  inv.ReservedQuantity,
 			Threshold:         inv.Threshold,
 			AvailableQuantity: inv.Quantity - inv.ReservedQuantity,
-			BelowThreshold:    inv.Quantity < inv.Threshold,
+			StockStatus:       model.CalculateStockStatus(inv.Quantity, inv.Threshold),
+			BinLocation:       inv.BinLocation,
 		})
 	}
 

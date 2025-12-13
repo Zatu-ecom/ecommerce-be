@@ -33,6 +33,7 @@ func (f *HandlerFactory) initialize() {
 		)
 		f.inventorySummaryHandler = handler.NewInventorySummaryHandler(
 			f.serviceFactory.GetInventorySummaryService(),
+			f.serviceFactory.GetProductInventorySummaryService(),
 		)
 	})
 }

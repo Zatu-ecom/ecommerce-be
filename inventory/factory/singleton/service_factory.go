@@ -14,11 +14,12 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	locationService             service.LocationService
-	inventoryService            service.InventoryManageService
-	inventoryQueryService       service.InventoryQueryService
-	inventoryTransactionService service.InventoryTransactionService
-	inventorySummaryService     service.InventorySummaryService
+	locationService                 service.LocationService
+	inventoryService                service.InventoryManageService
+	inventoryQueryService           service.InventoryQueryService
+	inventoryTransactionService     service.InventoryTransactionService
+	inventorySummaryService         service.InventorySummaryService
+	productInventorySummaryService  service.ProductInventorySummaryService
 
 	once sync.Once
 }
@@ -51,6 +52,13 @@ func (f *ServiceFactory) initialize() {
 		// Initialize inventory summary service - inject location service (DRY)
 		f.inventorySummaryService = service.NewInventorySummaryService(
 			f.locationService, // Inject location service instead of repos
+			inventoryRepository,
+			variantQueryService,
+		)
+
+		// Initialize product inventory summary service - inject location service (DRY)
+		f.productInventorySummaryService = service.NewProductInventorySummaryService(
+			f.locationService,
 			inventoryRepository,
 			variantQueryService,
 		)
@@ -105,6 +113,12 @@ func (f *ServiceFactory) GetInventoryTransactionService() service.InventoryTrans
 func (f *ServiceFactory) GetInventorySummaryService() service.InventorySummaryService {
 	f.initialize()
 	return f.inventorySummaryService
+}
+
+// GetProductInventorySummaryService returns the singleton product inventory summary service
+func (f *ServiceFactory) GetProductInventorySummaryService() service.ProductInventorySummaryService {
+	f.initialize()
+	return f.productInventorySummaryService
 }
 
 func (f *ServiceFactory) setManageInventoryService(

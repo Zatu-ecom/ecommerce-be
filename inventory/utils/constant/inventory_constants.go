@@ -13,6 +13,7 @@ const (
 // Inventory error messages
 const (
 	INVENTORY_NOT_FOUND_MSG          = "Inventory not found"
+	PRODUCT_INVENTORY_NOT_FOUND_MSG  = "No inventory found for this product at the specified location"
 	INSUFFICIENT_STOCK_MSG           = "Insufficient stock available"
 	INVALID_QUANTITY_MSG             = "Invalid quantity"
 	NEGATIVE_STOCK_MSG               = "Operation would result in negative stock"
@@ -52,4 +53,12 @@ const (
 	TRANSACTION_TYPE_REQUIRED_MSG = "Transaction type is required"
 	REASON_REQUIRED_MSG          = "Reason is required"
 	REASON_LENGTH_MSG            = "Reason must be between 5 and 500 characters"
+)
+
+// Product inventory summary messages
+const (
+	PRODUCTS_RETRIEVED_MSG     = "Products retrieved successfully"
+	FAILED_TO_GET_PRODUCTS_MSG = "Failed to get products"
+	VARIANTS_RETRIEVED_MSG     = "Variants retrieved successfully"
+	FAILED_TO_GET_VARIANTS_MSG = "Failed to get variants"
 )

@@ -15,6 +15,12 @@ var (
 		StatusCode: http.StatusNotFound,
 	}
 
+	ErrProductInventoryNotFound = &commonerrors.AppError{
+		Code:       constant.PRODUCT_INVENTORY_NOT_FOUND_CODE,
+		Message:    constant.PRODUCT_INVENTORY_NOT_FOUND_MSG,
+		StatusCode: http.StatusNotFound,
+	}
+
 	ErrInsufficientStock = &commonerrors.AppError{
 		Code:       constant.INSUFFICIENT_STOCK_CODE,
 		Message:    constant.INSUFFICIENT_STOCK_MSG,

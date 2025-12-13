@@ -45,6 +45,7 @@ type VariantRepository interface {
 		optionFilters map[string]string,
 	) ([]mapper.VariantWithOptions, int64, error)
 	GetProductCountByVariantIDs(variantIDs []uint, sellerID *uint) (uint, error)
+	GetProductBasicInfoByVariantIDs(variantIDs []uint, sellerID *uint) ([]mapper.ProductBasicInfoRow, error)
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
@@ -911,4 +912,47 @@ func (r *VariantRepositoryImpl) GetProductCountByVariantIDs(
 	}
 
 	return uint(count), nil
+}
+
+// GetProductBasicInfoByVariantIDs retrieves basic product info for a list of variant IDs
+// Microservice-ready: Enables inventory service to get product details without direct joins
+// Returns flat rows with variant ID for in-memory grouping by product
+func (r *VariantRepositoryImpl) GetProductBasicInfoByVariantIDs(
+	variantIDs []uint,
+	sellerID *uint,
+) ([]mapper.ProductBasicInfoRow, error) {
+	if len(variantIDs) == 0 {
+		return []mapper.ProductBasicInfoRow{}, nil
+	}
+
+	var results []mapper.ProductBasicInfoRow
+
+	query := r.db.Model(&entity.ProductVariant{}).
+		Select(
+			"product_variant.id as variant_id",
+			"product.id as product_id",
+			"product.name as product_name",
+			"product.category_id as category_id",
+			"product.base_sku as base_sku",
+			"product.seller_id as seller_id",
+		).
+		Joins("INNER JOIN product ON product.id = product_variant.product_id").
+		Where("product_variant.id IN ?", variantIDs)
+
+	// Apply seller filter if provided (for multi-tenant isolation)
+	if sellerID != nil {
+		query = query.Where("product.seller_id = ?", *sellerID)
+	}
+
+	err := query.Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Return empty slice instead of nil for consistency
+	if results == nil {
+		results = []mapper.ProductBasicInfoRow{}
+	}
+
+	return results, nil
 }
