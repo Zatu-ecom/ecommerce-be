@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS inventory (
     quantity INTEGER DEFAULT 0,
     reserved_quantity INTEGER DEFAULT 0,
     threshold INTEGER DEFAULT 0,
-    bin_location VARCHAR(50),
-    low_stock_threshold INTEGER DEFAULT 10,
-    is_active BOOLEAN DEFAULT TRUE
+    bin_location VARCHAR(50)
 );
 
 CREATE UNIQUE INDEX idx_inv_var_loc ON inventory(variant_id, location_id);
