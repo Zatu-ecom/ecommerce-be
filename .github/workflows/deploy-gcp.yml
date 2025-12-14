@@ -97,9 +97,12 @@ jobs:
               echo '================================================'
               echo 'Branch: ${{ github.ref_name }}'
               echo 'Commit: ${{ github.sha }}'
+              echo 'Current user: \$(whoami)'
               echo '================================================'
               
-              # Navigate to app directory
+              # Switch to vasugoriya1234 user and run deployment
+              sudo -u vasugoriya1234 bash << 'DEPLOY_SCRIPT'
+              set -e
               cd /home/vasugoriya1234/ecommerce-backend
               
               # Stop existing containers
@@ -148,6 +151,7 @@ jobs:
               echo '💾 Disk usage:'
               df -h / | tail -1
               echo '================================================'
+DEPLOY_SCRIPT
             "
 
       # ============================================
@@ -161,6 +165,7 @@ jobs:
           gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
             --zone=${{ secrets.GCP_VM_ZONE }} \
             --command="
+              sudo -u vasugoriya1234 bash << 'VERIFY_SCRIPT'
               cd /home/vasugoriya1234/ecommerce-backend
               
               echo '📊 Service Status:'
@@ -177,6 +182,7 @@ jobs:
               echo ''
               echo '💾 Disk Space:'
               df -h / | tail -1
+VERIFY_SCRIPT
             "
 
       # ============================================
