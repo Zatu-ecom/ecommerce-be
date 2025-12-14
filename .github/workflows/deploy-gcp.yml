@@ -118,7 +118,7 @@ jobs:
                 docker load < /tmp/ecommerce-backend.tar.gz
                 
                 # Remove the tar file
-                rm -f /tmp/ecommerce-backend.tar.gz
+                sudo rm -rf /tmp/ecommerce-backend.tar.gz
                 
                 # Verify image loaded
                 echo \"✅ Image loaded:\"
