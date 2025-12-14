@@ -45,12 +45,7 @@ services:
 
   # Application (Production)
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-      args:
-        BUILDKIT_INLINE_CACHE: 1
+    image: ecommerce-backend:latest
     container_name: ecommerce-app
     restart: unless-stopped
     ports:

@@ -77,10 +77,11 @@ jobs:
       # ============================================
       - name: Transfer image to VM
         run: |
-          echo "📤 Transferring Docker image to VM..."
+          echo "📤 Transferring Docker image..."
           gcloud compute scp ecommerce-backend.tar.gz \
             ${{ secrets.GCP_VM_NAME }}:/tmp/ecommerce-backend.tar.gz \
             --zone=${{ secrets.GCP_VM_ZONE }}
+          
           echo "✅ Image transferred"
 
       # ============================================
@@ -105,6 +106,11 @@ jobs:
                 set -e
                 cd /home/vasugoriya1234/ecommerce-backend
                 
+                # Pull latest code
+                echo \"📥 Pulling latest code...\"
+                git fetch origin
+                git reset --hard origin/${{ github.ref_name }}
+                
                 # Stop existing containers
                 echo \"🛑 Stopping existing containers...\"
                 docker-compose down || true
@@ -117,8 +123,8 @@ jobs:
                 echo \"📦 Loading new Docker image...\"
                 docker load < /tmp/ecommerce-backend.tar.gz
                 
-                # Remove the tar file
-                sudo rm -rf /tmp/ecommerce-backend.tar.gz
+                # Clean up temp file
+                sudo rm -f /tmp/ecommerce-backend.tar.gz
                 
                 # Verify image loaded
                 echo \"✅ Image loaded:\"
