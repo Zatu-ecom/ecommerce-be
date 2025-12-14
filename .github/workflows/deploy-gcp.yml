@@ -90,69 +90,69 @@ jobs:
         run: |
           gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
             --zone=${{ secrets.GCP_VM_ZONE }} \
-            --command="
+            --command='
               set -e
               
-              echo '🚀 Starting deployment...'
-              echo '================================================'
-              echo 'Branch: ${{ github.ref_name }}'
-              echo 'Commit: ${{ github.sha }}'
-              echo 'Current user: \$(whoami)'
-              echo '================================================'
+              echo "🚀 Starting deployment..."
+              echo "================================================"
+              echo "Branch: ${{ github.ref_name }}"
+              echo "Commit: ${{ github.sha }}"
+              echo "Current user: $(whoami)"
+              echo "================================================"
               
               # Switch to vasugoriya1234 user and run deployment
-              sudo -u vasugoriya1234 bash << 'DEPLOY_SCRIPT'
-              set -e
-              cd /home/vasugoriya1234/ecommerce-backend
-              
-              # Stop existing containers
-              echo '🛑 Stopping existing containers...'
-              docker-compose down || true
-              
-              # Remove old images (except the one we're about to load)
-              echo '🧹 Removing old Docker images...'
-              docker images | grep ${{ env.IMAGE_NAME }} | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
-              
-              # Load new image
-              echo '📦 Loading new Docker image...'
-              docker load < /tmp/ecommerce-backend.tar.gz
-              
-              # Remove the tar file
-              rm -f /tmp/ecommerce-backend.tar.gz
-              
-              # Verify image loaded
-              echo '✅ Image loaded:'
-              docker images | grep ${{ env.IMAGE_NAME }}
-              
-              # Run migrations
-              echo '🗄️  Running database migrations...'
-              docker-compose --profile tools run --rm migrate || echo '⚠️  Migrations already up to date'
-              
-              # Start services
-              echo '🚀 Starting services...'
-              docker-compose up -d
-              
-              # Wait for services to be ready
-              echo '⏳ Waiting for services to start...'
-              sleep 5
-              
-              # Clean up dangling images
-              echo '🧹 Cleaning up dangling images...'
-              docker image prune -f
-              
-              # Show status
-              echo '================================================'
-              echo '✅ Deployment complete!'
-              echo '================================================'
-              docker-compose ps
-              echo '================================================'
-              
-              # Show disk usage
-              echo '💾 Disk usage:'
-              df -h / | tail -1
-              echo '================================================'
-DEPLOY_SCRIPT
-            "
+              sudo -u vasugoriya1234 bash -c "
+                set -e
+                cd /home/vasugoriya1234/ecommerce-backend
+                
+                # Stop existing containers
+                echo \"🛑 Stopping existing containers...\"
+                docker-compose down || true
+                
+                # Remove old images
+                echo \"🧹 Removing old Docker images...\"
+                docker images | grep ${{ env.IMAGE_NAME }} | awk '"'"'{print \$3}'"'"' | xargs -r docker rmi -f 2>/dev/null || true
+                
+                # Load new image
+                echo \"📦 Loading new Docker image...\"
+                docker load < /tmp/ecommerce-backend.tar.gz
+                
+                # Remove the tar file
+                rm -f /tmp/ecommerce-backend.tar.gz
+                
+                # Verify image loaded
+                echo \"✅ Image loaded:\"
+                docker images | grep ${{ env.IMAGE_NAME }}
+                
+                # Run migrations
+                echo \"🗄️  Running database migrations...\"
+                docker-compose --profile tools run --rm migrate || echo \"⚠️  Migrations already up to date\"
+                
+                # Start services
+                echo \"🚀 Starting services...\"
+                docker-compose up -d
+                
+                # Wait for services to be ready
+                echo \"⏳ Waiting for services to start...\"
+                sleep 5
+                
+                # Clean up dangling images
+                echo \"🧹 Cleaning up dangling images...\"
+                docker image prune -f
+                
+                # Show status
+                echo \"================================================\"
+                echo \"✅ Deployment complete!\"
+                echo \"================================================\"
+                docker-compose ps
+                echo \"================================================\"
+                
+                # Show disk usage
+                echo \"💾 Disk usage:\"
+                df -h / | tail -1
+                echo \"================================================\"
+              "
+            '
 
       # ============================================
       # 8. Verify Deployment
@@ -164,26 +164,26 @@ DEPLOY_SCRIPT
           
           gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
             --zone=${{ secrets.GCP_VM_ZONE }} \
-            --command="
-              sudo -u vasugoriya1234 bash << 'VERIFY_SCRIPT'
-              cd /home/vasugoriya1234/ecommerce-backend
-              
-              echo '📊 Service Status:'
-              docker-compose ps
-              
-              echo ''
-              echo '📋 Recent Application Logs:'
-              docker-compose logs --tail=30 app
-              
-              echo ''
-              echo '🐳 Docker Images:'
-              docker images | grep -E 'REPOSITORY|ecommerce'
-              
-              echo ''
-              echo '💾 Disk Space:'
-              df -h / | tail -1
-VERIFY_SCRIPT
-            "
+            --command='
+              sudo -u vasugoriya1234 bash -c "
+                cd /home/vasugoriya1234/ecommerce-backend
+                
+                echo \"📊 Service Status:\"
+                docker-compose ps
+                
+                echo \"\"
+                echo \"📋 Recent Application Logs:\"
+                docker-compose logs --tail=30 app
+                
+                echo \"\"
+                echo \"🐳 Docker Images:\"
+                docker images | grep -E \"REPOSITORY|ecommerce\"
+                
+                echo \"\"
+                echo \"💾 Disk Space:\"
+                df -h / | tail -1
+              "
+            '
 
       # ============================================
       # 9. Notify on Success
