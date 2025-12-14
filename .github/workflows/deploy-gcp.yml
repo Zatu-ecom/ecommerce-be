@@ -1,14 +1,11 @@
-name: Deploy to GCP VM
+name: Deploy to GCP VM (Manual)
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Allow manual trigger from any branch
+  workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to deploy'
-        required: false
+        description: 'Branch to deploy (e.g., main, feature/login)'
+        required: true
         default: 'main'
 
 env:
@@ -26,7 +23,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
+          # This is crucial: Checkout the specific branch requested by the user input
+          ref: ${{ inputs.branch }}
+
+      # ============================================
+      # 1.1 Get Short SHA (Better for tagging)
+      # ============================================
+      - name: Get Short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       # ============================================
       # 2. Set up Docker Buildx
@@ -39,9 +44,9 @@ jobs:
       # ============================================
       - name: Build Docker image
         run: |
-          echo "🏗️  Building Docker image..."
+          echo "🏗️  Building Docker image for branch: ${{ inputs.branch }}"
           DOCKER_BUILDKIT=1 docker build \
-            --tag ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }} \
             --tag ${{ env.IMAGE_NAME }}:latest \
             --cache-from ${{ env.IMAGE_NAME }}:latest \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -92,62 +97,70 @@ jobs:
             --command="
               set -e
               
-              echo '🚀 Starting deployment...'
-              echo '================================================'
-              echo 'Branch: ${{ github.ref_name }}'
-              echo 'Commit: ${{ github.sha }}'
-              echo '================================================'
+              echo "🚀 Starting deployment..."
+              echo "================================================"
+              echo "Deploying Branch: ${{ inputs.branch }}"
+              echo "Commit SHA: ${{ steps.vars.outputs.sha_short }}"
+              echo "Current user: $(whoami)"
+              echo "================================================"
               
-              # Navigate to app directory
-              cd /home/vasugoriya1234/ecommerce-backend
-              
-              # Stop existing containers
-              echo '🛑 Stopping existing containers...'
-              docker-compose down || true
-              
-              # Remove old images (except the one we're about to load)
-              echo '🧹 Removing old Docker images...'
-              docker images | grep ${{ env.IMAGE_NAME }} | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
-              
-              # Load new image
-              echo '📦 Loading new Docker image...'
-              docker load < /tmp/ecommerce-backend.tar.gz
-              
-              # Remove the tar file
-              rm -f /tmp/ecommerce-backend.tar.gz
-              
-              # Verify image loaded
-              echo '✅ Image loaded:'
-              docker images | grep ${{ env.IMAGE_NAME }}
-              
-              # Run migrations
-              echo '🗄️  Running database migrations...'
-              docker-compose --profile tools run --rm migrate || echo '⚠️  Migrations already up to date'
-              
-              # Start services
-              echo '🚀 Starting services...'
-              docker-compose up -d
-              
-              # Wait for services to be ready
-              echo '⏳ Waiting for services to start...'
-              sleep 5
-              
-              # Clean up dangling images
-              echo '🧹 Cleaning up dangling images...'
-              docker image prune -f
-              
-              # Show status
-              echo '================================================'
-              echo '✅ Deployment complete!'
-              echo '================================================'
-              docker-compose ps
-              echo '================================================'
-              
-              # Show disk usage
-              echo '💾 Disk usage:'
-              df -h / | tail -1
-              echo '================================================'
-            "
+              # Switch to vasugoriya1234 user and run deployment
+              sudo -u vasugoriya1234 bash -c "
+                set -e
+                cd /home/vasugoriya1234/ecommerce-backend
+                
+                echo \"📥 Pulling latest code for ${{ inputs.branch }}...\"
+                git fetch origin
+                git reset --hard origin/${{ inputs.branch }}
+                
+                # Stop existing containers
+                echo \"🛑 Stopping existing containers...\"
+                docker-compose down || true
+                
+                # Remove old images
+                echo \"🧹 Removing old Docker images...\"
+                docker images | grep ${{ env.IMAGE_NAME }} | awk '"'"'{print \$3}'"'"' | xargs -r docker rmi -f 2>/dev/null || true
+                
+                # Load new image
+                echo \"📦 Loading new Docker image...\"
+                docker load < /tmp/ecommerce-backend.tar.gz
+                
+                # Clean up temp file
+                sudo rm -f /tmp/ecommerce-backend.tar.gz
+                
+                # Verify image loaded
+                echo \"✅ Image loaded:\"
+                docker images | grep ${{ env.IMAGE_NAME }}
+                
+                # Run migrations
+                echo \"🗄️  Running database migrations...\"
+                docker-compose --profile tools run --rm migrate || echo \"⚠️  Migrations already up to date\"
+                
+                # Start services
+                echo \"🚀 Starting services...\"
+                docker-compose up -d
+                
+                # Wait for services to be ready
+                echo \"⏳ Waiting for services to start...\"
+                sleep 5
+                
+                # Clean up dangling images
+                echo \"🧹 Cleaning up dangling images...\"
+                docker image prune -f
+                
+                # Show status
+                echo \"================================================\"
+                echo \"✅ Deployment complete!\"
+                echo \"================================================\"
+                docker-compose ps
+                echo \"================================================\"
+                
+                # Show disk usage
+                echo \"💾 Disk usage:\"
+                df -h / | tail -1
+                echo \"================================================\"
+              "
+            '
 
       # ============================================
       # 8. Verify Deployment
@@ -185,10 +198,8 @@ jobs:
         if: success()
         run: |
           echo "✅ Deployment successful!"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "VM: ${{ secrets.GCP_VM_NAME }}"
-          echo "Image: ${{ env.IMAGE_NAME }}:latest"
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Commit: ${{ steps.vars.outputs.sha_short }}"
 
       # ============================================
       # 10. Notify on Failure
@@ -197,6 +208,5 @@ jobs:
         if: failure()
         run: |
           echo "❌ Deployment failed!"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ inputs.branch }}"
           echo "Check the logs above for details."
