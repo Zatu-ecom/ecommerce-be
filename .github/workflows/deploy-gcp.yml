@@ -90,77 +90,83 @@ jobs:
       # ============================================
       # 7. Deploy to GCP VM
       # ============================================
+# ============================================
+      # 7. Deploy to GCP VM (Fixed Method)
+      # ============================================
       - name: Deploy to GCP VM
         run: |
+          # 1. Create the deployment script locally
+          # We use 'EOF' (quoted) to prevent the Runner from trying to interpret $variables inside the script.
+          cat << 'EOF' > deploy_script.sh
+          #!/bin/bash
+          set -e
+          
+          # Read arguments passed to the script
+          BRANCH_NAME=$1
+          COMMIT_SHA=$2
+          IMG_NAME=$3
+          
+          echo "🚀 Starting deployment script on VM..."
+          echo "Branch: $BRANCH_NAME"
+          echo "Commit: $COMMIT_SHA"
+          
+          # Switch to vasugoriya1234 user and run the actual logic
+          # We pass the variables down into the sudo session
+          sudo -u vasugoriya1234 bash -c "
+            set -e
+            cd /home/vasugoriya1234/ecommerce-backend
+            
+            # Pull latest code
+            echo \"📥 Pulling latest code for $BRANCH_NAME...\"
+            git fetch origin
+            git reset --hard origin/$BRANCH_NAME
+            
+            # Stop existing containers
+            echo \"🛑 Stopping existing containers...\"
+            docker-compose down || true
+            
+            # Remove old images (using the passed image name variable)
+            echo \"🧹 Removing old Docker images...\"
+            docker images | grep $IMG_NAME | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
+            
+            # Load new image
+            echo \"📦 Loading new Docker image...\"
+            docker load < /tmp/ecommerce-backend.tar.gz
+            
+            # Clean up temp file
+            sudo rm -f /tmp/ecommerce-backend.tar.gz
+            
+            # Run migrations
+            echo \"🗄️  Running database migrations...\"
+            docker-compose --profile tools run --rm migrate || echo \"⚠️  Migrations already up to date\"
+            
+            # Start services
+            echo \"🚀 Starting services...\"
+            docker-compose up -d
+            
+            # Clean up dangling images
+            echo \"🧹 Cleaning up dangling images...\"
+            docker image prune -f
+            
+            echo \"✅ Deployment logic finished.\"
+          "
+          EOF
+
+          # 2. Make script executable
+          chmod +x deploy_script.sh
+
+          # 3. Transfer the script to the VM (defaults to /home/runner-user/ or /tmp)
+          echo "📤 Uploading deployment script..."
+          gcloud compute scp deploy_script.sh \
+            ${{ secrets.GCP_VM_NAME }}:/tmp/deploy_script.sh \
+            --zone=${{ secrets.GCP_VM_ZONE }}
+
+          # 4. Execute the script remotely
+          # We pass the GitHub Actions variables here as arguments
+          echo "🚀 Executing remote script..."
           gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
             --zone=${{ secrets.GCP_VM_ZONE }} \
-            --command="
-              set -e
-              
-              echo "🚀 Starting deployment..."
-              echo "================================================"
-              echo "Deploying Branch: ${{ inputs.branch }}"
-              echo "Commit SHA: ${{ steps.vars.outputs.sha_short }}"
-              echo "Current user: $(whoami)"
-              echo "================================================"
-              
-              # Switch to vasugoriya1234 user and run deployment
-              sudo -u vasugoriya1234 bash -c "
-                set -e
-                cd /home/vasugoriya1234/ecommerce-backend
-                
-                echo \"📥 Pulling latest code for ${{ inputs.branch }}...\"
-                git fetch origin
-                git reset --hard origin/${{ inputs.branch }}
-                
-                # Stop existing containers
-                echo \"🛑 Stopping existing containers...\"
-                docker-compose down || true
-                
-                # Remove old images
-                echo \"🧹 Removing old Docker images...\"
-                docker images | grep ${{ env.IMAGE_NAME }} | awk '"'"'{print \$3}'"'"' | xargs -r docker rmi -f 2>/dev/null || true
-                
-                # Load new image
-                echo \"📦 Loading new Docker image...\"
-                docker load < /tmp/ecommerce-backend.tar.gz
-                
-                # Clean up temp file
-                sudo rm -f /tmp/ecommerce-backend.tar.gz
-                
-                # Verify image loaded
-                echo \"✅ Image loaded:\"
-                docker images | grep ${{ env.IMAGE_NAME }}
-                
-                # Run migrations
-                echo \"🗄️  Running database migrations...\"
-                docker-compose --profile tools run --rm migrate || echo \"⚠️  Migrations already up to date\"
-                
-                # Start services
-                echo \"🚀 Starting services...\"
-                docker-compose up -d
-                
-                # Wait for services to be ready
-                echo \"⏳ Waiting for services to start...\"
-                sleep 5
-                
-                # Clean up dangling images
-                echo \"🧹 Cleaning up dangling images...\"
-                docker image prune -f
-                
-                # Show status
-                echo \"================================================\"
-                echo \"✅ Deployment complete!\"
-                echo \"================================================\"
-                docker-compose ps
-                echo \"================================================\"
-                
-                # Show disk usage
-                echo \"💾 Disk usage:\"
-                df -h / | tail -1
-                echo \"================================================\"
-              "
-            '
+            --command="bash /tmp/deploy_script.sh \"${{ inputs.branch }}\" \"${{ steps.vars.outputs.sha_short }}\" \"${{ env.IMAGE_NAME }}\""
 
       # ============================================
       # 8. Verify Deployment
