@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/common/db"
 	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/common/scheduler"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
@@ -57,6 +58,9 @@ func main() {
 	if err := router.Run(":" + port); err != nil {
 		logger.Fatal("Failed to start server on port "+port, err)
 	}
+
+	/* Start background workers */
+	scheduler.StartRedisWorkerPool()
 }
 
 func registerContainer(router *gin.Engine) {
