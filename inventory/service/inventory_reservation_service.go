@@ -52,8 +52,7 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 	}
 
 	sellerVariantIdSet := s.extractSellerVariantIds(variantInfo)
-	err = validator.ValidateVariantIds(variantIds, sellerVariantIdSet)
-	if err != nil {
+	if err = validator.ValidateVariantIds(variantIds, sellerVariantIdSet); err != nil {
 		return nil, err
 	}
 
@@ -69,8 +68,7 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 	expiresAt := time.Now().Add(time.Duration(req.ExpiresInMinutes) * time.Minute)
 	reservationEntities := s.buildreservationEntities(req, inventories, expiresAt)
 
-	err = s.reservationRepo.CreateReservations(reservationEntities)
-	if err != nil {
+	if err = s.reservationRepo.CreateReservations(reservationEntities); err != nil {
 		return nil, err
 	}
 
@@ -80,7 +78,9 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 	}
 
 	// Reserve inventory quantities immediately
-	s.reserveInventoryQuantity(ctx, sellerId, reservationEntities, inventories)
+	if err = s.reserveInventoryQuantity(ctx, sellerId, reservationEntities, inventories); err != nil {
+		return nil, err
+	}
 
 	return s.buildReservationResponse(
 		req.ReferenceId,
@@ -202,7 +202,7 @@ func (s *InventoryReservationServiceImpl) reserveInventoryQuantity(
 	sellerId uint,
 	reservationEntities []*entity.InventoryReservation,
 	inventories []model.InventoryResponse,
-) {
+) error {
 	mapInventory := make(map[uint]model.InventoryResponse)
 	for _, inv := range inventories {
 		mapInventory[inv.ID] = inv
@@ -225,5 +225,6 @@ func (s *InventoryReservationServiceImpl) reserveInventoryQuantity(
 	req := model.BulkManageInventoryRequest{
 		Items: manageInventoryRequests,
 	}
-	s.inventoryManageService.BulkManageInventory(ctx, req, sellerId, userId)
+	_, err := s.inventoryManageService.BulkManageInventory(ctx, req, sellerId, userId)
+	return err
 }
