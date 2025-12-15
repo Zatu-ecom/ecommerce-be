@@ -36,6 +36,9 @@ type InventoryRepository interface {
 		sortBy string,
 		sortOrder string,
 	) ([]mapper.VariantInventoryRow, error)
+	// IncrementReservedQuantity atomically increments/decrements reserved_quantity
+	// Use negative delta to release reserved stock
+	IncrementReservedQuantity(inventoryID uint, delta int) error
 }
 
 // InventoryRepositoryImpl implements the InventoryRepository interface
@@ -374,4 +377,12 @@ func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
 	}
 
 	return results, nil
+}
+
+// IncrementReservedQuantity atomically increments/decrements reserved_quantity
+// Use negative delta to release reserved stock
+func (r *InventoryRepositoryImpl) IncrementReservedQuantity(inventoryID uint, delta int) error {
+	return r.db.Model(&entity.Inventory{}).
+		Where("id = ?", inventoryID).
+		Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta)).Error
 }

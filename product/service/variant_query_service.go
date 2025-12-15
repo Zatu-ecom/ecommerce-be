@@ -52,7 +52,10 @@ type VariantQueryService interface {
 	// GetProductBasicInfoByVariantIDs retrieves basic product info for variant IDs
 	// Microservice-ready: Enables inventory service to get product details without DB joins
 	// Used by inventory module to display product names in inventory views
-	GetProductBasicInfoByVariantIDs(variantIDs []uint, sellerID *uint) ([]mapper.ProductBasicInfoRow, error)
+	GetProductBasicInfoByVariantIDs(
+		variantIDs []uint,
+		sellerID *uint,
+	) ([]mapper.VariantBasicInfoRow, error)
 }
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
@@ -270,6 +273,6 @@ func (s *VariantQueryServiceImpl) GetProductCountByVariantIDs(
 func (s *VariantQueryServiceImpl) GetProductBasicInfoByVariantIDs(
 	variantIDs []uint,
 	sellerID *uint,
-) ([]mapper.ProductBasicInfoRow, error) {
+) ([]mapper.VariantBasicInfoRow, error) {
 	return s.variantRepo.GetProductBasicInfoByVariantIDs(variantIDs, sellerID)
 }

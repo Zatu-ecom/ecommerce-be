@@ -11,10 +11,11 @@ import (
 // Note: DB is fetched dynamically via db.GetDB() to support test scenarios
 // where database connections change between test runs
 type RepositoryFactory struct {
-	locationRepository            repository.LocationRepository
-	inventoryRepository           repository.InventoryRepository
-	inventoryTransactionRepository repository.InventoryTransactionRepository
-	once                          sync.Once
+	locationRepository               repository.LocationRepository
+	inventoryRepository              repository.InventoryRepository
+	inventoryTransactionRepository   repository.InventoryTransactionRepository
+	inventoryReservationRepository   repository.InventoryReservationRepository
+	once                             sync.Once
 }
 
 // NewRepositoryFactory creates a new repository factory
@@ -30,6 +31,7 @@ func (f *RepositoryFactory) initialize() {
 		f.locationRepository = repository.NewLocationRepository(currentDB)
 		f.inventoryRepository = repository.NewInventoryRepository(currentDB)
 		f.inventoryTransactionRepository = repository.NewInventoryTransactionRepository(currentDB)
+		f.inventoryReservationRepository = repository.NewInventoryReservationRepository(currentDB)
 	})
 }
 
@@ -46,4 +48,9 @@ func (f *RepositoryFactory) GetInventoryRepository() repository.InventoryReposit
 func (f *RepositoryFactory) GetInventoryTransactionRepository() repository.InventoryTransactionRepository {
 	f.initialize()
 	return f.inventoryTransactionRepository
+}
+
+func (f *RepositoryFactory) GetInventoryReservationRepository() repository.InventoryReservationRepository {
+	f.initialize()
+	return f.inventoryReservationRepository
 }

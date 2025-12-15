@@ -10,6 +10,8 @@ import (
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/log"
 
+	"github.com/google/uuid"
+
 	"github.com/go-redis/redis/v8"
 )
 
@@ -88,7 +90,7 @@ func jobWorker(id int, jobs <-chan ScheduledJob) {
 
 	for job := range jobs {
 		log.Info(
-			"Worker " + workerID + " processing job: " + job.Command + " (jobId: " + job.JobID + ")",
+			"Worker " + workerID + " processing job: " + job.Command + " (jobId: " + job.JobID.String() + ")",
 		)
 
 		if err := Dispatch(job); err != nil {
@@ -99,8 +101,8 @@ func jobWorker(id int, jobs <-chan ScheduledJob) {
 		}
 
 		// Clean up the job key after processing (regardless of success/failure)
-		if job.JobID != "" && rdb != nil {
-			jobKey := scheduledJobKeyPrefix + job.JobID
+		if job.JobID != uuid.Nil && rdb != nil {
+			jobKey := scheduledJobKeyPrefix + job.JobID.String()
 			rdb.Del(ctx, jobKey)
 		}
 	}

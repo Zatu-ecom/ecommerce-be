@@ -21,6 +21,7 @@ type LocationRepository interface {
 	CountAll(sellerID uint, filter model.LocationsFilter) (int64, error)
 	Delete(id uint) error
 	Exists(id uint, sellerID uint) error
+	FindActiveByPriority(sellerID uint) ([]entity.Location, error)
 }
 
 // LocationRepositoryImpl implements the LocationRepository interface
@@ -170,4 +171,13 @@ func (r *LocationRepositoryImpl) Exists(id uint, sellerID uint) error {
 		return invErrors.ErrLocationNotFound
 	}
 	return nil
+}
+
+// FindActiveByPriority finds all active locations for a seller sorted by priority (DESC)
+func (r *LocationRepositoryImpl) FindActiveByPriority(sellerID uint) ([]entity.Location, error) {
+	var locations []entity.Location
+	err := r.db.Where("seller_id = ? AND is_active = ?", sellerID, true).
+		Order("priority DESC").
+		Find(&locations).Error
+	return locations, err
 }

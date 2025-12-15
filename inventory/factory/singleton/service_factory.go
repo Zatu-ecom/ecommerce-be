@@ -3,6 +3,8 @@ package singleton
 import (
 	"sync"
 
+	"ecommerce-be/common/cache"
+	"ecommerce-be/common/scheduler"
 	"ecommerce-be/inventory/repository"
 	"ecommerce-be/inventory/service"
 	productFactory "ecommerce-be/product/factory/singleton"
@@ -14,12 +16,14 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	locationService                 service.LocationService
-	inventoryService                service.InventoryManageService
-	inventoryQueryService           service.InventoryQueryService
-	inventoryTransactionService     service.InventoryTransactionService
-	inventorySummaryService         service.InventorySummaryService
-	productInventorySummaryService  service.ProductInventorySummaryService
+	locationService                service.LocationService
+	inventoryService               service.InventoryManageService
+	inventoryQueryService          service.InventoryQueryService
+	inventoryTransactionService    service.InventoryTransactionService
+	inventorySummaryService        service.InventorySummaryService
+	productInventorySummaryService service.ProductInventorySummaryService
+	inventoryReservationService    service.InventoryReservationService
+	reservationShedulerService     service.ReservationShedulerService
 
 	once sync.Once
 }
@@ -38,6 +42,8 @@ func (f *ServiceFactory) initialize() {
 		locationRepository := f.repoFactory.GetLocationRepository()
 		inventoryRepository := f.repoFactory.GetInventoryRepository()
 		inventoryTransactionRepository := f.repoFactory.GetInventoryTransactionRepository()
+		inventoryReservationRepository := f.repoFactory.GetInventoryReservationRepository()
+		redisClient, _ := cache.GetRedisClient()
 
 		pf := productFactory.GetInstance()
 		variantQueryService := pf.GetVariantQueryService()
@@ -82,6 +88,19 @@ func (f *ServiceFactory) initialize() {
 			inventoryRepository,
 			variantQueryService,
 		)
+
+		f.reservationShedulerService = service.NewReservationShedulerService(
+			*scheduler.New(redisClient),
+		)
+
+		// Initialize inventory reservation service
+		f.inventoryReservationService = service.NewInventoryReservationService(
+			inventoryReservationRepository,
+			f.inventoryQueryService,
+			variantQueryService,
+			f.reservationShedulerService,
+			f.inventoryService,
+		)
 	})
 }
 
@@ -119,6 +138,17 @@ func (f *ServiceFactory) GetInventorySummaryService() service.InventorySummarySe
 func (f *ServiceFactory) GetProductInventorySummaryService() service.ProductInventorySummaryService {
 	f.initialize()
 	return f.productInventorySummaryService
+}
+
+// GetInventoryReservationService returns the singleton inventory reservation service
+func (f *ServiceFactory) GetInventoryReservationService() service.InventoryReservationService {
+	f.initialize()
+	return f.inventoryReservationService
+}
+
+func (f *ServiceFactory) GetReservationShedulerService() service.ReservationShedulerService {
+	f.initialize()
+	return f.reservationShedulerService
 }
 
 func (f *ServiceFactory) setManageInventoryService(

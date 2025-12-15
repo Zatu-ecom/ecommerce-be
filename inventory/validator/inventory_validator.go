@@ -102,3 +102,16 @@ func ValidateReferenceRequired(
 
 	return nil
 }
+
+// ValidateVariantIds validates that all requested variant IDs exist in the available seller variant IDs
+func ValidateVariantIds(
+	ReqVariantIDs []uint,
+	availableSellerVariantIDs map[uint]bool,
+) error {
+	for _, variantID := range ReqVariantIDs {
+		if _, exists := availableSellerVariantIDs[variantID]; !exists {
+			return invErrors.ErrVariantNotFound
+		}
+	}
+	return nil
+}

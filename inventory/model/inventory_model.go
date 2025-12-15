@@ -18,7 +18,7 @@ type ManageInventoryRequest struct {
 	// Reference ID for tracking source (Order ID, PO Number, Transfer ID, etc.)
 	// Required for: RESERVED, RELEASED, SALE, PURCHASE, RETURN, TRANSFER_IN, TRANSFER_OUT
 	// Optional for: ADJUSTMENT, DAMAGE, REFRESH
-	Reference *string `json:"reference" binding:"omitempty,min=3,max=100"`
+	Reference *string `json:"reference" binding:"omitempty,min=1,max=100"`
 
 	Reason string  `json:"reason" binding:"required,min=5,max=500"`
 	Note   *string `json:"note"   binding:"omitempty,max=1000"`

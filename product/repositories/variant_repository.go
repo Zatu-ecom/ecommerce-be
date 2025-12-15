@@ -45,7 +45,7 @@ type VariantRepository interface {
 		optionFilters map[string]string,
 	) ([]mapper.VariantWithOptions, int64, error)
 	GetProductCountByVariantIDs(variantIDs []uint, sellerID *uint) (uint, error)
-	GetProductBasicInfoByVariantIDs(variantIDs []uint, sellerID *uint) ([]mapper.ProductBasicInfoRow, error)
+	GetProductBasicInfoByVariantIDs(variantIDs []uint, sellerID *uint) ([]mapper.VariantBasicInfoRow, error)
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
@@ -920,12 +920,12 @@ func (r *VariantRepositoryImpl) GetProductCountByVariantIDs(
 func (r *VariantRepositoryImpl) GetProductBasicInfoByVariantIDs(
 	variantIDs []uint,
 	sellerID *uint,
-) ([]mapper.ProductBasicInfoRow, error) {
+) ([]mapper.VariantBasicInfoRow, error) {
 	if len(variantIDs) == 0 {
-		return []mapper.ProductBasicInfoRow{}, nil
+		return []mapper.VariantBasicInfoRow{}, nil
 	}
 
-	var results []mapper.ProductBasicInfoRow
+	var results []mapper.VariantBasicInfoRow
 
 	query := r.db.Model(&entity.ProductVariant{}).
 		Select(
@@ -951,7 +951,7 @@ func (r *VariantRepositoryImpl) GetProductBasicInfoByVariantIDs(
 
 	// Return empty slice instead of nil for consistency
 	if results == nil {
-		results = []mapper.ProductBasicInfoRow{}
+		results = []mapper.VariantBasicInfoRow{}
 	}
 
 	return results, nil

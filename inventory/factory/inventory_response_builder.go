@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"ecommerce-be/common"
+	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/mapper"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/utils/helper"
@@ -47,6 +48,19 @@ func BuildInventoryResponseFromRow(
 		row.ReservedQuantity,
 		row.Threshold,
 		row.BinLocation,
+	)
+}
+
+func BuildInventoryResponseFromEntity(
+	inv entity.Inventory,
+) model.InventoryResponse {
+	return BuildInventoryResponse(
+		inv.VariantID,
+		inv.LocationID,
+		inv.Quantity,
+		inv.ReservedQuantity,
+		inv.Threshold,
+		inv.BinLocation,
 	)
 }
 

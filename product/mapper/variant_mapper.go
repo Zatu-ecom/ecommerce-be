@@ -44,10 +44,10 @@ type OptionValueData struct {
 	ColorCode         string
 }
 
-// ProductBasicInfoRow represents basic product info with variant ID for cross-service queries
+// VariantBasicInfoRow represents basic product info with variant ID for cross-service queries
 // Used by inventory service to map variant IDs to product details
 // Returns flat rows for efficient in-memory grouping by product
-type ProductBasicInfoRow struct {
+type VariantBasicInfoRow struct {
 	VariantID   uint
 	ProductID   uint
 	ProductName string

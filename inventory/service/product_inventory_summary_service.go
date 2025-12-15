@@ -264,7 +264,7 @@ func (s *ProductInventorySummaryServiceImpl) buildInVariantOrder(
 // aggregateByProduct groups variant inventory data by product
 func (s *ProductInventorySummaryServiceImpl) aggregateByProduct(
 	variantInventories []mapper.VariantInventoryRow,
-	productInfoRows []productMapper.ProductBasicInfoRow,
+	productInfoRows []productMapper.VariantBasicInfoRow,
 	filter model.ProductsAtLocationFilter,
 	params model.ProductsAtLocationParams,
 ) []model.ProductInventorySummary {
@@ -348,7 +348,7 @@ func extractVariantIDsFromVariants(variants []productModel.VariantDetailResponse
 }
 
 func extractProductInfo(
-	rows []productMapper.ProductBasicInfoRow,
+	rows []productMapper.VariantBasicInfoRow,
 ) (name, sku string, categoryID uint) {
 	if len(rows) > 0 {
 		return rows[0].ProductName, rows[0].BaseSKU, rows[0].CategoryID
@@ -377,9 +377,9 @@ func buildInventoryMap(
 }
 
 func buildVariantToProductMap(
-	rows []productMapper.ProductBasicInfoRow,
-) map[uint]productMapper.ProductBasicInfoRow {
-	m := make(map[uint]productMapper.ProductBasicInfoRow, len(rows))
+	rows []productMapper.VariantBasicInfoRow,
+) map[uint]productMapper.VariantBasicInfoRow {
+	m := make(map[uint]productMapper.VariantBasicInfoRow, len(rows))
 	for _, row := range rows {
 		m[row.VariantID] = row
 	}

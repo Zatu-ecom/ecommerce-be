@@ -37,4 +37,10 @@ type InventoryQueryService interface {
 		locationID uint,
 		sellerID uint,
 	) ([]model.InventoryResponse, error)
+
+	GetInventoryByVariantAndLocationPriority(
+		ctx context.Context,
+		items []model.ReservationItem,
+		sellerID uint,
+	) ([]model.InventoryResponse, error)
 }
