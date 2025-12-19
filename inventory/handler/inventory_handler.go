@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
+	commonErr "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/service"
@@ -16,9 +17,9 @@ import (
 // InventoryHandler handles HTTP requests related to inventory
 type InventoryHandler struct {
 	*handler.BaseHandler
-	inventoryService    service.InventoryManageService
+	inventoryService      service.InventoryManageService
 	inventoryQueryService service.InventoryQueryService
-	transactionService  service.InventoryTransactionService
+	transactionService    service.InventoryTransactionService
 }
 
 // NewInventoryHandler creates a new instance of InventoryHandler
@@ -28,10 +29,10 @@ func NewInventoryHandler(
 	transactionService service.InventoryTransactionService,
 ) *InventoryHandler {
 	return &InventoryHandler{
-		BaseHandler:         handler.NewBaseHandler(),
-		inventoryService:    inventoryService,
+		BaseHandler:           handler.NewBaseHandler(),
+		inventoryService:      inventoryService,
 		inventoryQueryService: inventoryQueryService,
-		transactionService:  transactionService,
+		transactionService:    transactionService,
 	}
 }
 
@@ -184,4 +185,37 @@ func (h *InventoryHandler) ListTransactions(c *gin.Context) {
 	}
 
 	h.Success(c, http.StatusOK, invConstants.TRANSACTIONS_RETRIEVED_MSG, response)
+}
+
+// GetInventories handles listing inventories with filters
+func (h *InventoryHandler) GetInventories(c *gin.Context) {
+	var params model.GetInventoriesParam
+
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Get seller ID from authenticated user
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, commonErr.ErrSellerDataMissing, constants.SELLER_DATA_MISSING_CODE)
+		return
+	}
+    
+	filter := params.ToFilter()
+
+	inventories, err := h.inventoryQueryService.GetInventories(c, &sellerID, filter)
+	if err != nil {
+		h.HandleError(c, err, invConstants.FAILED_TO_GET_INVENTORY_MSG)
+		return
+	}
+
+	h.SuccessWithData(
+		c,
+		http.StatusOK,
+		invConstants.INVENTORIES_RETRIEVED_MSG,
+		invConstants.INVENTORIES_FIELD_NAME,
+		inventories,
+	)
 }

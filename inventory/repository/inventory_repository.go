@@ -6,6 +6,7 @@ import (
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/mapper"
+	"ecommerce-be/inventory/model"
 
 	"gorm.io/gorm"
 )
@@ -39,6 +40,8 @@ type InventoryRepository interface {
 	// IncrementReservedQuantity atomically increments/decrements reserved_quantity
 	// Use negative delta to release reserved stock
 	IncrementReservedQuantity(inventoryID uint, delta int) error
+	// FindWithFilters retrieves inventories with filters, pagination and sorting
+	FindWithFilters(filter model.GetInventoriesFilter) ([]entity.Inventory, int64, error)
 }
 
 // InventoryRepositoryImpl implements the InventoryRepository interface
@@ -92,12 +95,13 @@ func (r *InventoryRepositoryImpl) UpdateBatch(inventories []*entity.Inventory) e
 	if len(inventories) == 0 {
 		return nil
 	}
-	for _, inv := range inventories {
-		if err := r.db.Save(inv).Error; err != nil {
-			return err
-		}
-	}
-	return nil
+	// for _, inv := range inventories {
+	// 	if err := r.db.Save(inv).Error; err != nil {
+	// 		return err
+	// 	}
+	// }
+	// return nil
+	return r.db.Save(inventories).Error
 }
 
 // FindByVariantID finds all inventory records for a variant across all locations
@@ -385,4 +389,70 @@ func (r *InventoryRepositoryImpl) IncrementReservedQuantity(inventoryID uint, de
 	return r.db.Model(&entity.Inventory{}).
 		Where("id = ?", inventoryID).
 		Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta)).Error
+}
+
+// FindWithFilters retrieves inventories with filters, pagination and sorting
+func (r *InventoryRepositoryImpl) FindWithFilters(
+	filter model.GetInventoriesFilter,
+) ([]entity.Inventory, int64, error) {
+	var inventories []entity.Inventory
+	var total int64
+
+	query := r.db.Model(&entity.Inventory{})
+
+	// Filter by inventory IDs
+	if len(filter.IDs) > 0 {
+		query = query.Where("id IN ?", filter.IDs)
+	}
+
+	// Filter by location IDs
+	if len(filter.LocationIDs) > 0 {
+		query = query.Where("location_id IN ?", filter.LocationIDs)
+	}
+
+	// Filter by variant IDs
+	if len(filter.VariantIDs) > 0 {
+		query = query.Where("variant_id IN ?", filter.VariantIDs)
+	}
+
+	// Filter by min quantity (available = quantity - reserved_quantity)
+	if filter.MinQuantity != nil {
+		query = query.Where("(quantity - reserved_quantity) >= ?", *filter.MinQuantity)
+	}
+
+	// Filter by max quantity (available = quantity - reserved_quantity)
+	if filter.MaxQuantity != nil {
+		query = query.Where("(quantity - reserved_quantity) <= ?", *filter.MaxQuantity)
+	}
+
+	// Count total before pagination
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	allowedSortColumns := map[string]bool{
+		"id": true, "variant_id": true, "location_id": true,
+		"quantity": true, "reserved_quantity": true, "threshold": true,
+		"created_at": true, "updated_at": true,
+	}
+	sortBy := filter.SortBy
+	sortOrder := filter.SortOrder
+	if !allowedSortColumns[sortBy] {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+	query = query.Order(sortBy + " " + sortOrder)
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	query = query.Offset(offset).Limit(filter.PageSize)
+
+	if err := query.Find(&inventories).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return inventories, total, nil
 }

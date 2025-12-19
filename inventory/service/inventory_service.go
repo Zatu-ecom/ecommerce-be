@@ -38,6 +38,12 @@ type InventoryQueryService interface {
 		sellerID uint,
 	) ([]model.InventoryResponse, error)
 
+	GetInventories(
+		ctx context.Context,
+		sellerID *uint,
+		filter model.GetInventoriesFilter,
+	) (*model.InventoryResponseWithPagination, error)
+
 	GetInventoryByVariantAndLocationPriority(
 		ctx context.Context,
 		items []model.ReservationItem,

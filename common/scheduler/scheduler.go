@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"ecommerce-be/common/auth"
+	commonErr "ecommerce-be/common/error"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -51,13 +52,9 @@ func New(rdb *redis.Client) *Scheduler {
 //	jobId, err := scheduler.Schedule(ctx, job, 15*time.Minute)
 //	// Store jobId to cancel later if needed
 func (s *Scheduler) Schedule(ctx context.Context, job Job, after time.Duration) (string, error) {
-	jobID := uuid.New().String()
-
-	scheduledJob := ScheduledJob{
-		Job:           job,
-		UserID:        getStringFromContext(ctx, UserIDKey),
-		SellerID:      getStringFromContext(ctx, SellerIDKey),
-		CorrelationId: getStringFromContext(ctx, CorrelationIDKey),
+	scheduledJob, err := s.createScheduledJob(ctx, job)
+	if err != nil {
+		return "", err
 	}
 
 	data, err := json.Marshal(scheduledJob)
@@ -66,7 +63,7 @@ func (s *Scheduler) Schedule(ctx context.Context, job Job, after time.Duration) 
 	}
 
 	executeAt := time.Now().Add(after).Unix()
-	jobKey := scheduledJobKeyPrefix + jobID
+	jobKey := scheduledJobKeyPrefix + scheduledJob.JobID.String()
 
 	// Use pipeline for atomic operations
 	pipe := s.rdb.Pipeline()
@@ -85,7 +82,7 @@ func (s *Scheduler) Schedule(ctx context.Context, job Job, after time.Duration) 
 		return "", fmt.Errorf("failed to schedule job: %w", err)
 	}
 
-	return jobID, nil
+	return scheduledJob.JobID.String(), nil
 }
 
 // Cancel removes a scheduled job before it executes.
@@ -133,12 +130,29 @@ func (s *Scheduler) Cancel(ctx context.Context, jobID string) error {
 	return nil
 }
 
-// getStringFromContext safely extracts a string value from context
-func getStringFromContext(ctx context.Context, key contextKey) string {
-	if val := ctx.Value(key); val != nil {
-		if str, ok := val.(string); ok {
-			return str
-		}
+func (s *Scheduler) createScheduledJob(
+	ctx context.Context,
+	job Job,
+) (*ScheduledJob, error) {
+	userId, exist := auth.GetUserIDFromContext(ctx)
+	if !exist {
+		// return "", fmt.Errorf("user ID missing in context")
+		return nil, commonErr.ErrUserDataMissing
 	}
-	return ""
+	sellerId, exist := auth.GetSellerIDFromContext(ctx)
+	if !exist {
+		return nil, commonErr.ErrSellerDataMissing
+	}
+	correlationId, exist := auth.GetCorrelationIDFromContext(ctx)
+	if !exist {
+		return nil, commonErr.ErrCorrelationIDMissing
+	}
+
+	scheduledJob := ScheduledJob{
+		Job:           &job,
+		UserID:        userId,
+		SellerID:      sellerId,
+		CorrelationId: correlationId,
+	}
+	return &scheduledJob, nil
 }

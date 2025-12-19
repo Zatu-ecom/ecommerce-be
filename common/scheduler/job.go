@@ -32,10 +32,10 @@ func NewJob(command string, payload json.RawMessage) Job {
 // ScheduledJob extends Job with metadata for tracing, context propagation, and cancellation.
 // The JobID is used to cancel a scheduled job before it executes.
 type ScheduledJob struct {
-	Job
+	*Job
 
 	// Propagated metadata for context reconstruction in workers
-	UserID        string `json:"userId"`
-	SellerID      string `json:"sellerId"`
+	UserID        uint   `json:"userId"`
+	SellerID      uint   `json:"sellerId"`
 	CorrelationId string `json:"correlationId"`
 }

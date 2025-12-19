@@ -29,6 +29,9 @@ func (m *InventoryModule) RegisterRoutes(router *gin.Engine) {
 	// Inventory routes - all protected (seller only)
 	inventoryRoutes := router.Group("/api/inventory")
 	{
+		// List inventories with filters
+		inventoryRoutes.GET("", sellerAuth, m.inventoryHandler.GetInventories)
+
 		// Manage inventory (quantity, reserved quantity, threshold, or physical count)
 		inventoryRoutes.POST("/manage", sellerAuth, m.inventoryHandler.ManageInventory)
 		

@@ -49,6 +49,9 @@ func main() {
 	/* Register modules */
 	registerContainer(router)
 
+	/* Start background workers (must be before router.Run which blocks) */
+	go scheduler.StartRedisWorkerPool()
+
 	/* Start Server */
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -58,9 +61,6 @@ func main() {
 	if err := router.Run(":" + port); err != nil {
 		logger.Fatal("Failed to start server on port "+port, err)
 	}
-
-	/* Start background workers */
-	scheduler.StartRedisWorkerPool()
 }
 
 func registerContainer(router *gin.Engine) {

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"ecommerce-be/inventory/entity"
 
 	"gorm.io/gorm"
@@ -9,9 +11,10 @@ import (
 type InventoryReservationRepository interface {
 	CreateReservations(reservations []*entity.InventoryReservation) error
 	FindByID(id uint) (*entity.InventoryReservation, error)
-	UpdateStatus(id uint, status entity.ReservationStatus) error
+	FindByIDs(ids []uint) ([]*entity.InventoryReservation, error)
 	FindByReferenceID(referenceID uint) ([]*entity.InventoryReservation, error)
 	UpdateStatusByReferenceID(referenceID uint, status entity.ReservationStatus) error
+	UpdateStatusByIDs(ids []uint, status entity.ReservationStatus) error
 }
 
 type InventoryReservationRepositoryImpl struct {
@@ -28,13 +31,26 @@ func (r *InventoryReservationRepositoryImpl) CreateReservations(
 	return r.db.Create(&reservations).Error
 }
 
-func (r *InventoryReservationRepositoryImpl) FindByID(id uint) (*entity.InventoryReservation, error) {
+func (r *InventoryReservationRepositoryImpl) FindByID(
+	id uint,
+) (*entity.InventoryReservation, error) {
 	var reservation entity.InventoryReservation
 	err := r.db.First(&reservation, id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &reservation, nil
+}
+
+func (r *InventoryReservationRepositoryImpl) FindByIDs(
+	ids []uint,
+) ([]*entity.InventoryReservation, error) {
+	var reservations []*entity.InventoryReservation
+	err := r.db.Where("id IN ?", ids).Find(&reservations).Error
+	if err != nil {
+		return nil, err
+	}
+	return reservations, nil
 }
 
 func (r *InventoryReservationRepositoryImpl) UpdateStatus(
@@ -64,4 +80,14 @@ func (r *InventoryReservationRepositoryImpl) UpdateStatusByReferenceID(
 	return r.db.Model(&entity.InventoryReservation{}).
 		Where("reference_id = ?", referenceID).
 		Update("status", status).Error
+}
+
+func (r *InventoryReservationRepositoryImpl) UpdateStatusByIDs(
+	ids []uint,
+	status entity.ReservationStatus,
+) error {
+	return r.db.Model(&entity.InventoryReservation{}).
+		Where("id IN ?", ids).
+		Update("status", status).
+		Update("updated_at", time.Now().UTC()).Error
 }

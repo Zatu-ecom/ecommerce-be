@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS inventory_reservation (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id),
-    reference_id VARCHAR(255) NOT NULL,
+    reference_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     status VARCHAR(20) DEFAULT 'PENDING'

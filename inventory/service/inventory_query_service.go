@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"ecommerce-be/common"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/factory"
@@ -78,6 +79,42 @@ func (s *InventoryQueryServiceImpl) GetInventoryByLocation(
 	}
 
 	return responses, nil
+}
+
+// GetInventories retrieves inventories based on optional seller ID and filters
+func (s *InventoryQueryServiceImpl) GetInventories(
+	ctx context.Context,
+	sellerID *uint,
+	filter model.GetInventoriesFilter,
+) (*model.InventoryResponseWithPagination, error) {
+	filter.SetDefaults()
+
+	// Get location IDs for seller filtering
+	if sellerID != nil && len(filter.LocationIDs) == 0 {
+		// Get all seller's locations if not specified
+		locations, err := s.locationRepo.FindAll(*sellerID, model.LocationsFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, loc := range locations {
+			filter.LocationIDs = append(filter.LocationIDs, loc.ID)
+		}
+	}
+
+	inventories, total, err := s.inventoryRepo.FindWithFilters(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]model.InventoryResponse, 0, len(inventories))
+	for _, inv := range inventories {
+		responses = append(responses, factory.BuildInventoryResponseFromEntity(inv))
+	}
+
+	return &model.InventoryResponseWithPagination{
+		PaginationResponse: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Inventories:        responses,
+	}, nil
 }
 
 // GetInventoryByVariantAndLocationPriority retrieves inventory allocations for reservation items,

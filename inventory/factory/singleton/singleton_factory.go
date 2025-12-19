@@ -57,3 +57,11 @@ func (f *SingletonFactory) GetInventorySummaryHandler() *handler.InventorySummar
 func (f *SingletonFactory) GetInventoryHandler() *handler.InventoryHandler {
 	return f.handlerFactory.GetInventoryHandler()
 }
+
+func (f *SingletonFactory) GetInventoryReservationHandler() *handler.InventoryReservationHandler {
+	return f.handlerFactory.GetInventoryReservationHandler()
+}
+
+func (f *SingletonFactory) GetScheduleInventoryReservationHandler() *handler.ScheduleInventoryReservationHandler {
+	return f.handlerFactory.GetScheduleInventoryReservationHandler()
+}

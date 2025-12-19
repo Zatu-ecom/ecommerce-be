@@ -23,7 +23,7 @@ type ServiceFactory struct {
 	inventorySummaryService        service.InventorySummaryService
 	productInventorySummaryService service.ProductInventorySummaryService
 	inventoryReservationService    service.InventoryReservationService
-	reservationShedulerService     service.ReservationShedulerService
+	reservationSchedulerService    service.ReservationSchedulerService
 
 	once sync.Once
 }
@@ -89,7 +89,7 @@ func (f *ServiceFactory) initialize() {
 			variantQueryService,
 		)
 
-		f.reservationShedulerService = service.NewReservationShedulerService(
+		f.reservationSchedulerService = service.NewReservationSchedulerService(
 			*scheduler.New(redisClient),
 		)
 
@@ -98,7 +98,7 @@ func (f *ServiceFactory) initialize() {
 			inventoryReservationRepository,
 			f.inventoryQueryService,
 			variantQueryService,
-			f.reservationShedulerService,
+			f.reservationSchedulerService,
 			f.inventoryService,
 		)
 	})
@@ -146,9 +146,9 @@ func (f *ServiceFactory) GetInventoryReservationService() service.InventoryReser
 	return f.inventoryReservationService
 }
 
-func (f *ServiceFactory) GetReservationShedulerService() service.ReservationShedulerService {
+func (f *ServiceFactory) GetReservationSchedulerService() service.ReservationSchedulerService {
 	f.initialize()
-	return f.reservationShedulerService
+	return f.reservationSchedulerService
 }
 
 func (f *ServiceFactory) setManageInventoryService(

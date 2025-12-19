@@ -362,8 +362,12 @@ func (s *InventoryServiceImpl) buildBulkTransactionParams(
 		item := items[pending.Index]
 
 		param := s.buildTransactionParams(
-			pending.Inventory, item, pending.PreviousQuantity,
-			pending.PreviousReserved, pending.QuantityChange, userID,
+			pending.Inventory, 
+			item, 
+			pending.PreviousQuantity,
+			pending.PreviousReserved, 
+			pending.QuantityChange, 
+			userID,
 		)
 		params = append(params, param)
 	}

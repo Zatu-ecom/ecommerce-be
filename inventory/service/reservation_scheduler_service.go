@@ -8,138 +8,156 @@ import (
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/scheduler"
+	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/utils/constant"
 
 	"github.com/google/uuid"
 )
 
-type ReservationExpiryItem struct {
-	ReservationID uint
-	ExpiresAt     time.Time
-}
-
-type ReservationShedulerService interface {
+// ReservationSchedulerService handles scheduling and cancellation of reservation expiry jobs
+type ReservationSchedulerService interface {
+	// ScheduleReservationExpiry schedules a single reservation expiry
 	ScheduleReservationExpiry(
 		ctx context.Context,
-		reservationID uint,
 		sellerID uint,
+		reservationID uint,
 		expiresAt time.Time,
 	) (uuid.UUID, error)
 
-	CancelReservationExpiryScheduler(
-		ctx context.Context,
-		sellerID, reservationID uint,
-	) error
+	// CancelReservationExpiry cancels a scheduled single reservation expiry
+	CancelReservationExpiry(ctx context.Context, sellerID, reservationID uint) error
 
+	// ScheduleBulkReservationExpiry schedules multiple reservation expiries as a single job
 	ScheduleBulkReservationExpiry(
 		ctx context.Context,
 		sellerID uint,
-		items []ReservationExpiryItem,
-	) error
-
-	CancelBulkReservationExpiryScheduler(
-		ctx context.Context,
-		sellerID uint,
+		referenceID uint,
 		reservationIDs []uint,
-	) error
+		expiresAt time.Time,
+	) (uuid.UUID, error)
+
+	// CancelBulkReservationExpiry cancels a scheduled bulk reservation expiry
+	CancelBulkReservationExpiry(ctx context.Context, sellerID, referenceID uint) error
 }
 
-type ReservationShedulerServiceImpl struct {
+type reservationSchedulerServiceImpl struct {
 	scheduler scheduler.Scheduler
 }
 
-func NewReservationShedulerService(
+func NewReservationSchedulerService(
 	scheduler scheduler.Scheduler,
-) *ReservationShedulerServiceImpl {
-	return &ReservationShedulerServiceImpl{
+) ReservationSchedulerService {
+	return &reservationSchedulerServiceImpl{
 		scheduler: scheduler,
 	}
 }
 
+// Cache key prefixes
 const (
-	RESERVATION_SCHEDULER_CACHE_KEY_PREFIX = "inventory.reservation"
-	SELLER_KEY_PREFIX                      = "seller"
+	singleReservationKeyPrefix = "seller:%d:inventory.reservation:%d"
+	bulkReservationKeyPrefix   = "seller:%d:inventory.reservation.bulk:%d"
+	cacheBufferDuration        = 3 * time.Minute
 )
 
-func (s *ReservationShedulerServiceImpl) ScheduleReservationExpiry(
+// ScheduleReservationExpiry schedules a single reservation expiry job
+func (s *reservationSchedulerServiceImpl) ScheduleReservationExpiry(
 	ctx context.Context,
-	reservationID uint,
 	sellerID uint,
+	reservationID uint,
 	expiresAt time.Time,
 ) (uuid.UUID, error) {
-	payload := json.RawMessage(`{
-		"reservationID": reservationID,
-	}`)
+	payload := model.ReservationExpiryPayload{
+		ReservationID: reservationID,
+		IsBulk:        false,
+	}
+
+	cacheKey := fmt.Sprintf(singleReservationKeyPrefix, sellerID, reservationID)
+	return s.scheduleJob(ctx, payload, expiresAt, cacheKey)
+}
+
+// CancelReservationExpiry cancels a scheduled single reservation expiry
+func (s *reservationSchedulerServiceImpl) CancelReservationExpiry(
+	ctx context.Context,
+	sellerID, reservationID uint,
+) error {
+	cacheKey := fmt.Sprintf(singleReservationKeyPrefix, sellerID, reservationID)
+	return s.cancelJob(ctx, cacheKey)
+}
+
+// ScheduleBulkReservationExpiry schedules multiple reservation expiries as a single job
+func (s *reservationSchedulerServiceImpl) ScheduleBulkReservationExpiry(
+	ctx context.Context,
+	sellerID uint,
+	referenceID uint,
+	reservationIDs []uint,
+	expiresAt time.Time,
+) (uuid.UUID, error) {
+	payload := model.ReservationExpiryPayload{
+		ReservationIDs: reservationIDs,
+		ReferenceID:    referenceID,
+		IsBulk:         true,
+	}
+
+	cacheKey := fmt.Sprintf(bulkReservationKeyPrefix, sellerID, referenceID)
+	return s.scheduleJob(ctx, payload, expiresAt, cacheKey)
+}
+
+// CancelBulkReservationExpiry cancels a scheduled bulk reservation expiry
+func (s *reservationSchedulerServiceImpl) CancelBulkReservationExpiry(
+	ctx context.Context,
+	sellerID, referenceID uint,
+) error {
+	cacheKey := fmt.Sprintf(bulkReservationKeyPrefix, sellerID, referenceID)
+	return s.cancelJob(ctx, cacheKey)
+}
+
+// ============================================================================
+// Private helper methods
+// ============================================================================
+
+// scheduleJob is a generic method to schedule a job with the given payload
+func (s *reservationSchedulerServiceImpl) scheduleJob(
+	ctx context.Context,
+	payload model.ReservationExpiryPayload,
+	expiresAt time.Time,
+	cacheKey string,
+) (uuid.UUID, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to marshal reservation payload: %w", err)
+	}
+
 	job := scheduler.NewJob(
 		constant.INVENTORYY_RESERVATION_EXPRIY_EVENT_COMMAND,
-		payload,
+		json.RawMessage(payloadBytes),
 	)
-	_, err := s.scheduler.Schedule(ctx, job, time.Until(expiresAt))
+
+	delay := time.Until(expiresAt)
+	if _, err = s.scheduler.Schedule(ctx, job, delay); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to schedule reservation expiry: %w", err)
+	}
+
+	// Cache the job ID for later cancellation
+	// Add buffer time to ensure cache outlives the scheduled job
+	cacheTTL := delay + cacheBufferDuration
+	cache.Set(cacheKey, job.JobID, cacheTTL)
+
+	return job.JobID, nil
+}
+
+// cancelJob is a generic method to cancel a scheduled job
+func (s *reservationSchedulerServiceImpl) cancelJob(ctx context.Context, cacheKey string) error {
+	jobID, err := cache.Get(cacheKey)
 	if err != nil {
-		return uuid.Nil, err
+		return fmt.Errorf("failed to get job ID from cache: %w", err)
 	}
-	finalKey := s.generateSchedulerCacheKey(sellerID, reservationID)
-	cache.Set(finalKey, job.JobID, time.Until(expiresAt)+time.Minute*3)
-	return job.JobID, err
-}
 
-func (s *ReservationShedulerServiceImpl) CancelReservationExpiryScheduler(
-	ctx context.Context,
-	sellerID, reservationID uint,
-) error {
-	schedulerCacheKey := s.generateSchedulerCacheKey(sellerID, reservationID)
-	jobIDStr, err := cache.Get(schedulerCacheKey)
-	if err != nil {
-		return err
+	if err = s.scheduler.Cancel(ctx, jobID); err != nil {
+		return fmt.Errorf("failed to cancel scheduled job: %w", err)
 	}
-	return s.scheduler.Cancel(ctx, jobIDStr)
-}
 
-func (s *ReservationShedulerServiceImpl) ScheduleBulkReservationExpiry(
-	ctx context.Context,
-	sellerID uint,
-	items []ReservationExpiryItem,
-) error {
-	for _, item := range items {
-		_, err := s.ScheduleReservationExpiry(
-			ctx,
-			item.ReservationID,
-			sellerID,
-			item.ExpiresAt,
-		)
-		if err != nil {
-			return err
-		}
-	}
+	// Clean up cache after successful cancellation
+	cache.Del(cacheKey)
+
 	return nil
-}
-
-func (s *ReservationShedulerServiceImpl) CancelBulkReservationExpiryScheduler(
-	ctx context.Context,
-	sellerID uint,
-	reservationIDs []uint,
-) error {
-	for _, reservationID := range reservationIDs {
-		err := s.CancelReservationExpiryScheduler(
-			ctx,
-			sellerID,
-			reservationID,
-		)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *ReservationShedulerServiceImpl) generateSchedulerCacheKey(
-	sellerID, reservationID uint,
-) string {
-	return fmt.Sprintf(
-		"%s:%d:%s:%d",
-		SELLER_KEY_PREFIX,
-		sellerID,
-		RESERVATION_SCHEDULER_CACHE_KEY_PREFIX,
-		reservationID,
-	)
 }

@@ -10,9 +10,11 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	locationHandler         *handler.LocationHandler
-	inventoryHandler        *handler.InventoryHandler
-	inventorySummaryHandler *handler.InventorySummaryHandler
+	locationHandler                     *handler.LocationHandler
+	inventoryHandler                    *handler.InventoryHandler
+	inventorySummaryHandler             *handler.InventorySummaryHandler
+	inventoryReservationHandler         *handler.InventoryReservationHandler
+	scheduleInventoryReservationHandler *handler.ScheduleInventoryReservationHandler
 
 	once sync.Once
 }
@@ -35,6 +37,14 @@ func (f *HandlerFactory) initialize() {
 			f.serviceFactory.GetInventorySummaryService(),
 			f.serviceFactory.GetProductInventorySummaryService(),
 		)
+
+		f.inventoryReservationHandler = handler.NewInventoryReservationHandler(
+			f.serviceFactory.GetInventoryReservationService(),
+		)
+
+		f.scheduleInventoryReservationHandler = handler.NewScheduleInventoryReservationHandler(
+			f.serviceFactory.GetInventoryReservationService(),
+		)
 	})
 }
 
@@ -54,4 +64,14 @@ func (f *HandlerFactory) GetInventoryHandler() *handler.InventoryHandler {
 func (f *HandlerFactory) GetInventorySummaryHandler() *handler.InventorySummaryHandler {
 	f.initialize()
 	return f.inventorySummaryHandler
+}
+
+func (f *HandlerFactory) GetInventoryReservationHandler() *handler.InventoryReservationHandler {
+	f.initialize()
+	return f.inventoryReservationHandler
+}
+
+func (f *HandlerFactory) GetScheduleInventoryReservationHandler() *handler.ScheduleInventoryReservationHandler {
+	f.initialize()
+	return f.scheduleInventoryReservationHandler
 }

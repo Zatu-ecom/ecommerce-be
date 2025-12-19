@@ -54,7 +54,7 @@ func BuildInventoryResponseFromRow(
 func BuildInventoryResponseFromEntity(
 	inv entity.Inventory,
 ) model.InventoryResponse {
-	return BuildInventoryResponse(
+	response := BuildInventoryResponse(
 		inv.VariantID,
 		inv.LocationID,
 		inv.Quantity,
@@ -62,6 +62,8 @@ func BuildInventoryResponseFromEntity(
 		inv.Threshold,
 		inv.BinLocation,
 	)
+	response.ID = inv.ID
+	return response
 }
 
 // ============================================================================

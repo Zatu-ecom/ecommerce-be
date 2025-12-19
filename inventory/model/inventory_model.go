@@ -1,6 +1,10 @@
 package model
 
-import "ecommerce-be/inventory/entity"
+import (
+	"ecommerce-be/common"
+	"ecommerce-be/common/helper"
+	"ecommerce-be/inventory/entity"
+)
 
 // ManageInventoryRequest represents the request body for managing inventory (create/update)
 type ManageInventoryRequest struct {
@@ -74,4 +78,50 @@ type InventoryDetailResponse struct {
 	InventoryResponse
 	LocationName string `json:"locationName"`
 	LocationType string `json:"locationType"`
+}
+
+// Get Inventories Filters Params //
+type GetInventoriesBase struct {
+	common.BaseListParams
+	MinQuantity *int `form:"minQuantity" binding:"omitempty"`
+	MaxQuantity *int `form:"maxQuantity" binding:"omitempty"`
+}
+
+type GetInventoriesFilter struct {
+	GetInventoriesBase
+	IDs         []uint
+	VariantIDs  []uint
+	LocationIDs []uint
+}
+
+type GetInventoriesParam struct {
+	GetInventoriesBase
+	VariantIDs  *string `form:"variantIds"  binding:"omitempty,dive,gt=0"`
+	LocationIDs *string `form:"locationIds" binding:"omitempty,dive,gt=0"`
+	IDs         *string `form:"ids"         binding:"omitempty,dive,gt=0"`
+}
+
+func (f *GetInventoriesParam) ToFilter() GetInventoriesFilter {
+	filter := GetInventoriesFilter{
+		GetInventoriesBase: f.GetInventoriesBase,
+	}
+
+	if f.VariantIDs != nil {
+		filter.VariantIDs = helper.ParseCommaSeparatedPtr[uint](f.VariantIDs)
+	}
+
+	if f.LocationIDs != nil {
+		filter.LocationIDs = helper.ParseCommaSeparatedPtr[uint](f.LocationIDs)
+	}
+
+	if f.IDs != nil {
+		filter.IDs = helper.ParseCommaSeparatedPtr[uint](f.IDs)
+	}
+
+	return filter
+}
+
+type InventoryResponseWithPagination struct {
+	common.PaginationResponse
+	Inventories []InventoryResponse `json:"inventories"`
 }

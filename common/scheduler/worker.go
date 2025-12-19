@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/go-redis/redis/v8"
@@ -86,16 +88,18 @@ func getPoolSize() int {
 func jobWorker(id int, jobs <-chan ScheduledJob) {
 	workerID := strconv.Itoa(id)
 	rdb, _ := cache.GetRedisClient()
-	ctx := context.Background()
 
 	for job := range jobs {
-		log.Info(
-			"Worker " + workerID + " processing job: " + job.Command + " (jobId: " + job.JobID.String() + ")",
+		ctx := GetContextWithKeys(job)
+		log.InfoWithContext(
+			ctx,
+			"Worker "+workerID+" processing job: "+job.Command+" (jobId: "+job.JobID.String()+")",
 		)
 
-		if err := Dispatch(job); err != nil {
-			log.Error(
-				"Worker "+workerID+" failed to dispatch job "+job.Command+": "+err.Error(),
+		if err := Dispatch(job, ctx); err != nil {
+			log.ErrorWithContext(
+				ctx,
+				"Worker "+workerID+" failed to dispatch job "+job.Command+" (jobId: "+job.JobID.String()+"): "+err.Error(),
 				err,
 			)
 		}
@@ -154,4 +158,15 @@ func jobDispatcher(jobs chan<- ScheduledJob) {
 			}
 		}
 	}
+}
+
+func GetContextWithKeys(job ScheduledJob) context.Context {
+	ctx := &gin.Context{
+		Keys: map[string]interface{}{
+			constants.USER_ID_KEY:        job.UserID,
+			constants.SELLER_ID_KEY:      job.SellerID,
+			constants.CORRELATION_ID_KEY: job.CorrelationId,
+		},
+	}
+	return ctx
 }
