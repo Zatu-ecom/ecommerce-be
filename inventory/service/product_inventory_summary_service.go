@@ -89,7 +89,7 @@ func (s *ProductInventorySummaryServiceImpl) GetProductsAtLocation(
 
 	// 3. Get product info for variants
 	variantIDs := extractVariantIDs(variantInventories)
-	productInfoRows, err := s.variantService.GetProductBasicInfoByVariantIDs(variantIDs, &sellerID)
+	productInfoRows, err := s.variantService.GetProductBasicInfoByVariantIDs(ctx, variantIDs, &sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *ProductInventorySummaryServiceImpl) GetVariantInventoryAtLocation(
 	}
 
 	// 2. Get variants from product service
-	variants, err := s.variantService.GetProductVariantsWithOptions(productID)
+	variants, err := s.variantService.GetProductVariantsWithOptions(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (s *ProductInventorySummaryServiceImpl) GetVariantInventoryAtLocation(
 
 	// 3. Get product info
 	variantIDs := extractVariantIDsFromVariants(variants)
-	productInfoRows, err := s.variantService.GetProductBasicInfoByVariantIDs(variantIDs, &sellerID)
+	productInfoRows, err := s.variantService.GetProductBasicInfoByVariantIDs(ctx, variantIDs, &sellerID)
 	if err != nil {
 		return nil, err
 	}

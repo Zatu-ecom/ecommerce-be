@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math"
 
 	"ecommerce-be/product/entity"
@@ -15,22 +16,27 @@ import (
 // This service handles all read-only product operations with optimized queries
 type ProductQueryService interface {
 	GetAllProducts(
+		ctx context.Context,
 		page, limit int,
 		filter model.GetProductsFilter,
 	) (*model.ProductsResponse, error)
 	GetProductByID(
+		ctx context.Context,
 		id uint,
 		sellerID *uint,
 	) (*model.ProductResponse, error)
 	SearchProducts(
+		ctx context.Context,
 		query string,
 		filters map[string]interface{},
 		page, limit int,
 	) (*model.SearchResponse, error)
 	GetProductFilters(
+		ctx context.Context,
 		sellerID *uint,
 	) (*model.ProductFilters, error)
 	GetRelatedProductsScored(
+		ctx context.Context,
 		productID uint,
 		limit int,
 		page int,
@@ -70,6 +76,7 @@ func NewProductQueryService(
  * Optimized with batch variant aggregation to prevent N+1 queries
  */
 func (s *ProductQueryServiceImpl) GetAllProducts(
+	ctx context.Context,
 	page,
 	limit int,
 	filter model.GetProductsFilter,
@@ -78,14 +85,14 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 	page, limit = s.validatePaginationParams(page, limit)
 
 	// Fetch products from repository with filters
-	products, total, err := s.productRepo.FindAll(filter, page, limit)
+	products, total, err := s.productRepo.FindAll(ctx, filter, page, limit)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build product responses with variant data using batch aggregation
 	// This prevents N+1 queries by fetching all variant data in a single query
-	productsResponse, err := s.buildProductResponsesWithVariants(products)
+	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +110,7 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 // buildProductResponsesWithVariants builds ProductResponse list from products with variant data
 // Performs batch variant aggregation for optimal performance - single query for all products
 func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
+	ctx context.Context,
 	products []entity.Product,
 ) ([]model.ProductResponse, error) {
 	if len(products) == 0 {
@@ -117,7 +125,7 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 
 	// Fetch variant aggregations for all products in ONE query via VariantService
 	// This is the key optimization to prevent N+1 queries
-	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(productIDs)
+	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(ctx, productIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +152,12 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 // Includes variants, options, attributes, and package options
 // Uses service layer to prevent N+1 queries
 func (s *ProductQueryServiceImpl) GetProductByID(
+	ctx context.Context,
 	id uint,
 	sellerID *uint,
 ) (*model.ProductResponse, error) {
 	// Fetch product entity
-	product, err := s.productRepo.FindByID(id)
+	product, err := s.productRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,16 +169,17 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	}
 
 	// Build detailed product response using service dependencies
-	return s.buildDetailedProductResponse(product)
+	return s.buildDetailedProductResponse(ctx, product)
 }
 
 // buildDetailedProductResponse builds a complete ProductResponse with all details
 // Uses service layer dependencies to fetch related data efficiently
 func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
+	ctx context.Context,
 	product *entity.Product,
 ) (*model.ProductResponse, error) {
 	// Get variant aggregation for summary info using VariantService
-	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(product.ID)
+	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(ctx, product.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +190,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	// Enhance with additional details for the detailed view
 	// Get product attributes using ProductAttributeService
 
-	attrResponse, err := s.productAttributeService.GetProductAttributes(product.ID)
+	attrResponse, err := s.productAttributeService.GetProductAttributes(ctx, product.ID)
 	if err == nil && attrResponse != nil {
 		// Use factory to convert ProductAttributeDetailResponse to ProductAttributeResponse
 		response.Attributes = factory.ConvertDetailListToSimpleAttributeResponses(
@@ -189,13 +199,14 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	}
 
 	// Get package options from repository (no service exists for this yet)
-	packageOptions, err := s.productRepo.FindPackageOptionByProductID(product.ID)
+	packageOptions, err := s.productRepo.FindPackageOptionByProductID(ctx, product.ID)
 	if err == nil {
 		response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
 	}
 
 	// Get all product options with their values using ProductOptionService
 	productOptions, err := s.productOptionService.GetProductOptionsWithVariantCounts(
+		ctx,
 		product.ID,
 		nil,
 	)
@@ -206,7 +217,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 
 	// Get all variants with their selected option values using VariantService
 	// This is optimized with a single query to prevent N+1 issues
-	variants, err := s.variantQueryService.GetProductVariantsWithOptions(product.ID)
+	variants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID)
 	if err == nil && len(variants) > 0 {
 		// Use factory to build variants detail response
 		response.Variants = variants
@@ -220,6 +231,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
  * Optimized with batch variant aggregation like GetAllProducts
  */
 func (s *ProductQueryServiceImpl) SearchProducts(
+	ctx context.Context,
 	query string,
 	filters map[string]interface{},
 	page, limit int,
@@ -228,14 +240,14 @@ func (s *ProductQueryServiceImpl) SearchProducts(
 	page, limit = s.validatePaginationParams(page, limit)
 
 	// Fetch products from repository with search query and filters
-	products, total, err := s.productRepo.Search(query, filters, page, limit)
+	products, total, err := s.productRepo.Search(ctx, query, filters, page, limit)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build product responses with variant data using batch aggregation
 	// Reuses the same optimization as GetAllProducts to prevent N+1 queries
-	productsResponse, err := s.buildProductResponsesWithVariants(products)
+	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products)
 	if err != nil {
 		return nil, err
 	}
@@ -265,10 +277,12 @@ func (s *ProductQueryServiceImpl) SearchProducts(
  * Includes variant-based filters (price, options, stock)
  */
 func (s *ProductQueryServiceImpl) GetProductFilters(
+	ctx context.Context,
 	sellerID *uint,
 ) (*model.ProductFilters, error) {
 	// Fetch all filter data from repository in single call
 	brands, categories, attributes, priceRange, variantOptions, stockStatus, err := s.productRepo.GetProductFilters(
+		ctx,
 		sellerID,
 	)
 	if err != nil {
@@ -340,6 +354,7 @@ func (s *ProductQueryServiceImpl) buildCategoryFiltersHierarchy(
  * Optimized to avoid N+1 queries
  */
 func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
+	ctx context.Context,
 	productID uint,
 	limit int,
 	page int,
@@ -357,6 +372,7 @@ func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
 
 	// Call repository method that uses stored procedure for scoring
 	scoredResults, totalCount, err := s.productRepo.FindRelatedScored(
+		ctx,
 		productID,
 		sellerID,
 		limit,
@@ -379,7 +395,7 @@ func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
 	}
 
 	// Build related items using batch operation and factory methods
-	relatedItems, strategiesUsedMap, totalScore, err := s.buildRelatedProductItems(scoredResults)
+	relatedItems, strategiesUsedMap, totalScore, err := s.buildRelatedProductItems(ctx, scoredResults)
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +421,7 @@ func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
 // buildRelatedProductItems builds related product items with batch optimization
 // Returns the items, strategies map, and total score for metadata calculation
 func (s *ProductQueryServiceImpl) buildRelatedProductItems(
+	ctx context.Context,
 	scoredResults []mapper.RelatedProductScored,
 ) ([]model.RelatedProductItemScored, map[string]bool, int, error) {
 	// Extract product IDs for batch fetching options (optimization to avoid N+1)
@@ -415,7 +432,7 @@ func (s *ProductQueryServiceImpl) buildRelatedProductItems(
 
 	// Batch fetch all options with values for all products at once
 	// This prevents N+1 queries by fetching all data in a single query
-	productOptionsMap, err := s.productOptionService.GetProductsOptionsWithValues(productIDs)
+	productOptionsMap, err := s.productOptionService.GetProductsOptionsWithValues(ctx, productIDs)
 	if err != nil {
 		// If fetching options fails, continue without options preview
 		productOptionsMap = make(map[uint][]entity.ProductOption)

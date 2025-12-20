@@ -88,6 +88,7 @@ func (s *InventorySummaryServiceImpl) GetLocationsSummary(
 	var totalProductCount uint
 	if len(allVariantIDs) > 0 {
 		totalProductCount, _ = s.variantService.GetProductCountByVariantIDs(
+			c,
 			allVariantIDs,
 			&sellerID,
 		)

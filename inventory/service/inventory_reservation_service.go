@@ -62,7 +62,7 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 ) (*model.ReservationResponse, error) {
 	variantIds := s.extractReqVariantIds(req.Items)
 
-	variantInfo, err := s.variantService.GetProductBasicInfoByVariantIDs(variantIds, &sellerId)
+	variantInfo, err := s.variantService.GetProductBasicInfoByVariantIDs(ctx, variantIds, &sellerId)
 	if err != nil {
 		return nil, err
 	}

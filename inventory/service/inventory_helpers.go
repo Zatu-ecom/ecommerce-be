@@ -209,13 +209,14 @@ func (h *BulkInventoryHelper) GetVariantDetails(
 		variantIDs,
 		batchSize,
 		func(batchIDs []uint) (map[uint]*productModel.VariantDetailResponse, error) {
-			return h.fetchVariantBatchByIDs(batchIDs, sellerID)
+			return h.fetchVariantBatchByIDs(ctx, batchIDs, sellerID)
 		},
 	)
 }
 
 // fetchVariantBatchByIDs fetches a batch of variants by IDs
 func (h *BulkInventoryHelper) fetchVariantBatchByIDs(
+	ctx context.Context,
 	variantIDs []uint,
 	sellerID *uint,
 ) (map[uint]*productModel.VariantDetailResponse, error) {
@@ -226,7 +227,7 @@ func (h *BulkInventoryHelper) fetchVariantBatchByIDs(
 		PageSize: len(variantIDs),
 	}
 
-	response, err := h.variantQueryService.ListVariants(filters, sellerID, nil)
+	response, err := h.variantQueryService.ListVariants(ctx, filters, sellerID, nil)
 	if err != nil {
 		return nil, err
 	}

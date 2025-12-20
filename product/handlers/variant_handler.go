@@ -61,7 +61,7 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	sellerID, _ := auth.GetSellerIDFromContext(c)
 
 	// Call query service
-	variantResponse, err := h.variantQueryService.GetVariantByID(productID, variantID, sellerID)
+	variantResponse, err := h.variantQueryService.GetVariantByID(c, productID, variantID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -108,6 +108,7 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 
 	// Call query service
 	variantResponse, err := h.variantQueryService.FindVariantByOptions(
+		c,
 		productID,
 		optionValues,
 		sellerID,
@@ -154,7 +155,7 @@ func (h *VariantHandler) CreateVariant(c *gin.Context) {
 	}
 
 	// Call service
-	variantResponse, err := h.variantService.CreateVariant(productID, sellerId, &request)
+	variantResponse, err := h.variantService.CreateVariant(c, productID, sellerId, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_VARIANT_MSG)
 		return
@@ -203,7 +204,13 @@ func (h *VariantHandler) UpdateVariant(c *gin.Context) {
 	}
 
 	// Call service
-	variantResponse, err := h.variantService.UpdateVariant(productID, variantID, sellerId, &request)
+	variantResponse, err := h.variantService.UpdateVariant(
+		c,
+		productID,
+		variantID,
+		sellerId,
+		&request,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_MSG)
 		return
@@ -245,7 +252,7 @@ func (h *VariantHandler) DeleteVariant(c *gin.Context) {
 	}
 
 	// Call service
-	if err := h.variantService.DeleteVariant(productID, variantID, sellerId); err != nil {
+	if err := h.variantService.DeleteVariant(c, productID, variantID, sellerId); err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_VARIANT_MSG)
 		return
 	}
@@ -281,7 +288,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 	}
 
 	// Call bulk service
-	response, err := h.variantBulkService.BulkUpdateVariants(productID, sellerID, &request)
+	response, err := h.variantBulkService.BulkUpdateVariants(c, productID, sellerID, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_VARIANTS_MSG)
 		return
@@ -330,7 +337,7 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 	optionFilters := helper.ParseOptionsFromQuery(queryParams, defaultExcludes)
 
 	// Call variant query service (same service used for other variant queries)
-	response, err := h.variantQueryService.ListVariants(&request, sellerID, optionFilters)
+	response, err := h.variantQueryService.ListVariants(c, &request, sellerID, optionFilters)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_LIST_VARIANTS_MSG)
 		return

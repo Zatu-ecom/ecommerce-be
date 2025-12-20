@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
@@ -14,18 +16,21 @@ import (
 // ProductOptionService defines the interface for product option-related business logic
 type ProductOptionService interface {
 	CreateOption(
+		ctx context.Context,
 		productID uint,
 		sellerId uint,
 		req model.ProductOptionCreateRequest,
 	) (*model.ProductOptionResponse, error)
 	UpdateOption(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		sellerId uint,
 		req model.ProductOptionUpdateRequest,
 	) (*model.ProductOptionResponse, error)
-	DeleteOption(productID uint, sellerId uint, optionID uint) error
+	DeleteOption(ctx context.Context, productID uint, sellerId uint, optionID uint) error
 	BulkUpdateOptions(
+		ctx context.Context,
 		productID uint,
 		sellerId uint,
 		req model.ProductOptionBulkUpdateRequest,
@@ -33,6 +38,7 @@ type ProductOptionService interface {
 
 	// GetAvailableOptions retrieves all available options and their values for a product
 	GetAvailableOptions(
+		ctx context.Context,
 		productID uint,
 		sellerID *uint,
 	) (*model.GetAvailableOptionsResponse, error)
@@ -40,21 +46,23 @@ type ProductOptionService interface {
 	// GetProductOptionsWithVariantCounts retrieves all options with their values and variant counts
 	// Used for detailed product views to show available options
 	GetProductOptionsWithVariantCounts(
+		ctx context.Context,
 		productID uint,
 		sellerID *uint,
 	) ([]model.ProductOptionDetailResponse, error)
 
 	// GetProductsOptionsWithValues retrieves all options with their values for multiple products
 	// Batch operation to prevent N+1 queries
-	GetProductsOptionsWithValues(productIDs []uint) (map[uint][]entity.ProductOption, error)
+	GetProductsOptionsWithValues(ctx context.Context, productIDs []uint) (map[uint][]entity.ProductOption, error)
 
 	// DeleteOptionsByProductID deletes all product options and their values for a product
 	// Handles cascade deletion of option_values
-	DeleteOptionsByProductID(productID uint) error
+	DeleteOptionsByProductID(ctx context.Context, productID uint) error
 
 	// CreateOptionsBulk creates multiple product options with their values in bulk
 	// Returns models for immediate use in responses
 	CreateOptionsBulk(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 		requests []model.ProductOptionCreateRequest,
@@ -82,19 +90,20 @@ func NewProductOptionService(
  *    CreateOption creates a new product option *
  ***********************************************/
 func (s *ProductOptionServiceImpl) CreateOption(
+	ctx context.Context,
 	productID uint,
 	sellerId uint,
 	req model.ProductOptionCreateRequest,
 ) (*model.ProductOptionResponse, error) {
 	// Validate product exists and seller has access using validator service
 	sellerIDPtr := &sellerId
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch existing options for uniqueness validation
-	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +117,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 	option := factory.CreateOptionFromRequest(productID, req)
 
 	// Create option
-	if err := s.optionRepo.CreateOption(option); err != nil {
+	if err := s.optionRepo.CreateOption(ctx, option); err != nil {
 		return nil, err
 	}
 
@@ -121,7 +130,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 		}
 
 		// Fetch existing option values (should be empty for new option, but check anyway)
-		existingOptionValues, err := s.optionRepo.FindOptionValuesByOptionID(option.ID)
+		existingOptionValues, err := s.optionRepo.FindOptionValuesByOptionID(ctx, option.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -133,13 +142,13 @@ func (s *ProductOptionServiceImpl) CreateOption(
 
 		// Create option values using factory
 		optionValues := factory.CreateOptionValuesFromRequests(option.ID, req.Values)
-		if err := s.optionRepo.CreateOptionValues(optionValues); err != nil {
+		if err := s.optionRepo.CreateOptionValues(ctx, optionValues); err != nil {
 			return nil, err
 		}
 	}
 
 	// Fetch created option with values
-	createdOption, err := s.optionRepo.FindOptionByID(option.ID)
+	createdOption, err := s.optionRepo.FindOptionByID(ctx, option.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +162,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
  *    UpdateOption updates an existing option   *
  ***********************************************/
 func (s *ProductOptionServiceImpl) UpdateOption(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	sellerId uint,
@@ -160,13 +170,13 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 ) (*model.ProductOptionResponse, error) {
 	// Validate product exists and seller has access using validator service
 	sellerIDPtr := &sellerId
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,12 +190,12 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 	option = factory.UpdateOptionEntity(option, req)
 
 	// Update option
-	if err := s.optionRepo.UpdateOption(option); err != nil {
+	if err := s.optionRepo.UpdateOption(ctx, option); err != nil {
 		return nil, err
 	}
 
 	// Fetch updated option with values
-	updatedOption, err := s.optionRepo.FindOptionByID(optionID)
+	updatedOption, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -199,19 +209,20 @@ func (s *ProductOptionServiceImpl) UpdateOption(
  *    DeleteOption deletes a product option     *
  ***********************************************/
 func (s *ProductOptionServiceImpl) DeleteOption(
+	ctx context.Context,
 	productID uint,
 	sellerId uint,
 	optionID uint,
 ) error {
 	// Validate product exists and seller has access using validator service
 	sellerIDPtr := &sellerId
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return err
 	}
@@ -222,7 +233,7 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	}
 
 	// Check if option is in use by variants
-	inUse, variantIDs, err := s.optionRepo.CheckOptionInUse(optionID)
+	inUse, variantIDs, err := s.optionRepo.CheckOptionInUse(ctx, optionID)
 	if err != nil {
 		return err
 	}
@@ -233,14 +244,14 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	}
 
 	// Delete option (cascade deletes option values)
-	return s.optionRepo.DeleteOption(optionID)
+	return s.optionRepo.DeleteOption(ctx, optionID)
 }
 
 // DeleteOptionsByProductID deletes all product options and their values for a product
 // Handles cascade deletion of option_values
-func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(productID uint) error {
+func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(ctx context.Context, productID uint) error {
 	// Get all product options
-	productOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	productOptions, err := s.optionRepo.FindOptionsByProductID(ctx, productID)
 	if err != nil {
 		return nil // If error or no options, nothing to delete
 	}
@@ -252,12 +263,12 @@ func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(productID uint) erro
 	// Delete each option and its values
 	for _, option := range productOptions {
 		// Delete option values (CASCADE should handle, but explicit is safer)
-		if err := s.optionRepo.DeleteOptionValuesByOptionID(option.ID); err != nil {
+		if err := s.optionRepo.DeleteOptionValuesByOptionID(ctx, option.ID); err != nil {
 			return err
 		}
 
 		// Delete the option itself
-		if err := s.optionRepo.DeleteOption(option.ID); err != nil {
+		if err := s.optionRepo.DeleteOption(ctx, option.ID); err != nil {
 			return err
 		}
 	}
@@ -269,17 +280,18 @@ func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(productID uint) erro
  *            GetAvailableOptions              *
  ***********************************************/
 func (s *ProductOptionServiceImpl) GetAvailableOptions(
+	ctx context.Context,
 	productID uint,
 	sellerID *uint,
 ) (*model.GetAvailableOptionsResponse, error) {
 	// Validate that the product exists and validate seller access using validator service
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get all options with variant counts
-	options, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(productID)
+	options, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -330,17 +342,18 @@ func (s *ProductOptionServiceImpl) GetAvailableOptions(
 // GetProductOptionsWithVariantCounts retrieves all options with their values and variant counts
 // Used for detailed product views to show available options
 func (s *ProductOptionServiceImpl) GetProductOptionsWithVariantCounts(
+	ctx context.Context,
 	productID uint,
 	sellerID *uint,
 ) ([]model.ProductOptionDetailResponse, error) {
 	// Validate product exists and seller has access using validator service
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get options with variant counts from repository
-	productOptions, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(productID)
+	productOptions, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -354,19 +367,20 @@ func (s *ProductOptionServiceImpl) GetProductOptionsWithVariantCounts(
  *         BulkUpdateOptions                   *
  ***********************************************/
 func (s *ProductOptionServiceImpl) BulkUpdateOptions(
+	ctx context.Context,
 	productID uint,
 	sellerId uint,
 	req model.ProductOptionBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
 	// Validate product exists and seller has access using validator service
 	sellerIDPtr := &sellerId
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get all existing options for this product
-	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +417,7 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 	}
 
 	// Perform bulk update
-	if err := s.optionRepo.BulkUpdateOptions(optionsToUpdate); err != nil {
+	if err := s.optionRepo.BulkUpdateOptions(ctx, optionsToUpdate); err != nil {
 		return nil, err
 	}
 
@@ -416,10 +430,11 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 // GetProductsOptionsWithValues retrieves all options with their values for multiple products
 // Batch operation optimized to prevent N+1 queries
 func (s *ProductOptionServiceImpl) GetProductsOptionsWithValues(
+	ctx context.Context,
 	productIDs []uint,
 ) (map[uint][]entity.ProductOption, error) {
 	// Use the option repository's batch method to fetch all options at once
-	return s.optionRepo.FindOptionsByProductIDs(productIDs)
+	return s.optionRepo.FindOptionsByProductIDs(ctx, productIDs)
 }
 
 /***********************************************
@@ -428,6 +443,7 @@ func (s *ProductOptionServiceImpl) GetProductsOptionsWithValues(
 // CreateOptionsBulk creates multiple product options with their values in bulk
 // TRUE BULK: Single INSERT for all options, single INSERT for all option values
 func (s *ProductOptionServiceImpl) CreateOptionsBulk(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 	requests []model.ProductOptionCreateRequest,
@@ -438,13 +454,13 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 
 	// Validate product exists and seller has access using validator service (single query)
 	sellerIDPtr := &sellerID
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch existing options for uniqueness validation (single query)
-	existingOptions, err := s.optionRepo.FindOptionsByProductID(productID)
+	existingOptions, err := s.optionRepo.FindOptionsByProductID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +495,7 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 	}
 
 	// BULK: Create ALL options in ONE query with RETURNING
-	if err := s.optionRepo.BulkCreateOptions(optionsToCreate); err != nil {
+	if err := s.optionRepo.BulkCreateOptions(ctx, optionsToCreate); err != nil {
 		return nil, err
 	}
 
@@ -514,7 +530,7 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 
 	// BULK: Insert ALL option values in ONE query
 	if len(allOptionValues) > 0 {
-		if err := s.optionRepo.BulkCreateOptionValues(allOptionValues); err != nil {
+		if err := s.optionRepo.BulkCreateOptionValues(ctx, allOptionValues); err != nil {
 			return nil, err
 		}
 	}

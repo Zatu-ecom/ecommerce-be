@@ -59,7 +59,7 @@ func (h *ProductOptionValueHandler) AddOptionValue(c *gin.Context) {
 	}
 
 	// Add option value
-	valueResponse, err := h.valueService.AddOptionValue(productID, optionID, sellerId, req)
+	valueResponse, err := h.valueService.AddOptionValue(c, productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_OPTION_VALUE_MSG)
 		return
@@ -110,6 +110,7 @@ func (h *ProductOptionValueHandler) UpdateOptionValue(c *gin.Context) {
 
 	// Update option value
 	valueResponse, err := h.valueService.UpdateOptionValue(
+		c,
 		productID,
 		optionID,
 		valueID,
@@ -153,7 +154,7 @@ func (h *ProductOptionValueHandler) DeleteOptionValue(c *gin.Context) {
 	}
 
 	// Delete option value
-	err = h.valueService.DeleteOptionValue(productID, optionID, sellerId, valueID)
+	err = h.valueService.DeleteOptionValue(c, productID, optionID, sellerId, valueID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_OPTION_VALUE_MSG)
 		return
@@ -191,7 +192,7 @@ func (h *ProductOptionValueHandler) BulkAddOptionValues(c *gin.Context) {
 	}
 
 	// Bulk add option values
-	valueResponses, err := h.valueService.BulkAddOptionValues(productID, optionID, sellerId, req)
+	valueResponses, err := h.valueService.BulkAddOptionValues(c, productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_OPTION_VALUE_MSG)
 		return
@@ -233,7 +234,7 @@ func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
 	}
 
 	// Call service
-	response, err := h.valueService.BulkUpdateOptionValues(productID, optionID, sellerId, req)
+	response, err := h.valueService.BulkUpdateOptionValues(c, productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTION_VALUES_MSG)
 		return

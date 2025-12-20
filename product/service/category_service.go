@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/common/constants"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
@@ -13,40 +15,46 @@ import (
 // CategoryService defines the interface for category-related business logic
 type CategoryService interface {
 	CreateCategory(
+		ctx context.Context,
 		req model.CategoryCreateRequest,
 		roleLevel uint,
 		sellerId uint,
 	) (*model.CategoryResponse, error)
 	UpdateCategory(
+		ctx context.Context,
 		id uint,
 		req model.CategoryUpdateRequest,
 		roleLevel uint,
 		sellerId uint,
 	) (*model.CategoryResponse, error)
 	DeleteCategory(
+		ctx context.Context,
 		id uint,
 		roleLevel uint,
 		sellerId uint,
 	) error
-	GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error)
-	GetCategoryByID(id uint, sellerID *uint) (*model.CategoryResponse, error)
-	GetCategoriesByParent(parentID *uint, sellerID *uint) (*model.CategoriesResponse, error)
+	GetAllCategories(ctx context.Context, sellerID *uint) (*model.CategoriesResponse, error)
+	GetCategoryByID(ctx context.Context, id uint, sellerID *uint) (*model.CategoryResponse, error)
+	GetCategoriesByParent(ctx context.Context, parentID *uint, sellerID *uint) (*model.CategoriesResponse, error)
 
 	// GetCategoryWithParent retrieves a category and its parent (if exists) in optimized way
 	// Used by product queries to build category hierarchy efficiently
-	GetCategoryWithParent(categoryID uint) (*entity.Category, *entity.Category, error)
+	GetCategoryWithParent(ctx context.Context, categoryID uint) (*entity.Category, *entity.Category, error)
 
 	GetAttributesByCategoryIDWithInheritance(
+		ctx context.Context,
 		catagoryID uint,
 		sellerID *uint,
 	) (model.AttributeDefinitionsResponse, error)
 	LinkAttributeToCategory(
+		ctx context.Context,
 		categoryID uint,
 		req model.LinkAttributeRequest,
 		roleLevel uint,
 		sellerID uint,
 	) (*model.LinkAttributeResponse, error)
 	UnlinkAttributeFromCategory(
+		ctx context.Context,
 		categoryID uint,
 		attributeID uint,
 		roleLevel uint,
@@ -76,12 +84,13 @@ func NewCategoryService(
 
 // CreateCategory creates a new category
 func (s *CategoryServiceImpl) CreateCategory(
+	ctx context.Context,
 	req model.CategoryCreateRequest,
 	roleLevel uint,
 	sellerId uint,
 ) (*model.CategoryResponse, error) {
 	// Fetch existing category with same name and parent (if any)
-	existingCategory, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
+	existingCategory, err := s.categoryRepo.FindByNameAndParent(ctx, req.Name, req.ParentID)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +103,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	// Fetch parent category if parent ID is provided
 	var parentCategory *entity.Category
 	if req.ParentID != nil && *req.ParentID != 0 {
-		parentCategory, err = s.categoryRepo.FindByID(*req.ParentID)
+		parentCategory, err = s.categoryRepo.FindByID(ctx, *req.ParentID)
 		if err != nil {
 			// Convert to validation error if parent not found
 			parentCategory = nil
@@ -112,7 +121,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	category := factory.BuildCategoryEntityFromCreateRequest(req, global, &sellerId)
 
 	// Save category to database
-	if err := s.categoryRepo.Create(category); err != nil {
+	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
 
@@ -124,13 +133,14 @@ func (s *CategoryServiceImpl) CreateCategory(
 
 // UpdateCategory updates an existing category
 func (s *CategoryServiceImpl) UpdateCategory(
+	ctx context.Context,
 	id uint,
 	req model.CategoryUpdateRequest,
 	roleLevel uint,
 	sellerId uint,
 ) (*model.CategoryResponse, error) {
 	// Find existing category
-	category, err := s.categoryRepo.FindByID(id)
+	category, err := s.categoryRepo.FindByID(ctx, id)
 	if err != nil {
 		// Check if it's a "not found" error
 		if err.Error() == "Category not found" {
@@ -148,7 +158,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	}
 
 	// Fetch category with new name and parent (if any) for uniqueness check
-	existingCategoryWithNewName, err := s.categoryRepo.FindByNameAndParent(req.Name, req.ParentID)
+	existingCategoryWithNewName, err := s.categoryRepo.FindByNameAndParent(ctx, req.Name, req.ParentID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +181,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 			}
 			visited[*currentParentID] = true
 
-			parent, err := s.categoryRepo.FindByID(*currentParentID)
+			parent, err := s.categoryRepo.FindByID(ctx, *currentParentID)
 			if err != nil {
 				break
 			}
@@ -188,7 +198,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	// Fetch parent category if parent ID is provided
 	var parentCategory *entity.Category
 	if req.ParentID != nil && *req.ParentID != 0 {
-		parentCategory, err = s.categoryRepo.FindByID(*req.ParentID)
+		parentCategory, err = s.categoryRepo.FindByID(ctx, *req.ParentID)
 		if err != nil {
 			parentCategory = nil
 		}
@@ -203,7 +213,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	category = factory.BuildCategoryEntityFromUpdateReq(category, req)
 
 	// Save updated category
-	if err := s.categoryRepo.Update(category); err != nil {
+	if err := s.categoryRepo.Update(ctx, category); err != nil {
 		return nil, err
 	}
 
@@ -215,18 +225,19 @@ func (s *CategoryServiceImpl) UpdateCategory(
 
 // DeleteCategory soft deletes a category
 func (s *CategoryServiceImpl) DeleteCategory(
+	ctx context.Context,
 	id uint,
 	roleLevel uint,
 	sellerId uint,
 ) error {
 	// Check if category has active products
-	hasProducts, err := s.categoryRepo.CheckHasProducts(id)
+	hasProducts, err := s.categoryRepo.CheckHasProducts(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	// Check if category has active child categories
-	hasChildren, err := s.categoryRepo.CheckHasChildren(id)
+	hasChildren, err := s.categoryRepo.CheckHasChildren(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -236,7 +247,7 @@ func (s *CategoryServiceImpl) DeleteCategory(
 		return err
 	}
 
-	category, err := s.categoryRepo.FindByID(id)
+	category, err := s.categoryRepo.FindByID(ctx, id)
 	if err != nil {
 		// Check if it's a "not found" error
 		if err.Error() == "Category not found" {
@@ -254,14 +265,14 @@ func (s *CategoryServiceImpl) DeleteCategory(
 	}
 
 	// Soft delete category
-	return s.categoryRepo.Delete(id)
+	return s.categoryRepo.Delete(ctx, id)
 }
 
 // GetAllCategories gets all categories in hierarchical structure
 // Multi-tenant: Returns global categories + seller-specific categories
 // If sellerID is nil (admin), returns all categories
-func (s *CategoryServiceImpl) GetAllCategories(sellerID *uint) (*model.CategoriesResponse, error) {
-	categories, err := s.categoryRepo.FindAllHierarchical(sellerID)
+func (s *CategoryServiceImpl) GetAllCategories(ctx context.Context, sellerID *uint) (*model.CategoriesResponse, error) {
+	categories, err := s.categoryRepo.FindAllHierarchical(ctx, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,10 +315,11 @@ func (s *CategoryServiceImpl) GetAllCategories(sellerID *uint) (*model.Categorie
 // Multi-tenant: If sellerID is provided, verify category is accessible
 // (global or belongs to seller). If nil (admin), allow access to any.
 func (s *CategoryServiceImpl) GetCategoryByID(
+	ctx context.Context,
 	id uint,
 	sellerID *uint,
 ) (*model.CategoryResponse, error) {
-	category, err := s.categoryRepo.FindByID(id)
+	category, err := s.categoryRepo.FindByID(ctx, id)
 	if err != nil {
 		// Check if it's a "not found" error
 		if err.Error() == "Category not found" {
@@ -337,10 +349,11 @@ func (s *CategoryServiceImpl) GetCategoryByID(
 
 // GetCategoriesByParent gets categories by parent ID
 func (s *CategoryServiceImpl) GetCategoriesByParent(
+	ctx context.Context,
 	parentID *uint,
 	sellerID *uint,
 ) (*model.CategoriesResponse, error) {
-	categories, err := s.categoryRepo.FindByParentID(parentID, sellerID)
+	categories, err := s.categoryRepo.FindByParentID(ctx, parentID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -357,11 +370,12 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 }
 
 func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
+	ctx context.Context,
 	catagoryID uint,
 	sellerID *uint,
 ) (model.AttributeDefinitionsResponse, error) {
 	// Validate category exists and seller has access
-	category, err := s.categoryRepo.FindByID(catagoryID)
+	category, err := s.categoryRepo.FindByID(ctx, catagoryID)
 	if err != nil {
 		return model.AttributeDefinitionsResponse{}, err
 	}
@@ -372,7 +386,7 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 		return model.AttributeDefinitionsResponse{}, prodErrors.ErrCategoryNotFound
 	}
 
-	attributes, err := s.categoryRepo.FindAttributesByCategoryIDWithInheritance(catagoryID)
+	attributes, err := s.categoryRepo.FindAttributesByCategoryIDWithInheritance(ctx, catagoryID)
 	if err != nil {
 		return model.AttributeDefinitionsResponse{}, err
 	}
@@ -390,13 +404,14 @@ func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
 
 // LinkAttributeToCategory links an existing attribute to a category
 func (s *CategoryServiceImpl) LinkAttributeToCategory(
+	ctx context.Context,
 	categoryID uint,
 	req model.LinkAttributeRequest,
 	roleLevel uint,
 	sellerID uint,
 ) (*model.LinkAttributeResponse, error) {
 	// Validate category exists
-	category, err := s.categoryRepo.FindByID(categoryID)
+	category, err := s.categoryRepo.FindByID(ctx, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -409,13 +424,13 @@ func (s *CategoryServiceImpl) LinkAttributeToCategory(
 	}
 
 	// Validate attribute exists
-	_, err = s.attributeRepo.FindByID(req.AttributeDefinitionID)
+	_, err = s.attributeRepo.FindByID(ctx, req.AttributeDefinitionID)
 	if err != nil {
 		return nil, prodErrors.ErrAttributeNotFound
 	}
 
 	// Check if already linked
-	existingLink, err := s.categoryRepo.CheckAttributeLinked(categoryID, req.AttributeDefinitionID)
+	existingLink, err := s.categoryRepo.CheckAttributeLinked(ctx, categoryID, req.AttributeDefinitionID)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +444,7 @@ func (s *CategoryServiceImpl) LinkAttributeToCategory(
 		AttributeDefinitionID: req.AttributeDefinitionID,
 	}
 
-	err = s.categoryRepo.LinkAttribute(categoryAttribute)
+	err = s.categoryRepo.LinkAttribute(ctx, categoryAttribute)
 	if err != nil {
 		return nil, err
 	}
@@ -443,13 +458,14 @@ func (s *CategoryServiceImpl) LinkAttributeToCategory(
 
 // UnlinkAttributeFromCategory removes the link between an attribute and a category
 func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
+	ctx context.Context,
 	categoryID uint,
 	attributeID uint,
 	roleLevel uint,
 	sellerID uint,
 ) error {
 	// Validate category exists
-	category, err := s.categoryRepo.FindByID(categoryID)
+	category, err := s.categoryRepo.FindByID(ctx, categoryID)
 	if err != nil {
 		return err
 	}
@@ -462,7 +478,7 @@ func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
 	}
 
 	// Unlink the attribute
-	err = s.categoryRepo.UnlinkAttribute(categoryID, attributeID)
+	err = s.categoryRepo.UnlinkAttribute(ctx, categoryID, attributeID)
 	if err != nil {
 		return err
 	}
@@ -478,10 +494,11 @@ func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
 // Optimized method to fetch both category and parent efficiently
 // Used by product queries to build category hierarchy without multiple queries
 func (s *CategoryServiceImpl) GetCategoryWithParent(
+	ctx context.Context,
 	categoryID uint,
 ) (*entity.Category, *entity.Category, error) {
 	// Get category
-	category, err := s.categoryRepo.FindByID(categoryID)
+	category, err := s.categoryRepo.FindByID(ctx, categoryID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -489,7 +506,7 @@ func (s *CategoryServiceImpl) GetCategoryWithParent(
 	// Get parent category if exists
 	var parentCategory *entity.Category
 	if category.ParentID != nil && *category.ParentID != 0 {
-		if pc, err := s.categoryRepo.FindByID(*category.ParentID); err == nil {
+		if pc, err := s.categoryRepo.FindByID(ctx, *category.ParentID); err == nil {
 			parentCategory = pc
 		}
 	}

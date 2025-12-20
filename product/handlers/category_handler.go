@@ -43,7 +43,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryResponse, err := h.categoryService.CreateCategory(req, roleLevel, sellerId)
+	categoryResponse, err := h.categoryService.CreateCategory(c, req, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_CATEGORY_MSG)
 		return
@@ -78,7 +78,13 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryResponse, err := h.categoryService.UpdateCategory(categoryID, req, roleLevel, sellerId)
+	categoryResponse, err := h.categoryService.UpdateCategory(
+		c,
+		categoryID,
+		req,
+		roleLevel,
+		sellerId,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_CATEGORY_MSG)
 		return
@@ -105,7 +111,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
 		return
 	}
-	err = h.categoryService.DeleteCategory(categoryID, roleLevel, sellerId)
+	err = h.categoryService.DeleteCategory(c, categoryID, roleLevel, sellerId)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_CATEGORY_MSG)
 		return
@@ -124,7 +130,7 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	categoriesResponse, err := h.categoryService.GetAllCategories(sellerIDPtr)
+	categoriesResponse, err := h.categoryService.GetAllCategories(c, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -149,7 +155,7 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	categoryResponse, err := h.categoryService.GetCategoryByID(categoryID, sellerIDPtr)
+	categoryResponse, err := h.categoryService.GetCategoryByID(c, categoryID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -189,7 +195,7 @@ func (h *CategoryHandler) GetCategoriesByParent(c *gin.Context) {
 		sellerID = &id
 	}
 
-	categoriesResponse, err := h.categoryService.GetCategoriesByParent(parentID, sellerID)
+	categoriesResponse, err := h.categoryService.GetCategoriesByParent(c, parentID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_CATEGORIES_MSG)
 		return
@@ -212,6 +218,7 @@ func (h *CategoryHandler) GetAttributesByCategoryIDWithInheritance(c *gin.Contex
 	}
 
 	attributesResponse, err := h.categoryService.GetAttributesByCategoryIDWithInheritance(
+		c,
 		categoryID,
 		sellerID,
 	)
@@ -249,6 +256,7 @@ func (h *CategoryHandler) LinkAttributeToCategory(c *gin.Context) {
 	}
 
 	response, err := h.categoryService.LinkAttributeToCategory(
+		c,
 		categoryID,
 		req,
 		roleLevel,
@@ -288,6 +296,7 @@ func (h *CategoryHandler) UnlinkAttributeFromCategory(c *gin.Context) {
 	}
 
 	err = h.categoryService.UnlinkAttributeFromCategory(
+		c,
 		categoryID,
 		attributeID,
 		roleLevel,

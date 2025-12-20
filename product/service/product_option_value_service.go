@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
@@ -13,12 +15,14 @@ import (
 // ProductOptionValueService defines the interface for product option value-related business logic
 type ProductOptionValueService interface {
 	AddOptionValue(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		sellerID uint,
 		req model.ProductOptionValueRequest,
 	) (*model.ProductOptionValueResponse, error)
 	UpdateOptionValue(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		valueID uint,
@@ -26,18 +30,21 @@ type ProductOptionValueService interface {
 		req model.ProductOptionValueUpdateRequest,
 	) (*model.ProductOptionValueResponse, error)
 	DeleteOptionValue(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		sellerID uint,
 		valueID uint,
 	) error
 	BulkAddOptionValues(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		sellerID uint,
 		req model.ProductOptionValueBulkAddRequest,
 	) ([]model.ProductOptionValueResponse, error)
 	BulkUpdateOptionValues(
+		ctx context.Context,
 		productID uint,
 		optionID uint,
 		sellerID uint,
@@ -69,19 +76,20 @@ func NewProductOptionValueService(
  *    AddOptionValue adds a value to an option  *
  ***********************************************/
 func (s *ProductOptionValueServiceImpl) AddOptionValue(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	sellerID uint,
 	req model.ProductOptionValueRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product ownership using validator service (eliminates duplication)
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	}
 
 	// Fetch existing option values for uniqueness check
-	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
+	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +114,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
 	optionValue := factory.CreateOptionValueFromRequest(optionID, req)
 
 	// Create option value
-	if err := s.optionRepo.CreateOptionValue(optionValue); err != nil {
+	if err := s.optionRepo.CreateOptionValue(ctx, optionValue); err != nil {
 		return nil, err
 	}
 
@@ -119,6 +127,7 @@ func (s *ProductOptionValueServiceImpl) AddOptionValue(
  *    UpdateOptionValue updates a value         *
  ***********************************************/
 func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	valueID uint,
@@ -126,13 +135,13 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	req model.ProductOptionValueUpdateRequest,
 ) (*model.ProductOptionValueResponse, error) {
 	// Validate product ownership using validator service (eliminates duplication)
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +152,7 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	}
 
 	// Fetch option value to update
-	optionValue, err := s.optionRepo.FindOptionValueByID(valueID)
+	optionValue, err := s.optionRepo.FindOptionValueByID(ctx, valueID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +166,7 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
 	factory.UpdateOptionValueEntity(optionValue, req)
 
 	// Update option value
-	if err := s.optionRepo.UpdateOptionValue(optionValue); err != nil {
+	if err := s.optionRepo.UpdateOptionValue(ctx, optionValue); err != nil {
 		return nil, err
 	}
 
@@ -170,19 +179,20 @@ func (s *ProductOptionValueServiceImpl) UpdateOptionValue(
  *    DeleteOptionValue deletes a value         *
  ***********************************************/
 func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	sellerID uint,
 	valueID uint,
 ) error {
 	// Validate product ownership using validator service (eliminates duplication)
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return err
 	}
@@ -193,7 +203,7 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	}
 
 	// Fetch option value for validation
-	optionValue, err := s.optionRepo.FindOptionValueByID(valueID)
+	optionValue, err := s.optionRepo.FindOptionValueByID(ctx, valueID)
 	if err != nil {
 		return err
 	}
@@ -204,7 +214,7 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	}
 
 	// Check if value is being used by any variants
-	inUse, variantIDs, err := s.optionRepo.CheckOptionValueInUse(valueID)
+	inUse, variantIDs, err := s.optionRepo.CheckOptionValueInUse(ctx, valueID)
 	if err != nil {
 		return err
 	}
@@ -214,26 +224,27 @@ func (s *ProductOptionValueServiceImpl) DeleteOptionValue(
 	}
 
 	// Delete option value
-	return s.optionRepo.DeleteOptionValue(valueID)
+	return s.optionRepo.DeleteOptionValue(ctx, valueID)
 }
 
 /***********************************************
  *    BulkAddOptionValues adds multiple values  *
  ***********************************************/
 func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	sellerID uint,
 	req model.ProductOptionValueBulkAddRequest,
 ) ([]model.ProductOptionValueResponse, error) {
 	// Validate product ownership using validator service (eliminates duplication)
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +261,7 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	}
 
 	// Fetch existing option values
-	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
+	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +275,7 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
 	valuesToCreate := factory.CreateOptionValuesFromRequests(optionID, req.Values)
 
 	// Bulk create option values
-	if err := s.optionRepo.CreateOptionValues(valuesToCreate); err != nil {
+	if err := s.optionRepo.CreateOptionValues(ctx, valuesToCreate); err != nil {
 		return nil, err
 	}
 
@@ -282,19 +293,20 @@ func (s *ProductOptionValueServiceImpl) BulkAddOptionValues(
  *       BulkUpdateOptionValues                *
  ***********************************************/
 func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
+	ctx context.Context,
 	productID uint,
 	optionID uint,
 	sellerID uint,
 	req model.ProductOptionValueBulkUpdateRequest,
 ) (*model.BulkUpdateResponse, error) {
 	// Validate product ownership using validator service (eliminates duplication)
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch option for validation
-	option, err := s.optionRepo.FindOptionByID(optionID)
+	option, err := s.optionRepo.FindOptionByID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +317,7 @@ func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
 	}
 
 	// Get all existing values for this option
-	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(optionID)
+	existingValues, err := s.optionRepo.FindOptionValuesByOptionID(ctx, optionID)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +358,7 @@ func (s *ProductOptionValueServiceImpl) BulkUpdateOptionValues(
 	}
 
 	// Perform bulk update
-	if err := s.optionRepo.BulkUpdateOptionValues(valuesToUpdate); err != nil {
+	if err := s.optionRepo.BulkUpdateOptionValues(ctx, valuesToUpdate); err != nil {
 		return nil, err
 	}
 

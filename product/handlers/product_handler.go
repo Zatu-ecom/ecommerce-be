@@ -62,7 +62,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	productResponse, err := h.productService.CreateProduct(req, sellerID)
+	productResponse, err := h.productService.CreateProduct(c, req, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_PRODUCT_MSG)
 		return
@@ -97,7 +97,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	productResponse, err := h.productService.UpdateProduct(productID, sellerIDPtr, req)
+	productResponse, err := h.productService.UpdateProduct(c, productID, sellerIDPtr, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_PRODUCT_MSG)
 		return
@@ -121,7 +121,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	err = h.productService.DeleteProduct(productID, sellerIDPtr)
+	err = h.productService.DeleteProduct(c, productID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_PRODUCT_MSG)
 		return
@@ -156,6 +156,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 
 	// Use ProductQueryService for read operations (optimized for queries)
 	productsResponse, err := h.productQueryService.GetAllProducts(
+		c,
 		params.Page,
 		params.PageSize,
 		filter,
@@ -184,7 +185,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	productResponse, err := h.productQueryService.GetProductByID(productID, sellerIDPtr)
+	productResponse, err := h.productQueryService.GetProductByID(c, productID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_MSG)
 		return
@@ -226,7 +227,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		filters["sellerId"] = sellerID
 	}
 
-	searchResponse, err := h.productQueryService.SearchProducts(query, filters, page, limit)
+	searchResponse, err := h.productQueryService.SearchProducts(c, query, filters, page, limit)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_SEARCH_PRODUCTS_MSG)
 		return
@@ -245,7 +246,7 @@ func (h *ProductHandler) GetProductFilters(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	filters, err := h.productQueryService.GetProductFilters(sellerIDPtr)
+	filters, err := h.productQueryService.GetProductFilters(c, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_FILTERS_MSG)
 		return
@@ -304,13 +305,14 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 	}
 
 	// Verify product exists before getting related products
-	_, err = h.productQueryService.GetProductByID(productID, sellerID)
+	_, err = h.productQueryService.GetProductByID(c, productID, sellerID)
 	if err != nil {
 		h.HandleError(c, productErrors.ErrProductNotFound, utils.PRODUCT_NOT_FOUND_MSG)
 		return
 	}
 
 	relatedProductsResponse, err := h.productQueryService.GetRelatedProductsScored(
+		c,
 		productID,
 		limit,
 		page,

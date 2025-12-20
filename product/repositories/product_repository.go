@@ -1,8 +1,10 @@
 package repositories
 
 import (
+	"context"
 	"errors"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
 	productError "ecommerce-be/product/errors"
@@ -16,35 +18,38 @@ import (
 
 // ProductRepository defines the interface for product-related database operations
 type ProductRepository interface {
-	Create(product *entity.Product) error
-	Update(product *entity.Product) error
-	FindByID(id uint) (*entity.Product, error)
+	Create(ctx context.Context, product *entity.Product) error
+	Update(ctx context.Context, product *entity.Product) error
+	FindByID(ctx context.Context, id uint) (*entity.Product, error)
 	// FindBySKU removed - BaseSKU validation no longer required
-	FindAll(filter model.GetProductsFilter, page, limit int) ([]entity.Product, int64, error)
+	FindAll(ctx context.Context, filter model.GetProductsFilter, page, limit int) ([]entity.Product, int64, error)
 	Search(
+		ctx context.Context,
 		query string,
 		filters map[string]interface{},
 		page, limit int,
 	) ([]entity.Product, int64, error)
-	Delete(id uint) error
-	UpdateStock(id uint, inStock bool) error
+	Delete(ctx context.Context, id uint) error
+	UpdateStock(ctx context.Context, id uint, inStock bool) error
 	FindRelated(
+		ctx context.Context,
 		categoryID, excludeProductID uint,
 		limit int,
 		sellerID *uint,
 	) ([]entity.Product, error)
 	// New method for intelligent related products with scoring
 	FindRelatedScored(
+		ctx context.Context,
 		productID uint,
 		sellerID *uint,
 		limit int,
 		offset int,
 		strategies string,
 	) ([]mapper.RelatedProductScored, int64, error)
-	FindPackageOptionByProductID(productID uint) ([]entity.PackageOption, error)
-	CreatePackageOptions(option []entity.PackageOption) error
-	UpdatePackageOptions(option []entity.PackageOption) error
-	GetProductFilters(sellerID *uint) (
+	FindPackageOptionByProductID(ctx context.Context, productID uint) ([]entity.PackageOption, error)
+	CreatePackageOptions(ctx context.Context, option []entity.PackageOption) error
+	UpdatePackageOptions(ctx context.Context, option []entity.PackageOption) error
+	GetProductFilters(ctx context.Context, sellerID *uint) (
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
 		[]mapper.AttributeWithProductCount,
@@ -55,7 +60,7 @@ type ProductRepository interface {
 	)
 
 	// Bulk deletion methods for product cleanup
-	DeletePackageOptionsByProductID(productID uint) error
+	DeletePackageOptionsByProductID(ctx context.Context, productID uint) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -69,19 +74,19 @@ func NewProductRepository(db *gorm.DB) ProductRepository {
 }
 
 // Create creates a new product
-func (r *ProductRepositoryImpl) Create(product *entity.Product) error {
-	return r.db.Create(product).Error
+func (r *ProductRepositoryImpl) Create(ctx context.Context, product *entity.Product) error {
+	return db.DB(ctx).Create(product).Error
 }
 
 // Update updates an existing product
-func (r *ProductRepositoryImpl) Update(product *entity.Product) error {
-	return r.db.Save(product).Error
+func (r *ProductRepositoryImpl) Update(ctx context.Context, product *entity.Product) error {
+	return db.DB(ctx).Save(product).Error
 }
 
 // FindByID finds a product by ID with eager loading
-func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
+func (r *ProductRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.Product, error) {
 	var product entity.Product
-	result := r.db.Preload("Category").
+	result := db.DB(ctx).Preload("Category").
 		Preload("Category.Parent").
 		Where("id = ?", id).
 		First(&product)
@@ -97,13 +102,14 @@ func (r *ProductRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 // FindAll finds all products with filtering and pagination
 // Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) FindAll(
+	ctx context.Context,
 	filter model.GetProductsFilter,
 	page, limit int,
 ) ([]entity.Product, int64, error) {
 	var products []entity.Product
 	var total int64
 
-	query := r.db.Model(&entity.Product{})
+	query := db.DB(ctx).Model(&entity.Product{})
 
 	// Apply filters
 	// Multi-tenant filter: seller_id (CRITICAL for data isolation)
@@ -176,6 +182,7 @@ func (r *ProductRepositoryImpl) FindAll(
 // Search searches products with query and filters
 // Updated to work with variant-based pricing and stock
 func (r *ProductRepositoryImpl) Search(
+	ctx context.Context,
 	query string,
 	filters map[string]interface{},
 	page, limit int,
@@ -183,7 +190,7 @@ func (r *ProductRepositoryImpl) Search(
 	var products []entity.Product
 	var total int64
 
-	dbQuery := r.db.Model(&entity.Product{})
+	dbQuery := db.DB(ctx).Model(&entity.Product{})
 
 	// Apply search query
 	if query != "" {
@@ -250,23 +257,24 @@ func (r *ProductRepositoryImpl) Search(
 }
 
 // SoftDelete soft deletes a product
-func (r *ProductRepositoryImpl) Delete(id uint) error {
-	return r.db.Model(&entity.Product{}).Delete("id = ?", id).Error
+func (r *ProductRepositoryImpl) Delete(ctx context.Context, id uint) error {
+	return db.DB(ctx).Model(&entity.Product{}).Delete("id = ?", id).Error
 }
 
 // UpdateStock updates product stock status
-func (r *ProductRepositoryImpl) UpdateStock(id uint, inStock bool) error {
-	return r.db.Model(&entity.Product{}).Where("id = ?", id).Update("in_stock", inStock).Error
+func (r *ProductRepositoryImpl) UpdateStock(ctx context.Context, id uint, inStock bool) error {
+	return db.DB(ctx).Model(&entity.Product{}).Where("id = ?", id).Update("in_stock", inStock).Error
 }
 
 // FindRelated finds related products in the same category
 func (r *ProductRepositoryImpl) FindRelated(
+	ctx context.Context,
 	categoryID, excludeProductID uint,
 	limit int,
 	sellerID *uint,
 ) ([]entity.Product, error) {
 	var products []entity.Product
-	query := r.db.Preload("Category").
+	query := db.DB(ctx).Preload("Category").
 		Where("category_id = ? AND id != ?", categoryID, excludeProductID)
 
 	// Apply seller filter if sellerID is provided (non-admin)
@@ -286,6 +294,7 @@ func (r *ProductRepositoryImpl) FindRelated(
 
 // FindRelatedScored finds related products using stored procedure with intelligent scoring
 func (r *ProductRepositoryImpl) FindRelatedScored(
+	ctx context.Context,
 	productID uint,
 	sellerID *uint,
 	limit int,
@@ -303,7 +312,7 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	}
 
 	// Call stored procedure for related products using query constants
-	err := r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
+	err := db.DB(ctx).Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
 		Scan(&results).
 		Error
 	if err != nil {
@@ -312,7 +321,7 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 
 	// Get total count for pagination
 	var totalCount int64
-	err = r.db.Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
+	err = db.DB(ctx).Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
 		Scan(&totalCount).
 		Error
 	if err != nil {
@@ -323,27 +332,28 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 }
 
 func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
+	ctx context.Context,
 	productID uint,
 ) ([]entity.PackageOption, error) {
 	var packageOptions []entity.PackageOption
-	result := r.db.Where("product_id = ?", productID).Find(&packageOptions)
+	result := db.DB(ctx).Where("product_id = ?", productID).Find(&packageOptions)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return packageOptions, nil
 }
 
-func (r *ProductRepositoryImpl) CreatePackageOptions(options []entity.PackageOption) error {
-	return r.db.Create(options).Error
+func (r *ProductRepositoryImpl) CreatePackageOptions(ctx context.Context, options []entity.PackageOption) error {
+	return db.DB(ctx).Create(options).Error
 }
 
-func (r *ProductRepositoryImpl) UpdatePackageOptions(options []entity.PackageOption) error {
-	return r.db.Save(options).Error
+func (r *ProductRepositoryImpl) UpdatePackageOptions(ctx context.Context, options []entity.PackageOption) error {
+	return db.DB(ctx).Save(options).Error
 }
 
 // GetProductFilters fetches all filter data in optimized queries including variant-based filters
 // Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
-func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
+func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID *uint) (
 	[]mapper.BrandWithProductCount,
 	[]mapper.CategoryWithProductCount,
 	[]mapper.AttributeWithProductCount,
@@ -359,7 +369,7 @@ func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
 	var variantOptions []mapper.VariantOptionData
 	var stockStatus mapper.StockStatusData
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		// Brands query with optional seller filter
 		if sellerID != nil {
 			// Multi-tenant: Filter by seller_id
@@ -472,6 +482,6 @@ func (r *ProductRepositoryImpl) GetProductFilters(sellerID *uint) (
  ***********************************************/
 
 // DeletePackageOptionsByProductID deletes all package options for a given product
-func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(productID uint) error {
-	return r.db.Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
+func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(ctx context.Context, productID uint) error {
+	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
 }

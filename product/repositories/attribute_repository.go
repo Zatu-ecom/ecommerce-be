@@ -1,8 +1,10 @@
 package repositories
 
 import (
+	"context"
 	"errors"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/utils"
 
@@ -11,22 +13,22 @@ import (
 
 // AttributeDefinitionRepository defines the interface for attribute definition data operations
 type AttributeDefinitionRepository interface {
-	Create(attribute *entity.AttributeDefinition) error
-	CreateBulk(attributes []*entity.AttributeDefinition) error
-	FindByID(id uint) (*entity.AttributeDefinition, error)
-	FindByKey(key string) (*entity.AttributeDefinition, error)
-	FindByKeys(keys []string) (map[string]*entity.AttributeDefinition, error)
-	FindAll() ([]entity.AttributeDefinition, error)
-	Update(attribute *entity.AttributeDefinition) error
-	UpdateBulk(attributes []*entity.AttributeDefinition) error
-	Delete(id uint) error
-	CreateCategoryAttributeDefinition(attribute *entity.AttributeDefinition, categoryID uint) error
-	CreateProductAttribute(attribute *entity.ProductAttribute) error
-	CreateProductAttributesBulk(attributes []*entity.ProductAttribute) error
-	FindProductAttributeByProductID(productID uint) ([]entity.ProductAttribute, error)
+	Create(ctx context.Context, attribute *entity.AttributeDefinition) error
+	CreateBulk(ctx context.Context, attributes []*entity.AttributeDefinition) error
+	FindByID(ctx context.Context, id uint) (*entity.AttributeDefinition, error)
+	FindByKey(ctx context.Context, key string) (*entity.AttributeDefinition, error)
+	FindByKeys(ctx context.Context, keys []string) (map[string]*entity.AttributeDefinition, error)
+	FindAll(ctx context.Context) ([]entity.AttributeDefinition, error)
+	Update(ctx context.Context, attribute *entity.AttributeDefinition) error
+	UpdateBulk(ctx context.Context, attributes []*entity.AttributeDefinition) error
+	Delete(ctx context.Context, id uint) error
+	CreateCategoryAttributeDefinition(ctx context.Context, attribute *entity.AttributeDefinition, categoryID uint) error
+	CreateProductAttribute(ctx context.Context, attribute *entity.ProductAttribute) error
+	CreateProductAttributesBulk(ctx context.Context, attributes []*entity.ProductAttribute) error
+	FindProductAttributeByProductID(ctx context.Context, productID uint) ([]entity.ProductAttribute, error)
 
 	// Bulk deletion methods for product cleanup
-	DeleteProductAttributesByProductID(productID uint) error
+	DeleteProductAttributesByProductID(ctx context.Context, productID uint) error
 }
 
 // AttributeDefinitionRepositoryImpl implements the AttributeDefinitionRepository interface
@@ -42,24 +44,25 @@ func NewAttributeDefinitionRepository(db *gorm.DB) AttributeDefinitionRepository
 }
 
 // Create creates a new attribute definition in the database
-func (r *AttributeDefinitionRepositoryImpl) Create(attribute *entity.AttributeDefinition) error {
-	return r.db.Create(attribute).Error
+func (r *AttributeDefinitionRepositoryImpl) Create(ctx context.Context, attribute *entity.AttributeDefinition) error {
+	return db.DB(ctx).Create(attribute).Error
 }
 
 // CreateBulk creates multiple attribute definitions in a single transaction
 func (r *AttributeDefinitionRepositoryImpl) CreateBulk(
+	ctx context.Context,
 	attributes []*entity.AttributeDefinition,
 ) error {
 	if len(attributes) == 0 {
 		return nil
 	}
-	return r.db.CreateInBatches(attributes, 100).Error
+	return db.DB(ctx).CreateInBatches(attributes, 100).Error
 }
 
 // FindByID finds an attribute definition by ID
-func (r *AttributeDefinitionRepositoryImpl) FindByID(id uint) (*entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.AttributeDefinition, error) {
 	var attribute entity.AttributeDefinition
-	result := r.db.First(&attribute, id)
+	result := db.DB(ctx).First(&attribute, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(utils.ATTRIBUTE_DEFINITION_NOT_FOUND_MSG)
@@ -71,10 +74,11 @@ func (r *AttributeDefinitionRepositoryImpl) FindByID(id uint) (*entity.Attribute
 
 // FindByKey finds an attribute definition by key
 func (r *AttributeDefinitionRepositoryImpl) FindByKey(
+	ctx context.Context,
 	key string,
 ) (*entity.AttributeDefinition, error) {
 	var attribute entity.AttributeDefinition
-	result := r.db.Where("key = ?", key).First(&attribute)
+	result := db.DB(ctx).Where("key = ?", key).First(&attribute)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -86,6 +90,7 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKey(
 
 // FindByKeys finds multiple attribute definitions by keys in a single query
 func (r *AttributeDefinitionRepositoryImpl) FindByKeys(
+	ctx context.Context,
 	keys []string,
 ) (map[string]*entity.AttributeDefinition, error) {
 	if len(keys) == 0 {
@@ -93,7 +98,7 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKeys(
 	}
 
 	var attributes []entity.AttributeDefinition
-	result := r.db.Where("key IN ?", keys).Find(&attributes)
+	result := db.DB(ctx).Where("key IN ?", keys).Find(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -108,9 +113,9 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKeys(
 }
 
 // FindAll finds all active attribute definitions
-func (r *AttributeDefinitionRepositoryImpl) FindAll() ([]entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindAll(ctx context.Context) ([]entity.AttributeDefinition, error) {
 	var attributes []entity.AttributeDefinition
-	result := r.db.Order("name ASC").Find(&attributes)
+	result := db.DB(ctx).Order("name ASC").Find(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -118,81 +123,82 @@ func (r *AttributeDefinitionRepositoryImpl) FindAll() ([]entity.AttributeDefinit
 }
 
 // Update updates an existing attribute definition
-func (r *AttributeDefinitionRepositoryImpl) Update(attribute *entity.AttributeDefinition) error {
-	return r.db.Save(attribute).Error
+func (r *AttributeDefinitionRepositoryImpl) Update(ctx context.Context, attribute *entity.AttributeDefinition) error {
+	return db.DB(ctx).Save(attribute).Error
 }
 
 // UpdateBulk updates multiple attribute definitions in a single transaction
 func (r *AttributeDefinitionRepositoryImpl) UpdateBulk(
+	ctx context.Context,
 	attributes []*entity.AttributeDefinition,
 ) error {
 	if len(attributes) == 0 {
 		return nil
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, attribute := range attributes {
-			if err := tx.Save(attribute).Error; err != nil {
-				return err
-			}
+	// Use context-based transaction if available, otherwise use db.DB(ctx)
+	gormDB := db.DB(ctx)
+	for _, attribute := range attributes {
+		if err := gormDB.Save(attribute).Error; err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // Delete soft deletes an attribute definition by setting isActive to false
-func (r *AttributeDefinitionRepositoryImpl) Delete(id uint) error {
-	return r.db.Model(&entity.AttributeDefinition{}).Delete("id = ?", id).Error
+func (r *AttributeDefinitionRepositoryImpl) Delete(ctx context.Context, id uint) error {
+	return db.DB(ctx).Model(&entity.AttributeDefinition{}).Delete("id = ?", id).Error
 }
 
 func (s *AttributeDefinitionRepositoryImpl) CreateCategoryAttributeDefinition(
+	ctx context.Context,
 	attribute *entity.AttributeDefinition,
 	categoryID uint,
 ) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Step 1: Create the new attribute definition.
-		// GORM will automatically populate the 'ID' field of the 'attribute' object upon successful creation.
-		if err := tx.Create(attribute).Error; err != nil {
-			// If creation fails, rollback the transaction.
-			return err
-		}
+	gormDB := db.DB(ctx)
+	// Step 1: Create the new attribute definition.
+	// GORM will automatically populate the 'ID' field of the 'attribute' object upon successful creation.
+	if err := gormDB.Create(attribute).Error; err != nil {
+		return err
+	}
 
-		// Step 2: Create the association in the join table (category_attributes).
-		categoryAttribute := entity.CategoryAttribute{
-			CategoryID:            categoryID,
-			AttributeDefinitionID: attribute.ID,
-		}
+	// Step 2: Create the association in the join table (category_attributes).
+	categoryAttribute := entity.CategoryAttribute{
+		CategoryID:            categoryID,
+		AttributeDefinitionID: attribute.ID,
+	}
 
-		if err := tx.Create(&categoryAttribute).Error; err != nil {
-			// If association fails, rollback the transaction.
-			return err
-		}
+	if err := gormDB.Create(&categoryAttribute).Error; err != nil {
+		return err
+	}
 
-		// If both operations succeed, the transaction will be committed.
-		return nil
-	})
+	return nil
 }
 
 func (r *AttributeDefinitionRepositoryImpl) CreateProductAttribute(
+	ctx context.Context,
 	attribute *entity.ProductAttribute,
 ) error {
-	return r.db.Create(attribute).Error
+	return db.DB(ctx).Create(attribute).Error
 }
 
 // CreateProductAttributesBulk creates multiple product attributes in a single transaction
 func (r *AttributeDefinitionRepositoryImpl) CreateProductAttributesBulk(
+	ctx context.Context,
 	attributes []*entity.ProductAttribute,
 ) error {
 	if len(attributes) == 0 {
 		return nil
 	}
-	return r.db.CreateInBatches(attributes, 100).Error
+	return db.DB(ctx).CreateInBatches(attributes, 100).Error
 }
 
 func (r *AttributeDefinitionRepositoryImpl) FindProductAttributeByProductID(
+	ctx context.Context,
 	productID uint,
 ) ([]entity.ProductAttribute, error) {
 	var attributes []entity.ProductAttribute
-	result := r.db.Preload("AttributeDefinition").
+	result := db.DB(ctx).Preload("AttributeDefinition").
 		Where("product_id = ?", productID).
 		Order("sort_order ASC").
 		Find(&attributes)
@@ -208,7 +214,8 @@ func (r *AttributeDefinitionRepositoryImpl) FindProductAttributeByProductID(
 
 // DeleteProductAttributesByProductID deletes all product attributes for a given product
 func (r *AttributeDefinitionRepositoryImpl) DeleteProductAttributesByProductID(
+	ctx context.Context,
 	productID uint,
 ) error {
-	return r.db.Where("product_id = ?", productID).Delete(&entity.ProductAttribute{}).Error
+	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.ProductAttribute{}).Error
 }
