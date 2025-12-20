@@ -76,10 +76,11 @@ func (h *BulkInventoryHelper) ExtractUniqueVariantIDs(items []model.ManageInvent
 
 // BatchValidateLocations validates multiple locations and returns full location details
 func (h *BulkInventoryHelper) BatchValidateLocations(
+	ctx context.Context,
 	locationIDs []uint,
 	sellerID uint,
 ) (map[uint]*entity.Location, error) {
-	locations, err := h.locationRepo.FindByIDs(locationIDs, sellerID)
+	locations, err := h.locationRepo.FindByIDs(ctx, locationIDs, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,10 +94,11 @@ func (h *BulkInventoryHelper) BatchValidateLocations(
 
 // BatchGetInventories fetches existing inventory records in a single query
 func (h *BulkInventoryHelper) BatchGetInventories(
+	ctx context.Context,
 	variantIDs []uint,
 	locationIDs []uint,
 ) (map[string]*entity.Inventory, error) {
-	inventories, err := h.inventoryRepo.FindByVariantAndLocationBatch(variantIDs, locationIDs)
+	inventories, err := h.inventoryRepo.FindByVariantAndLocationBatch(ctx, variantIDs, locationIDs)
 	if err != nil {
 		return nil, err
 	}

@@ -76,7 +76,7 @@ func (s *InventorySummaryServiceImpl) GetLocationsSummary(
 	}
 
 	// 3. Batch fetch inventory summaries for all locations (single query)
-	inventorySummaries, err := s.inventoryRepo.GetLocationInventorySummaryBatch(locationIDs)
+	inventorySummaries, err := s.inventoryRepo.GetLocationInventorySummaryBatch(c, locationIDs)
 	if err != nil {
 		return nil, err
 	}

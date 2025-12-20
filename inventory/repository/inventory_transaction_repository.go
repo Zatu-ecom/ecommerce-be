@@ -1,54 +1,56 @@
 package repository
 
 import (
+	"context"
+
+	"ecommerce-be/common/db"
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/model"
-
-	"gorm.io/gorm"
 )
 
 // InventoryTransactionRepository defines the interface for inventory transaction operations
 type InventoryTransactionRepository interface {
-	Create(transaction *entity.InventoryTransaction) error
-	CreateBatch(transactions []*entity.InventoryTransaction) error
-	FindByInventoryID(inventoryID uint) ([]entity.InventoryTransaction, error)
-	FindByReferenceID(referenceID string) ([]entity.InventoryTransaction, error)
-	FindByFilter(filter model.ListTransactionsFilter) ([]entity.InventoryTransaction, int64, error)
+	Create(ctx context.Context, transaction *entity.InventoryTransaction) error
+	CreateBatch(ctx context.Context, transactions []*entity.InventoryTransaction) error
+	FindByInventoryID(ctx context.Context, inventoryID uint) ([]entity.InventoryTransaction, error)
+	FindByReferenceID(ctx context.Context, referenceID string) ([]entity.InventoryTransaction, error)
+	FindByFilter(ctx context.Context, filter model.ListTransactionsFilter) ([]entity.InventoryTransaction, int64, error)
 }
 
 // InventoryTransactionRepositoryImpl implements the InventoryTransactionRepository interface
-type InventoryTransactionRepositoryImpl struct {
-	db *gorm.DB
-}
+type InventoryTransactionRepositoryImpl struct{}
 
 // NewInventoryTransactionRepository creates a new instance of InventoryTransactionRepository
-func NewInventoryTransactionRepository(db *gorm.DB) InventoryTransactionRepository {
-	return &InventoryTransactionRepositoryImpl{db: db}
+func NewInventoryTransactionRepository() InventoryTransactionRepository {
+	return &InventoryTransactionRepositoryImpl{}
 }
 
 // Create creates a new inventory transaction record
 func (r *InventoryTransactionRepositoryImpl) Create(
+	ctx context.Context,
 	transaction *entity.InventoryTransaction,
 ) error {
-	return r.db.Create(transaction).Error
+	return db.DB(ctx).Create(transaction).Error
 }
 
 // CreateBatch creates multiple inventory transaction records in a single query
 func (r *InventoryTransactionRepositoryImpl) CreateBatch(
+	ctx context.Context,
 	transactions []*entity.InventoryTransaction,
 ) error {
 	if len(transactions) == 0 {
 		return nil
 	}
-	return r.db.Create(transactions).Error
+	return db.DB(ctx).Create(transactions).Error
 }
 
 // FindByInventoryID finds all transactions for a specific inventory
 func (r *InventoryTransactionRepositoryImpl) FindByInventoryID(
+	ctx context.Context,
 	inventoryID uint,
 ) ([]entity.InventoryTransaction, error) {
 	var transactions []entity.InventoryTransaction
-	result := r.db.Where("inventory_id = ?", inventoryID).
+	result := db.DB(ctx).Where("inventory_id = ?", inventoryID).
 		Order("created_at DESC").
 		Find(&transactions)
 
@@ -60,10 +62,11 @@ func (r *InventoryTransactionRepositoryImpl) FindByInventoryID(
 
 // FindByReferenceID finds all transactions with a specific reference ID
 func (r *InventoryTransactionRepositoryImpl) FindByReferenceID(
+	ctx context.Context,
 	referenceID string,
 ) ([]entity.InventoryTransaction, error) {
 	var transactions []entity.InventoryTransaction
-	result := r.db.Where("reference_id = ?", referenceID).
+	result := db.DB(ctx).Where("reference_id = ?", referenceID).
 		Order("created_at DESC").
 		Find(&transactions)
 
@@ -75,12 +78,13 @@ func (r *InventoryTransactionRepositoryImpl) FindByReferenceID(
 
 // FindByFilter finds transactions based on filter criteria with pagination
 func (r *InventoryTransactionRepositoryImpl) FindByFilter(
+	ctx context.Context,
 	filter model.ListTransactionsFilter,
 ) ([]entity.InventoryTransaction, int64, error) {
 	var transactions []entity.InventoryTransaction
 	var total int64
 
-	query := r.db.Model(&entity.InventoryTransaction{})
+	query := db.DB(ctx).Model(&entity.InventoryTransaction{})
 
 	// Join with inventory table to filter by variant/location and for seller isolation
 	query = query.Joins("JOIN inventory ON inventory.id = inventory_transaction.inventory_id")

@@ -34,7 +34,7 @@ func (s *InventoryQueryServiceImpl) GetInventoryByVariant(
 	variantID uint,
 	sellerID uint,
 ) ([]model.InventoryDetailResponse, error) {
-	inventories, err := s.inventoryRepo.FindByVariantID(variantID)
+	inventories, err := s.inventoryRepo.FindByVariantID(ctx, variantID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (s *InventoryQueryServiceImpl) GetInventoryByVariant(
 	// Filter by seller's locations
 	var responses []model.InventoryDetailResponse
 	for _, inv := range inventories {
-		location, err := s.locationRepo.FindByID(inv.LocationID, sellerID)
+		location, err := s.locationRepo.FindByID(ctx, inv.LocationID, sellerID)
 		if err != nil {
 			continue // Skip if location doesn't belong to seller
 		}
@@ -64,11 +64,11 @@ func (s *InventoryQueryServiceImpl) GetInventoryByLocation(
 	sellerID uint,
 ) ([]model.InventoryResponse, error) {
 	// Validate location belongs to seller
-	if err := s.validateLocation(locationID, sellerID); err != nil {
+	if err := s.validateLocation(ctx, locationID, sellerID); err != nil {
 		return nil, err
 	}
 
-	inventories, err := s.inventoryRepo.FindByLocationID(locationID)
+	inventories, err := s.inventoryRepo.FindByLocationID(ctx, locationID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (s *InventoryQueryServiceImpl) GetInventories(
 	// Get location IDs for seller filtering
 	if sellerID != nil && len(filter.LocationIDs) == 0 {
 		// Get all seller's locations if not specified
-		locations, err := s.locationRepo.FindAll(*sellerID, model.LocationsFilter{})
+		locations, err := s.locationRepo.FindAll(ctx, *sellerID, model.LocationsFilter{})
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +101,7 @@ func (s *InventoryQueryServiceImpl) GetInventories(
 		}
 	}
 
-	inventories, total, err := s.inventoryRepo.FindWithFilters(filter)
+	inventories, total, err := s.inventoryRepo.FindWithFilters(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +130,12 @@ func (s *InventoryQueryServiceImpl) GetInventoryByVariantAndLocationPriority(
 
 	variantIDs, requestedQty := s.extractVariantRequests(items)
 
-	locationIDs, err := s.getActiveLocationIDs(sellerID)
+	locationIDs, err := s.getActiveLocationIDs(ctx, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
-	inventories, err := s.inventoryRepo.FindByVariantAndLocationBatch(variantIDs, locationIDs)
+	inventories, err := s.inventoryRepo.FindByVariantAndLocationBatch(ctx, variantIDs, locationIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +159,8 @@ func (s *InventoryQueryServiceImpl) extractVariantRequests(
 }
 
 // getActiveLocationIDs retrieves active location IDs sorted by priority
-func (s *InventoryQueryServiceImpl) getActiveLocationIDs(sellerID uint) ([]uint, error) {
-	locations, err := s.locationRepo.FindActiveByPriority(sellerID)
+func (s *InventoryQueryServiceImpl) getActiveLocationIDs(ctx context.Context, sellerID uint) ([]uint, error) {
+	locations, err := s.locationRepo.FindActiveByPriority(ctx, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -267,8 +267,8 @@ func (s *InventoryQueryServiceImpl) allocateForVariant(
 	return responses, nil
 }
 
-func (s *InventoryQueryServiceImpl) validateLocation(locationID uint, sellerID uint) error {
-	location, err := s.locationRepo.FindByID(locationID, sellerID)
+func (s *InventoryQueryServiceImpl) validateLocation(ctx context.Context, locationID uint, sellerID uint) error {
+	location, err := s.locationRepo.FindByID(ctx, locationID, sellerID)
 	if err != nil {
 		return err
 	}

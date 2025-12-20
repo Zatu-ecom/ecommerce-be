@@ -76,7 +76,7 @@ func (s *ProductInventorySummaryServiceImpl) GetProductsAtLocation(
 	}
 
 	// 2. Fetch variant inventories at location
-	variantInventories, err := s.inventoryRepo.GetVariantInventoriesAtLocation(locationID)
+	variantInventories, err := s.inventoryRepo.GetVariantInventoriesAtLocation(ctx, locationID)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (s *ProductInventorySummaryServiceImpl) GetVariantInventoryAtLocation(
 	productName, baseSKU, categoryID := extractProductInfo(productInfoRows)
 
 	// 4. Get inventory with appropriate sorting
-	variantInventories, err := s.getInventoriesWithSort(locationID, variantIDs, filter)
+	variantInventories, err := s.getInventoriesWithSort(ctx, locationID, variantIDs, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -186,17 +186,18 @@ func (s *ProductInventorySummaryServiceImpl) GetVariantInventoryAtLocation(
 
 // getInventoriesWithSort fetches inventories with DB or in-memory sorting based on sort field
 func (s *ProductInventorySummaryServiceImpl) getInventoriesWithSort(
+	ctx context.Context,
 	locationID uint,
 	variantIDs []uint,
 	filter model.VariantInventoryFilter,
 ) ([]mapper.VariantInventoryRow, error) {
 	if inventorySortFields[filter.SortBy] {
 		return s.inventoryRepo.GetVariantInventoriesAtLocationWithSort(
-			locationID, variantIDs, filter.SortBy, filter.SortOrder,
+			ctx, locationID, variantIDs, filter.SortBy, filter.SortOrder,
 		)
 	}
 	return s.inventoryRepo.GetVariantInventoriesAtLocationWithSort(
-		locationID, variantIDs, "", "",
+		ctx, locationID, variantIDs, "", "",
 	)
 }
 

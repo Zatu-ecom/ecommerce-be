@@ -3,19 +3,18 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/common/db"
 	"ecommerce-be/inventory/repository"
 )
 
 // RepositoryFactory manages all repository singleton instances
-// Note: DB is fetched dynamically via db.GetDB() to support test scenarios
-// where database connections change between test runs
+// Note: Repositories now use context-based DB access via db.DB(ctx)
+// No need to pass DB connection anymore
 type RepositoryFactory struct {
-	locationRepository               repository.LocationRepository
-	inventoryRepository              repository.InventoryRepository
-	inventoryTransactionRepository   repository.InventoryTransactionRepository
-	inventoryReservationRepository   repository.InventoryReservationRepository
-	once                             sync.Once
+	locationRepository             repository.LocationRepository
+	inventoryRepository            repository.InventoryRepository
+	inventoryTransactionRepository repository.InventoryTransactionRepository
+	inventoryReservationRepository repository.InventoryReservationRepository
+	once                           sync.Once
 }
 
 // NewRepositoryFactory creates a new repository factory
@@ -24,14 +23,13 @@ func NewRepositoryFactory() *RepositoryFactory {
 }
 
 // initialize creates all repository instances (lazy loading)
-// Uses db.GetDB() to fetch current database connection dynamically
+// Repositories use db.DB(ctx) internally to get DB connection from context
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
-		currentDB := db.GetDB()
-		f.locationRepository = repository.NewLocationRepository(currentDB)
-		f.inventoryRepository = repository.NewInventoryRepository(currentDB)
-		f.inventoryTransactionRepository = repository.NewInventoryTransactionRepository(currentDB)
-		f.inventoryReservationRepository = repository.NewInventoryReservationRepository(currentDB)
+		f.locationRepository = repository.NewLocationRepository()
+		f.inventoryRepository = repository.NewInventoryRepository()
+		f.inventoryTransactionRepository = repository.NewInventoryTransactionRepository()
+		f.inventoryReservationRepository = repository.NewInventoryReservationRepository()
 	})
 }
 

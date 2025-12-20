@@ -84,7 +84,7 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 	expiresAt := time.Now().Add(time.Duration(req.ExpiresInMinutes) * time.Minute)
 	reservationEntities := s.buildreservationEntities(req, inventories, expiresAt)
 
-	if err = s.reservationRepo.CreateReservations(reservationEntities); err != nil {
+	if err = s.reservationRepo.CreateReservations(ctx, reservationEntities); err != nil {
 		return nil, err
 	}
 
@@ -111,11 +111,11 @@ func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
 	sellerId uint,
 	reservationExpiry model.ReservationExpiryPayload,
 ) error {
-	if err := s.reservationRepo.UpdateStatusByIDs(reservationExpiry.ReservationIDs, entity.ResExpired); err != nil {
+	if err := s.reservationRepo.UpdateStatusByIDs(ctx, reservationExpiry.ReservationIDs, entity.ResExpired); err != nil {
 		return err
 	}
 
-	inventoryReservations, err := s.reservationRepo.FindByIDs(reservationExpiry.ReservationIDs)
+	inventoryReservations, err := s.reservationRepo.FindByIDs(ctx, reservationExpiry.ReservationIDs)
 	if err != nil {
 		return err
 	}

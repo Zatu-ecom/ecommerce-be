@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/mapper"
@@ -13,25 +15,27 @@ import (
 
 // InventoryRepository defines the interface for inventory-related database operations
 type InventoryRepository interface {
-	FindByVariantAndLocation(variantID uint, locationID uint) (*entity.Inventory, error)
-	FindByVariantAndLocationBatch(variantIDs []uint, locationIDs []uint) ([]entity.Inventory, error)
-	FindByIDs(ids []uint) ([]entity.Inventory, error)
-	Create(inventory *entity.Inventory) error
-	CreateBatch(inventories []*entity.Inventory) error
-	Update(inventory *entity.Inventory) error
-	UpdateBatch(inventories []*entity.Inventory) error
-	FindByVariantID(variantID uint) ([]entity.Inventory, error)
-	FindByLocationID(locationID uint) ([]entity.Inventory, error)
-	Exists(variantID uint, locationID uint) (bool, error)
-	GetLocationInventorySummary(locationID uint) (*mapper.LocationInventorySummaryAggregate, error)
+	FindByVariantAndLocation(ctx context.Context, variantID uint, locationID uint) (*entity.Inventory, error)
+	FindByVariantAndLocationBatch(ctx context.Context, variantIDs []uint, locationIDs []uint) ([]entity.Inventory, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]entity.Inventory, error)
+	Create(ctx context.Context, inventory *entity.Inventory) error
+	CreateBatch(ctx context.Context, inventories []*entity.Inventory) error
+	Update(ctx context.Context, inventory *entity.Inventory) error
+	UpdateBatch(ctx context.Context, inventories []*entity.Inventory) error
+	FindByVariantID(ctx context.Context, variantID uint) ([]entity.Inventory, error)
+	FindByLocationID(ctx context.Context, locationID uint) ([]entity.Inventory, error)
+	Exists(ctx context.Context, variantID uint, locationID uint) (bool, error)
+	GetLocationInventorySummary(ctx context.Context, locationID uint) (*mapper.LocationInventorySummaryAggregate, error)
 	GetLocationInventorySummaryBatch(
+		ctx context.Context,
 		locationIDs []uint,
 	) (map[uint]*mapper.LocationInventorySummaryAggregate, error)
-	GetVariantInventoriesAtLocation(locationID uint) ([]mapper.VariantInventoryRow, error)
+	GetVariantInventoriesAtLocation(ctx context.Context, locationID uint) ([]mapper.VariantInventoryRow, error)
 	// GetVariantInventoriesAtLocationWithSort retrieves variant inventories with sorting
 	// sortBy: quantity, reserved_quantity, threshold, available_quantity (computed)
 	// sortOrder: asc, desc
 	GetVariantInventoriesAtLocationWithSort(
+		ctx context.Context,
 		locationID uint,
 		variantIDs []uint,
 		sortBy string,
@@ -39,28 +43,27 @@ type InventoryRepository interface {
 	) ([]mapper.VariantInventoryRow, error)
 	// IncrementReservedQuantity atomically increments/decrements reserved_quantity
 	// Use negative delta to release reserved stock
-	IncrementReservedQuantity(inventoryID uint, delta int) error
+	IncrementReservedQuantity(ctx context.Context, inventoryID uint, delta int) error
 	// FindWithFilters retrieves inventories with filters, pagination and sorting
-	FindWithFilters(filter model.GetInventoriesFilter) ([]entity.Inventory, int64, error)
+	FindWithFilters(ctx context.Context, filter model.GetInventoriesFilter) ([]entity.Inventory, int64, error)
 }
 
 // InventoryRepositoryImpl implements the InventoryRepository interface
-type InventoryRepositoryImpl struct {
-	db *gorm.DB
-}
+type InventoryRepositoryImpl struct{}
 
 // NewInventoryRepository creates a new instance of InventoryRepository
-func NewInventoryRepository(db *gorm.DB) InventoryRepository {
-	return &InventoryRepositoryImpl{db: db}
+func NewInventoryRepository() InventoryRepository {
+	return &InventoryRepositoryImpl{}
 }
 
 // FindByVariantAndLocation finds inventory for a specific variant at a specific location
 func (r *InventoryRepositoryImpl) FindByVariantAndLocation(
+	ctx context.Context,
 	variantID uint,
 	locationID uint,
 ) (*entity.Inventory, error) {
 	var inventory entity.Inventory
-	result := r.db.Where("variant_id = ? AND location_id = ?", variantID, locationID).
+	result := db.DB(ctx).Where("variant_id = ? AND location_id = ?", variantID, locationID).
 		First(&inventory)
 
 	if result.Error != nil {
@@ -73,41 +76,35 @@ func (r *InventoryRepositoryImpl) FindByVariantAndLocation(
 }
 
 // Create creates a new inventory record
-func (r *InventoryRepositoryImpl) Create(inventory *entity.Inventory) error {
-	return r.db.Create(inventory).Error
+func (r *InventoryRepositoryImpl) Create(ctx context.Context, inventory *entity.Inventory) error {
+	return db.DB(ctx).Create(inventory).Error
 }
 
 // CreateBatch creates multiple inventory records in a single query
-func (r *InventoryRepositoryImpl) CreateBatch(inventories []*entity.Inventory) error {
+func (r *InventoryRepositoryImpl) CreateBatch(ctx context.Context, inventories []*entity.Inventory) error {
 	if len(inventories) == 0 {
 		return nil
 	}
-	return r.db.Create(inventories).Error
+	return db.DB(ctx).Create(inventories).Error
 }
 
 // Update updates an existing inventory record
-func (r *InventoryRepositoryImpl) Update(inventory *entity.Inventory) error {
-	return r.db.Save(inventory).Error
+func (r *InventoryRepositoryImpl) Update(ctx context.Context, inventory *entity.Inventory) error {
+	return db.DB(ctx).Save(inventory).Error
 }
 
 // UpdateBatch updates multiple inventory records in a single transaction
-func (r *InventoryRepositoryImpl) UpdateBatch(inventories []*entity.Inventory) error {
+func (r *InventoryRepositoryImpl) UpdateBatch(ctx context.Context, inventories []*entity.Inventory) error {
 	if len(inventories) == 0 {
 		return nil
 	}
-	// for _, inv := range inventories {
-	// 	if err := r.db.Save(inv).Error; err != nil {
-	// 		return err
-	// 	}
-	// }
-	// return nil
-	return r.db.Save(inventories).Error
+	return db.DB(ctx).Save(inventories).Error
 }
 
 // FindByVariantID finds all inventory records for a variant across all locations
-func (r *InventoryRepositoryImpl) FindByVariantID(variantID uint) ([]entity.Inventory, error) {
+func (r *InventoryRepositoryImpl) FindByVariantID(ctx context.Context, variantID uint) ([]entity.Inventory, error) {
 	var inventories []entity.Inventory
-	result := r.db.Where("variant_id = ?", variantID).Find(&inventories)
+	result := db.DB(ctx).Where("variant_id = ?", variantID).Find(&inventories)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -115,9 +112,9 @@ func (r *InventoryRepositoryImpl) FindByVariantID(variantID uint) ([]entity.Inve
 }
 
 // FindByLocationID finds all inventory records at a specific location
-func (r *InventoryRepositoryImpl) FindByLocationID(locationID uint) ([]entity.Inventory, error) {
+func (r *InventoryRepositoryImpl) FindByLocationID(ctx context.Context, locationID uint) ([]entity.Inventory, error) {
 	var inventories []entity.Inventory
-	result := r.db.Where("location_id = ?", locationID).Find(&inventories)
+	result := db.DB(ctx).Where("location_id = ?", locationID).Find(&inventories)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -126,6 +123,7 @@ func (r *InventoryRepositoryImpl) FindByLocationID(locationID uint) ([]entity.In
 
 // FindByVariantAndLocationBatch finds multiple inventory records in one query (bulk query - avoids N+1)
 func (r *InventoryRepositoryImpl) FindByVariantAndLocationBatch(
+	ctx context.Context,
 	variantIDs []uint,
 	locationIDs []uint,
 ) ([]entity.Inventory, error) {
@@ -134,7 +132,7 @@ func (r *InventoryRepositoryImpl) FindByVariantAndLocationBatch(
 		return inventories, nil
 	}
 
-	result := r.db.Where("variant_id IN ? AND location_id IN ?", variantIDs, locationIDs).
+	result := db.DB(ctx).Where("variant_id IN ? AND location_id IN ?", variantIDs, locationIDs).
 		Find(&inventories)
 	if result.Error != nil {
 		return nil, result.Error
@@ -143,9 +141,9 @@ func (r *InventoryRepositoryImpl) FindByVariantAndLocationBatch(
 }
 
 // Exists checks if inventory exists for a variant at a location
-func (r *InventoryRepositoryImpl) Exists(variantID uint, locationID uint) (bool, error) {
+func (r *InventoryRepositoryImpl) Exists(ctx context.Context, variantID uint, locationID uint) (bool, error) {
 	var count int64
-	result := r.db.Model(&entity.Inventory{}).
+	result := db.DB(ctx).Model(&entity.Inventory{}).
 		Where("variant_id = ? AND location_id = ?", variantID, locationID).
 		Count(&count)
 
@@ -156,13 +154,13 @@ func (r *InventoryRepositoryImpl) Exists(variantID uint, locationID uint) (bool,
 }
 
 // FindByIDs finds multiple inventory records by IDs (bulk query - avoids N+1)
-func (r *InventoryRepositoryImpl) FindByIDs(ids []uint) ([]entity.Inventory, error) {
+func (r *InventoryRepositoryImpl) FindByIDs(ctx context.Context, ids []uint) ([]entity.Inventory, error) {
 	var inventories []entity.Inventory
 	if len(ids) == 0 {
 		return inventories, nil
 	}
 
-	result := r.db.Where("id IN ?", ids).Find(&inventories)
+	result := db.DB(ctx).Where("id IN ?", ids).Find(&inventories)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -173,12 +171,13 @@ func (r *InventoryRepositoryImpl) FindByIDs(ids []uint) ([]entity.Inventory, err
 // Returns: LocationInventorySummaryAggregate with all metrics
 // Microservice-ready: Only queries inventory table, no product joins
 func (r *InventoryRepositoryImpl) GetLocationInventorySummary(
+	ctx context.Context,
 	locationID uint,
 ) (*mapper.LocationInventorySummaryAggregate, error) {
 	var result mapper.LocationInventorySummaryAggregate
 
 	// Single aggregation query - no N+1 problem
-	err := r.db.Model(&entity.Inventory{}).
+	err := db.DB(ctx).Model(&entity.Inventory{}).
 		Select(
 			"COUNT(DISTINCT variant_id) as variant_count",
 			"COALESCE(SUM(quantity), 0) as total_stock",
@@ -194,7 +193,7 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummary(
 	}
 
 	// Get distinct variant IDs for product count calculation
-	err = r.db.Model(&entity.Inventory{}).
+	err = db.DB(ctx).Model(&entity.Inventory{}).
 		Select("DISTINCT variant_id").
 		Where("location_id = ?", locationID).
 		Pluck("variant_id", &result.VariantIDs).
@@ -210,6 +209,7 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummary(
 // Efficient batch query - avoids N+1 problem by fetching all locations at once
 // Returns: map[locationID] -> LocationInventorySummaryAggregate
 func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
+	ctx context.Context,
 	locationIDs []uint,
 ) (map[uint]*mapper.LocationInventorySummaryAggregate, error) {
 	if len(locationIDs) == 0 {
@@ -227,7 +227,7 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
 	}
 
 	var results []AggregateResult
-	err := r.db.Model(&entity.Inventory{}).
+	err := db.DB(ctx).Model(&entity.Inventory{}).
 		Select(
 			"location_id",
 			"COUNT(DISTINCT variant_id) as variant_count",
@@ -251,7 +251,7 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
 	}
 
 	var variantResults []VariantIDResult
-	err = r.db.Model(&entity.Inventory{}).
+	err = db.DB(ctx).Model(&entity.Inventory{}).
 		Select("DISTINCT location_id, variant_id").
 		Where("location_id IN ?", locationIDs).
 		Scan(&variantResults).
@@ -298,11 +298,12 @@ func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
 // Returns flat list of variant inventory data for aggregation by product
 // Microservice-ready: Only queries inventory table, no product joins
 func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocation(
+	ctx context.Context,
 	locationID uint,
 ) ([]mapper.VariantInventoryRow, error) {
 	var results []mapper.VariantInventoryRow
 
-	err := r.db.Model(&entity.Inventory{}).
+	err := db.DB(ctx).Model(&entity.Inventory{}).
 		Select(
 			"variant_id",
 			"quantity",
@@ -327,6 +328,7 @@ func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocation(
 
 // GetVariantInventoriesAtLocationWithSort retrieves variant inventories with DB-side sorting
 func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
+	ctx context.Context,
 	locationID uint,
 	variantIDs []uint,
 	sortBy string,
@@ -353,7 +355,7 @@ func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
 		sortOrder = "asc"
 	}
 
-	query := r.db.Model(&entity.Inventory{}).
+	query := db.DB(ctx).Model(&entity.Inventory{}).
 		Select(
 			"variant_id",
 			"quantity",
@@ -385,20 +387,21 @@ func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
 
 // IncrementReservedQuantity atomically increments/decrements reserved_quantity
 // Use negative delta to release reserved stock
-func (r *InventoryRepositoryImpl) IncrementReservedQuantity(inventoryID uint, delta int) error {
-	return r.db.Model(&entity.Inventory{}).
+func (r *InventoryRepositoryImpl) IncrementReservedQuantity(ctx context.Context, inventoryID uint, delta int) error {
+	return db.DB(ctx).Model(&entity.Inventory{}).
 		Where("id = ?", inventoryID).
 		Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta)).Error
 }
 
 // FindWithFilters retrieves inventories with filters, pagination and sorting
 func (r *InventoryRepositoryImpl) FindWithFilters(
+	ctx context.Context,
 	filter model.GetInventoriesFilter,
 ) ([]entity.Inventory, int64, error) {
 	var inventories []entity.Inventory
 	var total int64
 
-	query := r.db.Model(&entity.Inventory{})
+	query := db.DB(ctx).Model(&entity.Inventory{})
 
 	// Filter by inventory IDs
 	if len(filter.IDs) > 0 {
@@ -456,3 +459,4 @@ func (r *InventoryRepositoryImpl) FindWithFilters(
 
 	return inventories, total, nil
 }
+

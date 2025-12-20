@@ -13,33 +13,31 @@ import (
 	"ecommerce-be/inventory/validator"
 	userModel "ecommerce-be/user/model"
 	userService "ecommerce-be/user/service"
-
-	"gorm.io/gorm"
 )
 
 // LocationService defines the interface for location-related business logic
 type LocationService interface {
 	CreateLocation(
-		c context.Context,
+		ctx context.Context,
 		req model.LocationCreateRequest,
 		sellerID uint,
 	) (*model.LocationResponse, error)
 	UpdateLocation(
-		c context.Context,
+		ctx context.Context,
 		id uint,
 		req model.LocationUpdateRequest,
 		sellerID uint,
 	) (*model.LocationResponse, error)
 	GetLocationByID(
-		c context.Context,
+		ctx context.Context,
 		id uint,
 		sellerID uint) (*model.LocationResponse, error)
 	GetAllLocations(
-		c context.Context,
+		ctx context.Context,
 		sellerID uint,
 		filter model.LocationsFilter,
 	) (*model.LocationsResponse, error)
-	DeleteLocation(c context.Context, id uint, sellerID uint) error
+	DeleteLocation(ctx context.Context, id uint, sellerID uint) error
 }
 
 // LocationServiceImpl implements the LocationService interface
@@ -61,17 +59,17 @@ func NewLocationService(
 
 // CreateLocation creates a new location with address
 func (s *LocationServiceImpl) CreateLocation(
-	c context.Context,
+	ctx context.Context,
 	req model.LocationCreateRequest,
 	sellerID uint,
 ) (*model.LocationResponse, error) {
 	// Validate location type and unique name
-	if err := s.validateLocationCreate(req, sellerID); err != nil {
+	if err := s.validateLocationCreate(ctx, req, sellerID); err != nil {
 		return nil, err
 	}
 
 	var response *model.LocationResponse
-	err := db.Atomic(func(tx *gorm.DB) error {
+	err := db.WithTransaction(ctx, func(txCtx context.Context) error {
 		// Create address
 		address, err := s.createAddress(sellerID, req.Address)
 		if err != nil {
@@ -82,7 +80,7 @@ func (s *LocationServiceImpl) CreateLocation(
 		locationEntity := factory.BuildLocationEntity(req, sellerID)
 		locationEntity.AddressID = address.ID
 
-		if err := s.locationRepo.Create(locationEntity); err != nil {
+		if err := s.locationRepo.Create(txCtx, locationEntity); err != nil {
 			return err
 		}
 
@@ -96,27 +94,27 @@ func (s *LocationServiceImpl) CreateLocation(
 
 // UpdateLocation updates an existing location
 func (s *LocationServiceImpl) UpdateLocation(
-	c context.Context,
+	ctx context.Context,
 	id uint,
 	req model.LocationUpdateRequest,
 	sellerID uint,
 ) (*model.LocationResponse, error) {
 	// Find and validate existing location
-	location, err := s.locationRepo.FindByID(id, sellerID)
+	location, err := s.locationRepo.FindByID(ctx, id, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate name uniqueness if being updated
-	if err := s.validateLocationUpdate(req, location, sellerID, id); err != nil {
+	if err := s.validateLocationUpdate(ctx, req, location, sellerID, id); err != nil {
 		return nil, err
 	}
 
 	var response *model.LocationResponse
-	err = db.Atomic(func(tx *gorm.DB) error {
+	err = db.WithTransaction(ctx, func(txCtx context.Context) error {
 		// Update location entity
 		factory.BuildUpdateLocationEntity(location, req)
-		if err := s.locationRepo.Update(location); err != nil {
+		if err := s.locationRepo.Update(txCtx, location); err != nil {
 			return err
 		}
 
@@ -136,11 +134,11 @@ func (s *LocationServiceImpl) UpdateLocation(
 
 // GetLocationByID retrieves a location by ID
 func (s *LocationServiceImpl) GetLocationByID(
-	c context.Context,
+	ctx context.Context,
 	id uint,
 	sellerID uint,
 ) (*model.LocationResponse, error) {
-	location, err := s.locationRepo.FindByID(id, sellerID)
+	location, err := s.locationRepo.FindByID(ctx, id, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +167,7 @@ func (s *LocationServiceImpl) GetLocationByID(
 
 // GetAllLocations retrieves all locations for a seller with pagination
 func (s *LocationServiceImpl) GetAllLocations(
-	c context.Context,
+	ctx context.Context,
 	sellerID uint,
 	filter model.LocationsFilter,
 ) (*model.LocationsResponse, error) {
@@ -177,7 +175,7 @@ func (s *LocationServiceImpl) GetAllLocations(
 	filter.SetDefaults()
 
 	// Get total count for pagination
-	totalCount, err := s.locationRepo.CountAll(sellerID, filter)
+	totalCount, err := s.locationRepo.CountAll(ctx, sellerID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +188,7 @@ func (s *LocationServiceImpl) GetAllLocations(
 	}
 
 	// Fetch locations
-	locations, err := s.locationRepo.FindAll(sellerID, filter)
+	locations, err := s.locationRepo.FindAll(ctx, sellerID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -226,19 +224,19 @@ func (s *LocationServiceImpl) GetAllLocations(
 
 // DeleteLocation soft deletes a location
 func (s *LocationServiceImpl) DeleteLocation(
-	c context.Context,
+	ctx context.Context,
 	id uint,
 	sellerID uint,
 ) error {
 	// Check if location exists and belongs to seller
-	if err := s.locationRepo.Exists(id, sellerID); err != nil {
+	if err := s.locationRepo.Exists(ctx, id, sellerID); err != nil {
 		return err
 	}
 
 	// TODO: Add validation to check if location has inventory
 	// This should be implemented when inventory management is added
 
-	return s.locationRepo.Delete(id)
+	return s.locationRepo.Delete(ctx, id)
 }
 
 // ============================================================================
@@ -247,6 +245,7 @@ func (s *LocationServiceImpl) DeleteLocation(
 
 // validateLocationCreate validates location creation request
 func (s *LocationServiceImpl) validateLocationCreate(
+	ctx context.Context,
 	req model.LocationCreateRequest,
 	sellerID uint,
 ) error {
@@ -256,11 +255,12 @@ func (s *LocationServiceImpl) validateLocationCreate(
 	}
 
 	// Check for duplicate location name
-	return s.validateNameUniqueness(req.Name, sellerID, nil)
+	return s.validateNameUniqueness(ctx, req.Name, sellerID, nil)
 }
 
 // validateLocationUpdate validates location update request
 func (s *LocationServiceImpl) validateLocationUpdate(
+	ctx context.Context,
 	req model.LocationUpdateRequest,
 	location *entity.Location,
 	sellerID uint,
@@ -275,7 +275,7 @@ func (s *LocationServiceImpl) validateLocationUpdate(
 
 	// If name is being updated, check for duplicates
 	if req.Name != nil && *req.Name != location.Name {
-		return s.validateNameUniqueness(*req.Name, sellerID, &locationID)
+		return s.validateNameUniqueness(ctx, *req.Name, sellerID, &locationID)
 	}
 
 	return nil
@@ -283,11 +283,12 @@ func (s *LocationServiceImpl) validateLocationUpdate(
 
 // validateNameUniqueness checks if a location name is unique for a seller
 func (s *LocationServiceImpl) validateNameUniqueness(
+	ctx context.Context,
 	name string,
 	sellerID uint,
 	excludeID *uint,
 ) error {
-	existingLocation, err := s.locationRepo.FindByName(name, sellerID)
+	existingLocation, err := s.locationRepo.FindByName(ctx, name, sellerID)
 	if err != nil && err != invErrors.ErrLocationNotFound {
 		return err
 	}

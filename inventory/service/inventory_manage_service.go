@@ -12,8 +12,6 @@ import (
 	"ecommerce-be/inventory/utils/helper"
 	productModel "ecommerce-be/product/model"
 	"ecommerce-be/product/service"
-
-	"gorm.io/gorm"
 )
 
 // InventoryServiceImpl implements the InventoryService interface
@@ -177,7 +175,7 @@ func (s *InventoryServiceImpl) prepareBulkData(
 	locationIDs := s.bulkHelper.ExtractUniqueLocationIDs(items)
 	variantIDs := s.bulkHelper.ExtractUniqueVariantIDs(items)
 
-	validLocations, err := s.bulkHelper.BatchValidateLocations(locationIDs, sellerID)
+	validLocations, err := s.bulkHelper.BatchValidateLocations(ctx, locationIDs, sellerID)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to batch validate locations", err)
 		return nil, err
@@ -189,7 +187,7 @@ func (s *InventoryServiceImpl) prepareBulkData(
 		return nil, err
 	}
 
-	existingInventoryMap, err := s.bulkHelper.BatchGetInventories(variantIDs, locationIDs)
+	existingInventoryMap, err := s.bulkHelper.BatchGetInventories(ctx, variantIDs, locationIDs)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to batch fetch inventories", err)
 		return nil, err
@@ -310,14 +308,14 @@ func (s *InventoryServiceImpl) executeBulkDBOperations(
 
 	var transactions []*entity.InventoryTransaction
 
-	err := db.Atomic(func(tx *gorm.DB) error {
-		if err := s.batchSaveInventories(collector); err != nil {
+	err := db.WithTransaction(ctx, func(txCtx context.Context) error {
+		if err := s.batchSaveInventories(txCtx, collector); err != nil {
 			return err
 		}
 
 		transactionParams := s.buildBulkTransactionParams(collector, items, userID)
 		var err error
-		transactions, err = s.transactionService.CreateTransactionBatch(ctx, transactionParams)
+		transactions, err = s.transactionService.CreateTransactionBatch(txCtx, transactionParams)
 		if err != nil {
 			return fmt.Errorf("failed to batch create transactions: %w", err)
 		}
@@ -334,15 +332,15 @@ func (s *InventoryServiceImpl) executeBulkDBOperations(
 }
 
 // batchSaveInventories saves all inventories in batch
-func (s *InventoryServiceImpl) batchSaveInventories(collector *BulkOperationCollector) error {
+func (s *InventoryServiceImpl) batchSaveInventories(ctx context.Context, collector *BulkOperationCollector) error {
 	if len(collector.InventoriesToCreate) > 0 {
-		if err := s.inventoryRepo.CreateBatch(collector.InventoriesToCreate); err != nil {
+		if err := s.inventoryRepo.CreateBatch(ctx, collector.InventoriesToCreate); err != nil {
 			return fmt.Errorf("failed to batch create inventories: %w", err)
 		}
 	}
 
 	if len(collector.InventoriesToUpdate) > 0 {
-		if err := s.inventoryRepo.UpdateBatch(collector.InventoriesToUpdate); err != nil {
+		if err := s.inventoryRepo.UpdateBatch(ctx, collector.InventoriesToUpdate); err != nil {
 			return fmt.Errorf("failed to batch update inventories: %w", err)
 		}
 	}

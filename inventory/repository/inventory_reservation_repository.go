@@ -1,41 +1,41 @@
 package repository
 
 import (
+	"context"
 	"time"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/inventory/entity"
-
-	"gorm.io/gorm"
 )
 
 type InventoryReservationRepository interface {
-	CreateReservations(reservations []*entity.InventoryReservation) error
-	FindByID(id uint) (*entity.InventoryReservation, error)
-	FindByIDs(ids []uint) ([]*entity.InventoryReservation, error)
-	FindByReferenceID(referenceID uint) ([]*entity.InventoryReservation, error)
-	UpdateStatusByReferenceID(referenceID uint, status entity.ReservationStatus) error
-	UpdateStatusByIDs(ids []uint, status entity.ReservationStatus) error
+	CreateReservations(ctx context.Context, reservations []*entity.InventoryReservation) error
+	FindByID(ctx context.Context, id uint) (*entity.InventoryReservation, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]*entity.InventoryReservation, error)
+	FindByReferenceID(ctx context.Context, referenceID uint) ([]*entity.InventoryReservation, error)
+	UpdateStatusByReferenceID(ctx context.Context, referenceID uint, status entity.ReservationStatus) error
+	UpdateStatusByIDs(ctx context.Context, ids []uint, status entity.ReservationStatus) error
 }
 
-type InventoryReservationRepositoryImpl struct {
-	db *gorm.DB
-}
+type InventoryReservationRepositoryImpl struct{}
 
-func NewInventoryReservationRepository(db *gorm.DB) InventoryReservationRepository {
-	return &InventoryReservationRepositoryImpl{db: db}
+func NewInventoryReservationRepository() InventoryReservationRepository {
+	return &InventoryReservationRepositoryImpl{}
 }
 
 func (r *InventoryReservationRepositoryImpl) CreateReservations(
+	ctx context.Context,
 	reservations []*entity.InventoryReservation,
 ) error {
-	return r.db.Create(&reservations).Error
+	return db.DB(ctx).Create(&reservations).Error
 }
 
 func (r *InventoryReservationRepositoryImpl) FindByID(
+	ctx context.Context,
 	id uint,
 ) (*entity.InventoryReservation, error) {
 	var reservation entity.InventoryReservation
-	err := r.db.First(&reservation, id).Error
+	err := db.DB(ctx).First(&reservation, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,10 +43,11 @@ func (r *InventoryReservationRepositoryImpl) FindByID(
 }
 
 func (r *InventoryReservationRepositoryImpl) FindByIDs(
+	ctx context.Context,
 	ids []uint,
 ) ([]*entity.InventoryReservation, error) {
 	var reservations []*entity.InventoryReservation
-	err := r.db.Where("id IN ?", ids).Find(&reservations).Error
+	err := db.DB(ctx).Where("id IN ?", ids).Find(&reservations).Error
 	if err != nil {
 		return nil, err
 	}
@@ -54,19 +55,21 @@ func (r *InventoryReservationRepositoryImpl) FindByIDs(
 }
 
 func (r *InventoryReservationRepositoryImpl) UpdateStatus(
+	ctx context.Context,
 	id uint,
 	status entity.ReservationStatus,
 ) error {
-	return r.db.Model(&entity.InventoryReservation{}).
+	return db.DB(ctx).Model(&entity.InventoryReservation{}).
 		Where("id = ?", id).
 		Update("status", status).Error
 }
 
 func (r *InventoryReservationRepositoryImpl) FindByReferenceID(
+	ctx context.Context,
 	referenceID uint,
 ) ([]*entity.InventoryReservation, error) {
 	var reservations []*entity.InventoryReservation
-	err := r.db.Where("reference_id = ?", referenceID).Find(&reservations).Error
+	err := db.DB(ctx).Where("reference_id = ?", referenceID).Find(&reservations).Error
 	if err != nil {
 		return nil, err
 	}
@@ -74,19 +77,21 @@ func (r *InventoryReservationRepositoryImpl) FindByReferenceID(
 }
 
 func (r *InventoryReservationRepositoryImpl) UpdateStatusByReferenceID(
+	ctx context.Context,
 	referenceID uint,
 	status entity.ReservationStatus,
 ) error {
-	return r.db.Model(&entity.InventoryReservation{}).
+	return db.DB(ctx).Model(&entity.InventoryReservation{}).
 		Where("reference_id = ?", referenceID).
 		Update("status", status).Error
 }
 
 func (r *InventoryReservationRepositoryImpl) UpdateStatusByIDs(
+	ctx context.Context,
 	ids []uint,
 	status entity.ReservationStatus,
 ) error {
-	return r.db.Model(&entity.InventoryReservation{}).
+	return db.DB(ctx).Model(&entity.InventoryReservation{}).
 		Where("id IN ?", ids).
 		Update("status", status).
 		Update("updated_at", time.Now().UTC()).Error

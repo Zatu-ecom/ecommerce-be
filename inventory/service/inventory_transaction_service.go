@@ -88,7 +88,7 @@ func (s *InventoryTransactionServiceImpl) CreateTransactionBatch(
 
 	transactions := s.buildTransactionsFromParams(params)
 
-	if err := s.transactionRepo.CreateBatch(transactions); err != nil {
+	if err := s.transactionRepo.CreateBatch(ctx, transactions); err != nil {
 		return nil, err
 	}
 
@@ -132,7 +132,7 @@ func (s *InventoryTransactionServiceImpl) ListTransactions(
 	filter.SetDefaults()
 
 	// Fetch transactions from repository
-	transactions, total, err := s.transactionRepo.FindByFilter(filter)
+	transactions, total, err := s.transactionRepo.FindByFilter(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -160,13 +160,13 @@ func (s *InventoryTransactionServiceImpl) buildListResponse(
 	userIDs := s.collectUniqueUserIDs(transactions)
 
 	// Batch fetch inventory data (for variant/location info)
-	inventoryMap, err := s.fetchInventoryMap(inventoryIDs)
+	inventoryMap, err := s.fetchInventoryMap(ctx, inventoryIDs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Batch fetch location names
-	locationMap, err := s.fetchLocationMap(filter.SellerID)
+	locationMap, err := s.fetchLocationMap(ctx, filter.SellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +260,7 @@ func (s *InventoryTransactionServiceImpl) collectUniqueUserIDs(
 
 // fetchInventoryMap fetches inventory records and returns as map
 func (s *InventoryTransactionServiceImpl) fetchInventoryMap(
+	ctx context.Context,
 	inventoryIDs []uint,
 ) (map[uint]*entity.Inventory, error) {
 	result := make(map[uint]*entity.Inventory)
@@ -267,7 +268,7 @@ func (s *InventoryTransactionServiceImpl) fetchInventoryMap(
 		return result, nil
 	}
 
-	inventories, err := s.inventoryRepo.FindByIDs(inventoryIDs)
+	inventories, err := s.inventoryRepo.FindByIDs(ctx, inventoryIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +281,7 @@ func (s *InventoryTransactionServiceImpl) fetchInventoryMap(
 
 // fetchLocationMap fetches all seller's locations and returns name map
 func (s *InventoryTransactionServiceImpl) fetchLocationMap(
+	ctx context.Context,
 	sellerID uint,
 ) (map[uint]string, error) {
 	result := make(map[uint]string)
@@ -287,7 +289,7 @@ func (s *InventoryTransactionServiceImpl) fetchLocationMap(
 		return result, nil
 	}
 
-	locations, err := s.locationRepo.FindAll(sellerID, model.LocationsFilter{})
+	locations, err := s.locationRepo.FindAll(ctx, sellerID, model.LocationsFilter{})
 	if err != nil {
 		return nil, err
 	}
