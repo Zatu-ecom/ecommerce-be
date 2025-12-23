@@ -9,12 +9,34 @@ import (
 )
 
 type InventoryReservationRepository interface {
-	CreateReservations(ctx context.Context, reservations []*entity.InventoryReservation) error
-	FindByID(ctx context.Context, id uint) (*entity.InventoryReservation, error)
-	FindByIDs(ctx context.Context, ids []uint) ([]*entity.InventoryReservation, error)
-	FindByReferenceID(ctx context.Context, referenceID uint) ([]*entity.InventoryReservation, error)
-	UpdateStatusByReferenceID(ctx context.Context, referenceID uint, status entity.ReservationStatus) error
-	UpdateStatusByIDs(ctx context.Context, ids []uint, status entity.ReservationStatus) error
+	CreateOrSave(
+		ctx context.Context,
+		reservations []*entity.InventoryReservation,
+	) error
+	FindByID(
+		ctx context.Context,
+		id uint,
+	) (*entity.InventoryReservation, error)
+	FindByIDs(
+		ctx context.Context,
+		ids []uint,
+	) ([]*entity.InventoryReservation, error)
+	FindByReferenceIDAndStatus(
+		ctx context.Context,
+		status entity.ReservationStatus,
+		referenceID uint,
+	) ([]*entity.InventoryReservation, error)
+	UpdateStatusByReferenceID(
+		ctx context.Context,
+		referenceID uint,
+		existingStatus entity.ReservationStatus,
+		status entity.ReservationStatus,
+	) error
+	UpdateStatusByIDs(
+		ctx context.Context,
+		ids []uint,
+		status entity.ReservationStatus,
+	) error
 }
 
 type InventoryReservationRepositoryImpl struct{}
@@ -23,11 +45,11 @@ func NewInventoryReservationRepository() InventoryReservationRepository {
 	return &InventoryReservationRepositoryImpl{}
 }
 
-func (r *InventoryReservationRepositoryImpl) CreateReservations(
+func (r *InventoryReservationRepositoryImpl) CreateOrSave(
 	ctx context.Context,
 	reservations []*entity.InventoryReservation,
 ) error {
-	return db.DB(ctx).Create(&reservations).Error
+	return db.DB(ctx).Save(&reservations).Error
 }
 
 func (r *InventoryReservationRepositoryImpl) FindByID(
@@ -64,12 +86,16 @@ func (r *InventoryReservationRepositoryImpl) UpdateStatus(
 		Update("status", status).Error
 }
 
-func (r *InventoryReservationRepositoryImpl) FindByReferenceID(
+func (r *InventoryReservationRepositoryImpl) FindByReferenceIDAndStatus(
 	ctx context.Context,
+	status entity.ReservationStatus,
 	referenceID uint,
 ) ([]*entity.InventoryReservation, error) {
 	var reservations []*entity.InventoryReservation
-	err := db.DB(ctx).Where("reference_id = ?", referenceID).Find(&reservations).Error
+	err := db.DB(ctx).
+		Where("reference_id = ? AND status = ?", referenceID, status).
+		Find(&reservations).
+		Error
 	if err != nil {
 		return nil, err
 	}
@@ -79,10 +105,11 @@ func (r *InventoryReservationRepositoryImpl) FindByReferenceID(
 func (r *InventoryReservationRepositoryImpl) UpdateStatusByReferenceID(
 	ctx context.Context,
 	referenceID uint,
+	existingStatus entity.ReservationStatus,
 	status entity.ReservationStatus,
 ) error {
 	return db.DB(ctx).Model(&entity.InventoryReservation{}).
-		Where("reference_id = ?", referenceID).
+		Where("reference_id = ? AND status = ?", referenceID, existingStatus).
 		Update("status", status).Error
 }
 

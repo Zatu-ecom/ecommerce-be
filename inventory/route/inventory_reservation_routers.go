@@ -27,5 +27,12 @@ func (m *InventoryReservationModule) RegisterRoutes(router *gin.Engine) {
 	{
 		// Create a new inventory reservation
 		reservationGroup.POST("", sellerAuth, m.inventoryReservationHandler.CreateReservation)
+
+		// Update reservation status (CANCELLED or COMPLETED) by reference ID
+		reservationGroup.PUT(
+			"/status",
+			sellerAuth,
+			m.inventoryReservationHandler.UpdateReservationStatus,
+		)
 	}
 }

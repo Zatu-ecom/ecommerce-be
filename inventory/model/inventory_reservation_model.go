@@ -26,3 +26,12 @@ type ReservationResponse struct {
 	ExpiresAt   string       `json:"expiresAt"`
 	Resevations []Resevation `json:"resevations"`
 }
+
+// UpdateReservationStatusRequest represents the request payload for updating
+// the status of reservations based on a reference ID.
+// This API updates the status of all reservations with the given reference ID
+// that are currently in the pending state.
+type UpdateReservationStatusRequest struct {
+	ReferenceId uint                     `json:"referenceId" binding:"required"`
+	Status      entity.ReservationStatus `json:"status"      binding:"required,oneof='CANCELLED' 'COMPLETED'"`
+}

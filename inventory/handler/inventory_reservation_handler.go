@@ -16,7 +16,7 @@ import (
 
 type InventoryReservationHandler struct {
 	*handler.BaseHandler
-	InventoryReservationHandler service.InventoryReservationService
+	inventoryReservationService service.InventoryReservationService
 }
 
 func NewInventoryReservationHandler(
@@ -24,7 +24,7 @@ func NewInventoryReservationHandler(
 ) *InventoryReservationHandler {
 	return &InventoryReservationHandler{
 		BaseHandler:                 handler.NewBaseHandler(),
-		InventoryReservationHandler: inventoryReservationService,
+		inventoryReservationService: inventoryReservationService,
 	}
 }
 
@@ -41,7 +41,7 @@ func (h *InventoryReservationHandler) CreateReservation(c *gin.Context) {
 		return
 	}
 
-	reservationResp, err := h.InventoryReservationHandler.CreateReservation(c, sellerID, req)
+	reservationResp, err := h.inventoryReservationService.CreateReservation(c, sellerID, req)
 	if err != nil {
 		h.HandleError(c, err, reservationConst.FAILED_TO_CREATE_RESERVATION_MSG)
 		return
@@ -52,5 +52,32 @@ func (h *InventoryReservationHandler) CreateReservation(c *gin.Context) {
 		http.StatusOK,
 		reservationConst.SUCCESSFUL_RESERVATION_CREATION_MSG,
 		reservationResp,
+	)
+}
+
+func (h *InventoryReservationHandler) UpdateReservationStatus(c *gin.Context) {
+	var req model.UpdateReservationStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	sellerID, exist := auth.GetSellerIDFromContext(c)
+	if !exist {
+		h.HandleError(c, err.ErrSellerDataMissing, constants.SELLER_DATA_MISSING_MSG)
+		return
+	}
+
+	err := h.inventoryReservationService.UpdateReservationStatus(c, sellerID, req)
+	if err != nil {
+		h.HandleError(c, err, reservationConst.FAILED_TO_UPDATE_RESERVATION_STATUS_MSG)
+		return
+	}
+
+	h.Success(
+		c,
+		http.StatusOK,
+		reservationConst.SUCCESSFUL_RESERVATION_STATUS_UPDATE_MSG,
+		nil,
 	)
 }
