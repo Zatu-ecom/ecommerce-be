@@ -1,9 +1,10 @@
-package repositories
+package repository
 
 import (
 	"errors"
 
 	"ecommerce-be/user/entity"
+	"ecommerce-be/user/model"
 	"ecommerce-be/user/utils"
 
 	"gorm.io/gorm"
@@ -22,6 +23,11 @@ type UserRepository interface {
 
 	// Role operations
 	FindRoleByName(name string) (*entity.Role, error)
+	FindRolesByIDs(ids []uint) ([]entity.Role, error)
+
+	// List operations
+	FindByFilter(filter model.ListUsersFilter) ([]entity.User, int64, error)
+	FindByIDs(ids []uint) ([]entity.User, error)
 }
 
 // UserRepositoryImpl implements the UserRepository interface
@@ -140,4 +146,121 @@ func (r *UserRepositoryImpl) FindRoleByName(name string) (*entity.Role, error) {
 		return nil, result.Error
 	}
 	return &role, nil
+}
+
+// FindRolesByIDs finds roles by multiple IDs
+func (r *UserRepositoryImpl) FindRolesByIDs(ids []uint) ([]entity.Role, error) {
+	if len(ids) == 0 {
+		return []entity.Role{}, nil
+	}
+
+	var roles []entity.Role
+	if err := r.db.Where("id IN ?", ids).Find(&roles).Error; err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+// FindByFilter finds users based on filter criteria with pagination
+func (r *UserRepositoryImpl) FindByFilter(
+	filter model.ListUsersFilter,
+) ([]entity.User, int64, error) {
+	var users []entity.User
+	var total int64
+
+	query := r.db.Model(&entity.User{})
+
+	// Apply filters
+	query = r.applyUserFilters(query, filter)
+
+	// Get total count before pagination
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	sortColumn := filter.SortBy
+	if sortColumn == "createdAt" {
+		sortColumn = "created_at"
+	}
+	query = query.Order(sortColumn + " " + filter.SortOrder)
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	query = query.Offset(offset).Limit(filter.PageSize)
+
+	// Execute query
+	if err := query.Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// applyUserFilters applies all filter conditions to the query
+func (r *UserRepositoryImpl) applyUserFilters(
+	query *gorm.DB,
+	filter model.ListUsersFilter,
+) *gorm.DB {
+	// Filter by IDs
+	if len(filter.IDs) > 0 {
+		query = query.Where("id IN ?", filter.IDs)
+	}
+
+	// Filter by emails
+	if len(filter.Emails) > 0 {
+		query = query.Where("email IN ?", filter.Emails)
+	}
+
+	// Filter by phones
+	if len(filter.Phones) > 0 {
+		query = query.Where("phone IN ?", filter.Phones)
+	}
+
+	// Filter by role IDs
+	if len(filter.RoleIDs) > 0 {
+		query = query.Where("role_id IN ?", filter.RoleIDs)
+	}
+
+	// Filter by seller IDs
+	if len(filter.SellerIDs) > 0 {
+		query = query.Where("seller_id IN ?", filter.SellerIDs)
+	}
+
+	// Search by name (partial match in firstName or lastName)
+	if filter.Name != nil && *filter.Name != "" {
+		searchTerm := "%" + *filter.Name + "%"
+		query = query.Where(
+			"first_name ILIKE ? OR last_name ILIKE ? OR CONCAT(first_name, ' ', last_name) ILIKE ?",
+			searchTerm, searchTerm, searchTerm,
+		)
+	}
+
+	// Filter by active status
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
+	// Filter by date range
+	if filter.CreatedFrom != nil {
+		query = query.Where("created_at >= ?", *filter.CreatedFrom)
+	}
+	if filter.CreatedTo != nil {
+		query = query.Where("created_at <= ?", *filter.CreatedTo)
+	}
+
+	return query
+}
+
+// FindByIDs finds users by multiple IDs
+func (r *UserRepositoryImpl) FindByIDs(ids []uint) ([]entity.User, error) {
+	if len(ids) == 0 {
+		return []entity.User{}, nil
+	}
+
+	var users []entity.User
+	if err := r.db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }

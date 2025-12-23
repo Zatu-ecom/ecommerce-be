@@ -29,15 +29,12 @@ func NormalizeToSnakeCase(str string) string {
 }
 
 // ToLowerTrimmed converts a string to lowercase and trims spaces
-// Example: "  Red  " -> "red"
-// Example: "  BLUE " -> "blue"
+// Example:
+//   - "  Red  " -> "red"
+//   - "  BLUE " -> "blue"
 func ToLowerTrimmed(str string) string {
 	return strings.ToLower(strings.TrimSpace(str))
 }
-
-/***********************************************
- *    Variant Helper Functions                  *
- ***********************************************/
 
 // GetDisplayNameOrDefault returns the display name if it exists, otherwise returns the default name
 func GetDisplayNameOrDefault(displayName, defaultName string) string {
@@ -81,7 +78,10 @@ func ParseQueryParamsToMap(
 // ParseOptionsFromQuery parses option query parameters into a map
 // This specifically excludes common pagination and filter parameters
 // Example: color=red&size=m&page=1 becomes map[string]string{"color": "red", "size": "m"}
-func ParseOptionsFromQuery(queryParams map[string][]string) map[string]string {
+func ParseOptionsFromQuery(
+	queryParams map[string][]string,
+	defaultExcludes []string,
+) map[string]string {
 	// Common non-option query parameters to exclude
 	excludeParams := []string{
 		"page", "limit", "offset", // Pagination
@@ -91,6 +91,8 @@ func ParseOptionsFromQuery(queryParams map[string][]string) map[string]string {
 		"minPrice", "maxPrice", "inStock", "isPopular", "brand", // Product filters
 		"categoryId", "category", // Category filters
 	}
+
+	excludeParams = append(excludeParams, defaultExcludes...)
 
 	return ParseQueryParamsToMap(queryParams, excludeParams)
 }
@@ -112,10 +114,6 @@ func ValidateVariantOptions(options map[string]string) error {
 
 	return nil
 }
-
-/***********************************************
- *    Factory Helper Functions                  *
- ***********************************************/
 
 // FormatTimestamp formats a time.Time to RFC3339 string
 func FormatTimestamp(t time.Time) string {

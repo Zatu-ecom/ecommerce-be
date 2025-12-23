@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strings"
 
 	commonError "ecommerce-be/common/error"
@@ -16,6 +17,7 @@ import (
 type VariantBulkService interface {
 	// BulkUpdateVariants updates multiple variants at once
 	BulkUpdateVariants(
+		ctx context.Context,
 		productID, sellerID uint,
 		request *model.BulkUpdateVariantsRequest,
 	) (*model.BulkUpdateVariantsResponse, error)
@@ -24,6 +26,7 @@ type VariantBulkService interface {
 	// Returns models for immediate use in responses
 	// Fetches product options internally for validation
 	CreateVariantsBulk(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 		requests []model.CreateVariantRequest,
@@ -31,7 +34,7 @@ type VariantBulkService interface {
 
 	// DeleteVariantsByProductID deletes all variants and their associated data for a product
 	// Handles cascade deletion of variant_option_values
-	DeleteVariantsByProductID(productID uint) error
+	DeleteVariantsByProductID(ctx context.Context, productID uint) error
 }
 
 // VariantBulkServiceImpl implements the VariantBulkService interface
@@ -58,11 +61,12 @@ func NewVariantBulkService(
  *           BulkUpdateVariants                *
  ***********************************************/
 func (s *VariantBulkServiceImpl) BulkUpdateVariants(
+	ctx context.Context,
 	productID, sellerID uint,
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
 	// Get product and validate seller access using validator service
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +80,7 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 	variantIDs, updateMap, lastDefaultVariantID := s.extractVariantIDsAndTrackDefault(request)
 
 	// Fetch all variants by IDs
-	existingVariants, err := s.variantRepo.FindVariantsByIDs(variantIDs)
+	existingVariants, err := s.variantRepo.FindVariantsByIDs(ctx, variantIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +103,12 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 
 	// Transaction: Handle default logic and bulk update atomically
 	if lastDefaultVariantID != nil {
-		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(productID); err != nil {
+		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(ctx, productID); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := s.variantRepo.BulkUpdateVariants(variantsToUpdate); err != nil {
+	if err := s.variantRepo.BulkUpdateVariants(ctx, variantsToUpdate); err != nil {
 		return nil, err
 	}
 
@@ -176,6 +180,7 @@ func (s *VariantBulkServiceImpl) buildBulkUpdateResponse(
 // Handles default variant logic ("last one wins") and bulk option value linking
 // Returns models for immediate use in responses
 func (s *VariantBulkServiceImpl) CreateVariantsBulk(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 	requests []model.CreateVariantRequest,
@@ -185,13 +190,13 @@ func (s *VariantBulkServiceImpl) CreateVariantsBulk(
 	}
 
 	// Validate product ownership
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch product options for validation (service-to-service call)
-	productOptions, err := s.fetchProductOptionsForValidation(productID, sellerID)
+	productOptions, err := s.fetchProductOptionsForValidation(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +222,7 @@ func (s *VariantBulkServiceImpl) CreateVariantsBulk(
 	// This ensures default logic, variant creation, and option linking are atomic
 	var createdVariants []entity.ProductVariant
 	err = s.createVariantsInTransaction(
+		ctx,
 		productID,
 		requests,
 		lastDefaultIndex,
@@ -257,6 +263,7 @@ func (s *VariantBulkServiceImpl) buildOptionLookupMaps(
 // createVariantsInTransaction wraps variant creation in a transaction with default logic
 // Ensures atomicity of all operations: default unset, variant creation, option linking
 func (s *VariantBulkServiceImpl) createVariantsInTransaction(
+	ctx context.Context,
 	productID uint,
 	requests []model.CreateVariantRequest,
 	lastDefaultIndex int,
@@ -265,13 +272,14 @@ func (s *VariantBulkServiceImpl) createVariantsInTransaction(
 ) error {
 	// Unset existing defaults if needed (before creating new defaults)
 	if lastDefaultIndex != -1 {
-		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(productID); err != nil {
+		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(ctx, productID); err != nil {
 			return err
 		}
 	}
 
 	// Create variants and link options
 	variants, err := s.createVariantsAndLinkOptions(
+		ctx,
 		productID,
 		requests,
 		lastDefaultIndex,
@@ -391,6 +399,7 @@ func (s *VariantBulkServiceImpl) mapVariantOptionsToIDs(
 // createVariantsAndLinkOptions creates all variants and links them to option values in bulk
 // TRUE BULK: Single INSERT for all variants, single INSERT for all option values
 func (s *VariantBulkServiceImpl) createVariantsAndLinkOptions(
+	ctx context.Context,
 	productID uint,
 	requests []model.CreateVariantRequest,
 	lastDefaultIndex int,
@@ -411,7 +420,7 @@ func (s *VariantBulkServiceImpl) createVariantsAndLinkOptions(
 	}
 
 	// ✅ TRUE BULK: Create ALL variants in ONE query with RETURNING
-	if err := s.variantRepo.BulkCreateVariants(variantsToCreate); err != nil {
+	if err := s.variantRepo.BulkCreateVariants(ctx, variantsToCreate); err != nil {
 		return nil, err
 	}
 
@@ -433,7 +442,7 @@ func (s *VariantBulkServiceImpl) createVariantsAndLinkOptions(
 
 	// ✅ TRUE BULK: Insert all variant option values in ONE query
 	if len(allVariantOptionValues) > 0 {
-		if err := s.variantRepo.CreateVariantOptionValues(allVariantOptionValues); err != nil {
+		if err := s.variantRepo.CreateVariantOptionValues(ctx, allVariantOptionValues); err != nil {
 			return nil, err
 		}
 	}
@@ -533,17 +542,18 @@ func (s *VariantBulkServiceImpl) convertProductOptionsToModel(
 // fetchProductOptionsForValidation fetches product options as entities for variant validation
 // Directly queries entities for better performance (eliminates model-to-entity conversion)
 func (s *VariantBulkServiceImpl) fetchProductOptionsForValidation(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 ) ([]entity.ProductOption, error) {
 	// Validate product ownership first
-	if _, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID); err != nil {
+	if _, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID); err != nil {
 		return nil, err
 	}
 
 	// Use option service to get available options (already returns validated data)
 	sellerIDPtr := &sellerID
-	optionsResponse, err := s.optionService.GetAvailableOptions(productID, sellerIDPtr)
+	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -590,9 +600,9 @@ func (s *VariantBulkServiceImpl) convertOptionsResponseToEntities(
  ***********************************************/
 // DeleteVariantsByProductID deletes all variants and their associated data for a product
 // Handles cascade deletion of variant_option_values in a transaction
-func (s *VariantBulkServiceImpl) DeleteVariantsByProductID(productID uint) error {
+func (s *VariantBulkServiceImpl) DeleteVariantsByProductID(ctx context.Context, productID uint) error {
 	// Get all variants for this product
-	variants, err := s.variantRepo.FindVariantsByProductID(productID)
+	variants, err := s.variantRepo.FindVariantsByProductID(ctx, productID)
 	if err != nil {
 		return err
 	}
@@ -610,10 +620,10 @@ func (s *VariantBulkServiceImpl) DeleteVariantsByProductID(productID uint) error
 
 	// Transaction: Wrap both deletes to ensure atomicity
 	// If variant delete fails, option values won't be orphaned
-	if err := s.variantRepo.DeleteVariantOptionValuesByVariantIDs(variantIDs); err != nil {
+	if err := s.variantRepo.DeleteVariantOptionValuesByVariantIDs(ctx, variantIDs); err != nil {
 		return err
 	}
 
 	// Delete all variants (both operations should ideally be in one DB transaction)
-	return s.variantRepo.DeleteVariantsByProductID(productID)
+	return s.variantRepo.DeleteVariantsByProductID(ctx, productID)
 }

@@ -54,6 +54,7 @@ func (h *ProductAttributeHandler) AddProductAttribute(c *gin.Context) {
 
 	// Call service
 	attributeResponse, err := h.productAttrService.AddProductAttribute(
+		c,
 		productID,
 		sellerID,
 		req,
@@ -105,6 +106,7 @@ func (h *ProductAttributeHandler) UpdateProductAttribute(c *gin.Context) {
 
 	// Call service
 	attributeResponse, err := h.productAttrService.UpdateProductAttribute(
+		c,
 		productID,
 		attributeID,
 		sellerID,
@@ -149,6 +151,7 @@ func (h *ProductAttributeHandler) DeleteProductAttribute(c *gin.Context) {
 
 	// Call service
 	err = h.productAttrService.DeleteProductAttribute(
+		c,
 		productID,
 		attributeID,
 		sellerID,
@@ -172,7 +175,7 @@ func (h *ProductAttributeHandler) GetProductAttributes(c *gin.Context) {
 	}
 
 	// Call service
-	attributesResponse, err := h.productAttrService.GetProductAttributes(productID)
+	attributesResponse, err := h.productAttrService.GetProductAttributes(c, productID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_ATTRIBUTES_MSG)
 		return
@@ -213,6 +216,7 @@ func (h *ProductAttributeHandler) BulkUpdateProductAttributes(c *gin.Context) {
 
 	// Call service
 	updateResponse, err := h.productAttrService.BulkUpdateProductAttributes(
+		c,
 		productID,
 		sellerID,
 		req,

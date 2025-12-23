@@ -4,7 +4,8 @@
 # Description: Runs SQL migration scripts in order
 # Usage: ./run_migrations.sh [options]
 
-set -e  # Exit on error
+# Note: We don't use 'set -e' because bash arithmetic ((count++)) returns 1 when count=0
+# Instead, we handle errors explicitly in each function
 
 # Colors for output
 RED='\033[0;31m'
@@ -89,6 +90,35 @@ check_connection() {
     fi
 }
 
+# Function to create migration tracking table
+create_migration_table() {
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id SERIAL PRIMARY KEY,
+            filename VARCHAR(255) NOT NULL UNIQUE,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    " > /dev/null 2>&1
+}
+
+# Function to check if migration was already applied
+is_migration_applied() {
+    local filename=$1
+    local count=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT COUNT(*) FROM schema_migrations WHERE filename = '$filename';
+    " 2>/dev/null | tr -d ' ')
+    
+    [ "$count" -gt 0 ]
+}
+
+# Function to record migration as applied
+record_migration() {
+    local filename=$1
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        INSERT INTO schema_migrations (filename) VALUES ('$filename') ON CONFLICT DO NOTHING;
+    " > /dev/null 2>&1
+}
+
 # Function to run migrations
 run_migrations() {
     echo ""
@@ -101,6 +131,9 @@ run_migrations() {
     if ! check_connection; then
         exit 1
     fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
     
     echo ""
     print_info "Starting migrations..."
@@ -117,12 +150,26 @@ run_migrations() {
     print_info "Found ${#migration_files[@]} migration file(s)"
     echo ""
     
+    local applied_count=0
+    local skipped_count=0
+    
     for file in "${migration_files[@]}"; do
-        run_sql_file "$file" "$file"
+        if is_migration_applied "$file"; then
+            print_warning "Skipped (already applied): $file"
+            skipped_count=$((skipped_count + 1))
+        else
+            if run_sql_file "$file" "$file"; then
+                record_migration "$file"
+                applied_count=$((applied_count + 1))
+            else
+                print_error "Migration failed, stopping."
+                exit 1
+            fi
+        fi
     done
     
     echo ""
-    print_success "All migrations completed successfully!"
+    print_success "Migrations completed! Applied: $applied_count, Skipped: $skipped_count"
     echo ""
 }
 
@@ -139,6 +186,9 @@ run_seeds() {
         exit 1
     fi
     
+    # Create migration tracking table if not exists
+    create_migration_table
+    
     echo ""
     print_info "Starting seed data insertion..."
     echo ""
@@ -154,12 +204,74 @@ run_seeds() {
     print_info "Found ${#seed_files[@]} seed file(s)"
     echo ""
     
+    local applied_count=0
+    local skipped_count=0
+    
     for file in "${seed_files[@]}"; do
-        run_sql_file "$file" "$file"
+        if is_migration_applied "$file"; then
+            print_warning "Skipped (already applied): $file"
+            skipped_count=$((skipped_count + 1))
+        else
+            if run_sql_file "$file" "$file"; then
+                record_migration "$file"
+                applied_count=$((applied_count + 1))
+            else
+                print_error "Seed failed, stopping."
+                exit 1
+            fi
+        fi
     done
     
     echo ""
-    print_success "All seed data inserted successfully!"
+    print_success "Seeds completed! Applied: $applied_count, Skipped: $skipped_count"
+    echo ""
+}
+
+# Function to run seed data (force - ignores tracking, always runs)
+run_seeds_force() {
+    echo ""
+    echo "========================================="
+    echo "  Running Seed Data Scripts (FORCE)"
+    echo "========================================="
+    echo ""
+    
+    print_warning "Force mode: Seeds will run even if previously applied"
+    print_warning "This may cause duplicate data if seeds are not idempotent!"
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    echo ""
+    print_info "Starting seed data insertion (force mode)..."
+    echo ""
+    
+    # Automatically discover and run all seed files in order (sorted by filename)
+    local seed_files=($(ls -1 seeds/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort))
+    
+    if [ ${#seed_files[@]} -eq 0 ]; then
+        print_warning "No seed files found in seeds/ directory matching pattern: [0-9][0-9][0-9]_*.sql"
+        return 1
+    fi
+    
+    print_info "Found ${#seed_files[@]} seed file(s)"
+    echo ""
+    
+    local applied_count=0
+    
+    for file in "${seed_files[@]}"; do
+        if run_sql_file "$file" "$file"; then
+            applied_count=$((applied_count + 1))
+        else
+            print_error "Seed failed, stopping."
+            exit 1
+        fi
+    done
+    
+    echo ""
+    print_success "Seeds completed (force mode)! Applied: $applied_count"
     echo ""
 }
 
@@ -172,8 +284,9 @@ Usage: ./run_migrations.sh [OPTIONS]
 
 Options:
     -h, --help          Show this help message
-    -m, --migrate       Run migrations only
-    -s, --seed          Run seed data only
+    -m, --migrate       Run migrations only (skips already applied)
+    -s, --seed          Run seed data only (skips already applied)
+    -fs, --force-seed   Run ALL seed data (ignores tracking, re-runs everything)
     -a, --all           Run migrations and seed data (default)
     -r, --reset         Drop all tables and recreate (WARNING: Data loss!)
 
@@ -245,6 +358,9 @@ case "${1:-all}" in
         ;;
     -s|--seed)
         run_seeds
+        ;;
+    -fs|--force-seed)
+        run_seeds_force
         ;;
     -a|--all|all)
         run_migrations

@@ -101,10 +101,16 @@ const (
 	PASSWORD_CHANGED_MSG        = "Password changed successfully"
 	TOKEN_REFRESHED_MSG         = "Token refreshed successfully"
 	ADDRESS_CREATED_MSG         = "Address created successfully"
+	ADDRESS_RETRIEVED_MSG       = "Address retrieved successfully"
 	ADDRESS_UPDATED_MSG         = "Address updated successfully"
 	ADDRESS_DELETED_MSG         = "Address deleted successfully"
 	ADDRESSES_RETRIEVED_MSG     = "Addresses retrieved successfully"
 	DEFAULT_ADDRESS_UPDATED_MSG = "Default address updated successfully"
+
+	// User list API messages
+	USERS_RETRIEVED_MSG        = "Users retrieved successfully"
+	FAILED_TO_LIST_USERS_MSG   = "Failed to list users"
+	USER_LIST_UNAUTHORIZED_MSG = "You don't have permission to list users"
 )
 
 // Backward-compatible aliases (to be removed after migration)
@@ -185,8 +191,14 @@ const (
 	PasswordChangedMsg       = PASSWORD_CHANGED_MSG
 	TokenRefreshedMsg        = TOKEN_REFRESHED_MSG
 	AddressCreatedMsg        = ADDRESS_CREATED_MSG
+	AddressRetrievedMsg      = ADDRESS_RETRIEVED_MSG
 	AddressUpdatedMsg        = ADDRESS_UPDATED_MSG
 	AddressDeletedMsg        = ADDRESS_DELETED_MSG
 	AddressesRetrievedMsg    = ADDRESSES_RETRIEVED_MSG
 	DefaultAddressUpdatedMsg = DEFAULT_ADDRESS_UPDATED_MSG
+
+	// User list aliases
+	UsersRetrievedMsg       = USERS_RETRIEVED_MSG
+	FailedToListUsersMsg    = FAILED_TO_LIST_USERS_MSG
+	UserListUnauthorizedMsg = USER_LIST_UNAUTHORIZED_MSG
 )

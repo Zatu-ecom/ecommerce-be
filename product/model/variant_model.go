@@ -138,3 +138,54 @@ type BulkUpdateVariantsResponse struct {
 	UpdatedCount int                        `json:"updatedCount"`
 	Variants     []BulkUpdateVariantSummary `json:"variants"`
 }
+
+// ListVariantsRequest represents the request to list/filter variants
+type ListVariantsRequest struct {
+	// Filter by variant IDs (for home page recommendations)
+	IDs string `form:"ids"`
+
+	// Filter by product IDs (optional - if you want variants across multiple products)
+	// Supports format: ?productIds=1,2,3
+	ProductIDs string `form:"productIds"`
+
+	// Price range filters
+	MinPrice *float64 `form:"minPrice" binding:"omitempty,gte=0"`
+	MaxPrice *float64 `form:"maxPrice" binding:"omitempty,gte=0"`
+
+	// Availability and status filters
+	AllowPurchase *bool `form:"allowPurchase"`
+	IsPopular     *bool `form:"isPopular"`
+	IsDefault     *bool `form:"isDefault"`
+
+	// SKU search (partial match)
+	SKU string `form:"sku" binding:"omitempty,max=100"`
+
+	// TODO: Stock filters - integrate with inventory service when ready
+	// MinStock     *int  `form:"minStock" binding:"omitempty,gte=0"`
+	// MaxStock     *int  `form:"maxStock" binding:"omitempty,gte=0"`
+	// InStock      *bool `form:"inStock"` // Only variants with stock > 0
+	// LowStock     *bool `form:"lowStock"` // Only variants below threshold
+	// When inventory service is ready:
+	// 1. Add these fields to struct
+	// 2. Add filters to repository query (JOIN with inventory table)
+	// 3. For microservices: Call inventory service API to get variant IDs, then filter
+
+	// Option filters (e.g., ?color=red&size=M)
+	// Handled separately via query params
+
+	// Pagination
+	Page     int `form:"page"     binding:"omitempty,gte=1"`
+	PageSize int `form:"pageSize" binding:"omitempty,gte=1,lte=100"`
+
+	// Sorting
+	SortBy    string `form:"sortBy"    binding:"omitempty,oneof=price created_at updated_at"` // price, createdAt, updatedAt
+	SortOrder string `form:"sortOrder" binding:"omitempty,oneof=asc desc"`                    // asc or desc
+}
+
+// ListVariantsResponse represents the response for listing variants
+type ListVariantsResponse struct {
+	Variants []VariantDetailResponse `json:"variants"`
+	Total    int64                   `json:"total"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"pageSize"`
+}

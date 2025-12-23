@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/validator"
@@ -10,14 +12,17 @@ type ProductValidatorService interface {
 	// Service-to-Service methods (for other services to use)
 	// These methods centralize validation logic to avoid duplication
 	GetAndValidateProductOwnership(
+		ctx context.Context,
 		productID uint,
 		sellerID *uint,
 	) (*entity.Product, error)
 	GetAndValidateProductOwnershipNonPtr(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 	) (*entity.Product, error)
 	GetAndValidateProduct(
+		ctx context.Context,
 		productID uint,
 	) (*entity.Product, error)
 }
@@ -43,11 +48,12 @@ func NewProductValidatorService(
 // This method centralizes product ownership validation logic to avoid duplication across services
 // Returns the product entity if validation passes, error otherwise
 func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnership(
+	ctx context.Context,
 	productID uint,
 	sellerID *uint,
 ) (*entity.Product, error) {
 	// Fetch product from repository
-	product, err := s.productRepo.FindByID(productID)
+	product, err := s.productRepo.FindByID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +70,7 @@ func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnership(
 // This method is for services that use uint instead of *uint for sellerID
 // Converts uint to *uint internally and calls GetAndValidateProductOwnership
 func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnershipNonPtr(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 ) (*entity.Product, error) {
@@ -73,17 +80,18 @@ func (s *ProductValidatorServiceImpl) GetAndValidateProductOwnershipNonPtr(
 		sellerIDPtr = &sellerID
 	}
 
-	return s.GetAndValidateProductOwnership(productID, sellerIDPtr)
+	return s.GetAndValidateProductOwnership(ctx, productID, sellerIDPtr)
 }
 
 // GetAndValidateProduct fetches a product and validates that it exists
 // This method centralizes product existence validation logic
 // Returns the product entity if validation passes, error otherwise
 func (s *ProductValidatorServiceImpl) GetAndValidateProduct(
+	ctx context.Context,
 	productID uint,
 ) (*entity.Product, error) {
 	// Fetch product from repository
-	product, err := s.productRepo.FindByID(productID)
+	product, err := s.productRepo.FindByID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}

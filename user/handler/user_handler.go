@@ -1,9 +1,8 @@
-package handlers
+package handler
 
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"ecommerce-be/common"
@@ -314,14 +313,4 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, http.StatusOK, utils.LogoutSuccessMsg, nil)
-}
-
-// getUserIDParam gets a user ID from a path parameter
-func getUserIDParam(c *gin.Context) (uint, error) {
-	idParam := c.Param("id")
-	id, err := strconv.ParseUint(idParam, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint(id), nil
 }

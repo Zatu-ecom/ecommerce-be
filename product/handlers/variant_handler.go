@@ -25,7 +25,11 @@ type VariantHandler struct {
 }
 
 // NewVariantHandler creates a new instance of VariantHandler
-func NewVariantHandler(variantService service.VariantService, variantQueryService service.VariantQueryService, variantBulkService service.VariantBulkService) *VariantHandler {
+func NewVariantHandler(
+	variantService service.VariantService,
+	variantQueryService service.VariantQueryService,
+	variantBulkService service.VariantBulkService,
+) *VariantHandler {
 	return &VariantHandler{
 		BaseHandler:         handler.NewBaseHandler(),
 		variantService:      variantService,
@@ -57,7 +61,7 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	sellerID, _ := auth.GetSellerIDFromContext(c)
 
 	// Call query service
-	variantResponse, err := h.variantQueryService.GetVariantByID(productID, variantID, sellerID)
+	variantResponse, err := h.variantQueryService.GetVariantByID(c, productID, variantID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -88,7 +92,7 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 
 	// Parse query parameters to get selected options
 	queryParams := c.Request.URL.Query()
-	optionValues := helper.ParseOptionsFromQuery(queryParams)
+	optionValues := helper.ParseOptionsFromQuery(queryParams, []string{})
 
 	// Validate options
 	if len(optionValues) == 0 {
@@ -103,7 +107,12 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 	}
 
 	// Call query service
-	variantResponse, err := h.variantQueryService.FindVariantByOptions(productID, optionValues, sellerID)
+	variantResponse, err := h.variantQueryService.FindVariantByOptions(
+		c,
+		productID,
+		optionValues,
+		sellerID,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_FIND_VARIANT_MSG)
 		return
@@ -146,7 +155,7 @@ func (h *VariantHandler) CreateVariant(c *gin.Context) {
 	}
 
 	// Call service
-	variantResponse, err := h.variantService.CreateVariant(productID, sellerId, &request)
+	variantResponse, err := h.variantService.CreateVariant(c, productID, sellerId, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_VARIANT_MSG)
 		return
@@ -195,7 +204,13 @@ func (h *VariantHandler) UpdateVariant(c *gin.Context) {
 	}
 
 	// Call service
-	variantResponse, err := h.variantService.UpdateVariant(productID, variantID, sellerId, &request)
+	variantResponse, err := h.variantService.UpdateVariant(
+		c,
+		productID,
+		variantID,
+		sellerId,
+		&request,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_MSG)
 		return
@@ -237,7 +252,7 @@ func (h *VariantHandler) DeleteVariant(c *gin.Context) {
 	}
 
 	// Call service
-	if err := h.variantService.DeleteVariant(productID, variantID, sellerId); err != nil {
+	if err := h.variantService.DeleteVariant(c, productID, variantID, sellerId); err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_VARIANT_MSG)
 		return
 	}
@@ -273,7 +288,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 	}
 
 	// Call bulk service
-	response, err := h.variantBulkService.BulkUpdateVariants(productID, sellerID, &request)
+	response, err := h.variantBulkService.BulkUpdateVariants(c, productID, sellerID, &request)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_VARIANTS_MSG)
 		return
@@ -287,6 +302,57 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 		map[string]interface{}{
 			utils.UPDATED_COUNT_FIELD_NAME: response.UpdatedCount,
 			utils.VARIANTS_FIELD_NAME:      response.Variants,
+		},
+	)
+}
+
+/***********************************************
+ *              ListVariants                   *
+ ***********************************************/
+// ListVariants handles listing/filtering variants via query parameters
+// Supports both formats: ?ids=1,2,3 OR ?ids=1&ids=2&ids=3
+// GET /api/variants?ids=1,2,3&minPrice=100&maxPrice=500&color=red&size=M&allowPurchase=true
+func (h *VariantHandler) ListVariants(c *gin.Context) {
+	var request model.ListVariantsRequest
+
+	// --- Bind remaining normal fields ---
+	if err := c.ShouldBindQuery(&request); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Extract seller ID from context (set by PublicAPIAuth middleware)
+	var sellerID *uint
+	if id, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerID = &id
+	}
+
+	// Parse option filters from query params (e.g., ?color=red&size=M)
+	// These are variant options (color, size, etc.) and handled separately from the struct filters
+	queryParams := c.Request.URL.Query()
+	defaultExcludes := []string{
+		"ids", "productIds", "productId", "product_id", "sellerId", "seller_id",
+		"allowPurchase", "isDefault", "is_popular", "sku", "pageSize", "page",
+	}
+	optionFilters := helper.ParseOptionsFromQuery(queryParams, defaultExcludes)
+
+	// Call variant query service (same service used for other variant queries)
+	response, err := h.variantQueryService.ListVariants(c, &request, sellerID, optionFilters)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_LIST_VARIANTS_MSG)
+		return
+	}
+
+	// Success response with pagination metadata
+	common.SuccessResponse(
+		c,
+		http.StatusOK,
+		utils.VARIANT_RETRIEVED_MSG,
+		map[string]interface{}{
+			utils.VARIANTS_FIELD_NAME: response.Variants,
+			"total":                   response.Total,
+			"page":                    response.Page,
+			"pageSize":                response.PageSize,
 		},
 	)
 }

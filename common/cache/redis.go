@@ -48,24 +48,24 @@ func GetRedisClient() (*redis.Client, error) {
 	return redisClient, nil
 }
 
-// SetKey sets a key-value pair in Redis with expiration
-func SetKey(key string, value interface{}, expiration time.Duration) error {
+// Set sets a key-value pair in Redis with expiration
+func Set(key string, value any, expiration time.Duration) error {
 	if redisClient == nil {
 		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
 
-// GetKey retrieves a value from Redis
-func GetKey(key string) (string, error) {
+// Get retrieves a value from Redis
+func Get(key string) (string, error) {
 	if redisClient == nil {
 		return "", errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Get(ctx, key).Result()
 }
 
-// DelKey deletes a key from Redis
-func DelKey(key string) error {
+// Del deletes a key from Redis
+func Del(key string) error {
 	if redisClient == nil {
 		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
@@ -95,4 +95,14 @@ func IsTokenBlacklisted(token string) bool {
 	}
 
 	return result == "blacklisted"
+}
+
+// CloseRedis closes the Redis connection gracefully
+func CloseRedis() {
+	if redisClient != nil {
+		if err := redisClient.Close(); err != nil {
+			// Log error but don't panic during shutdown
+			println("Error closing Redis connection:", err.Error())
+		}
+	}
 }

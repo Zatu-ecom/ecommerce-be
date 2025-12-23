@@ -82,4 +82,16 @@ var (
 		Message:    constants.INVALID_LIMIT_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrUserDataMissing = &AppError{
+		Code:       constants.USER_DATA_MISSING_CODE,
+		Message:    constants.USER_DATA_MISSING_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	ErrCorrelationIDMissing = &AppError{
+		Code:       constants.CORRELATION_ID_MISSING,
+		Message:    constants.CORRELATION_ID_MISSING_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

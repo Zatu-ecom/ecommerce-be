@@ -55,20 +55,14 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
+      # Override only what's different inside Docker network
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_SSLMODE: disable
       REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_ADDR: redis:6379
       PORT: 8080
-      GIN_MODE: ${GIN_MODE}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS}
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,12 +81,11 @@ services:
   migrate:
     image: postgres:16-alpine
     container_name: ecommerce-migrate
+    env_file:
+      - .env
     environment:
+      # Override for Docker network
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
     volumes:
       - .:/app
     working_dir: /app

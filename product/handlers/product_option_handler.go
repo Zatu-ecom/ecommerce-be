@@ -50,7 +50,7 @@ func (h *ProductOptionHandler) CreateOption(c *gin.Context) {
 	}
 
 	// Create option
-	optionResponse, err := h.optionService.CreateOption(productID, sellerId, req)
+	optionResponse, err := h.optionService.CreateOption(c, productID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_PRODUCT_OPTION_MSG)
 		return
@@ -90,7 +90,7 @@ func (h *ProductOptionHandler) UpdateOption(c *gin.Context) {
 	}
 
 	// Update option
-	optionResponse, err := h.optionService.UpdateOption(productID, optionID, sellerId, req)
+	optionResponse, err := h.optionService.UpdateOption(c, productID, optionID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_PRODUCT_OPTION_MSG)
 		return
@@ -123,7 +123,7 @@ func (h *ProductOptionHandler) DeleteOption(c *gin.Context) {
 	}
 
 	// Delete option
-	err = h.optionService.DeleteOption(productID, sellerId, optionID)
+	err = h.optionService.DeleteOption(c, productID, sellerId, optionID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_PRODUCT_OPTION_MSG)
 		return
@@ -152,7 +152,7 @@ func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 	}
 
 	// Call service
-	optionsResponse, err := h.optionService.GetAvailableOptions(productID, sellerID)
+	optionsResponse, err := h.optionService.GetAvailableOptions(c, productID, sellerID)
 	if err != nil {
 		h.HandleError(c, err, "Failed to retrieve available options")
 		return
@@ -190,7 +190,7 @@ func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
 	}
 
 	// Call service
-	response, err := h.optionService.BulkUpdateOptions(productID, sellerId, req)
+	response, err := h.optionService.BulkUpdateOptions(c, productID, sellerId, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_BULK_UPDATE_OPTIONS_MSG)
 		return

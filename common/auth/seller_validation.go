@@ -64,7 +64,7 @@ func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidation
 	cacheKey := fmt.Sprintf("%s%d", constants.SELLER_COMPLETE_CACHE_KEY, sellerID)
 
 	// Try to get from cache first
-	cachedData, err := cache.GetKey(cacheKey)
+	cachedData, err := cache.Get(cacheKey)
 	if err == nil {
 		var result SellerValidationResult
 		if jsonErr := json.Unmarshal([]byte(cachedData), &result); jsonErr == nil {
@@ -99,7 +99,7 @@ func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidation
 			SubscriptionStatus: "inactive",
 		}
 		if jsonData, _ := json.Marshal(failureResult); jsonData != nil {
-			cache.SetKey(cacheKey, string(jsonData), constants.SELLER_CACHE_SHORT_EXPIRATION)
+			cache.Set(cacheKey, string(jsonData), constants.SELLER_CACHE_SHORT_EXPIRATION)
 		}
 		return nil, errors.New(constants.INVALID_SELLER_MSG)
 	}
@@ -110,7 +110,7 @@ func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidation
 
 	// Cache the complete result as JSON
 	if jsonData, jsonErr := json.Marshal(result); jsonErr == nil {
-		cache.SetKey(cacheKey, string(jsonData), constants.SELLER_CACHE_EXPIRATION)
+		cache.Set(cacheKey, string(jsonData), constants.SELLER_CACHE_EXPIRATION)
 	}
 
 	return &result, nil

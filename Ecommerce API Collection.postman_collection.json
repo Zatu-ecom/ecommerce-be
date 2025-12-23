@@ -2399,6 +2399,799 @@
 				}
 			],
 			"description": "Product attribute management endpoints for managing product-specific attributes."
+		},
+		{
+			"name": "Inventory Management",
+			"item": [
+				{
+					"name": "Locations",
+					"item": [
+						{
+							"name": "Create Location",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Main Warehouse\",\n  \"type\": \"WAREHOUSE\",\n  \"priority\": 1,\n  \"address\": {\n    \"street\": \"1500 Distribution Center Drive\",\n    \"city\": \"San Jose\",\n    \"state\": \"CA\",\n    \"zipCode\": \"95112\",\n    \"country\": \"USA\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations"
+									]
+								},
+								"description": "Create a new inventory location (warehouse, store, etc.). Requires seller authentication. Location types: WAREHOUSE, STORE, DROPSHIP."
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Locations",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations?page=1&pageSize=10&isActive=true",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "10"
+										},
+										{
+											"key": "isActive",
+											"value": "true"
+										},
+										{
+											"key": "locationTypes",
+											"value": "WAREHOUSE,STORE",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get all locations for the authenticated seller with pagination and filters."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Location by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId"
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get a specific location by ID with address details."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Locations Summary",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/summary?page=1&pageSize=10",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										"summary"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "10"
+										},
+										{
+											"key": "isActive",
+											"value": "true",
+											"disabled": true
+										},
+										{
+											"key": "locationTypes",
+											"value": "WAREHOUSE",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get all locations with inventory summary (product count, variant count, stock levels, low stock alerts). API 1: Location Overview."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Products at Location",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/products?page=1&pageSize=10",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId",
+										"products"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "10"
+										},
+										{
+											"key": "stockStatus",
+											"value": "LOW_STOCK",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "iPhone",
+											"disabled": true
+										},
+										{
+											"key": "categoryId",
+											"value": "4",
+											"disabled": true
+										},
+										{
+											"key": "lowStockOnly",
+											"value": "true",
+											"disabled": true
+										},
+										{
+											"key": "sortBy",
+											"value": "productName",
+											"disabled": true
+										},
+										{
+											"key": "sortOrder",
+											"value": "asc",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get products with inventory summary at a specific location. API 2: Product Inventory at Location. Filters: stockStatus (IN_STOCK, LOW_STOCK, OUT_OF_STOCK), search, categoryId, lowStockOnly."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Variant Inventory at Location",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/products/:productId/variants",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId",
+										"products",
+										":productId",
+										"variants"
+									],
+									"query": [
+										{
+											"key": "stockStatus",
+											"value": "all",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "128",
+											"disabled": true
+										},
+										{
+											"key": "sortBy",
+											"value": "quantity",
+											"disabled": true
+										},
+										{
+											"key": "sortOrder",
+											"value": "desc",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										},
+										{
+											"key": "productId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get variant-level inventory for a product at a specific location. API 3: Variant Details. Shows SKU, variant options, quantity, reserved, available, stock status. Sort by: sku, variantName, quantity, reservedQuantity, availableQuantity, threshold."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Location",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Main Warehouse - Updated\",\n  \"priority\": 1,\n  \"isActive\": true,\n  \"address\": {\n    \"street\": \"1500 New Distribution Center\",\n    \"city\": \"San Jose\"\n  }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId"
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Update an existing location. All fields are optional (partial update supported)."
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Location",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId"
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Delete a location. Fails if location has existing inventory records."
+							},
+							"response": []
+						}
+					],
+					"description": "Location management endpoints for warehouses, stores, and dropship locations."
+				},
+				{
+					"name": "Inventory Operations",
+					"item": [
+						{
+							"name": "Manage Inventory",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 50,\n  \"transactionType\": \"PURCHASE\",\n  \"reference\": \"PO-2024-001\",\n  \"reason\": \"Restocking from supplier shipment\",\n  \"note\": \"Holiday season preparation\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Manage inventory quantity. Creates inventory record if not exists. Transaction types: PURCHASE (add stock), SALE (reduce stock), ADJUSTMENT (add/remove with direction), RESERVED (reserve for order), RELEASED (release reservation), TRANSFER_IN, TRANSFER_OUT, RETURN, DAMAGE, REFRESH (set absolute)."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Adjustment Add",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 10,\n  \"transactionType\": \"ADJUSTMENT\",\n  \"direction\": \"ADD\",\n  \"reason\": \"Found extra stock during audit\",\n  \"note\": \"Physical count adjustment\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Adjust inventory with ADD direction. Requires direction field (ADD or REMOVE) for ADJUSTMENT type."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Adjustment Remove",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 5,\n  \"transactionType\": \"ADJUSTMENT\",\n  \"direction\": \"REMOVE\",\n  \"reason\": \"Stock discrepancy found during audit\",\n  \"note\": \"Physical count adjustment\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Adjust inventory with REMOVE direction."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Reserve Stock",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 2,\n  \"transactionType\": \"RESERVED\",\n  \"reference\": \"ORD-2024-1001\",\n  \"reason\": \"Reserved for customer order\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Reserve stock for an order. Increases reserved_quantity. Reference required."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Release Reserved",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 2,\n  \"transactionType\": \"RELEASED\",\n  \"reference\": \"ORD-2024-1001\",\n  \"reason\": \"Order cancelled by customer\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Release previously reserved stock (order cancelled). Decreases reserved_quantity."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Sale",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 2,\n  \"transactionType\": \"SALE\",\n  \"reference\": \"ORD-2024-1001\",\n  \"reason\": \"Order fulfilled and shipped\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Record a sale. Reduces both quantity and reserved_quantity."
+							},
+							"response": []
+						},
+						{
+							"name": "Manage Inventory - Update Threshold",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"variantId\": 1,\n  \"locationId\": 1,\n  \"quantity\": 1,\n  \"transactionType\": \"ADJUSTMENT\",\n  \"direction\": \"ADD\",\n  \"threshold\": 20,\n  \"reason\": \"Updating low stock threshold for holiday season\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage"
+									]
+								},
+								"description": "Update the low stock threshold. Can be combined with any transaction type."
+							},
+							"response": []
+						},
+						{
+							"name": "Bulk Manage Inventory",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"items\": [\n    {\n      \"variantId\": 1,\n      \"locationId\": 1,\n      \"quantity\": 50,\n      \"transactionType\": \"PURCHASE\",\n      \"reference\": \"PO-2024-BULK-001\",\n      \"reason\": \"Bulk restock - Item 1\"\n    },\n    {\n      \"variantId\": 2,\n      \"locationId\": 1,\n      \"quantity\": 30,\n      \"transactionType\": \"PURCHASE\",\n      \"reference\": \"PO-2024-BULK-001\",\n      \"reason\": \"Bulk restock - Item 2\"\n    },\n    {\n      \"variantId\": 3,\n      \"locationId\": 1,\n      \"quantity\": 25,\n      \"transactionType\": \"PURCHASE\",\n      \"reference\": \"PO-2024-BULK-001\",\n      \"reason\": \"Bulk restock - Item 3\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/manage/bulk",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"manage",
+										"bulk"
+									]
+								},
+								"description": "Bulk inventory management. Process multiple inventory operations in a single request. Max 100 items per request. Returns success/failure count and individual results."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Inventory by Variant",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/products/:variantId",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"products",
+										":variantId"
+									],
+									"variable": [
+										{
+											"key": "variantId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get inventory for a specific variant across all locations. Shows quantity, reserved, available, and stock status per location."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Inventory by Location",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/inventory",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"locations",
+										":locationId",
+										"inventory"
+									],
+									"variable": [
+										{
+											"key": "locationId",
+											"value": "1"
+										}
+									]
+								},
+								"description": "Get all inventory records at a specific location."
+							},
+							"response": []
+						},
+						{
+							"name": "List Inventory Transactions",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Correlation-ID",
+										"value": "{{$randomUUID}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/inventory/transactions?page=1&pageSize=20",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"inventory",
+										"transactions"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "20"
+										},
+										{
+											"key": "variantId",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "locationId",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "type",
+											"value": "PURCHASE",
+											"disabled": true
+										},
+										{
+											"key": "referenceId",
+											"value": "PO-2024-001",
+											"disabled": true
+										},
+										{
+											"key": "startDate",
+											"value": "2024-01-01",
+											"disabled": true
+										},
+										{
+											"key": "endDate",
+											"value": "2024-12-31",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List inventory transactions with filters. Filter by variantId, locationId, type, referenceId, date range."
+							},
+							"response": []
+						}
+					],
+					"description": "Inventory operations for managing stock levels, reservations, and transactions."
+				}
+			],
+			"description": "Inventory management endpoints for locations, stock levels, reservations, and transaction history."
 		}
 	],
 	"auth": {
@@ -2464,6 +3257,14 @@
 		},
 		{
 			"key": "sellerId",
+			"value": ""
+		},
+		{
+			"key": "locationId",
+			"value": ""
+		},
+		{
+			"key": "inventoryId",
 			"value": ""
 		}
 	]

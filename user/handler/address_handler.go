@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"net/http"
@@ -51,6 +51,52 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 
 	common.SuccessResponse(c, http.StatusOK, utils.AddressesRetrievedMsg, map[string]interface{}{
 		utils.AddressesFieldName: addresses,
+	})
+}
+
+// GetAddressByID handles retrieving a specific address by ID
+func (h *AddressHandler) GetAddressByID(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID, exists := c.Get(utils.UserIDKey)
+	if !exists {
+		common.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			utils.AuthenticationRequiredMsg,
+			utils.AuthRequiredCode,
+		)
+		return
+	}
+
+	// Get address ID from path parameter
+	addressID, err := getAddressIDParam(c)
+	if err != nil {
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			utils.InvalidAddressIDMsg,
+			utils.InvalidIDCode,
+		)
+		return
+	}
+
+	// Get address
+	address, err := h.addressService.GetAddressByID(addressID, userID.(uint))
+	if err != nil {
+		if err.Error() == utils.AddressNotFoundMsg {
+			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), utils.AddressNotFoundCode)
+			return
+		}
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			utils.FailedToGetAddressesMsg+": "+err.Error(),
+		)
+		return
+	}
+
+	common.SuccessResponse(c, http.StatusOK, utils.AddressRetrievedMsg, map[string]interface{}{
+		utils.AddressFieldName: address,
 	})
 }
 
@@ -127,7 +173,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	var req model.AddressRequest
+	var req model.AddressUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var validationErrors []common.ValidationError
 		validationErrors = append(validationErrors, common.ValidationError{

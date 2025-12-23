@@ -1,30 +1,25 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
 	"ecommerce-be/common/middleware"
-	"ecommerce-be/user/handlers"
-	"ecommerce-be/user/repositories"
-	"ecommerce-be/user/service"
+	"ecommerce-be/user/factory/singleton"
+	"ecommerce-be/user/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // UserModule implements the Module interface for user routes
 type UserModule struct {
-	userHandler *handlers.UserHandler
+	userHandler      *handler.UserHandler
+	userQueryHandler *handler.UserQueryHandler
 }
 
 // NewUserModule creates a new instance of UserModule
 func NewUserModule() *UserModule {
-	addressRepo := repositories.NewAddressRepository(db.GetDB())
-	addressService := service.NewAddressService(addressRepo)
-
-	userRepo := repositories.NewUserRepository(db.GetDB())
-	userService := service.NewUserService(userRepo, addressService)
-
+	f := singleton.GetInstance()
 	return &UserModule{
-		userHandler: handlers.NewUserHandler(userService),
+		userHandler:      f.GetUserHandler(),
+		userQueryHandler: f.GetUserQueryHandler(),
 	}
 }
 
@@ -35,6 +30,7 @@ func NewUserModule() *UserModule {
 func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
 	auth := middleware.CustomerAuth()
+	sellerAuth := middleware.SellerAuth()
 
 	// Authentication routes
 	authRoutes := router.Group("/api/auth")
@@ -52,5 +48,10 @@ func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 		userRoutes.GET("/profile", auth, m.userHandler.GetProfile)
 		userRoutes.PUT("/profile", auth, m.userHandler.UpdateProfile)
 		userRoutes.PATCH("/password", auth, m.userHandler.ChangePassword)
+
+		// User query routes (seller or admin only)
+		// Sellers can only see users in their seller scope
+		// Admins can see all users
+		userRoutes.GET("", sellerAuth, m.userQueryHandler.ListUsers)
 	}
 }
