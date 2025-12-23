@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"ecommerce-be/common/constants"
@@ -12,11 +13,11 @@ import (
 
 // JWT claims struct with enhanced role-based information
 type Claims struct {
-	UserID    *uint   `json:"user_id"`    // Required - pointer to detect missing field
-	Email     *string `json:"email"`      // Required - pointer to detect missing field
-	RoleID    *uint   `json:"role_id"`    // Required - pointer to detect missing field
-	RoleName  *string `json:"role_name"`  // Required - pointer to detect missing field
-	RoleLevel *uint   `json:"role_level"` // Required - pointer to detect missing field
+	UserID    *uint   `json:"user_id"`             // Required - pointer to detect missing field
+	Email     *string `json:"email"`               // Required - pointer to detect missing field
+	RoleID    *uint   `json:"role_id"`             // Required - pointer to detect missing field
+	RoleName  *string `json:"role_name"`           // Required - pointer to detect missing field
+	RoleLevel *uint   `json:"role_level"`          // Required - pointer to detect missing field
 	SellerID  *uint   `json:"seller_id,omitempty"` // Optional - only for seller-related users
 	jwt.StandardClaims
 }
@@ -33,6 +34,12 @@ type TokenUserInfo struct {
 
 // GenerateToken generates a JWT token for a user with role-based information
 func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
+	expiryHoursInStr := os.Getenv("JWT_EXPIRY_HOURS")
+	expiryHours, err := time.ParseDuration(expiryHoursInStr + "h")
+	if err != nil {
+		return "", errors.New("invalid JWT_EXPIRY_HOURS value")
+	}
+
 	// Create the claims with pointers
 	claims := Claims{
 		UserID:    &userInfo.UserID,
@@ -42,7 +49,7 @@ func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
 		RoleLevel: &userInfo.RoleLevel,
 		SellerID:  userInfo.SellerID,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(constants.TOKEN_EXPIRE_DURATION).Unix(),
+			ExpiresAt: time.Now().Add(expiryHours).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 	}

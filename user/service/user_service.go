@@ -3,16 +3,15 @@ package service
 import (
 	"errors"
 	"log"
-	"os"
 	"time"
 
-	"ecommerce-be/common/auth"
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
+	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/repositories"
+	"ecommerce-be/user/repository"
 	"ecommerce-be/user/utils"
 
 	"golang.org/x/crypto/bcrypt"
@@ -30,13 +29,13 @@ type UserService interface {
 
 // UserServiceImpl implements the UserService interface
 type UserServiceImpl struct {
-	userRepo       repositories.UserRepository
+	userRepo       repository.UserRepository
 	addressService AddressService
 }
 
 // NewUserService creates a new instance of UserService
 func NewUserService(
-	userRepo repositories.UserRepository,
+	userRepo repository.UserRepository,
 	addressService AddressService,
 ) UserService {
 	return &UserServiceImpl{
@@ -93,42 +92,8 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 		return nil, err
 	}
 
-	// Generate JWT token with role information
-	tokenInfo := auth.TokenUserInfo{
-		UserID:    user.ID,
-		Email:     user.Email,
-		RoleID:    user.RoleID,
-		RoleName:  customerRole.Name.ToString(),
-		RoleLevel: customerRole.Level.ToUint(),
-		SellerID:  &user.SellerID,
-	}
-
-	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
-	if err != nil {
-		return nil, err
-	}
-
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	authResponse := &model.AuthResponse{
-		User:      userResponse,
-		Token:     token,
-		ExpiresIn: utils.TokenExpirationDisplay,
-	}
-
-	return authResponse, nil
+	// Build auth response using factory (eliminates duplication)
+	return factory.BuildAuthResponse(user, customerRole, &user.SellerID)
 }
 
 // Login authenticates a user and returns a token
@@ -149,51 +114,11 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 		return nil, errors.New(utils.InvalidCredentialsMsg)
 	}
 
-	// Prepare seller ID if user is associated with a seller
-	var sellerID *uint
-	if user.SellerID != 0 {
-		sellerID = &user.SellerID
-	}
-	if role.Name.ToString() == constants.SELLER_ROLE_NAME {
-		sellerID = &user.ID
-	}
+	// Resolve seller ID using factory helper (eliminates duplication)
+	sellerID := factory.ResolveSellerID(user, role)
 
-	// Generate JWT token with role information
-	tokenInfo := auth.TokenUserInfo{
-		UserID:    user.ID,
-		Email:     user.Email,
-		RoleID:    user.RoleID,
-		RoleName:  role.Name.ToString(),
-		RoleLevel: role.Level.ToUint(),
-		SellerID:  sellerID,
-	}
-
-	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
-	if err != nil {
-		return nil, err
-	}
-
-	// Create response
-	userResponse := model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	authResponse := &model.AuthResponse{
-		User:      userResponse,
-		Token:     token,
-		ExpiresIn: utils.TokenExpirationDisplay,
-	}
-
-	return authResponse, nil
+	// Build auth response using factory (eliminates duplication)
+	return factory.BuildAuthResponse(user, role, sellerID)
 }
 
 // GetProfile retrieves user profile information including addresses
@@ -280,21 +205,10 @@ func (s *UserServiceImpl) UpdateProfile(
 		}
 	}
 
-	// Create response
-	userResponse := &model.UserResponse{
-		ID:          user.ID,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Email:       user.Email,
-		Phone:       user.Phone,
-		DateOfBirth: user.DateOfBirth,
-		Gender:      user.Gender,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-	}
+	// Build user response using factory (eliminates duplication)
+	userResponse := factory.BuildUserResponse(user)
 
-	return userResponse, nil
+	return &userResponse, nil
 }
 
 // ChangePassword updates a user's password
@@ -337,31 +251,9 @@ func (s *UserServiceImpl) RefreshToken(userID uint, email string) (*model.TokenR
 		return nil, err
 	}
 
-	// Prepare seller ID if user is associated with a seller
-	var sellerID *uint
-	if user.SellerID != 0 {
-		sellerID = &user.SellerID
-	}
+	// Resolve seller ID using factory helper (eliminates duplication)
+	sellerID := factory.ResolveSellerID(user, role)
 
-	// Generate JWT token with role information
-	tokenInfo := auth.TokenUserInfo{
-		UserID:    user.ID,
-		Email:     user.Email,
-		RoleID:    user.RoleID,
-		RoleName:  role.Name.ToString(),
-		RoleLevel: role.Level.ToUint(),
-		SellerID:  sellerID,
-	}
-
-	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
-	if err != nil {
-		return nil, err
-	}
-
-	tokenResponse := &model.TokenResponse{
-		Token:     token,
-		ExpiresIn: utils.TokenExpirationDisplay,
-	}
-
-	return tokenResponse, nil
+	// Build token response using factory (eliminates duplication)
+	return factory.BuildTokenResponse(user, role, sellerID)
 }

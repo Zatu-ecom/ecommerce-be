@@ -52,21 +52,21 @@ func TestCreateProduct(t *testing.T) {
 					},
 				},
 			},
-		"variants": []map[string]interface{}{
-			{
-				"sku":   "TEST-SINGLE-001-V1",
-				"price": 99.99,
-				"options": []map[string]interface{}{
-					{
-						"optionName": "color",
-						"value":      "black",
+			"variants": []map[string]interface{}{
+				{
+					"sku":   "TEST-SINGLE-001-V1",
+					"price": 99.99,
+					"options": []map[string]interface{}{
+						{
+							"optionName": "color",
+							"value":      "black",
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	w := client.Post(t, "/api/products", requestBody)		// Debug: Print response if not successful
+		w := client.Post(t, "/api/products", requestBody) // Debug: Print response if not successful
 		if w.Code != http.StatusCreated {
 			t.Logf("Response Status: %d", w.Code)
 			t.Logf("Response Body: %s", w.Body.String())
@@ -233,7 +233,7 @@ func TestCreateProduct(t *testing.T) {
 		}
 
 		assert.Equal(t, 1, optionNames["color"], "Should have Color option")
-			assert.Equal(t, 1, optionNames["size"], "Should have Size option")
+		assert.Equal(t, 1, optionNames["size"], "Should have Size option")
 	})
 
 	t.Run("Success - Create product with 3 options", func(t *testing.T) {
@@ -394,10 +394,11 @@ func TestCreateProduct(t *testing.T) {
 		var foundDefault bool
 		for _, v := range variants {
 			variant := v.(map[string]interface{})
-			if variant["sku"] == "TEST-DEFAULT-001-BLK" {
+			switch variant["sku"] {
+			case "TEST-DEFAULT-001-BLK":
 				assert.Equal(t, true, variant["isDefault"], "Black variant should be default")
 				foundDefault = true
-			} else if variant["sku"] == "TEST-DEFAULT-001-WHT" {
+			case "TEST-DEFAULT-001-WHT":
 				assert.Equal(t, false, variant["isDefault"], "White variant should not be default")
 			}
 		}
@@ -455,10 +456,11 @@ func TestCreateProduct(t *testing.T) {
 		var foundPopular bool
 		for _, v := range variants {
 			variant := v.(map[string]interface{})
-			if variant["sku"] == "TEST-POPULAR-001-BLK" {
+			switch variant["sku"] {
+			case "TEST-POPULAR-001-BLK":
 				assert.Equal(t, true, variant["isPopular"], "Black variant should be popular")
 				foundPopular = true
-			} else if variant["sku"] == "TEST-POPULAR-001-RED" {
+			case "TEST-POPULAR-001-RED":
 				assert.Equal(t, false, variant["isPopular"], "Red variant should not be popular")
 			}
 		}

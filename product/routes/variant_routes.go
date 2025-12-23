@@ -27,6 +27,10 @@ func (m *VariantModule) RegisterRoutes(router *gin.Engine) {
 	publicRoutesAuth := middleware.PublicAPIAuth()
 	sellerAuth := middleware.SellerAuth()
 
+	// List/filter variants (public - for home page, search, etc.)
+	router.GET("/api/variants", publicRoutesAuth, m.variantHandler.ListVariants)
+
+	// Product-specific variant routes
 	variantRoutes := router.Group("/api/products/:productId/variants")
 	{
 		variantRoutes.GET("/find", publicRoutesAuth, m.variantHandler.FindVariantByOptions)

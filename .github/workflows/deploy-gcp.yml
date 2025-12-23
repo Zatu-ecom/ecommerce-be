@@ -1,0 +1,218 @@
+name: Deploy to GCP VM (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (e.g., main, feature/login)'
+        required: true
+        default: 'main'
+
+env:
+  IMAGE_NAME: ecommerce-backend
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to GCP VM
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ============================================
+      # 1. Checkout Code
+      # ============================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # This is crucial: Checkout the specific branch requested by the user input
+          ref: ${{ inputs.branch }}
+
+      # ============================================
+      # 1.1 Get Short SHA (Better for tagging)
+      # ============================================
+      - name: Get Short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # ============================================
+      # 2. Set up Docker Buildx
+      # ============================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ============================================
+      # 3. Build Docker Image
+      # ============================================
+      - name: Build Docker image
+        run: |
+          echo "🏗️  Building Docker image for branch: ${{ inputs.branch }}"
+          DOCKER_BUILDKIT=1 docker build \
+            --tag ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }} \
+            --tag ${{ env.IMAGE_NAME }}:latest \
+            --cache-from ${{ env.IMAGE_NAME }}:latest \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            .
+          
+          echo "✅ Image built successfully"
+          docker images | grep ${{ env.IMAGE_NAME }}
+
+      # ============================================
+      # 4. Save Docker Image to tar
+      # ============================================
+      - name: Save Docker image
+        run: |
+          echo "💾 Saving Docker image to tar file..."
+          docker save ${{ env.IMAGE_NAME }}:latest | gzip > ecommerce-backend.tar.gz
+          ls -lh ecommerce-backend.tar.gz
+          echo "✅ Image saved"
+
+      # ============================================
+      # 5. Authenticate to Google Cloud
+      # ============================================
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ============================================
+      # 6. Transfer Image to VM
+      # ============================================
+      - name: Transfer image to VM
+        run: |
+          echo "📤 Transferring Docker image to VM..."
+          gcloud compute scp ecommerce-backend.tar.gz \
+            ${{ secrets.GCP_VM_NAME }}:/tmp/ecommerce-backend.tar.gz \
+            --zone=${{ secrets.GCP_VM_ZONE }}
+          echo "✅ Image transferred"
+
+      # ============================================
+      # 7. Deploy to GCP VM
+      # ============================================
+# ============================================
+      # 7. Deploy to GCP VM (Fixed Method)
+      # ============================================
+      - name: Deploy to GCP VM
+        run: |
+          # 1. Create the deployment script locally
+          # We use 'EOF' (quoted) to prevent the Runner from trying to interpret $variables inside the script.
+          cat << 'EOF' > deploy_script.sh
+          #!/bin/bash
+          set -e
+          
+          # Read arguments passed to the script
+          BRANCH_NAME=$1
+          COMMIT_SHA=$2
+          IMG_NAME=$3
+          
+          echo "🚀 Starting deployment script on VM..."
+          echo "Branch: $BRANCH_NAME"
+          echo "Commit: $COMMIT_SHA"
+          
+          # Switch to vasugoriya1234 user and run the actual logic
+          # We pass the variables down into the sudo session
+          sudo -u vasugoriya1234 bash -c "
+            set -e
+            cd /home/vasugoriya1234/ecommerce-backend
+            
+            # Pull latest code
+            echo \"📥 Pulling latest code for $BRANCH_NAME...\"
+            git fetch origin
+            git reset --hard origin/$BRANCH_NAME
+            
+            # Stop existing containers
+            echo \"🛑 Stopping existing containers...\"
+            docker-compose down || true
+            
+            # Remove old images (using the passed image name variable)
+            echo \"🧹 Removing old Docker images...\"
+            docker images | grep $IMG_NAME | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
+            
+            # Load new image
+            echo \"📦 Loading new Docker image...\"
+            docker load < /tmp/ecommerce-backend.tar.gz
+            
+            # Clean up temp file
+            sudo rm -f /tmp/ecommerce-backend.tar.gz
+            
+            # Run migrations
+            echo \"🗄️  Running database migrations...\"
+            docker-compose --profile tools run --rm migrate || echo \"⚠️  Migrations already up to date\"
+            
+            # Start services
+            echo \"🚀 Starting services...\"
+            docker-compose up -d
+            
+            # Clean up dangling images
+            echo \"🧹 Cleaning up dangling images...\"
+            docker image prune -f
+            
+            echo \"✅ Deployment logic finished.\"
+          "
+          EOF
+
+          # 2. Make script executable
+          chmod +x deploy_script.sh
+
+          # 3. Transfer the script to the VM (defaults to /home/runner-user/ or /tmp)
+          echo "📤 Uploading deployment script..."
+          gcloud compute scp deploy_script.sh \
+            ${{ secrets.GCP_VM_NAME }}:/tmp/deploy_script.sh \
+            --zone=${{ secrets.GCP_VM_ZONE }}
+
+          # 4. Execute the script remotely
+          # We pass the GitHub Actions variables here as arguments
+          echo "🚀 Executing remote script..."
+          gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_VM_ZONE }} \
+            --command="bash /tmp/deploy_script.sh \"${{ inputs.branch }}\" \"${{ steps.vars.outputs.sha_short }}\" \"${{ env.IMAGE_NAME }}\""
+
+      # ============================================
+      # 8. Verify Deployment
+      # ============================================
+      - name: Verify deployment
+        run: |
+          echo "⏳ Waiting for application to be ready..."
+          sleep 10
+          
+          gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_VM_ZONE }} \
+            --command="
+              cd /home/vasugoriya1234/ecommerce-backend
+              
+              echo '📊 Service Status:'
+              docker-compose ps
+              
+              echo ''
+              echo '📋 Recent Application Logs:'
+              docker-compose logs --tail=30 app
+              
+              echo ''
+              echo '🐳 Docker Images:'
+              docker images | grep -E 'REPOSITORY|ecommerce'
+              
+              echo ''
+              echo '💾 Disk Space:'
+              df -h / | tail -1
+            "
+
+      # ============================================
+      # 9. Notify on Success
+      # ============================================
+      - name: Deployment successful
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Commit: ${{ steps.vars.outputs.sha_short }}"
+
+      # ============================================
+      # 10. Notify on Failure
+      # ============================================
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Check the logs above for details."

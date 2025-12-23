@@ -128,6 +128,7 @@ const (
 	FAILED_TO_DELETE_VARIANT_MSG       = "Failed to delete variant"
 	FAILED_TO_UPDATE_VARIANT_STOCK_MSG = "Failed to update variant stock"
 	FAILED_TO_BULK_UPDATE_VARIANTS_MSG = "Failed to bulk update variants"
+	FAILED_TO_LIST_VARIANTS_MSG        = "Failed to list variants"
 	OPTION_REQUIRED_MSG                = "At least one option parameter is required (e.g., color=red, size=m)"
 	INVALID_REQUEST_MSG                = "Invalid request"
 )
