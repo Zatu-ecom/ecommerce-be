@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/db"
@@ -52,15 +57,58 @@ func main() {
 	/* Start background workers (must be before router.Run which blocks) */
 	go scheduler.StartRedisWorkerPool()
 
-	/* Start Server */
+	/* Start Server with Graceful Shutdown */
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // Default port
 	}
-	logger.Info("Server starting on port " + port)
-	if err := router.Run(":" + port); err != nil {
-		logger.Fatal("Failed to start server on port "+port, err)
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
 	}
+
+	// Start server in a goroutine
+	go func() {
+		logger.Info("Server starting on port " + port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Failed to start server on port "+port, err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	gracefulShutdown(srv)
+}
+
+// gracefulShutdown handles OS signals and performs cleanup
+func gracefulShutdown(srv *http.Server) {
+	quit := make(chan os.Signal, 1)
+	// SIGINT (Ctrl+C), SIGTERM (Docker/Kubernetes stop)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Block until signal received
+	sig := <-quit
+	logger.Info("Received shutdown signal: " + sig.String())
+
+	// Create a deadline for shutdown (give ongoing requests time to complete)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Shutdown HTTP server (stops accepting new requests, waits for ongoing)
+	logger.Info("Shutting down HTTP server...")
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("HTTP server forced to shutdown", err)
+	}
+
+	// Close database connections
+	logger.Info("Closing database connections...")
+	db.CloseDB()
+
+	// Close Redis connections
+	logger.Info("Closing Redis connections...")
+	cache.CloseRedis()
+
+	logger.Info("Server shutdown complete")
 }
 
 func registerContainer(router *gin.Engine) {

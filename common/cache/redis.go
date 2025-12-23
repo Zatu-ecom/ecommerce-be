@@ -96,3 +96,13 @@ func IsTokenBlacklisted(token string) bool {
 
 	return result == "blacklisted"
 }
+
+// CloseRedis closes the Redis connection gracefully
+func CloseRedis() {
+	if redisClient != nil {
+		if err := redisClient.Close(); err != nil {
+			// Log error but don't panic during shutdown
+			println("Error closing Redis connection:", err.Error())
+		}
+	}
+}

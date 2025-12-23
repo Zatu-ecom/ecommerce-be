@@ -10,9 +10,10 @@ type ReservationStatus string
 
 const (
 	ResPending   ReservationStatus = "PENDING"
-	ResConfirmed ReservationStatus = "CONFIRMED" // Converted to order
 	ResExpired   ReservationStatus = "EXPIRED"   // Released back to stock
+	ResConfirmed ReservationStatus = "CONFIRMED" // Converted to order
 	ResCancelled ReservationStatus = "CANCELLED" // Released back to stock
+	ResFulfilled ReservationStatus = "FULFILLED" // Order has been fulfilled
 )
 
 type InventoryReservation struct {
