@@ -165,27 +165,42 @@ SELECT setval('inventory_id_seq', (SELECT MAX(id) FROM inventory));
 
 -- ------------------------------
 -- Insert Sample Inventory Transactions (recent activity)
+-- Format: (id, inventory_id, type, quantity_change, before_quantity, after_quantity, 
+--         reserved_quantity_change, before_reserved_quantity, after_reserved_quantity,
+--         performed_by, reference_id, reference_type, reason, note, created_at, updated_at)
 -- ------------------------------
-INSERT INTO inventory_transaction (id, inventory_id, type, quantity, before_quantity, after_quantity, performed_by, reference_id, reference_type, reason, note, created_at, updated_at) VALUES
+INSERT INTO inventory_transaction (id, inventory_id, type, quantity_change, before_quantity, after_quantity, reserved_quantity_change, before_reserved_quantity, after_reserved_quantity, performed_by, reference_id, reference_type, reason, note, created_at, updated_at) VALUES
 -- Recent transactions for Tech Main Warehouse (Seller 2)
-(1, 1, 'PURCHASE', 50, 50, 100, 2, 'PO-2024-001', 'PURCHASE_ORDER', 'Restocking iPhone 15 Pro Natural 128GB', 'Holiday season preparation', NOW() - INTERVAL '5 days', NOW()),
-(2, 1, 'RESERVED', 5, 100, 100, 2, 'ORD-2024-1001', 'ORDER', 'Reserved for customer order', NULL, NOW() - INTERVAL '2 days', NOW()),
-(3, 4, 'SALE', 2, 10, 8, 2, 'ORD-2024-1002', 'ORDER', 'Sold iPhone 15 Pro Blue 256GB', 'Walk-in customer', NOW() - INTERVAL '1 day', NOW()),
+-- PURCHASE: Only affects quantity (not reserved)
+(1, 1, 'PURCHASE', 50, 50, 100, 0, 0, 0, 2, 'PO-2024-001', 'PURCHASE_ORDER', 'Restocking iPhone 15 Pro Natural 128GB', 'Holiday season preparation', NOW() - INTERVAL '5 days', NOW()),
+-- RESERVED: Only affects reserved_quantity (not quantity)
+(2, 1, 'RESERVED', 0, 100, 100, 5, 0, 5, 2, 'ORD-2024-1001', 'ORDER', 'Reserved for customer order', NULL, NOW() - INTERVAL '2 days', NOW()),
+-- OUTBOUND (SALE): Affects BOTH quantity AND reserved_quantity
+(3, 4, 'OUTBOUND', -2, 10, 8, -2, 2, 0, 2, 'ORD-2024-1002', 'ORDER', 'Sold iPhone 15 Pro Blue 256GB', 'Walk-in customer', NOW() - INTERVAL '1 day', NOW()),
 
 -- Transactions for Fashion Central Warehouse (Seller 3)
-(4, 21, 'PURCHASE', 200, 300, 500, 3, 'PO-2024-050', 'PURCHASE_ORDER', 'Bulk t-shirt restock', 'New collection arrival', NOW() - INTERVAL '7 days', NOW()),
-(5, 27, 'RESERVED', 25, 200, 200, 3, 'ORD-2024-2001', 'ORDER', 'Reserved for wholesale order', 'Corporate client order', NOW() - INTERVAL '3 days', NOW()),
-(6, 30, 'SALE', 10, 10, 0, 3, 'ORD-2024-2002', 'ORDER', 'Sold last units of pink dress', 'End of season sale', NOW() - INTERVAL '1 day', NOW()),
+-- PURCHASE: Only affects quantity
+(4, 21, 'PURCHASE', 200, 300, 500, 0, 0, 0, 3, 'PO-2024-050', 'PURCHASE_ORDER', 'Bulk t-shirt restock', 'New collection arrival', NOW() - INTERVAL '7 days', NOW()),
+-- RESERVED: Only affects reserved_quantity
+(5, 27, 'RESERVED', 0, 200, 200, 25, 0, 25, 3, 'ORD-2024-2001', 'ORDER', 'Reserved for wholesale order', 'Corporate client order', NOW() - INTERVAL '3 days', NOW()),
+-- OUTBOUND (SALE): Affects BOTH (clears out remaining stock and reservation)
+(6, 30, 'OUTBOUND', -10, 10, 0, 0, 0, 0, 3, 'ORD-2024-2002', 'ORDER', 'Sold last units of pink dress', 'End of season sale', NOW() - INTERVAL '1 day', NOW()),
 
 -- Transactions for Home Distribution Center (Seller 4)
-(7, 35, 'TRANSFER_OUT', 2, 17, 15, 4, 'TRF-2024-001', 'TRANSFER', 'Transfer to showroom', NULL, NOW() - INTERVAL '4 days', NOW()),
-(8, 37, 'TRANSFER_IN', 2, 1, 3, 4, 'TRF-2024-001', 'TRANSFER', 'Received from warehouse', NULL, NOW() - INTERVAL '4 days', NOW()),
-(9, 38, 'SALE', 2, 2, 0, 4, 'ORD-2024-3001', 'ORDER', 'Sold last beige sofas', 'Customer picked up from showroom', NOW() - INTERVAL '2 days', NOW())
+-- TRANSFER_OUT: Only affects quantity (not reserved)
+(7, 35, 'TRANSFER_OUT', -2, 17, 15, 0, 0, 0, 4, 'TRF-2024-001', 'TRANSFER', 'Transfer to showroom', NULL, NOW() - INTERVAL '4 days', NOW()),
+-- TRANSFER_IN: Only affects quantity (not reserved)
+(8, 37, 'TRANSFER_IN', 2, 1, 3, 0, 0, 0, 4, 'TRF-2024-001', 'TRANSFER', 'Received from warehouse', NULL, NOW() - INTERVAL '4 days', NOW()),
+-- OUTBOUND (SALE): Affects BOTH quantity AND reserved_quantity
+(9, 38, 'OUTBOUND', -2, 2, 0, -2, 2, 0, 4, 'ORD-2024-3001', 'ORDER', 'Sold last beige sofas', 'Customer picked up from showroom', NOW() - INTERVAL '2 days', NOW())
 ON CONFLICT (id) DO UPDATE SET
     type = EXCLUDED.type,
-    quantity = EXCLUDED.quantity,
+    quantity_change = EXCLUDED.quantity_change,
     before_quantity = EXCLUDED.before_quantity,
     after_quantity = EXCLUDED.after_quantity,
+    reserved_quantity_change = EXCLUDED.reserved_quantity_change,
+    before_reserved_quantity = EXCLUDED.before_reserved_quantity,
+    after_reserved_quantity = EXCLUDED.after_reserved_quantity,
     reason = EXCLUDED.reason,
     updated_at = NOW();
 

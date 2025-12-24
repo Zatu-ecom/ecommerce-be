@@ -33,5 +33,5 @@ type ReservationResponse struct {
 // that are currently in the pending state.
 type UpdateReservationStatusRequest struct {
 	ReferenceId uint                     `json:"referenceId" binding:"required"`
-	Status      entity.ReservationStatus `json:"status"      binding:"required,oneof='CANCELLED' 'COMPLETED'"`
+	Status      entity.ReservationStatus `json:"status"      binding:"required,oneof='CANCELLED' 'COMPLETED' 'FULFILLED'"`
 }

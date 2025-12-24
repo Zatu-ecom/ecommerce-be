@@ -89,37 +89,47 @@ func (s *InventoryServiceImpl) buildTransactionParams(
 	quantityChange int,
 	userID uint,
 ) model.CreateTransactionParams {
-	updatesReserved := req.TransactionType.UpdatesReservedQuantity()
-	beforeQty, afterQty := s.determineBeforeAfterQuantities(
-		inventory, previousQuantity, previousReserved, updatesReserved,
-	)
-	referenceType := helper.DetermineReferenceType(req.TransactionType)
+	txnType := req.TransactionType
+	referenceType := helper.DetermineReferenceType(txnType)
 
-	return model.CreateTransactionParams{
+	params := model.CreateTransactionParams{
 		InventoryID:     inventory.ID,
-		TransactionType: req.TransactionType,
-		QuantityChange:  quantityChange,
-		BeforeQuantity:  beforeQty,
-		AfterQuantity:   afterQty,
+		TransactionType: txnType,
 		PerformedBy:     userID,
 		Reference:       req.Reference,
 		ReferenceType:   referenceType,
 		Reason:          req.Reason,
 		Note:            req.Note,
 	}
-}
 
-// determineBeforeAfterQuantities determines the before/after quantities for transaction
-func (s *InventoryServiceImpl) determineBeforeAfterQuantities(
-	inventory *entity.Inventory,
-	previousQuantity int,
-	previousReserved int,
-	updatesReserved bool,
-) (beforeQty int, afterQty int) {
-	if updatesReserved {
-		return previousReserved, inventory.ReservedQuantity
+	// Determine quantity changes based on transaction type
+	if txnType.UpdatesBothQuantities() {
+		// OUTBOUND: updates both quantities
+		params.QuantityChange = quantityChange
+		params.BeforeQuantity = previousQuantity
+		params.AfterQuantity = inventory.Quantity
+		params.ReservedQuantityChange = quantityChange // Same change (negative for release)
+		params.BeforeReservedQuantity = previousReserved
+		params.AfterReservedQuantity = inventory.ReservedQuantity
+	} else if txnType.UpdatesReservedQuantity() {
+		// RESERVED, RELEASED: only updates reserved quantity
+		params.QuantityChange = 0
+		params.BeforeQuantity = previousQuantity
+		params.AfterQuantity = previousQuantity // No change
+		params.ReservedQuantityChange = quantityChange
+		params.BeforeReservedQuantity = previousReserved
+		params.AfterReservedQuantity = inventory.ReservedQuantity
+	} else {
+		// All other types: only updates regular quantity
+		params.QuantityChange = quantityChange
+		params.BeforeQuantity = previousQuantity
+		params.AfterQuantity = inventory.Quantity
+		params.ReservedQuantityChange = 0
+		params.BeforeReservedQuantity = previousReserved
+		params.AfterReservedQuantity = previousReserved // No change
 	}
-	return previousQuantity, inventory.Quantity
+
+	return params
 }
 
 // ============================================================================

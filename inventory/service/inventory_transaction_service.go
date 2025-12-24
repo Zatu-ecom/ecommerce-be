@@ -103,16 +103,24 @@ func (s *InventoryTransactionServiceImpl) buildTransactionsFromParams(
 
 	for i, p := range params {
 		transactions[i] = &entity.InventoryTransaction{
-			InventoryID:    p.InventoryID,
-			Type:           p.TransactionType,
-			Quantity:       p.QuantityChange,
+			InventoryID: p.InventoryID,
+			Type:        p.TransactionType,
+
+			// Actual quantity tracking
+			QuantityChange:       p.QuantityChange,
 			BeforeQuantity: p.BeforeQuantity,
 			AfterQuantity:  p.AfterQuantity,
-			PerformedBy:    p.PerformedBy,
-			ReferenceID:    p.Reference,
-			ReferenceType:  helper.StringPtr(p.ReferenceType),
-			Reason:         p.Reason,
-			Note:           p.Note,
+
+			// Reserved quantity tracking
+			ReservedQuantityChange: p.ReservedQuantityChange,
+			BeforeReservedQuantity: p.BeforeReservedQuantity,
+			AfterReservedQuantity:  p.AfterReservedQuantity,
+
+			PerformedBy:   p.PerformedBy,
+			ReferenceID:   p.Reference,
+			ReferenceType: helper.StringPtr(p.ReferenceType),
+			Reason:        p.Reason,
+			Note:          p.Note,
 		}
 	}
 
@@ -197,18 +205,26 @@ func (s *InventoryTransactionServiceImpl) buildTransactionResponse(
 	userMap map[uint]string,
 ) model.TransactionResponse {
 	response := model.TransactionResponse{
-		ID:             txn.ID,
-		InventoryID:    txn.InventoryID,
-		Type:           txn.Type,
-		Quantity:       txn.Quantity,
+		ID:          txn.ID,
+		InventoryID: txn.InventoryID,
+		Type:        txn.Type,
+
+		// Actual quantity tracking
+		QuantityChange:       txn.QuantityChange,
 		BeforeQuantity: txn.BeforeQuantity,
 		AfterQuantity:  txn.AfterQuantity,
-		PerformedBy:    txn.PerformedBy,
-		ReferenceID:    txn.ReferenceID,
-		ReferenceType:  txn.ReferenceType,
-		Reason:         txn.Reason,
-		Note:           txn.Note,
-		CreatedAt:      txn.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+
+		// Reserved quantity tracking
+		ReservedQuantityChange: txn.ReservedQuantityChange,
+		BeforeReservedQuantity: txn.BeforeReservedQuantity,
+		AfterReservedQuantity:  txn.AfterReservedQuantity,
+
+		PerformedBy:   txn.PerformedBy,
+		ReferenceID:   txn.ReferenceID,
+		ReferenceType: txn.ReferenceType,
+		Reason:        txn.Reason,
+		Note:          txn.Note,
+		CreatedAt:     txn.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	// Enrich with inventory data
