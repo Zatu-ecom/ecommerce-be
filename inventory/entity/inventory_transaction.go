@@ -58,7 +58,7 @@ const (
 	TXN_TRANSFER_IN TransactionType = "TRANSFER_IN" // From another location
 
 	// Stock Decreases
-	TXN_SALE         TransactionType = "OUTBOUND"     // Order fulfilled (shipped)
+	TXN_OUTBOUND     TransactionType = "OUTBOUND"     // Order fulfilled (shipped)
 	TXN_TRANSFER_OUT TransactionType = "TRANSFER_OUT" // To another location
 	TXN_DAMAGE       TransactionType = "DAMAGE"       // Damaged/Lost items
 
@@ -77,7 +77,7 @@ func ValidTransactionTypes() []TransactionType {
 		TXN_PURCHASE,
 		TXN_RETURN,
 		TXN_TRANSFER_IN,
-		TXN_SALE,
+		TXN_OUTBOUND,
 		TXN_TRANSFER_OUT,
 		TXN_DAMAGE,
 		TXN_RESERVED,
@@ -89,12 +89,19 @@ func ValidTransactionTypes() []TransactionType {
 
 // UpdatesReservedQuantity returns true if transaction type updates reserved quantity
 func (tt TransactionType) UpdatesReservedQuantity() bool {
-	return tt == TXN_RESERVED || tt == TXN_RELEASED
+	return tt == TXN_RESERVED || tt == TXN_RELEASED || tt == TXN_OUTBOUND
 }
 
 // UpdatesQuantity returns true if transaction type updates regular quantity
 func (tt TransactionType) UpdatesQuantity() bool {
-	return !tt.UpdatesReservedQuantity()
+	// All types except pure reservation operations update quantity
+	return tt != TXN_RESERVED && tt != TXN_RELEASED
+}
+
+// UpdatesBothQuantities returns true if transaction type updates both quantities
+// OUTBOUND: decreases reserved (release) AND decreases quantity (ship)
+func (tt TransactionType) UpdatesBothQuantities() bool {
+	return tt == TXN_OUTBOUND
 }
 
 // RequiresReference returns true if transaction type requires a reference ID
@@ -102,7 +109,7 @@ func (tt TransactionType) RequiresReference() bool {
 	// System operations always need reference (Order ID, PO Number, Transfer ID, etc.)
 	return tt == TXN_RESERVED ||
 		tt == TXN_RELEASED ||
-		tt == TXN_SALE ||
+		tt == TXN_OUTBOUND ||
 		tt == TXN_PURCHASE ||
 		tt == TXN_RETURN ||
 		tt == TXN_TRANSFER_IN ||
@@ -123,7 +130,7 @@ func ValidManualTransactionTypes() []TransactionType {
 		// Stock movements (called by internal services)
 		TXN_PURCHASE,
 		TXN_RETURN,
-		TXN_SALE,
+		TXN_OUTBOUND,
 		TXN_TRANSFER_IN,
 		TXN_TRANSFER_OUT,
 	}
@@ -177,12 +184,21 @@ type InventoryTransaction struct {
 	// Type of movement
 	Type TransactionType `json:"type" gorm:"column:type;type:varchar(20);not null;index"`
 
-	// Quantity changed (positive for add, negative for remove)
-	Quantity int `json:"quantity" gorm:"column:quantity;not null"`
+	// ========== ACTUAL QUANTITY TRACKING ==========
+	// QuantityChange changed (positive for add, negative for remove)
+	QuantityChange int `json:"quantityChange" gorm:"column:quantity_change;not null"`
 
-	// Snapshots for audit trail
+	// Snapshots for audit trail (actual stock)
 	BeforeQuantity int `json:"beforeQuantity" gorm:"column:before_quantity;not null"`
 	AfterQuantity  int `json:"afterQuantity"  gorm:"column:after_quantity;not null"`
+
+	// ========== RESERVED QUANTITY TRACKING ==========
+	// Reserved quantity changed (positive for reserve, negative for release)
+	ReservedQuantityChange int `json:"reservedQuantityChange" gorm:"column:reserved_quantity_change;not null;default:0"`
+
+	// Snapshots for audit trail (reserved stock)
+	BeforeReservedQuantity int `json:"beforeReservedQuantity" gorm:"column:before_reserved_quantity;not null;default:0"`
+	AfterReservedQuantity  int `json:"afterReservedQuantity"  gorm:"column:after_reserved_quantity;not null;default:0"`
 
 	// Audit: Who performed this transaction
 	PerformedBy uint `json:"performedBy" gorm:"column:performed_by;not null;index"`

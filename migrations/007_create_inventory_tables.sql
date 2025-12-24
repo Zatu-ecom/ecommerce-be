@@ -35,9 +35,17 @@ CREATE TABLE IF NOT EXISTS inventory_transaction (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id),
     type VARCHAR(20) NOT NULL,
-    quantity INTEGER NOT NULL,
+    
+    -- Actual quantity tracking
+    quantity_change INTEGER NOT NULL,
     before_quantity INTEGER NOT NULL,
     after_quantity INTEGER NOT NULL,
+    
+    -- Reserved quantity tracking
+    reserved_quantity_change INTEGER NOT NULL DEFAULT 0,
+    before_reserved_quantity INTEGER NOT NULL DEFAULT 0,
+    after_reserved_quantity INTEGER NOT NULL DEFAULT 0,
+    
     performed_by INTEGER NOT NULL,
     reference_id VARCHAR(255),
     reference_type VARCHAR(50),
