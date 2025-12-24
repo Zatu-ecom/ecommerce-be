@@ -19,6 +19,9 @@ import (
 	"ecommerce-be/product/service"
 )
 
+// InventoryReservationService defines the contract for managing inventory reservations.
+// It handles creation, expiration, and status updates of stock reservations
+// to support order processing workflows.
 type InventoryReservationService interface {
 	CreateReservation(
 		ctx context.Context,
@@ -47,6 +50,8 @@ type InventoryReservationServiceImpl struct {
 	inventoryManageService InventoryManageService
 }
 
+// NewInventoryReservationService creates a new instance of InventoryReservationServiceImpl
+// with all required dependencies injected.
 func NewInventoryReservationService(
 	reservationRepo repository.InventoryReservationRepository,
 	inventoryQueryService InventoryQueryService,
@@ -63,6 +68,10 @@ func NewInventoryReservationService(
 	}
 }
 
+// CreateReservation creates inventory reservations for the requested items.
+// It validates variant ownership, checks inventory availability across locations,
+// reserves the stock, and schedules automatic expiration via Redis.
+// The reservation is created within a database transaction to ensure consistency.
 func (s *InventoryReservationServiceImpl) CreateReservation(
 	ctx context.Context,
 	sellerId uint,
@@ -122,6 +131,9 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 	)
 }
 
+// ExpireScheduleReservation handles the automatic expiration of reservations.
+// It is triggered by the Redis scheduler when a reservation's TTL expires.
+// Updates reservation status to expired and releases the reserved inventory back to available stock.
 func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
 	ctx context.Context,
 	sellerId uint,
@@ -140,10 +152,21 @@ func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
 			return err
 		}
 
-		return s.releaseReservationInventory(txCtx, sellerId, inventoryReservations)
+		return s.releaseReservationInventory(
+			txCtx,
+			sellerId,
+			entity.TXN_RELEASED,
+			inventoryReservations,
+		)
 	})
 }
 
+// UpdateReservationStatus updates the status of all pending reservations for a given reference ID.
+// Based on the new status, it handles inventory accordingly:
+//   - ResCancelled: releases reserved stock back to available
+//   - ResFulfilled: marks stock as outbound (shipped)
+//   - ResConfirmed: keeps reservation active without inventory changes
+//   - Default: releases reserved stock back to available
 func (s *InventoryReservationServiceImpl) UpdateReservationStatus(
 	ctx context.Context,
 	sellerId uint,
@@ -180,11 +203,13 @@ func (s *InventoryReservationServiceImpl) UpdateReservationStatus(
 
 		switch req.Status {
 		case entity.ResCancelled:
-			return s.releaseReservationInventory(txCtx, sellerId, reservations)
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_RELEASED, reservations)
+		case entity.ResFulfilled:
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_OUTBOUND, reservations)
 		case entity.ResConfirmed:
 			return nil
 		default:
-			return s.releaseReservationInventory(txCtx, sellerId, reservations)
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_RELEASED, reservations)
 		}
 	})
 }
@@ -192,6 +217,7 @@ func (s *InventoryReservationServiceImpl) UpdateReservationStatus(
 func (s *InventoryReservationServiceImpl) releaseReservationInventory(
 	ctx context.Context,
 	sellerId uint,
+	txnType entity.TransactionType,
 	reservations []*entity.InventoryReservation,
 ) error {
 	inventoryMap, err := helper.BatchFetch(
@@ -217,7 +243,7 @@ func (s *InventoryReservationServiceImpl) releaseReservationInventory(
 	return s.manageInventoryQuantity(
 		ctx,
 		sellerId,
-		entity.TXN_RELEASED,
+		txnType,
 		reservations,
 		inventories,
 	)

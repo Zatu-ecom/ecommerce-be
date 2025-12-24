@@ -29,7 +29,7 @@ func CalculateQuantityChange(
 		return calculateAdjustmentChange(req, isNewInventory)
 	case entity.TXN_PURCHASE, entity.TXN_RETURN, entity.TXN_TRANSFER_IN:
 		return req.Quantity, nil
-	case entity.TXN_SALE, entity.TXN_TRANSFER_OUT, entity.TXN_DAMAGE:
+	case entity.TXN_OUTBOUND, entity.TXN_TRANSFER_OUT, entity.TXN_DAMAGE:
 		return -req.Quantity, nil
 	case entity.TXN_RESERVED:
 		return req.Quantity, nil
@@ -65,11 +65,26 @@ func ApplyInventoryChanges(
 	req model.ManageInventoryRequest,
 	quantityChange int,
 ) error {
-	updatesReserved := req.TransactionType.UpdatesReservedQuantity()
+	txnType := req.TransactionType
 
-	if updatesReserved {
+	// OUTBOUND (SALE) updates BOTH quantities:
+	// - Decreases reserved_quantity (release the reservation)
+	// - Decreases quantity (ship the actual stock)
+	if txnType.UpdatesBothQuantities() {
+		// First release the reserved quantity
+		if err := applyReservedQuantityChange(inventory, quantityChange); err != nil {
+			return err
+		}
+		// Then decrease the actual quantity
+		return applyQuantityChange(inventory, req, quantityChange)
+	}
+
+	// RESERVED and RELEASED only update reserved_quantity
+	if txnType.UpdatesReservedQuantity() {
 		return applyReservedQuantityChange(inventory, quantityChange)
 	}
+
+	// All other types update only regular quantity
 	return applyQuantityChange(inventory, req, quantityChange)
 }
 
@@ -138,7 +153,7 @@ func DetermineReferenceType(txnType entity.TransactionType) string {
 		return "ORDER"
 	case entity.TXN_PURCHASE:
 		return "PURCHASE_ORDER"
-	case entity.TXN_SALE:
+	case entity.TXN_OUTBOUND:
 		return "SALES_ORDER"
 	case entity.TXN_RETURN:
 		return "RETURN"

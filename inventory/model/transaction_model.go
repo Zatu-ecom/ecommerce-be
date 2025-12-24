@@ -20,12 +20,21 @@ type CreateTransactionParams struct {
 	// Type of transaction
 	TransactionType entity.TransactionType
 
+	// ========== ACTUAL QUANTITY TRACKING ==========
 	// Quantity changed (positive for add, negative for remove)
 	QuantityChange int
 
-	// Snapshot quantities for audit trail
+	// Snapshot quantities for audit trail (actual stock)
 	BeforeQuantity int
 	AfterQuantity  int
+
+	// ========== RESERVED QUANTITY TRACKING ==========
+	// Reserved quantity changed (positive for reserve, negative for release)
+	ReservedQuantityChange int
+
+	// Snapshot quantities for audit trail (reserved stock)
+	BeforeReservedQuantity int
+	AfterReservedQuantity  int
 
 	// Who performed this transaction
 	PerformedBy uint
@@ -128,22 +137,30 @@ func (p *ListTransactionsQueryParams) ToFilter() ListTransactionsFilter {
 
 // TransactionResponse represents a single transaction in list response
 type TransactionResponse struct {
-	ID              uint                    `json:"id"`
-	InventoryID     uint                    `json:"inventoryId"`
-	VariantID       uint                    `json:"variantId"`
-	LocationID      uint                    `json:"locationId"`
-	LocationName    string                  `json:"locationName"`
-	Type            entity.TransactionType  `json:"type"`
-	Quantity        int                     `json:"quantity"`
-	BeforeQuantity  int                     `json:"beforeQuantity"`
-	AfterQuantity   int                     `json:"afterQuantity"`
-	PerformedBy     uint                    `json:"performedBy"`
-	PerformedByName string                  `json:"performedByName"`
-	ReferenceID     *string                 `json:"referenceId,omitempty"`
-	ReferenceType   *string                 `json:"referenceType,omitempty"`
-	Reason          string                  `json:"reason"`
-	Note            *string                 `json:"note,omitempty"`
-	CreatedAt       string                  `json:"createdAt"`
+	ID           uint                   `json:"id"`
+	InventoryID  uint                   `json:"inventoryId"`
+	VariantID    uint                   `json:"variantId"`
+	LocationID   uint                   `json:"locationId"`
+	LocationName string                 `json:"locationName"`
+	Type         entity.TransactionType `json:"type"`
+
+	// Actual quantity tracking
+	QuantityChange int `json:"quantity"`
+	BeforeQuantity int `json:"beforeQuantity"`
+	AfterQuantity  int `json:"afterQuantity"`
+
+	// Reserved quantity tracking
+	ReservedQuantityChange int `json:"reservedQuantityChange"`
+	BeforeReservedQuantity int `json:"beforeReservedQuantity"`
+	AfterReservedQuantity  int `json:"afterReservedQuantity"`
+
+	PerformedBy     uint    `json:"performedBy"`
+	PerformedByName string  `json:"performedByName"`
+	ReferenceID     *string `json:"referenceId,omitempty"`
+	ReferenceType   *string `json:"referenceType,omitempty"`
+	Reason          string  `json:"reason"`
+	Note            *string `json:"note,omitempty"`
+	CreatedAt       string  `json:"createdAt"`
 }
 
 // ListTransactionsResponse contains the paginated list of transactions
