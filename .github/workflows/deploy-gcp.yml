@@ -56,12 +56,12 @@ jobs:
             echo "JWT_EXPIRY_HOURS=${{ secrets.DEV_JWT_EXPIRY }}" >> .env
           fi
 
+      - name: Package Deployment Assets
+        run: |
+          tar -czf deploy_assets.tar.gz docker-compose.yml migrations/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Get Short SHA
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -75,7 +75,7 @@ jobs:
 
       - name: Save Docker image
         run: |
-          docker save ${{ env.IMAGE_NAME }}:latest | gzip > ecommerce-backend.tar.gz
+          docker save -o ecommerce-backend.tar ${{ env.IMAGE_NAME }}:latest
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -87,32 +87,34 @@ jobs:
 
       - name: Transfer Files to VM
         run: |
-          gcloud compute scp ecommerce-backend.tar.gz .env \
+          gcloud compute scp ecommerce-backend.tar .env deploy_assets.tar.gz \
             ${{ secrets.GCP_VM_NAME }}:/tmp/ \
             --zone=${{ secrets.GCP_VM_ZONE }}
 
       - name: Deploy on VM
         run: |
-          BRANCH_NAME="${{ github.ref_name }}"
-          
           cat << EOF > deploy_script.sh
           #!/bin/bash
           set -e
           
-          sudo mv /tmp/.env /home/vasugoriya1234/ecommerce-backend/.env
-          sudo mv /tmp/ecommerce-backend.tar.gz /home/vasugoriya1234/ecommerce-backend/ecommerce-backend.tar.gz
+          APP_DIR="/home/vasugoriya1234/ecommerce-backend"
           
-          sudo chown vasugoriya1234:vasugoriya1234 /home/vasugoriya1234/ecommerce-backend/.env
-          sudo chown vasugoriya1234:vasugoriya1234 /home/vasugoriya1234/ecommerce-backend/ecommerce-backend.tar.gz
+          sudo mv /tmp/.env \$APP_DIR/.env
+          sudo mv /tmp/ecommerce-backend.tar \$APP_DIR/ecommerce-backend.tar
+          sudo mv /tmp/deploy_assets.tar.gz \$APP_DIR/deploy_assets.tar.gz
+          
+          sudo chown vasugoriya1234:vasugoriya1234 \$APP_DIR/.env
+          sudo chown vasugoriya1234:vasugoriya1234 \$APP_DIR/ecommerce-backend.tar
+          sudo chown vasugoriya1234:vasugoriya1234 \$APP_DIR/deploy_assets.tar.gz
           
           sudo -u vasugoriya1234 bash -c "
-            cd /home/vasugoriya1234/ecommerce-backend
+            cd \$APP_DIR
             
-            git fetch origin
-            git reset --hard origin/$BRANCH_NAME
+            tar -xzf deploy_assets.tar.gz
+            rm deploy_assets.tar.gz
             
-            docker load < ecommerce-backend.tar.gz
-            rm ecommerce-backend.tar.gz
+            docker load -i ecommerce-backend.tar
+            rm ecommerce-backend.tar
             
             docker-compose down
             docker-compose up -d --force-recreate
