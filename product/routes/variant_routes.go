@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
@@ -27,11 +28,11 @@ func (m *VariantModule) RegisterRoutes(router *gin.Engine) {
 	publicRoutesAuth := middleware.PublicAPIAuth()
 	sellerAuth := middleware.SellerAuth()
 
-	// List/filter variants (public - for home page, search, etc.)
-	router.GET("/api/variants", publicRoutesAuth, m.variantHandler.ListVariants)
+	// List/filter variants (public - for home page, search, etc.) - /api/product/variants
+	router.GET(constants.APIBaseProduct+"/variants", publicRoutesAuth, m.variantHandler.ListVariants)
 
-	// Product-specific variant routes
-	variantRoutes := router.Group("/api/products/:productId/variants")
+	// Product-specific variant routes - /api/product/products/:productId/variants/*
+	variantRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/variants")
 	{
 		variantRoutes.GET("/find", publicRoutesAuth, m.variantHandler.FindVariantByOptions)
 		variantRoutes.GET("/:variantId", publicRoutesAuth, m.variantHandler.GetVariantByID)
