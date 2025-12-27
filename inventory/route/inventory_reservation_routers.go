@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/inventory/factory/singleton"
 	"ecommerce-be/inventory/handler"
@@ -23,7 +24,7 @@ func NewInventoryReservationModule() *InventoryReservationModule {
 func (m *InventoryReservationModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 
-	reservationGroup := router.Group("/api/inventory/reservation")
+	reservationGroup := router.Group(constants.APIBaseInventory + "/reservation")
 	{
 		// Create a new inventory reservation
 		reservationGroup.POST("", sellerAuth, m.inventoryReservationHandler.CreateReservation)

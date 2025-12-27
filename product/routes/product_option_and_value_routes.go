@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
@@ -27,8 +28,8 @@ func NewProductOptionModule() *ProductOptionModule {
 // RegisterRoutes registers all product option-related routes
 func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 	publicRoutesAuth := middleware.PublicAPIAuth()
-	// Public routes (reading options)
-	publicOptionRoutes := router.Group("/api/products/:productId/options")
+	// Public routes (reading options) - /api/product/products/:productId/options
+	publicOptionRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/options")
 	{
 		publicOptionRoutes.GET("", publicRoutesAuth, m.optionHandler.GetAvailableOptions)
 	}
@@ -36,7 +37,7 @@ func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
 	sellerAuth := middleware.SellerAuth()
 
-	protectedOptionRoutes := router.Group("/api/products/:productId/options")
+	protectedOptionRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/options")
 	protectedOptionRoutes.Use(sellerAuth)
 	{
 		protectedOptionRoutes.POST("", m.optionHandler.CreateOption)

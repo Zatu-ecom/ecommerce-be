@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/inventory/factory/singleton"
 	"ecommerce-be/inventory/handler"
@@ -28,8 +29,8 @@ func NewLocationModule() *LocationModule {
 func (m *LocationModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 
-	// Location routes - all protected (seller only)
-	locationRoutes := router.Group("/api/inventory/locations")
+	// Location routes - all protected (seller only) - /api/inventory/locations/*
+	locationRoutes := router.Group(constants.APIBaseInventory + "/locations")
 	{
 		locationRoutes.POST("", sellerAuth, m.locationHandler.CreateLocation)
 		locationRoutes.GET("", sellerAuth, m.locationHandler.GetAllLocations)

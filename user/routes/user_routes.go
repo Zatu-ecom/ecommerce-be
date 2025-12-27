@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/user/factory/singleton"
 	"ecommerce-be/user/handler"
@@ -32,8 +33,8 @@ func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 	auth := middleware.CustomerAuth()
 	sellerAuth := middleware.SellerAuth()
 
-	// Authentication routes
-	authRoutes := router.Group("/api/auth")
+	// Authentication routes - /api/user/auth/*
+	authRoutes := router.Group(constants.APIBaseUser + "/auth")
 	{
 		authRoutes.POST("/register", m.userHandler.Register)
 		authRoutes.POST("/login", m.userHandler.Login)
@@ -41,8 +42,8 @@ func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 		authRoutes.POST("/logout", auth, m.userHandler.Logout)
 	}
 
-	// User routes
-	userRoutes := router.Group("/api/users")
+	// User routes - /api/user/*
+	userRoutes := router.Group(constants.APIBaseUser)
 	{
 		// User profile routes (protected)
 		userRoutes.GET("/profile", auth, m.userHandler.GetProfile)
