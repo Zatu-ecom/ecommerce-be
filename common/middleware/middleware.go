@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"ecommerce-be/common"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
 
@@ -28,9 +28,13 @@ func (w *responseBodyWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-// isExtendedLoggingEnabled checks if extended logging is enabled via environment variable
+// isExtendedLoggingEnabled checks if extended logging is enabled via config
 func isExtendedLoggingEnabled() bool {
-	return strings.ToLower(os.Getenv("EXTENDED_LOGGING")) == "true"
+	cfg := config.Get()
+	if cfg == nil {
+		return false
+	}
+	return cfg.Log.ExtendedLogging
 }
 
 // Logger middleware for logging HTTP requests

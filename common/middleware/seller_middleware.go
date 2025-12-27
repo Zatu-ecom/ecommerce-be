@@ -2,13 +2,12 @@ package middleware
 
 import (
 	"net/http"
-	"os"
 
 	"ecommerce-be/common"
-	"ecommerce-be/common/db"
-
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
+	"ecommerce-be/common/db"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,7 +16,7 @@ import (
 // Validates seller subscription and verification status
 func SellerAuth() gin.HandlerFunc {
 	db := db.GetDB()
-	secret := os.Getenv("JWT_SECRET")
+	secret := config.Get().Auth.JWTSecret
 	return func(c *gin.Context) {
 		// First run the basic auth middleware
 		authMiddleware := auth.AuthMiddleware(secret)

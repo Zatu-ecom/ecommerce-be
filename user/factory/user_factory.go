@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"os"
 	"time"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
@@ -53,7 +53,7 @@ func BuildAuthResponse(
 		SellerID:  sellerID,
 	}
 
-	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
+	token, err := auth.GenerateToken(tokenInfo, config.Get().Auth.JWTSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func BuildTokenResponse(
 		SellerID:  sellerID,
 	}
 
-	token, err := auth.GenerateToken(tokenInfo, os.Getenv("JWT_SECRET"))
+	token, err := auth.GenerateToken(tokenInfo, config.Get().Auth.JWTSecret)
 	if err != nil {
 		return nil, err
 	}

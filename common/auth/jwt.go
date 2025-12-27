@@ -3,9 +3,9 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/dgrijalva/jwt-go"
@@ -34,11 +34,12 @@ type TokenUserInfo struct {
 
 // GenerateToken generates a JWT token for a user with role-based information
 func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
-	expiryHoursInStr := os.Getenv("JWT_EXPIRY_HOURS")
-	expiryHours, err := time.ParseDuration(expiryHoursInStr + "h")
-	if err != nil {
-		return "", errors.New("invalid JWT_EXPIRY_HOURS value")
+	cfg := config.Get()
+	if cfg == nil {
+		return "", errors.New("config not loaded")
 	}
+
+	expiryDuration := cfg.Auth.TokenExpiry()
 
 	// Create the claims with pointers
 	claims := Claims{
@@ -49,7 +50,7 @@ func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
 		RoleLevel: &userInfo.RoleLevel,
 		SellerID:  userInfo.SellerID,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(expiryHours).Unix(),
+			ExpiresAt: time.Now().Add(expiryDuration).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 	}

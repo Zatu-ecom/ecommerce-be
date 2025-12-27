@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/inventory/factory/singleton"
 	"ecommerce-be/inventory/handler"
@@ -26,8 +27,8 @@ func NewInventoryModule() *InventoryModule {
 func (m *InventoryModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 
-	// Inventory routes - all protected (seller only)
-	inventoryRoutes := router.Group("/api/inventory")
+	// Inventory routes - all protected (seller only) - /api/inventory/*
+	inventoryRoutes := router.Group(constants.APIBaseInventory)
 	{
 		// List inventories with filters
 		inventoryRoutes.GET("", sellerAuth, m.inventoryHandler.GetInventories)

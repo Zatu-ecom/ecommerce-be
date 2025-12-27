@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/db"
 
@@ -30,7 +30,7 @@ import (
 // Usage: Apply to public routes like GET /products, GET /categories, etc.
 func PublicAPIAuth() gin.HandlerFunc {
 	database := db.GetDB()
-	secret := os.Getenv("JWT_SECRET")
+	secret := config.Get().Auth.JWTSecret
 
 	return func(c *gin.Context) {
 		// Check if Authorization header exists (JWT token)
