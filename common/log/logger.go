@@ -1,8 +1,10 @@
 package log
 
 import (
+	"context"
 	"os"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +14,7 @@ import (
 var Log *logrus.Logger
 
 // InitLogger initializes the global logger instance
-func InitLogger() {
+func InitLogger(cfg *config.Config) {
 	Log = logrus.New()
 
 	// Set JSON formatter for structured logging
@@ -29,9 +31,8 @@ func InitLogger() {
 	// Set output to stdout
 	Log.SetOutput(os.Stdout)
 
-	// Set log level from environment variable or default to Info
-	logLevel := os.Getenv("LOG_LEVEL")
-	switch logLevel {
+	// Set log level from config
+	switch cfg.Log.Level {
 	case "debug":
 		Log.SetLevel(logrus.DebugLevel)
 	case "warn":
@@ -48,28 +49,43 @@ func InitLogger() {
 // GetLogger returns the global logger instance
 func GetLogger() *logrus.Logger {
 	if Log == nil {
-		InitLogger()
+		// Fallback: initialize with default config if not initialized
+		Log = logrus.New()
+		Log.SetFormatter(&logrus.JSONFormatter{})
+		Log.SetOutput(os.Stdout)
+		Log.SetLevel(logrus.InfoLevel)
 	}
 	return Log
 }
 
 // WithContext creates a new logger entry with context fields (correlation ID, seller ID, user ID)
-func WithContext(c *gin.Context) *logrus.Entry {
+// Works with both standard context.Context and *gin.Context (which embeds context.Context)
+func WithContext(ctx context.Context) *logrus.Entry {
 	fields := logrus.Fields{}
 
-	// Add correlation ID if present
-	if correlationID, exists := c.Get(constants.CORRELATION_ID_KEY); exists {
-		fields["correlationId"] = correlationID
-	}
-
-	// Add seller ID if present
-	if sellerID, exists := c.Get(constants.SELLER_ID_KEY); exists {
-		fields["sellerId"] = sellerID
-	}
-
-	// Add user ID if present
-	if userID, exists := c.Get(constants.USER_ID_KEY); exists {
-		fields["userId"] = userID
+	// Try to get as Gin context first (for values stored via c.Set())
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		// Extract from Gin context storage
+		if correlationID, exists := ginCtx.Get(constants.CORRELATION_ID_KEY); exists {
+			fields["correlationId"] = correlationID
+		}
+		if sellerID, exists := ginCtx.Get(constants.SELLER_ID_KEY); exists {
+			fields["sellerId"] = sellerID
+		}
+		if userID, exists := ginCtx.Get(constants.USER_ID_KEY); exists {
+			fields["userId"] = userID
+		}
+	} else {
+		// Extract from standard context.Context (for background jobs, tests, etc.)
+		if correlationID := ctx.Value(constants.CORRELATION_ID_KEY); correlationID != nil {
+			fields["correlationId"] = correlationID
+		}
+		if sellerID := ctx.Value(constants.SELLER_ID_KEY); sellerID != nil {
+			fields["sellerId"] = sellerID
+		}
+		if userID := ctx.Value(constants.USER_ID_KEY); userID != nil {
+			fields["userId"] = userID
+		}
 	}
 
 	return GetLogger().WithFields(fields)
@@ -108,24 +124,24 @@ func Fatal(msg string, err error) {
 	}
 }
 
-// DebugWithContext logs a debug message with context
-func DebugWithContext(c *gin.Context, msg string) {
-	WithContext(c).Debug(msg)
+// DebugWithContext logs a debug message with context (generic version)
+func DebugWithContext(ctx context.Context, msg string) {
+	WithContext(ctx).Debug(msg)
 }
 
-// InfoWithContext logs an info message with context
-func InfoWithContext(c *gin.Context, msg string) {
-	WithContext(c).Info(msg)
+// InfoWithContext logs an info message with context (generic version)
+func InfoWithContext(ctx context.Context, msg string) {
+	WithContext(ctx).Info(msg)
 }
 
-// WarnWithContext logs a warning message with context
-func WarnWithContext(c *gin.Context, msg string) {
-	WithContext(c).Warn(msg)
+// WarnWithContext logs a warning message with context (generic version)
+func WarnWithContext(ctx context.Context, msg string) {
+	WithContext(ctx).Warn(msg)
 }
 
-// ErrorWithContext logs an error message with context and error details
-func ErrorWithContext(c *gin.Context, msg string, err error) {
-	entry := WithContext(c)
+// ErrorWithContext logs an error message with context and error details (generic version)
+func ErrorWithContext(ctx context.Context, msg string, err error) {
+	entry := WithContext(ctx)
 	if err != nil {
 		entry.WithField("error", err.Error()).Error(msg)
 	} else {

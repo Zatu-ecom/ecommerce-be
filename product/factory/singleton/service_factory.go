@@ -46,7 +46,11 @@ func (f *ServiceFactory) initialize() {
 
 		// Initialize product option service (used by variant services)
 		f.productOptionService = service.NewProductOptionService(optionRepo, f.validatorService)
-		f.optionValueService = service.NewProductOptionValueService(optionRepo, productRepo)
+		f.optionValueService = service.NewProductOptionValueService(
+			optionRepo,
+			productRepo,
+			f.validatorService,
+		)
 
 		// Initialize VariantQueryService (query operations only - no circular dependencies)
 		f.variantQueryService = service.NewVariantQueryService(
@@ -76,6 +80,7 @@ func (f *ServiceFactory) initialize() {
 			productAttrRepo,
 			productRepo,
 			attributeRepo,
+			f.validatorService,
 		)
 
 		// Initialize ProductQueryService with VariantQueryService

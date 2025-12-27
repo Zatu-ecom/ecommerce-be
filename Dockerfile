@@ -1,59 +1,25 @@
 # ============================================
-# Stage 1: Dependencies Cache Layer
-# ============================================
-FROM golang:1.25.0-alpine AS deps
-
-# Install build dependencies
-RUN apk add --no-cache \
-    git \
-    ca-certificates \
-    tzdata
-
-WORKDIR /build
-
-# Copy go mod files first for better layer caching
-COPY go.mod go.sum ./
-
-# Download dependencies with caching
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download && \
-    go mod verify
-
-# ============================================
-# Stage 2: Build Layer
+# Build Layer
 # ============================================
 FROM golang:1.25.0-alpine AS builder
 
 # Install build essentials
-RUN apk add --no-cache \
-    git \
-    ca-certificates \
-    tzdata
+RUN apk add --no-cache git tzdata
 
 WORKDIR /build
 
-# Copy go mod files
+# 1. Copy go mod files FIRST to cache dependencies
 COPY go.mod go.sum ./
 
-# Copy source code (all modules and common packages)
-COPY main.go ./
-COPY common/ ./common/
-COPY user/ ./user/
-COPY product/ ./product/
-COPY order/ ./order/
-COPY payment/ ./payment/
-COPY notification/ ./notification/
-
-# Download dependencies with cache
+# 2. Download dependencies (this layer is cached if go.mod doesn't change)
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# Build the application with optimizations
-# - CGO_ENABLED=0: Static binary (no C dependencies)
-# - -ldflags="-s -w": Strip debug info and symbol table
-# - -trimpath: Remove file system paths from binary
-# - -a: Force rebuilding of packages
-# - GOARCH: Auto-detect architecture (amd64 or arm64)
+# 3. Copy EVERYTHING else (Source code, config, all folders)
+# This replaces all the manual COPY user/ user/ lines
+COPY . .
+
+# 4. Build
 ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -66,19 +32,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     -o app \
     ./main.go
 
-# Verify the binary is executable
+# Verify
 RUN chmod +x /build/app
 
 # ============================================
-# Stage 3: Runtime Layer (Minimal)
+# Runtime Layer
 # ============================================
 FROM alpine:3.20 AS runtime
 
-# Install runtime dependencies only
-# - ca-certificates: For HTTPS connections
-# - tzdata: Timezone data
-# - postgresql-client: For running migrations (optional, can be removed if migrations run separately)
-# - wget: For health checks
+# Install runtime dependencies
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
@@ -88,39 +50,25 @@ RUN apk add --no-cache \
     && addgroup -g 1000 appuser \
     && adduser -D -u 1000 -G appuser appuser
 
-# Set timezone (optional, can be overridden)
 ENV TZ=UTC
-
 WORKDIR /app
 
-# Copy timezone data
+# Copy necessary files from builder
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-# Copy CA certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy the binary from builder
 COPY --from=builder /build/app .
 
-# Copy migrations and seeds for database setup
+# Copy migrations (Assumes migrations folder is in root)
 COPY --chown=appuser:appuser migrations/ ./migrations/
-
-# Make migration script executable
 RUN chmod +x ./migrations/run_migrations.sh
 
-# Switch to non-root user for security
 USER appuser
-
-# Expose port (default 8080, can be overridden)
 EXPOSE 8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/ || exit 1
 
-# Set default environment variables
 ENV GIN_MODE=release \
     PORT=8080
 
-# Run the application
 ENTRYPOINT ["/app/app"]

@@ -137,6 +137,68 @@ test-local:
 	@echo "🧪 Running tests locally..."
 	go test ./test/integration/... -v
 
+# Run all tests with summary (failed tests shown at end)
+test-all:
+	@echo "🧪 Running all integration tests..."
+	@go test ./test/integration/... -v 2>&1 | tee /tmp/test_output.txt; \
+	EXIT_CODE=$$?; \
+	echo ""; \
+	echo "=========================================="; \
+	echo "           📊 TEST SUMMARY"; \
+	echo "=========================================="; \
+	echo ""; \
+	FAILED=$$(grep -c "^    --- FAIL:\|^--- FAIL:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
+	PASSED=$$(grep -c "^    --- PASS:\|^--- PASS:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
+	TOTAL=$$((PASSED + FAILED)); \
+	echo "📈 Total:  $$TOTAL"; \
+	echo "✅ Passed: $$PASSED"; \
+	echo "❌ Failed: $$FAILED"; \
+	echo ""; \
+	if [ "$$FAILED" -gt 0 ]; then \
+		echo "=========================================="; \
+		echo "           ❌ FAILED TESTS"; \
+		echo "=========================================="; \
+		grep "^    --- FAIL:\|^--- FAIL:" /tmp/test_output.txt | sed 's/^    //' | sort -u; \
+	else \
+		echo "🎉 All tests passed!"; \
+	fi; \
+	exit $$EXIT_CODE
+
+# Run tests with JSON output for CI/CD
+test-json:
+	@echo "🧪 Running tests with JSON output..."
+	go test ./test/integration/... -json 2>&1 | tee test-results.json
+
+# Re-run only failed tests from the last test-all run
+test-failed:
+	@echo "🔄 Re-running failed tests..."
+	@if [ ! -f /tmp/test_output.txt ]; then \
+		echo "❌ No previous test run found. Run 'make test-all' first."; \
+		exit 1; \
+	fi; \
+	FAILED_TESTS=$$(grep "^--- FAIL:" /tmp/test_output.txt | sed 's/--- FAIL: //' | sed 's/ (.*//' | tr '\n' '|' | sed 's/|$$//'); \
+	if [ -z "$$FAILED_TESTS" ]; then \
+		echo "✅ No failed tests to re-run!"; \
+	else \
+		echo "Running: $$FAILED_TESTS"; \
+		go test ./test/integration/... -v -run "$$FAILED_TESTS" 2>&1 | tee /tmp/test_output.txt; \
+		echo ""; \
+		echo "=========================================="; \
+		echo "           📊 RE-RUN SUMMARY"; \
+		echo "=========================================="; \
+		FAILED=$$(grep -c "^--- FAIL:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
+		PASSED=$$(grep -c "^--- PASS:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
+		echo "✅ Passed: $$PASSED"; \
+		echo "❌ Failed: $$FAILED"; \
+		if [ "$$FAILED" -gt 0 ]; then \
+			echo ""; \
+			echo "=========================================="; \
+			echo "           ❌ STILL FAILING"; \
+			echo "=========================================="; \
+			grep "^--- FAIL:" /tmp/test_output.txt; \
+		fi; \
+	fi
+
 # Quick start (build + up + migrate)
 quickstart: build up migrate
 	@echo "🎉 Quick start complete!"

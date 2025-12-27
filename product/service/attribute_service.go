@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -11,17 +13,20 @@ import (
 // AttributeDefinitionService defines the interface for attribute definition business logic
 type AttributeDefinitionService interface {
 	CreateAttribute(
+		ctx context.Context,
 		req model.AttributeDefinitionCreateRequest,
 	) (*model.AttributeDefinitionResponse, error)
 	UpdateAttribute(
+		ctx context.Context,
 		id uint,
 		req model.AttributeDefinitionUpdateRequest,
 	) (*model.AttributeDefinitionResponse, error)
-	DeleteAttribute(id uint) error
-	GetAllAttributes() (*model.AttributeDefinitionsResponse, error)
-	GetAttributeByID(id uint) (*model.AttributeDefinitionResponse, error)
-	GetAttributeByKey(key string) (*model.AttributeDefinitionResponse, error)
+	DeleteAttribute(ctx context.Context, id uint) error
+	GetAllAttributes(ctx context.Context) (*model.AttributeDefinitionsResponse, error)
+	GetAttributeByID(ctx context.Context, id uint) (*model.AttributeDefinitionResponse, error)
+	GetAttributeByKey(ctx context.Context, key string) (*model.AttributeDefinitionResponse, error)
 	CreateCategoryAttributeDefinition(
+		ctx context.Context,
 		categoryID uint,
 		req model.AttributeDefinitionCreateRequest,
 	) (*model.AttributeDefinitionResponse, error)
@@ -43,6 +48,7 @@ func NewAttributeDefinitionService(
 
 // CreateAttribute creates a new attribute definition
 func (s *AttributeDefinitionServiceImpl) CreateAttribute(
+	ctx context.Context,
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
 	// Validate attribute key format
@@ -58,7 +64,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	}
 
 	// Check if attribute with same key already exists
-	existingAttribute, err := s.attributeRepo.FindByKey(req.Key)
+	existingAttribute, err := s.attributeRepo.FindByKey(ctx, req.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +76,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	attribute := factory.CreateFromRequest(req)
 
 	// Save attribute to database
-	if err := s.attributeRepo.Create(attribute); err != nil {
+	if err := s.attributeRepo.Create(ctx, attribute); err != nil {
 		return nil, err
 	}
 
@@ -81,11 +87,12 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 
 // UpdateAttribute updates an existing attribute definition
 func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
+	ctx context.Context,
 	id uint,
 	req model.AttributeDefinitionUpdateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
 	// Find existing attribute
-	attribute, err := s.attributeRepo.FindByID(id)
+	attribute, err := s.attributeRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +108,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 	attribute = factory.UpdateEntity(attribute, req)
 
 	// Save updated attribute
-	if err := s.attributeRepo.Update(attribute); err != nil {
+	if err := s.attributeRepo.Update(ctx, attribute); err != nil {
 		return nil, err
 	}
 
@@ -111,13 +118,13 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 }
 
 // DeleteAttribute soft deletes an attribute definition
-func (s *AttributeDefinitionServiceImpl) DeleteAttribute(id uint) error {
-	return s.attributeRepo.Delete(id)
+func (s *AttributeDefinitionServiceImpl) DeleteAttribute(ctx context.Context, id uint) error {
+	return s.attributeRepo.Delete(ctx, id)
 }
 
 // GetAllAttributes gets all active attribute definitions
-func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDefinitionsResponse, error) {
-	attributes, err := s.attributeRepo.FindAll()
+func (s *AttributeDefinitionServiceImpl) GetAllAttributes(ctx context.Context) (*model.AttributeDefinitionsResponse, error) {
+	attributes, err := s.attributeRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +142,10 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes() (*model.AttributeDef
 
 // GetAttributeByID gets an attribute definition by ID
 func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
+	ctx context.Context,
 	id uint,
 ) (*model.AttributeDefinitionResponse, error) {
-	attribute, err := s.attributeRepo.FindByID(id)
+	attribute, err := s.attributeRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +156,10 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
 
 // GetAttributeByKey gets an attribute definition by key
 func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
+	ctx context.Context,
 	key string,
 ) (*model.AttributeDefinitionResponse, error) {
-	attribute, err := s.attributeRepo.FindByKey(key)
+	attribute, err := s.attributeRepo.FindByKey(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +172,7 @@ func (s *AttributeDefinitionServiceImpl) GetAttributeByKey(
 }
 
 func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
+	ctx context.Context,
 	categoryID uint,
 	req model.AttributeDefinitionCreateRequest,
 ) (*model.AttributeDefinitionResponse, error) {
@@ -179,7 +189,7 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	}
 
 	// Check if attribute with same key already exists
-	existingAttribute, err := s.attributeRepo.FindByKey(req.Key)
+	existingAttribute, err := s.attributeRepo.FindByKey(ctx, req.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +200,7 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	// Create attribute entity using factory
 	attribute := factory.CreateFromRequest(req)
 
-	if err := s.attributeRepo.CreateCategoryAttributeDefinition(attribute, categoryID); err != nil {
+	if err := s.attributeRepo.CreateCategoryAttributeDefinition(ctx, attribute, categoryID); err != nil {
 		return nil, err
 	}
 

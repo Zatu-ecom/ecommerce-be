@@ -1,29 +1,78 @@
 package middleware
 
 import (
-	"ecommerce-be/common"
-	"ecommerce-be/common/constants"
-	"ecommerce-be/common/log"
+	"bytes"
+	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"ecommerce-be/common"
+	"ecommerce-be/common/config"
+	"ecommerce-be/common/constants"
+	"ecommerce-be/common/log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
+// responseBodyWriter wraps gin.ResponseWriter to capture response body
+type responseBodyWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w *responseBodyWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
+}
+
+// isExtendedLoggingEnabled checks if extended logging is enabled via config
+func isExtendedLoggingEnabled() bool {
+	cfg := config.Get()
+	if cfg == nil {
+		return false
+	}
+	return cfg.Log.ExtendedLogging
+}
+
 // Logger middleware for logging HTTP requests
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
+		extendedLogging := isExtendedLoggingEnabled()
+
+		var requestBody string
+		var responseBodyBuffer *bytes.Buffer
+
+		// Capture request body if extended logging is enabled
+		if extendedLogging {
+			// Read request body
+			if c.Request.Body != nil {
+				bodyBytes, err := io.ReadAll(c.Request.Body)
+				if err == nil {
+					requestBody = string(bodyBytes)
+					// Restore request body for handlers to read
+					c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+				}
+			}
+
+			// Wrap response writer to capture response body
+			responseBodyBuffer = &bytes.Buffer{}
+			writer := &responseBodyWriter{
+				ResponseWriter: c.Writer,
+				body:           responseBodyBuffer,
+			}
+			c.Writer = writer
+		}
 
 		// Process request
 		c.Next()
 
 		// Log request details after processing
 		duration := time.Since(startTime)
-		
+
 		fields := logrus.Fields{
 			"method":    c.Request.Method,
 			"path":      c.Request.URL.Path,
@@ -32,17 +81,49 @@ func Logger() gin.HandlerFunc {
 			"clientIp":  c.ClientIP(),
 			"userAgent": c.Request.UserAgent(),
 		}
-		
+
 		// Add correlation ID if present
 		if correlationID, exists := c.Get(constants.CORRELATION_ID_KEY); exists {
 			fields["correlationId"] = correlationID
 		}
-		
+
 		// Add seller ID if present
 		if sellerID, exists := c.Get(constants.SELLER_ID_KEY); exists {
 			fields["sellerId"] = sellerID
 		}
-		
+
+		// Add user ID if present
+		if userID, exists := c.Get(constants.USER_ID_KEY); exists {
+			fields["userId"] = userID
+		}
+
+		// Add request/response body if extended logging is enabled
+		if extendedLogging {
+			// Add request body (truncate if too large)
+			if requestBody != "" {
+				if len(requestBody) > 2000 {
+					fields["requestBody"] = requestBody[:2000] + "...[truncated]"
+				} else {
+					fields["requestBody"] = requestBody
+				}
+			}
+
+			// Add response body (truncate if too large)
+			if responseBodyBuffer != nil && responseBodyBuffer.Len() > 0 {
+				responseBody := responseBodyBuffer.String()
+				if len(responseBody) > 2000 {
+					fields["responseBody"] = responseBody[:2000] + "...[truncated]"
+				} else {
+					fields["responseBody"] = responseBody
+				}
+			}
+
+			// Add query parameters
+			if c.Request.URL.RawQuery != "" {
+				fields["queryParams"] = c.Request.URL.RawQuery
+			}
+		}
+
 		// Use logger package to ensure consistent JSON formatting
 		log.GetLogger().WithFields(fields).Info("Request processed")
 	}

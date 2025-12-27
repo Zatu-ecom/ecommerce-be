@@ -4,7 +4,8 @@
 # Description: Runs SQL migration scripts in order
 # Usage: ./run_migrations.sh [options]
 
-set -e  # Exit on error
+# Note: We don't use 'set -e' because bash arithmetic ((count++)) returns 1 when count=0
+# Instead, we handle errors explicitly in each function
 
 # Colors for output
 RED='\033[0;31m'
@@ -89,6 +90,66 @@ check_connection() {
     fi
 }
 
+# Function to create migration tracking table
+create_migration_table() {
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        CREATE TABLE IF NOT EXISTS schema_migration (
+            id SERIAL PRIMARY KEY,
+            filename VARCHAR(255) NOT NULL UNIQUE,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+            error_message TEXT,
+            execution_time_ms INTEGER
+        );
+        
+        -- Add columns if they don't exist (for existing tables)
+        DO \$\$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'schema_migration' AND column_name = 'status') THEN
+                ALTER TABLE schema_migration ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'schema_migration' AND column_name = 'error_message') THEN
+                ALTER TABLE schema_migration ADD COLUMN error_message TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'schema_migration' AND column_name = 'execution_time_ms') THEN
+                ALTER TABLE schema_migration ADD COLUMN execution_time_ms INTEGER;
+            END IF;
+        END \$\$;
+    " > /dev/null 2>&1
+}
+
+# Function to check if migration was already applied successfully
+# Only skips if status = 'SUCCESS', so FAILED/RUNNING scripts will be re-run
+is_migration_applied() {
+    local filename=$1
+    local count=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT COUNT(*) FROM schema_migration WHERE filename = '$filename' AND status = 'SUCCESS';
+    " 2>/dev/null | tr -d ' ')
+    
+    [ "$count" -gt 0 ]
+}
+
+# Function to record migration as applied
+record_migration() {
+    local filename=$1
+    local status=${2:-SUCCESS}
+    local error_message=${3:-}
+    local execution_time=${4:-0}
+    
+    # Escape single quotes in error message
+    error_message=$(echo "$error_message" | sed "s/'/''/g")
+    
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        INSERT INTO schema_migration (filename, status, error_message, execution_time_ms) 
+        VALUES ('$filename', '$status', NULLIF('$error_message', ''), $execution_time) 
+        ON CONFLICT (filename) DO UPDATE SET 
+            status = '$status',
+            error_message = NULLIF('$error_message', ''),
+            execution_time_ms = $execution_time,
+            applied_at = NOW();
+    " > /dev/null 2>&1
+}
+
 # Function to run migrations
 run_migrations() {
     echo ""
@@ -101,6 +162,9 @@ run_migrations() {
     if ! check_connection; then
         exit 1
     fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
     
     echo ""
     print_info "Starting migrations..."
@@ -117,12 +181,66 @@ run_migrations() {
     print_info "Found ${#migration_files[@]} migration file(s)"
     echo ""
     
+    local applied_count=0
+    local skipped_count=0
+    local failed_count=0
+    local applied_files=()
+    local failed_files=()
+    
     for file in "${migration_files[@]}"; do
-        run_sql_file "$file" "$file"
+        if is_migration_applied "$file"; then
+            print_warning "Skipped (already applied): $file"
+            skipped_count=$((skipped_count + 1))
+        else
+            # Record as RUNNING before execution
+            record_migration "$file" "RUNNING" "" 0
+            
+            # Track execution time
+            local start_time=$(date +%s%3N)
+            
+            # Create a temporary file to capture error output
+            local error_file=$(mktemp)
+            
+            # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+                local end_time=$(date +%s%3N)
+                local execution_time=$((end_time - start_time))
+                
+                print_success "Completed: $file (${execution_time}ms)"
+                record_migration "$file" "SUCCESS" "" "$execution_time"
+                rm -f "$error_file"
+                applied_count=$((applied_count + 1))
+            else
+                local end_time=$(date +%s%3N)
+                local execution_time=$((end_time - start_time))
+                local error_msg=$(cat "$error_file")
+                
+                print_error "Failed: $file"
+                echo ""
+                echo -e "${RED}PostgreSQL Error Output:${NC}"
+                echo "----------------------------------------"
+                cat "$error_file"
+                echo "----------------------------------------"
+                echo ""
+                
+                record_migration "$file" "FAILED" "$error_msg" "$execution_time"
+                rm -f "$error_file"
+                failed_count=$((failed_count + 1))
+                failed_files+=("$file")
+                print_error "Migration failed, stopping."
+                exit 1
+            fi
+        fi
     done
     
     echo ""
-    print_success "All migrations completed successfully!"
+    print_success "Migrations completed! Applied: $applied_count, Skipped: $skipped_count, Failed: $failed_count"
+    if [ ${#failed_files[@]} -gt 0 ]; then
+        echo "  Failed files:"
+        for f in "${failed_files[@]}"; do
+            echo "    - $f"
+        done
+    fi
     echo ""
 }
 
@@ -139,6 +257,9 @@ run_seeds() {
         exit 1
     fi
     
+    # Create migration tracking table if not exists
+    create_migration_table
+    
     echo ""
     print_info "Starting seed data insertion..."
     echo ""
@@ -154,12 +275,158 @@ run_seeds() {
     print_info "Found ${#seed_files[@]} seed file(s)"
     echo ""
     
+    local applied_count=0
+    local skipped_count=0
+    local failed_count=0
+    local applied_files=()
+    local failed_files=()
+    
     for file in "${seed_files[@]}"; do
-        run_sql_file "$file" "$file"
+        if is_migration_applied "$file"; then
+            print_warning "Skipped (already applied): $file"
+            skipped_count=$((skipped_count + 1))
+        else
+            # Record as RUNNING before execution
+            record_migration "$file" "RUNNING" "" 0
+            
+            # Track execution time
+            local start_time=$(date +%s%3N)
+            
+            # Create a temporary file to capture error output
+            local error_file=$(mktemp)
+            
+            # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+                local end_time=$(date +%s%3N)
+                local execution_time=$((end_time - start_time))
+                
+                print_success "Completed: $file (${execution_time}ms)"
+                record_migration "$file" "SUCCESS" "" "$execution_time"
+                rm -f "$error_file"
+                applied_count=$((applied_count + 1))
+            else
+                local end_time=$(date +%s%3N)
+                local execution_time=$((end_time - start_time))
+                local error_msg=$(cat "$error_file")
+                
+                print_error "Failed: $file"
+                echo ""
+                echo -e "${RED}PostgreSQL Error Output:${NC}"
+                echo "----------------------------------------"
+                cat "$error_file"
+                echo "----------------------------------------"
+                echo ""
+                
+                record_migration "$file" "FAILED" "$error_msg" "$execution_time"
+                rm -f "$error_file"
+                failed_count=$((failed_count + 1))
+                failed_files+=("$file")
+                print_error "Seed failed, stopping."
+                exit 1
+            fi
+        fi
     done
     
     echo ""
-    print_success "All seed data inserted successfully!"
+    print_success "Seeds completed! Applied: $applied_count, Skipped: $skipped_count, Failed: $failed_count"
+    if [ ${#failed_files[@]} -gt 0 ]; then
+        echo "  Failed files:"
+        for f in "${failed_files[@]}"; do
+            echo "    - $f"
+        done
+    fi
+    echo ""
+}
+
+# Function to run seed data (force - ignores tracking, always runs)
+run_seeds_force() {
+    echo ""
+    echo "========================================="
+    echo "  Running Seed Data Scripts (FORCE)"
+    echo "========================================="
+    echo ""
+    
+    print_warning "Force mode: Seeds will run even if previously applied"
+    print_warning "This may cause duplicate data if seeds are not idempotent!"
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
+    echo ""
+    print_info "Starting seed data insertion (force mode)..."
+    echo ""
+    
+    # Automatically discover and run all seed files in order (sorted by filename)
+    local seed_files=($(ls -1 seeds/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort))
+    
+    if [ ${#seed_files[@]} -eq 0 ]; then
+        print_warning "No seed files found in seeds/ directory matching pattern: [0-9][0-9][0-9]_*.sql"
+        return 1
+    fi
+    
+    print_info "Found ${#seed_files[@]} seed file(s)"
+    echo ""
+    
+    local applied_count=0
+    local failed_count=0
+    local applied_files=()
+    local failed_files=()
+    
+    for file in "${seed_files[@]}"; do
+        # Record as RUNNING before execution
+        record_migration "$file" "RUNNING" "" 0
+        
+        # Track execution time
+        local start_time=$(date +%s%3N)
+        
+        # Create a temporary file to capture error output
+        local error_file=$(mktemp)
+        
+        # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
+        if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+            local end_time=$(date +%s%3N)
+            local execution_time=$((end_time - start_time))
+            
+            print_success "Completed: $file (${execution_time}ms)"
+            record_migration "$file" "SUCCESS" "" "$execution_time"
+            rm -f "$error_file"
+            applied_count=$((applied_count + 1))
+        else
+            local end_time=$(date +%s%3N)
+            local execution_time=$((end_time - start_time))
+            local error_msg=$(cat "$error_file")
+            
+            print_error "Failed: $file"
+            echo ""
+            echo -e "${RED}PostgreSQL Error Output:${NC}"
+            echo "----------------------------------------"
+            cat "$error_file"
+            echo "----------------------------------------"
+            echo ""
+            
+            record_migration "$file" "FAILED" "$error_msg" "$execution_time"
+            rm -f "$error_file"
+            failed_count=$((failed_count + 1))
+            failed_files+=("$file")
+            print_error "Seed failed, stopping."
+            exit 1
+        fi
+    done
+    
+    echo ""
+    print_success "Seeds completed (force mode)! Applied: $applied_count, Failed: $failed_count"
+    if [ ${#failed_files[@]} -gt 0 ]; then
+        echo "  Failed files:"
+        for f in "${failed_files[@]}"; do
+            echo "    - $f"
+        done
+    fi
     echo ""
 }
 
@@ -172,10 +439,12 @@ Usage: ./run_migrations.sh [OPTIONS]
 
 Options:
     -h, --help          Show this help message
-    -m, --migrate       Run migrations only
-    -s, --seed          Run seed data only
+    -m, --migrate       Run migrations only (skips already applied)
+    -s, --seed          Run seed data only (skips already applied)
+    -fs, --force-seed   Run ALL seed data (ignores tracking, re-runs everything)
     -a, --all           Run migrations and seed data (default)
     -r, --reset         Drop all tables and recreate (WARNING: Data loss!)
+    --status            Show migration status history
 
 Examples:
     ./run_migrations.sh                 # Run all (migrations + seeds)
@@ -235,6 +504,47 @@ reset_database() {
     echo ""
 }
 
+# Function to show migration status
+show_status() {
+    echo ""
+    echo "========================================="
+    echo "  Migration Status History"
+    echo "========================================="
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
+    echo ""
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        SELECT 
+            filename,
+            status,
+            execution_time_ms || 'ms' as execution_time,
+            to_char(applied_at, 'YYYY-MM-DD HH24:MI:SS') as applied_at,
+            CASE WHEN error_message IS NOT NULL THEN LEFT(error_message, 50) || '...' ELSE NULL END as error_preview
+        FROM schema_migration 
+        ORDER BY applied_at DESC;
+    "
+    
+    echo ""
+    echo "Summary:"
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT 
+            'Total: ' || COUNT(*) || 
+            ', Success: ' || COUNT(*) FILTER (WHERE status = 'SUCCESS') ||
+            ', Failed: ' || COUNT(*) FILTER (WHERE status = 'FAILED') ||
+            ', Running: ' || COUNT(*) FILTER (WHERE status = 'RUNNING')
+        FROM schema_migration;
+    "
+    echo ""
+}
+
 # Main script logic
 case "${1:-all}" in
     -h|--help)
@@ -246,12 +556,18 @@ case "${1:-all}" in
     -s|--seed)
         run_seeds
         ;;
+    -fs|--force-seed)
+        run_seeds_force
+        ;;
     -a|--all|all)
         run_migrations
         run_seeds
         ;;
     -r|--reset)
         reset_database
+        ;;
+    --status)
+        show_status
         ;;
     *)
         print_error "Unknown option: $1"

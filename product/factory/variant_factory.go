@@ -295,3 +295,25 @@ func BuildVariantOptionResponsesFromAvailableOptions(
 
 	return selectedOptions
 }
+
+// BuildVariantOptionResponsesFromMapper converts mapper.SelectedOptionValue to model.VariantOptionResponse
+// This is used when we have data from mapper structures (e.g., from list queries)
+func BuildVariantOptionResponsesFromMapper(
+	selectedOptions []mapper.SelectedOptionValue,
+) []model.VariantOptionResponse {
+	responses := make([]model.VariantOptionResponse, 0, len(selectedOptions))
+
+	for _, opt := range selectedOptions {
+		responses = append(responses, model.VariantOptionResponse{
+			OptionID:          opt.OptionID,
+			OptionName:        opt.OptionName,
+			OptionDisplayName: opt.OptionDisplayName,
+			ValueID:           opt.ValueID,
+			Value:             opt.Value,
+			ValueDisplayName:  opt.ValueDisplayName,
+			ColorCode:         opt.ColorCode,
+		})
+	}
+
+	return responses
+}

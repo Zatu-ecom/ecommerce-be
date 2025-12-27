@@ -1,5 +1,10 @@
 package model
 
+import (
+	"ecommerce-be/common"
+	"ecommerce-be/common/helper"
+)
+
 // ProductCreateRequest represents the request body for creating a product
 // Note: Product requires at least one variant with price and images
 // Frontend handles variant generation from options - backend only saves the final variants
@@ -27,14 +32,14 @@ type ProductCreateRequest struct {
 // Note: Price, images, stock are managed at variant level
 // Uses pointers to distinguish between null (don't update) and empty (clear field)
 type ProductUpdateRequest struct {
-	Name             *string                    `json:"name"             binding:"omitempty,min=3,max=200"`
-	CategoryID       *uint                      `json:"categoryId"       binding:"omitempty"`
-	Brand            *string                    `json:"brand"            binding:"omitempty,max=100"`
-	ShortDescription *string                    `json:"shortDescription" binding:"omitempty,max=500"`
-	LongDescription  *string                    `json:"longDescription"  binding:"omitempty,max=5000"`
-	Tags             *[]string                  `json:"tags"             binding:"omitempty,max=20"`
-	Attributes       []ProductAttributeRequest  `json:"attributes"       binding:"omitempty,dive"`
-	PackageOptions   []PackageOptionRequest     `json:"packageOptions"   binding:"omitempty,dive"`
+	Name             *string                   `json:"name"             binding:"omitempty,min=3,max=200"`
+	CategoryID       *uint                     `json:"categoryId"       binding:"omitempty"`
+	Brand            *string                   `json:"brand"            binding:"omitempty,max=100"`
+	ShortDescription *string                   `json:"shortDescription" binding:"omitempty,max=500"`
+	LongDescription  *string                   `json:"longDescription"  binding:"omitempty,max=5000"`
+	Tags             *[]string                 `json:"tags"             binding:"omitempty,max=20"`
+	Attributes       []ProductAttributeRequest `json:"attributes"       binding:"omitempty,dive"`
+	PackageOptions   []PackageOptionRequest    `json:"packageOptions"   binding:"omitempty,dive"`
 }
 
 // ProductAttributeRequest represents a product attribute in requests
@@ -177,9 +182,9 @@ type RelatedProductsScoredResponse struct {
 
 // RelatedProductsMeta represents metadata about the related products query
 type RelatedProductsMeta struct {
-	StrategiesUsed []string `json:"strategiesUsed"` // List of strategies that found products
-	AvgScore       float64  `json:"avgScore"`       // Average relevance score
-	TotalStrategies int     `json:"totalStrategies"` // Total strategies attempted
+	StrategiesUsed  []string `json:"strategiesUsed"`  // List of strategies that found products
+	AvgScore        float64  `json:"avgScore"`        // Average relevance score
+	TotalStrategies int      `json:"totalStrategies"` // Total strategies attempted
 }
 
 // PackageOptionCreateRequest represents the request body for creating a package option
@@ -220,4 +225,40 @@ type OptionPreview struct {
 type VariantPreview struct {
 	TotalVariants int             `json:"totalVariants"`
 	Options       []OptionPreview `json:"options"`
+}
+
+type GetProductsFilterBase struct {
+	common.BaseListParams
+	MinPrice  *float64 `form:"minPrice"`
+	MaxPrice  *float64 `form:"maxPrice"`
+	IsPopular *bool    `form:"isPopular"`
+	InStock   *bool    `form:"inStock"`
+	SellerID  *uint    `form:"sellerId"`
+}
+
+type GetProductsParams struct {
+	GetProductsFilterBase
+	CategoryIDs *string `form:"categoryIds"`
+	Brands      *string `form:"brands"`
+	IDs         *string `form:"ids"`
+}
+
+type GetProductsFilter struct {
+	GetProductsFilterBase
+	CategoryIDs []uint
+	Brands      []string
+	IDs         []uint
+}
+
+func (p *GetProductsParams) ToGetProductsFilter(
+	sellerID *uint,
+) GetProductsFilter {
+	filter := GetProductsFilter{
+		GetProductsFilterBase: p.GetProductsFilterBase,
+		CategoryIDs:           helper.ParseCommaSeparatedPtr[uint](p.CategoryIDs),
+		Brands:                helper.ParseCommaSeparatedPtr[string](p.Brands),
+		IDs:                   helper.ParseCommaSeparatedPtr[uint](p.IDs),
+	}
+	filter.SellerID = sellerID
+	return filter
 }

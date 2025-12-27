@@ -1,43 +1,36 @@
 package db
 
 import (
-	"fmt"
-	"os"
+	"time"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/log"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
 var db *gorm.DB
 
-func ConnectDB() {
-	/* PostgreSQL connection string */
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=UTC",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_SSLMODE"),
-	)
+// ConnectDB initializes a PostgreSQL database connection using GORM.
+// It configures the connection pool, sets up logging based on APP_ENV,
+// and verifies the connection with a ping. Panics if connection fails.
+func ConnectDB(cfg *config.Config) {
+	dsn := cfg.Database.DSN()
 
-	log.Info(
-		"Connecting to database host: " + os.Getenv(
-			"DB_HOST",
-		) + ", dbname: " + os.Getenv(
-			"DB_NAME",
-		) + ", port: " + os.Getenv(
-			"DB_PORT",
-		),
-	)
+	log.Info("Connecting to database: " + cfg.Database.LogSafeString())
+
+	/* Configure logger based on environment */
+	logLevel := logger.Info
+	if cfg.App.IsProduction() {
+		logLevel = logger.Error
+	}
 
 	/* Initialize database */
 	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		// Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logLevel),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // Use singular table names
 		},
@@ -46,8 +39,28 @@ func ConnectDB() {
 		log.Fatal("Failed to connect to database", err)
 	}
 
+	/* Configure connection pool for production */
+	configureConnectionPool(_db, cfg)
+
 	db = _db
 	log.Info("Database connected successfully")
+}
+
+func configureConnectionPool(_db *gorm.DB, cfg *config.Config) {
+	sqlDB, err := _db.DB()
+	if err != nil {
+		log.Fatal("Failed to get underlying SQL DB", err)
+	}
+
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetimeMinutes) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.Database.ConnMaxIdleTimeMinutes) * time.Minute)
+
+	/* Verify connection is actually working */
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatal("Failed to ping database", err)
+	}
 }
 
 func GetDB() *gorm.DB {
@@ -58,14 +71,7 @@ func SetDB(database *gorm.DB) {
 	db = database
 }
 
-func Atomic(fn func(tx *gorm.DB) error) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return fn(tx)
-	})
-}
-
 // CloseDB closes the database connection
-// TODO: We are not use this function anywhere. we can remove this function
 func CloseDB() {
 	sqlDB, err := db.DB()
 	if err != nil {

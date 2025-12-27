@@ -3,9 +3,9 @@ package cache
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/go-redis/redis/v8"
@@ -16,24 +16,15 @@ var (
 	ctx         = context.Background()
 )
 
-// InitializeRedis initializes the Redis client
-func InitializeRedis() error {
-	addr := os.Getenv("REDIS_ADDR")
-	password := os.Getenv("REDIS_PASSWORD")
-	db := 0
-
+// ConnectRedis initializes the Redis client using the provided configuration.
+func ConnectRedis(cfg *config.Config) error {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
 	})
 
 	return nil
-}
-
-// ConnectRedis is a backward-compatible alias for InitializeRedis
-func ConnectRedis() error {
-	return InitializeRedis()
 }
 
 func SetRedisClient(client *redis.Client) {
@@ -48,24 +39,24 @@ func GetRedisClient() (*redis.Client, error) {
 	return redisClient, nil
 }
 
-// SetKey sets a key-value pair in Redis with expiration
-func SetKey(key string, value interface{}, expiration time.Duration) error {
+// Set sets a key-value pair in Redis with expiration
+func Set(key string, value any, expiration time.Duration) error {
 	if redisClient == nil {
 		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Set(ctx, key, value, expiration).Err()
 }
 
-// GetKey retrieves a value from Redis
-func GetKey(key string) (string, error) {
+// Get retrieves a value from Redis
+func Get(key string) (string, error) {
 	if redisClient == nil {
 		return "", errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
 	return redisClient.Get(ctx, key).Result()
 }
 
-// DelKey deletes a key from Redis
-func DelKey(key string) error {
+// Del deletes a key from Redis
+func Del(key string) error {
 	if redisClient == nil {
 		return errors.New(constants.REDIS_NOT_INITIALIZED_MSG)
 	}
@@ -95,4 +86,14 @@ func IsTokenBlacklisted(token string) bool {
 	}
 
 	return result == "blacklisted"
+}
+
+// CloseRedis closes the Redis connection gracefully
+func CloseRedis() {
+	if redisClient != nil {
+		if err := redisClient.Close(); err != nil {
+			// Log error but don't panic during shutdown
+			println("Error closing Redis connection:", err.Error())
+		}
+	}
 }

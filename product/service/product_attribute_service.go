@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/errors"
 	"ecommerce-be/product/factory"
@@ -12,12 +14,14 @@ import (
 // ProductAttributeService defines the interface for product attribute business logic
 type ProductAttributeService interface {
 	AddProductAttribute(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 		req model.AddProductAttributeRequest,
 	) (*model.ProductAttributeDetailResponse, error)
 
 	UpdateProductAttribute(
+		ctx context.Context,
 		productID uint,
 		attributeID uint,
 		sellerID uint,
@@ -25,16 +29,19 @@ type ProductAttributeService interface {
 	) (*model.ProductAttributeDetailResponse, error)
 
 	DeleteProductAttribute(
+		ctx context.Context,
 		productID uint,
 		attributeID uint,
 		sellerID uint,
 	) error
 
 	GetProductAttributes(
+		ctx context.Context,
 		productID uint,
 	) (*model.ProductAttributesListResponse, error)
 
 	BulkUpdateProductAttributes(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 		req model.BulkUpdateProductAttributesRequest,
@@ -43,20 +50,22 @@ type ProductAttributeService interface {
 	// CreateProductAttributesBulk creates multiple product attributes in bulk
 	// Returns models for immediate use in responses
 	CreateProductAttributesBulk(
+		ctx context.Context,
 		productID uint,
 		sellerID uint,
 		requests []model.ProductAttributeRequest,
 	) ([]model.ProductAttributeResponse, error)
 
 	// DeleteAttributesByProductID deletes all product attributes for a product
-	DeleteAttributesByProductID(productID uint) error
+	DeleteAttributesByProductID(ctx context.Context, productID uint) error
 }
 
 // ProductAttributeServiceImpl implements the ProductAttributeService interface
 type ProductAttributeServiceImpl struct {
-	productAttrRepo repositories.ProductAttributeRepository
-	productRepo     repositories.ProductRepository
-	attributeRepo   repositories.AttributeDefinitionRepository
+	productAttrRepo  repositories.ProductAttributeRepository
+	productRepo      repositories.ProductRepository
+	attributeRepo    repositories.AttributeDefinitionRepository
+	validatorService ProductValidatorService
 }
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
@@ -64,33 +73,31 @@ func NewProductAttributeService(
 	productAttrRepo repositories.ProductAttributeRepository,
 	productRepo repositories.ProductRepository,
 	attributeRepo repositories.AttributeDefinitionRepository,
+	validatorService ProductValidatorService,
 ) ProductAttributeService {
 	return &ProductAttributeServiceImpl{
-		productAttrRepo: productAttrRepo,
-		productRepo:     productRepo,
-		attributeRepo:   attributeRepo,
+		productAttrRepo:  productAttrRepo,
+		productRepo:      productRepo,
+		attributeRepo:    attributeRepo,
+		validatorService: validatorService,
 	}
 }
 
 // AddProductAttribute adds a new attribute to a product
 func (s *ProductAttributeServiceImpl) AddProductAttribute(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 	req model.AddProductAttributeRequest,
 ) (*model.ProductAttributeDetailResponse, error) {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Verify attribute definition exists
-	attributeDef, err := s.attributeRepo.FindByID(req.AttributeDefinitionID)
+	attributeDef, err := s.attributeRepo.FindByID(ctx, req.AttributeDefinitionID)
 	if err != nil {
 		return nil, prodErrors.ErrAttributeNotFound
 	}
@@ -106,6 +113,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 
 	// Check if attribute already exists for this product
 	exists, err := s.productAttrRepo.ExistsByProductIDAndAttributeID(
+		ctx,
 		productID,
 		req.AttributeDefinitionID,
 	)
@@ -120,12 +128,12 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	productAttribute := factory.BuildProductAttributeFromCreateRequest(productID, req)
 
 	// Save to database
-	if err := s.productAttrRepo.Create(productAttribute); err != nil {
+	if err := s.productAttrRepo.Create(ctx, productAttribute); err != nil {
 		return nil, err
 	}
 
 	// Fetch with preloaded data
-	createdAttr, err := s.productAttrRepo.FindByID(productAttribute.ID)
+	createdAttr, err := s.productAttrRepo.FindByID(ctx, productAttribute.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,24 +144,20 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 
 // UpdateProductAttribute updates an existing product attribute
 func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
+	ctx context.Context,
 	productID uint,
 	attributeID uint,
 	sellerID uint,
 	req model.UpdateProductAttributeRequest,
 ) (*model.ProductAttributeDetailResponse, error) {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Find the product attribute
-	productAttribute, err := s.productAttrRepo.FindByID(attributeID)
+	productAttribute, err := s.productAttrRepo.FindByID(ctx, attributeID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +168,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Fetch attribute definition for validation
-	attributeDef, err := s.attributeRepo.FindByID(productAttribute.AttributeDefinitionID)
+	attributeDef, err := s.attributeRepo.FindByID(ctx, productAttribute.AttributeDefinitionID)
 	if err != nil {
 		return nil, err
 	}
@@ -178,12 +182,12 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	factory.BuildProductAttributeFromUpdateRequest(productAttribute, req)
 
 	// Save to database
-	if err := s.productAttrRepo.Update(productAttribute); err != nil {
+	if err := s.productAttrRepo.Update(ctx, productAttribute); err != nil {
 		return nil, err
 	}
 
 	// Fetch updated data
-	updatedAttr, err := s.productAttrRepo.FindByID(attributeID)
+	updatedAttr, err := s.productAttrRepo.FindByID(ctx, attributeID)
 	if err != nil {
 		return nil, err
 	}
@@ -194,23 +198,19 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 
 // DeleteProductAttribute removes an attribute from a product
 func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
+	ctx context.Context,
 	productID uint,
 	attributeID uint,
 	sellerID uint,
 ) error {
-	// Verify product exists and user has access
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
-		return prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return prodErrors.ErrUnauthorizedAttributeAccess
+		return err
 	}
 
 	// Find the product attribute
-	productAttribute, err := s.productAttrRepo.FindByID(attributeID)
+	productAttribute, err := s.productAttrRepo.FindByID(ctx, attributeID)
 	if err != nil {
 		return err
 	}
@@ -221,21 +221,22 @@ func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
 	}
 
 	// Delete from database
-	return s.productAttrRepo.Delete(attributeID)
+	return s.productAttrRepo.Delete(ctx, attributeID)
 }
 
 // GetProductAttributes retrieves all attributes for a product
 func (s *ProductAttributeServiceImpl) GetProductAttributes(
+	ctx context.Context,
 	productID uint,
 ) (*model.ProductAttributesListResponse, error) {
 	// Verify product exists
-	_, err := s.productRepo.FindByID(productID)
+	_, err := s.productRepo.FindByID(ctx, productID)
 	if err != nil {
 		return nil, prodErrors.ErrProductNotFound
 	}
 
 	// Get all product attributes
-	productAttributes, err := s.productAttrRepo.FindAllByProductID(productID)
+	productAttributes, err := s.productAttrRepo.FindAllByProductID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -246,18 +247,15 @@ func (s *ProductAttributeServiceImpl) GetProductAttributes(
 
 // BulkUpdateProductAttributes updates multiple attributes for a product
 func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 	req model.BulkUpdateProductAttributesRequest,
 ) (*model.BulkUpdateProductAttributesResponse, error) {
-	// Verify product exists and belongs to seller
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Track updated attributes
@@ -267,7 +265,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 	// Process each attribute update
 	for _, attrUpdate := range req.Attributes {
 		// Fetch the existing attribute
-		productAttribute, err := s.productAttrRepo.FindByID(attrUpdate.AttributeID)
+		productAttribute, err := s.productAttrRepo.FindByID(ctx, attrUpdate.AttributeID)
 		if err != nil {
 			// Skip attributes that don't exist (could return error instead)
 			continue
@@ -280,7 +278,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		}
 
 		// Get attribute definition for validation
-		attributeDef, err := s.attributeRepo.FindByID(productAttribute.AttributeDefinitionID)
+		attributeDef, err := s.attributeRepo.FindByID(ctx, productAttribute.AttributeDefinitionID)
 		if err != nil {
 			continue
 		}
@@ -295,7 +293,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		productAttribute.SortOrder = attrUpdate.SortOrder
 
 		// Save to database
-		if err := s.productAttrRepo.Update(productAttribute); err != nil {
+		if err := s.productAttrRepo.Update(ctx, productAttribute); err != nil {
 			return nil, err
 		}
 
@@ -322,6 +320,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 // This method handles both attribute definition creation/update and product attribute linking
 // Moved from ProductService for proper separation of concerns
 func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
+	ctx context.Context,
 	productID uint,
 	sellerID uint,
 	requests []model.ProductAttributeRequest,
@@ -330,20 +329,15 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 		return []model.ProductAttributeResponse{}, nil
 	}
 
-	// Verify product exists and user has access (single query)
-	product, err := s.productRepo.FindByID(productID)
+	// Validate product ownership using validator service (eliminates duplication)
+	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
-		return nil, prodErrors.ErrProductNotFound
-	}
-
-	// Check if user has permission to modify this product
-	if sellerID != 0 && product.SellerID != sellerID {
-		return nil, prodErrors.ErrUnauthorizedAttributeAccess
+		return nil, err
 	}
 
 	// Extract unique keys and fetch existing attribute definitions (single query)
 	keys := extractUniqueKeys(requests)
-	attributeMap, err := s.attributeRepo.FindByKeys(keys)
+	attributeMap, err := s.attributeRepo.FindByKeys(ctx, keys)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +346,7 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 	operations := processAttributesForBulkOperations(productID, requests, attributeMap)
 
 	// Execute all bulk operations
-	if err = s.executeBulkOperations(operations); err != nil {
+	if err = s.executeBulkOperations(ctx, operations); err != nil {
 		return nil, err
 	}
 
@@ -421,18 +415,19 @@ func processAttributesForBulkOperations(
 
 // executeBulkOperations executes all bulk database operations
 func (s *ProductAttributeServiceImpl) executeBulkOperations(
+	ctx context.Context,
 	operations *BulkAttributeOperations,
 ) error {
 	// Bulk create new attribute definitions
 	if len(operations.attributesToCreate) > 0 {
-		if err := s.attributeRepo.CreateBulk(operations.attributesToCreate); err != nil {
+		if err := s.attributeRepo.CreateBulk(ctx, operations.attributesToCreate); err != nil {
 			return err
 		}
 	}
 
 	// Bulk update modified attributes
 	if len(operations.attributesToUpdate) > 0 {
-		if err := s.attributeRepo.UpdateBulk(operations.attributesToUpdate); err != nil {
+		if err := s.attributeRepo.UpdateBulk(ctx, operations.attributesToUpdate); err != nil {
 			return err
 		}
 	}
@@ -440,6 +435,7 @@ func (s *ProductAttributeServiceImpl) executeBulkOperations(
 	// BULK: Create ALL product attributes in ONE query
 	if len(operations.productAttributesToCreate) > 0 {
 		if err := s.productAttrRepo.BulkCreate(
+			ctx,
 			operations.productAttributesToCreate,
 		); err != nil {
 			return err
@@ -472,6 +468,6 @@ func (s *ProductAttributeServiceImpl) convertAttributesToModels(
 }
 
 // DeleteAttributesByProductID deletes all product attributes for a product
-func (s *ProductAttributeServiceImpl) DeleteAttributesByProductID(productID uint) error {
-	return s.attributeRepo.DeleteProductAttributesByProductID(productID)
+func (s *ProductAttributeServiceImpl) DeleteAttributesByProductID(ctx context.Context, productID uint) error {
+	return s.attributeRepo.DeleteProductAttributesByProductID(ctx, productID)
 }

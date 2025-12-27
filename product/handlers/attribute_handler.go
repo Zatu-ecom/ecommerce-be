@@ -35,7 +35,7 @@ func (h *AttributeHandler) CreateAttribute(c *gin.Context) {
 		return
 	}
 
-	attributeResponse, err := h.attributeService.CreateAttribute(req)
+	attributeResponse, err := h.attributeService.CreateAttribute(c, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_ATTRIBUTE_MSG)
 		return
@@ -64,7 +64,7 @@ func (h *AttributeHandler) UpdateAttribute(c *gin.Context) {
 		return
 	}
 
-	attributeResponse, err := h.attributeService.UpdateAttribute(attributeID, req)
+	attributeResponse, err := h.attributeService.UpdateAttribute(c, attributeID, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_ATTRIBUTE_MSG)
 		return
@@ -87,7 +87,7 @@ func (h *AttributeHandler) DeleteAttribute(c *gin.Context) {
 		return
 	}
 
-	err = h.attributeService.DeleteAttribute(attributeID)
+	err = h.attributeService.DeleteAttribute(c, attributeID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_ATTRIBUTE_MSG)
 		return
@@ -98,7 +98,7 @@ func (h *AttributeHandler) DeleteAttribute(c *gin.Context) {
 
 // GetAllAttributes handles getting all attribute definitions
 func (h *AttributeHandler) GetAllAttributes(c *gin.Context) {
-	attributesResponse, err := h.attributeService.GetAllAttributes()
+	attributesResponse, err := h.attributeService.GetAllAttributes(c)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_ATTRIBUTES_MSG)
 		return
@@ -115,7 +115,7 @@ func (h *AttributeHandler) GetAttributeByID(c *gin.Context) {
 		return
 	}
 
-	attributeResponse, err := h.attributeService.GetAttributeByID(attributeID)
+	attributeResponse, err := h.attributeService.GetAttributeByID(c, attributeID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_ATTRIBUTES_MSG)
 		return
@@ -145,6 +145,7 @@ func (h *AttributeHandler) CreateCategoryAttributeDefinition(c *gin.Context) {
 	}
 
 	attributeResponse, err := h.attributeService.CreateCategoryAttributeDefinition(
+		c,
 		categoryID,
 		req,
 	)

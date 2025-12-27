@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"net/http"
-	"os"
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +13,7 @@ import (
 
 // AdminAuth middleware for admin-only access
 func AdminAuth() gin.HandlerFunc {
-	secret := os.Getenv("JWT_SECRET")
+	secret := config.Get().Auth.JWTSecret
 	return func(c *gin.Context) {
 		// First run the basic auth middleware
 		authMiddleware := auth.AuthMiddleware(secret)

@@ -1,0 +1,445 @@
+package service
+
+import (
+	"context"
+	"strconv"
+	"strings"
+	"time"
+
+	"ecommerce-be/common"
+	"ecommerce-be/common/constants"
+	"ecommerce-be/common/db"
+	"ecommerce-be/common/helper"
+	"ecommerce-be/common/log"
+	"ecommerce-be/inventory/entity"
+	"ecommerce-be/inventory/model"
+	"ecommerce-be/inventory/repository"
+	"ecommerce-be/inventory/validator"
+	"ecommerce-be/product/mapper"
+	"ecommerce-be/product/service"
+)
+
+// InventoryReservationService defines the contract for managing inventory reservations.
+// It handles creation, expiration, and status updates of stock reservations
+// to support order processing workflows.
+type InventoryReservationService interface {
+	CreateReservation(
+		ctx context.Context,
+		sellerId uint,
+		req model.ReservationRequest,
+	) (*model.ReservationResponse, error)
+
+	ExpireScheduleReservation(
+		ctx context.Context,
+		sellerId uint,
+		reservationExpiry model.ReservationExpiryPayload,
+	) error
+
+	UpdateReservationStatus(
+		ctx context.Context,
+		sellerId uint,
+		req model.UpdateReservationStatusRequest,
+	) error
+}
+
+type InventoryReservationServiceImpl struct {
+	reservationRepo        repository.InventoryReservationRepository
+	inventoryQueryService  InventoryQueryService
+	variantService         service.VariantQueryService
+	schedulerService       ReservationSchedulerService
+	inventoryManageService InventoryManageService
+}
+
+// NewInventoryReservationService creates a new instance of InventoryReservationServiceImpl
+// with all required dependencies injected.
+func NewInventoryReservationService(
+	reservationRepo repository.InventoryReservationRepository,
+	inventoryQueryService InventoryQueryService,
+	variantService service.VariantQueryService,
+	schedulerService ReservationSchedulerService,
+	inventoryManageService InventoryManageService,
+) *InventoryReservationServiceImpl {
+	return &InventoryReservationServiceImpl{
+		reservationRepo:        reservationRepo,
+		inventoryQueryService:  inventoryQueryService,
+		variantService:         variantService,
+		schedulerService:       schedulerService,
+		inventoryManageService: inventoryManageService,
+	}
+}
+
+// CreateReservation creates inventory reservations for the requested items.
+// It validates variant ownership, checks inventory availability across locations,
+// reserves the stock, and schedules automatic expiration via Redis.
+// The reservation is created within a database transaction to ensure consistency.
+func (s *InventoryReservationServiceImpl) CreateReservation(
+	ctx context.Context,
+	sellerId uint,
+	req model.ReservationRequest,
+) (*model.ReservationResponse, error) {
+	variantIds := s.extractReqVariantIds(req.Items)
+
+	return db.WithTransactionResult(ctx,
+		func(txCtx context.Context) (*model.ReservationResponse, error) {
+			variantInfo, err := s.variantService.GetProductBasicInfoByVariantIDs(
+				txCtx,
+				variantIds,
+				&sellerId,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			sellerVariantIdSet := s.extractSellerVariantIds(variantInfo)
+			if err = validator.ValidateVariantIds(variantIds, sellerVariantIdSet); err != nil {
+				return nil, err
+			}
+
+			inventories, err := s.inventoryQueryService.GetInventoryByVariantAndLocationPriority(
+				txCtx,
+				req.Items,
+				sellerId,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			expiresAt := time.Now().Add(time.Duration(req.ExpiresInMinutes) * time.Minute)
+			reservationEntities := s.buildreservationEntities(req, inventories, expiresAt)
+
+			if err = s.reservationRepo.CreateOrSave(txCtx, reservationEntities); err != nil {
+				return nil, err
+			}
+
+			// Schedule Redis-based expiry for automatic stock release
+			if err = s.scheduleReservationExpiry(txCtx, sellerId, reservationEntities, expiresAt, req.ReferenceId); err != nil {
+				return nil, err
+			}
+
+			// Reserve inventory quantities immediately
+			if err = s.manageInventoryQuantity(txCtx, sellerId, entity.TXN_RESERVED, reservationEntities, inventories); err != nil {
+				return nil, err
+			}
+
+			return s.buildReservationResponse(
+				req.ReferenceId,
+				expiresAt,
+				reservationEntities,
+				inventories,
+			), nil
+		},
+	)
+}
+
+// ExpireScheduleReservation handles the automatic expiration of reservations.
+// It is triggered by the Redis scheduler when a reservation's TTL expires.
+// Updates reservation status to expired and releases the reserved inventory back to available stock.
+func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
+	ctx context.Context,
+	sellerId uint,
+	reservationExpiry model.ReservationExpiryPayload,
+) error {
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		if err := s.reservationRepo.UpdateStatusByIDs(txCtx, reservationExpiry.ReservationIDs, entity.ResExpired); err != nil {
+			return err
+		}
+
+		inventoryReservations, err := s.reservationRepo.FindByIDs(
+			txCtx,
+			reservationExpiry.ReservationIDs,
+		)
+		if err != nil {
+			return err
+		}
+
+		return s.releaseReservationInventory(
+			txCtx,
+			sellerId,
+			entity.TXN_RELEASED,
+			inventoryReservations,
+		)
+	})
+}
+
+// UpdateReservationStatus updates the status of all pending reservations for a given reference ID.
+// Based on the new status, it handles inventory accordingly:
+//   - ResCancelled: releases reserved stock back to available
+//   - ResFulfilled: marks stock as outbound (shipped)
+//   - ResConfirmed: keeps reservation active without inventory changes
+//   - Default: releases reserved stock back to available
+func (s *InventoryReservationServiceImpl) UpdateReservationStatus(
+	ctx context.Context,
+	sellerId uint,
+	req model.UpdateReservationStatusRequest,
+) error {
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		reservations, err := s.reservationRepo.FindByReferenceIDAndStatus(
+			txCtx,
+			entity.ResPending,
+			req.ReferenceId,
+		)
+		if err != nil {
+			return err
+		}
+
+		if len(reservations) == 0 {
+			log.InfoWithContext(
+				txCtx,
+				"No pending reservations found for reference ID: "+strconv.FormatUint(
+					uint64(req.ReferenceId),
+					10,
+				),
+			)
+			return nil
+		}
+
+		for _, res := range reservations {
+			res.Status = req.Status
+		}
+
+		if err = s.reservationRepo.CreateOrSave(txCtx, reservations); err != nil {
+			return err
+		}
+
+		switch req.Status {
+		case entity.ResCancelled:
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_RELEASED, reservations)
+		case entity.ResFulfilled:
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_OUTBOUND, reservations)
+		case entity.ResConfirmed:
+			return nil
+		default:
+			return s.releaseReservationInventory(txCtx, sellerId, entity.TXN_RELEASED, reservations)
+		}
+	})
+}
+
+func (s *InventoryReservationServiceImpl) releaseReservationInventory(
+	ctx context.Context,
+	sellerId uint,
+	txnType entity.TransactionType,
+	reservations []*entity.InventoryReservation,
+) error {
+	inventoryMap, err := helper.BatchFetch(
+		ctx,
+		s.extractInventoryIDs(reservations),
+		100,
+		func(inventoryIDs []uint) (map[uint]*model.InventoryResponse, error) {
+			return s.callGetInventories(ctx, &sellerId, inventoryIDs)
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	// Convert map values to slice for manageInventoryQuantity
+	inventories := make([]model.InventoryResponse, 0, len(inventoryMap))
+	for _, inv := range inventoryMap {
+		if inv != nil {
+			inventories = append(inventories, *inv)
+		}
+	}
+
+	return s.manageInventoryQuantity(
+		ctx,
+		sellerId,
+		txnType,
+		reservations,
+		inventories,
+	)
+}
+
+func (s *InventoryReservationServiceImpl) extractReqVariantIds(
+	Items []model.ReservationItem,
+) []uint {
+	variantIds := make([]uint, 0, len(Items))
+	for _, item := range Items {
+		variantIds = append(variantIds, item.VariantID)
+	}
+	return variantIds
+}
+
+func (s *InventoryReservationServiceImpl) extractSellerVariantIds(
+	variantInfo []mapper.VariantBasicInfoRow,
+) map[uint]bool {
+	sellerVariantIds := make(map[uint]bool)
+	for _, info := range variantInfo {
+		sellerVariantIds[info.VariantID] = true
+	}
+	return sellerVariantIds
+}
+
+func (s *InventoryReservationServiceImpl) buildreservationEntities(
+	req model.ReservationRequest,
+	inventories []model.InventoryResponse,
+	expiresAt time.Time,
+) []*entity.InventoryReservation {
+	inventoryMap := make(map[uint][]model.InventoryResponse)
+	for _, inv := range inventories {
+		inventoryMap[inv.VariantID] = append(inventoryMap[inv.VariantID], inv)
+	}
+
+	var reservations []*entity.InventoryReservation
+
+	for _, item := range req.Items {
+		quentity := item.ReservedQuantity
+		inventoryResponses := inventoryMap[item.VariantID]
+
+		for _, inv := range inventoryResponses {
+			if quentity <= 0 {
+				break
+			}
+
+			var reservationQuantity uint
+			if inv.AvailableQuantity >= int(quentity) {
+				reservationQuantity = quentity
+				quentity = 0
+			} else {
+				reservationQuantity = uint(inv.AvailableQuantity)
+				quentity = quentity - reservationQuantity
+			}
+			reservations = append(reservations, &entity.InventoryReservation{
+				InventoryID: inv.ID,
+				ReferenceID: req.ReferenceId,
+				Quantity:    reservationQuantity,
+				Status:      entity.ResPending,
+				ExpiresAt:   expiresAt,
+			})
+		}
+	}
+	return reservations
+}
+
+func (s *InventoryReservationServiceImpl) buildReservationResponse(
+	referenceID uint,
+	expiresAt time.Time,
+	reservations []*entity.InventoryReservation,
+	inventories []model.InventoryResponse,
+) *model.ReservationResponse {
+	// Build inventory map for quick lookup of available quantity
+	inventoryMap := make(map[uint]model.InventoryResponse)
+	for _, inv := range inventories {
+		inventoryMap[inv.ID] = inv
+	}
+
+	reservationItems := make([]model.Resevation, 0, len(reservations))
+	for _, res := range reservations {
+		inv := inventoryMap[res.InventoryID]
+		reservationItems = append(reservationItems, model.Resevation{
+			Id:                         res.ID,
+			InventoryId:                res.InventoryID,
+			Quantity:                   res.Quantity,
+			Status:                     res.Status,
+			TotalAvailableAfterReserve: inv.AvailableQuantity - int(res.Quantity),
+		})
+	}
+
+	return &model.ReservationResponse{
+		ReferenceId: referenceID,
+		ExpiresAt:   expiresAt.Format(time.RFC3339),
+		Resevations: reservationItems,
+	}
+}
+
+func (s *InventoryReservationServiceImpl) scheduleReservationExpiry(
+	ctx context.Context,
+	sellerID uint,
+	reservationEntities []*entity.InventoryReservation,
+	expiresAt time.Time,
+	referenceID uint,
+) error {
+	reservationIDs := make([]uint, 0, len(reservationEntities))
+	for _, reservation := range reservationEntities {
+		reservationIDs = append(reservationIDs, reservation.ID)
+	}
+
+	jobID, err := s.schedulerService.ScheduleBulkReservationExpiry(
+		ctx,
+		sellerID,
+		referenceID,
+		reservationIDs,
+		expiresAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	log.InfoWithContext(ctx,
+		"Scheduled reservation expiry job with ID: "+jobID.String(),
+	)
+	return nil
+}
+
+func (s *InventoryReservationServiceImpl) manageInventoryQuantity(
+	ctx context.Context,
+	sellerId uint,
+	transactionType entity.TransactionType,
+	reservationEntities []*entity.InventoryReservation,
+	inventories []model.InventoryResponse,
+) error {
+	mapInventory := make(map[uint]model.InventoryResponse)
+	for _, inv := range inventories {
+		mapInventory[inv.ID] = inv
+	}
+
+	reason := "Inventory " + strings.ToLower(string(transactionType)) + " for reservation ID "
+	userId := ctx.Value(constants.USER_ID_KEY).(uint)
+	var manageInventoryRequests []model.ManageInventoryRequest
+	for _, reservation := range reservationEntities {
+		inv := mapInventory[reservation.InventoryID]
+		reference := strconv.FormatUint(uint64(reservation.ID), 10)
+		manageInventoryRequests = append(manageInventoryRequests, model.ManageInventoryRequest{
+			VariantID:       inv.VariantID,
+			LocationID:      inv.LocationID,
+			Quantity:        int(reservation.Quantity),
+			TransactionType: transactionType,
+			Reference:       &reference,
+			Reason:          reason + reference,
+		})
+	}
+	req := model.BulkManageInventoryRequest{
+		Items: manageInventoryRequests,
+	}
+	_, err := s.inventoryManageService.BulkManageInventory(ctx, req, sellerId, userId)
+	return err
+}
+
+func (s *InventoryReservationServiceImpl) callGetInventories(
+	ctx context.Context,
+	sellerId *uint,
+	inventoryIDs []uint,
+) (map[uint]*model.InventoryResponse, error) {
+	response, err := s.inventoryQueryService.GetInventories(
+		ctx,
+		sellerId,
+		model.GetInventoriesFilter{
+			GetInventoriesBase: model.GetInventoriesBase{
+				BaseListParams: common.BaseListParams{
+					Page:     1,
+					PageSize: len(inventoryIDs),
+				},
+			},
+			IDs: inventoryIDs,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	inventoryMap := make(map[uint]*model.InventoryResponse)
+	for _, inv := range response.Inventories {
+		invCopy := inv
+		inventoryMap[inv.ID] = &invCopy
+	}
+	return inventoryMap, nil
+}
+
+func (s *InventoryReservationServiceImpl) extractInventoryIDs(
+	reservations []*entity.InventoryReservation,
+) []uint {
+	inventoryIDs := make([]uint, 0, len(reservations))
+	for _, res := range reservations {
+		inventoryIDs = append(inventoryIDs, res.InventoryID)
+	}
+	return inventoryIDs
+}

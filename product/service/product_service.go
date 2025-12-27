@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
@@ -8,22 +10,23 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repositories"
 	"ecommerce-be/product/validator"
-
-	"gorm.io/gorm"
 )
 
 // ProductService defines the interface for product-related business logic
 type ProductService interface {
 	CreateProduct(
+		ctx context.Context,
 		req model.ProductCreateRequest,
 		sellerID uint,
 	) (*model.ProductResponse, error)
 	UpdateProduct(
+		ctx context.Context,
 		id uint,
 		sellerId *uint,
 		req model.ProductUpdateRequest,
 	) (*model.ProductResponse, error)
 	DeleteProduct(
+		ctx context.Context,
 		id uint,
 		sellerId *uint,
 	) error
@@ -78,13 +81,14 @@ type productCreationResult struct {
 }
 
 func (s *ProductServiceImpl) CreateProduct(
+	ctx context.Context,
 	req model.ProductCreateRequest,
 	sellerID uint,
 ) (*model.ProductResponse, error) {
 	var result productCreationResult
 
-	err := db.Atomic(func(tx *gorm.DB) error {
-		return s.executeProductCreation(&result, req, sellerID)
+	err := db.WithTransaction(ctx, func(txCtx context.Context) error {
+		return s.executeProductCreation(txCtx, &result, req, sellerID)
 	})
 	if err != nil {
 		return nil, err
@@ -102,26 +106,28 @@ func (s *ProductServiceImpl) CreateProduct(
 
 // executeProductCreation orchestrates all product creation steps in transaction
 func (s *ProductServiceImpl) executeProductCreation(
+	ctx context.Context,
 	result *productCreationResult,
 	req model.ProductCreateRequest,
 	sellerID uint,
 ) error {
 	// Validate and create base product
-	if err := s.validateAndCreateProduct(result, req, sellerID); err != nil {
+	if err := s.validateAndCreateProduct(ctx, result, req, sellerID); err != nil {
 		return err
 	}
 
 	// Create all associated entities
-	return s.createProductAssociations(result, req, sellerID)
+	return s.createProductAssociations(ctx, result, req, sellerID)
 }
 
 // validateAndCreateProduct validates request and creates base product entity
 func (s *ProductServiceImpl) validateAndCreateProduct(
+	ctx context.Context,
 	result *productCreationResult,
 	req model.ProductCreateRequest,
 	sellerID uint,
 ) error {
-	category, err := s.categoryRepo.FindByID(req.CategoryID)
+	category, err := s.categoryRepo.FindByID(ctx, req.CategoryID)
 	if err != nil {
 		return err
 	}
@@ -131,7 +137,7 @@ func (s *ProductServiceImpl) validateAndCreateProduct(
 	}
 
 	product := factory.CreateProductFromRequest(req, sellerID)
-	if err := s.productRepo.Create(product); err != nil {
+	if err := s.productRepo.Create(ctx, product); err != nil {
 		return err
 	}
 
@@ -142,6 +148,7 @@ func (s *ProductServiceImpl) validateAndCreateProduct(
 
 // createProductAssociations creates options, variants, attributes, and package options
 func (s *ProductServiceImpl) createProductAssociations(
+	ctx context.Context,
 	result *productCreationResult,
 	req model.ProductCreateRequest,
 	sellerID uint,
@@ -150,7 +157,7 @@ func (s *ProductServiceImpl) createProductAssociations(
 
 	// Create options if provided
 	if len(req.Options) > 0 {
-		options, err := s.productOptionService.CreateOptionsBulk(productID, sellerID, req.Options)
+		options, err := s.productOptionService.CreateOptionsBulk(ctx, productID, sellerID, req.Options)
 		if err != nil {
 			return err
 		}
@@ -158,7 +165,7 @@ func (s *ProductServiceImpl) createProductAssociations(
 	}
 
 	// Create variants (required)
-	variants, err := s.variantBulkService.CreateVariantsBulk(productID, sellerID, req.Variants)
+	variants, err := s.variantBulkService.CreateVariantsBulk(ctx, productID, sellerID, req.Variants)
 	if err != nil {
 		return err
 	}
@@ -167,6 +174,7 @@ func (s *ProductServiceImpl) createProductAssociations(
 	// Create attributes if provided
 	if len(req.Attributes) > 0 {
 		attributes, err := s.productAttributeService.CreateProductAttributesBulk(
+			ctx,
 			productID,
 			sellerID,
 			req.Attributes,
@@ -179,7 +187,7 @@ func (s *ProductServiceImpl) createProductAssociations(
 
 	// Create package options if provided
 	if len(req.PackageOptions) > 0 {
-		packageOptions, err := s.createPackageOption(productID, req.PackageOptions)
+		packageOptions, err := s.createPackageOption(ctx, productID, req.PackageOptions)
 		if err != nil {
 			return err
 		}
@@ -274,12 +282,13 @@ func calculateVariantAggFromModels(
 
 // createPackageOption creates package options using factory
 func (s *ProductServiceImpl) createPackageOption(
+	ctx context.Context,
 	parentID uint,
 	options []model.PackageOptionRequest,
 ) ([]entity.PackageOption, error) {
 	// Create package options using factory
 	packageOptions := factory.CreatePackageOptionsFromRequests(parentID, options)
-	return packageOptions, s.productRepo.CreatePackageOptions(packageOptions)
+	return packageOptions, s.productRepo.CreatePackageOptions(ctx, packageOptions)
 }
 
 /************************************************************
@@ -287,12 +296,13 @@ func (s *ProductServiceImpl) createPackageOption(
  *	Note: Price, images, stock are managed at variant level *
  ************************************************************/
 func (s *ProductServiceImpl) UpdateProduct(
+	ctx context.Context,
 	id uint,
 	sellerId *uint,
 	req model.ProductUpdateRequest,
 ) (*model.ProductResponse, error) {
 	// Fetch product to validate
-	product, err := s.productRepo.FindByID(id)
+	product, err := s.productRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +310,7 @@ func (s *ProductServiceImpl) UpdateProduct(
 	// Fetch category if being updated
 	var category *entity.Category
 	if req.CategoryID != nil && *req.CategoryID != 0 {
-		category, err = s.categoryRepo.FindByID(*req.CategoryID)
+		category, err = s.categoryRepo.FindByID(ctx, *req.CategoryID)
 		if err != nil {
 			return nil, err
 		}
@@ -319,14 +329,14 @@ func (s *ProductServiceImpl) UpdateProduct(
 	product.Category = nil
 
 	// Save updated product
-	if err := s.productRepo.Update(product); err != nil {
+	if err := s.productRepo.Update(ctx, product); err != nil {
 		return nil, err
 	}
 
 	// TODO: Update attributes and package options if provided in request
 
 	// Return updated product with full details
-	return s.productQueryService.GetProductByID(product.ID, sellerId)
+	return s.productQueryService.GetProductByID(ctx, product.ID, sellerId)
 }
 
 /***************************************************
@@ -339,38 +349,39 @@ func (s *ProductServiceImpl) UpdateProduct(
 * - Package options (direct)                       *
 ****************************************************/
 func (s *ProductServiceImpl) DeleteProduct(
+	ctx context.Context,
 	id uint,
 	sellerId *uint,
 ) error {
 	// Verify product exists and validate ownership
-	_, err := s.validatorService.GetAndValidateProductOwnership(id, sellerId)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, id, sellerId)
 	if err != nil {
 		return err
 	}
 
 	// Use atomic transaction to delete everything
-	return db.Atomic(func(tx *gorm.DB) error {
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
 		// Delete variants and their associated data (variant_option_values)
-		if err := s.variantBulkService.DeleteVariantsByProductID(id); err != nil {
+		if err := s.variantBulkService.DeleteVariantsByProductID(txCtx, id); err != nil {
 			return err
 		}
 
 		// Delete product options and their values
-		if err := s.productOptionService.DeleteOptionsByProductID(id); err != nil {
+		if err := s.productOptionService.DeleteOptionsByProductID(txCtx, id); err != nil {
 			return err
 		}
 
 		// Delete product attributes
-		if err := s.productAttributeService.DeleteAttributesByProductID(id); err != nil {
+		if err := s.productAttributeService.DeleteAttributesByProductID(txCtx, id); err != nil {
 			return err
 		}
 
 		// Delete package options (no separate service yet)
-		if err := s.productRepo.DeletePackageOptionsByProductID(id); err != nil {
+		if err := s.productRepo.DeletePackageOptionsByProductID(txCtx, id); err != nil {
 			return err
 		}
 
 		// Finally, delete the product itself
-		return s.productRepo.Delete(id)
+		return s.productRepo.Delete(txCtx, id)
 	})
 }

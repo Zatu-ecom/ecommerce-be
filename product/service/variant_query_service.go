@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
@@ -13,6 +15,7 @@ import (
 type VariantQueryService interface {
 	// GetVariantByID retrieves detailed information about a specific variant
 	GetVariantByID(
+		ctx context.Context,
 		productID,
 		variantID uint,
 		sellerID uint,
@@ -20,6 +23,7 @@ type VariantQueryService interface {
 
 	// FindVariantByOptions finds a variant based on selected options
 	FindVariantByOptions(
+		ctx context.Context,
 		productID uint,
 		optionValues map[string]string,
 		sellerID *uint,
@@ -27,14 +31,37 @@ type VariantQueryService interface {
 
 	// GetProductVariantsWithOptions retrieves all variants with their selected option values
 	// Optimized single query to prevent N+1 issues when fetching variant details
-	GetProductVariantsWithOptions(productID uint) ([]model.VariantDetailResponse, error)
+	GetProductVariantsWithOptions(ctx context.Context, productID uint) ([]model.VariantDetailResponse, error)
 
 	// GetProductVariantAggregation retrieves aggregated variant data for a single product
-	GetProductVariantAggregation(productID uint) (*mapper.VariantAggregation, error)
+	GetProductVariantAggregation(ctx context.Context, productID uint) (*mapper.VariantAggregation, error)
 
 	// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 	// This is optimized for batch operations to prevent N+1 queries
-	GetProductsVariantAggregations(productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+	GetProductsVariantAggregations(ctx context.Context, productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+
+	// ListVariants lists variants with comprehensive filtering support
+	// Used for: home page recommendations, search results, filtered listings
+	ListVariants(
+		ctx context.Context,
+		request *model.ListVariantsRequest,
+		sellerID *uint,
+		optionFilters map[string]string,
+	) (*model.ListVariantsResponse, error)
+
+	// GetProductCountByVariantIDs counts unique products from variant IDs
+	// Microservice-ready: Enables inventory service to count products without DB joins
+	// Used by inventory module to aggregate product counts per location
+	GetProductCountByVariantIDs(ctx context.Context, variantIDs []uint, sellerID *uint) (uint, error)
+
+	// GetProductBasicInfoByVariantIDs retrieves basic product info for variant IDs
+	// Microservice-ready: Enables inventory service to get product details without DB joins
+	// Used by inventory module to display product names in inventory views
+	GetProductBasicInfoByVariantIDs(
+		ctx context.Context,
+		variantIDs []uint,
+		sellerID *uint,
+	) ([]mapper.VariantBasicInfoRow, error)
 }
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
@@ -59,33 +86,35 @@ func NewVariantQueryService(
 
 // GetVariantByID retrieves detailed information about a specific variant
 func (s *VariantQueryServiceImpl) GetVariantByID(
+	ctx context.Context,
 	productID, variantID uint,
 	sellerID uint,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access using validator service
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Find the variant (already validates it belongs to product via query with both IDs)
-	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(productID, variantID)
+	variant, err := s.variantRepo.FindVariantByProductIDAndVariantID(ctx, productID, variantID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build response using helper method (reduces code duplication)
-	return s.buildVariantDetailResponse(variant, product, productID, sellerID)
+	return s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
 }
 
 // FindVariantByOptions finds a variant based on selected options
 func (s *VariantQueryServiceImpl) FindVariantByOptions(
+	ctx context.Context,
 	productID uint,
 	optionValues map[string]string,
 	sellerID *uint,
 ) (*model.VariantResponse, error) {
 	// Validate seller access FIRST (security priority)
-	_, err := s.validatorService.GetAndValidateProductOwnership(productID, sellerID)
+	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -96,19 +125,19 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 	}
 
 	// Find the variant by options
-	variant, err := s.variantRepo.FindVariantByOptions(productID, optionValues)
+	variant, err := s.variantRepo.FindVariantByOptions(ctx, productID, optionValues)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get variant option values
-	variantOptionValues, err := s.variantRepo.GetVariantOptionValues(variant.ID)
+	variantOptionValues, err := s.variantRepo.GetVariantOptionValues(ctx, variant.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get product options and build response using factory (reduces duplication)
-	optionsResponse, err := s.optionService.GetAvailableOptions(productID, sellerID)
+	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +156,10 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 // Optimized with a single query to prevent N+1 issues when fetching variant details
 // Returns complete variant information including selected options for each variant
 func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
+	ctx context.Context,
 	productID uint,
 ) ([]model.VariantDetailResponse, error) {
-	variantsWithOptions, err := s.variantRepo.GetProductVariantsWithOptions(productID)
+	variantsWithOptions, err := s.variantRepo.GetProductVariantsWithOptions(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -146,36 +176,39 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
 // Returns summary information about all variants for a product
 func (s *VariantQueryServiceImpl) GetProductVariantAggregation(
+	ctx context.Context,
 	productID uint,
 ) (*mapper.VariantAggregation, error) {
-	return s.variantRepo.GetProductVariantAggregation(productID)
+	return s.variantRepo.GetProductVariantAggregation(ctx, productID)
 }
 
 // GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 // This is optimized for batch operations to prevent N+1 queries
 func (s *VariantQueryServiceImpl) GetProductsVariantAggregations(
+	ctx context.Context,
 	productIDs []uint,
 ) (map[uint]*mapper.VariantAggregation, error) {
-	return s.variantRepo.GetProductsVariantAggregations(productIDs)
+	return s.variantRepo.GetProductsVariantAggregations(ctx, productIDs)
 }
 
 // buildVariantDetailResponse builds the variant detail response from variant data
 // This helper reduces code duplication and provides consistent response building
 func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
+	ctx context.Context,
 	variant *entity.ProductVariant,
 	product *entity.Product,
 	productID uint,
 	sellerID uint,
 ) (*model.VariantDetailResponse, error) {
 	// Get variant option values
-	variantOptionValues, err := s.variantRepo.GetVariantOptionValues(variant.ID)
+	variantOptionValues, err := s.variantRepo.GetVariantOptionValues(ctx, variant.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get product options
 	sellerIDPtr := &sellerID
-	optionsResponse, err := s.optionService.GetAvailableOptions(productID, sellerIDPtr)
+	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -188,4 +221,74 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 
 	// Build and return response
 	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+}
+
+/***********************************************
+ *              ListVariants                   *
+ ***********************************************/
+// ListVariants lists variants with comprehensive filtering support
+func (s *VariantQueryServiceImpl) ListVariants(
+	ctx context.Context,
+	request *model.ListVariantsRequest,
+	sellerID *uint,
+	optionFilters map[string]string,
+) (*model.ListVariantsResponse, error) {
+	// Set default pagination if not provided
+	if request.Page == 0 {
+		request.Page = 1
+	}
+	if request.PageSize == 0 {
+		request.PageSize = 20 // Default page size
+	}
+
+	// Set default sorting if not provided
+	if request.SortBy == "" {
+		request.SortBy = "created_at"
+	}
+	if request.SortOrder == "" {
+		request.SortOrder = "desc"
+	}
+
+	// Call repository to get filtered variants with options in one query (prevents N+1)
+	variantsWithOptions, total, err := s.variantRepo.ListVariantsWithFilters(
+		ctx,
+		request,
+		sellerID,
+		optionFilters,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response using factory method (reduces code duplication)
+	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+
+	return &model.ListVariantsResponse{
+		Variants: variantResponses,
+		Total:    total,
+		Page:     request.Page,
+		PageSize: request.PageSize,
+	}, nil
+}
+
+// GetProductCountByVariantIDs counts unique products from variant IDs
+// Microservice-ready: Allows inventory service to get product count without product_variant joins
+// Returns the count of unique products that these variants belong to
+func (s *VariantQueryServiceImpl) GetProductCountByVariantIDs(
+	ctx context.Context,
+	variantIDs []uint,
+	sellerID *uint,
+) (uint, error) {
+	return s.variantRepo.GetProductCountByVariantIDs(ctx, variantIDs, sellerID)
+}
+
+// GetProductBasicInfoByVariantIDs retrieves basic product info for variant IDs
+// Microservice-ready: Allows inventory service to get product details without DB joins
+// Returns flat rows for efficient in-memory grouping by product
+func (s *VariantQueryServiceImpl) GetProductBasicInfoByVariantIDs(
+	ctx context.Context,
+	variantIDs []uint,
+	sellerID *uint,
+) ([]mapper.VariantBasicInfoRow, error) {
+	return s.variantRepo.GetProductBasicInfoByVariantIDs(ctx, variantIDs, sellerID)
 }

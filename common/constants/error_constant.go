@@ -9,6 +9,8 @@ const (
 	SELLER_DATA_MISSING_CODE    = "SELLER_DATA_MISSING"
 	REQUIRED_QUERY_PARAM_CODE   = "REQUIRED_QUERY_PARAM_MISSING"
 	INVALID_LIMIT_CODE          = "INVALID_LIMIT"
+	USER_DATA_MISSING_CODE      = "USER_DATA_MISSING"
+	CORRELATION_ID_MISSING      = "CORRELATION_ID_MISSING"
 )
 
 const (
@@ -21,6 +23,8 @@ const (
 	SELLER_DATA_MISSING_MSG    = "Seller data is missing"
 	REQUIRED_QUERY_PARAM_MSG   = "Required query parameter is missing"
 	INVALID_LIMIT_MSG          = "Limit must be between 1 and 100"
+	USER_DATA_MISSING_MSG      = "User data is missing in the context"
+	CORRELATION_ID_MISSING_MSG = "Correlation ID is missing in the context"
 )
 
 const (

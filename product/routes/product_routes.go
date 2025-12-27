@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handlers"
@@ -27,8 +28,8 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 	publicRoutesAuth := middleware.PublicAPIAuth()
 
-	// Product routes
-	productRoutes := router.Group("/api/products")
+	// Product routes - /api/product/products/*
+	productRoutes := router.Group(constants.APIBaseProduct + "/products")
 	{
 		// Public routes
 		productRoutes.GET("", publicRoutesAuth, m.productHandler.GetAllProducts)

@@ -1,0 +1,462 @@
+package repository
+
+import (
+	"context"
+	"errors"
+
+	"ecommerce-be/common/db"
+	"ecommerce-be/inventory/entity"
+	invErrors "ecommerce-be/inventory/error"
+	"ecommerce-be/inventory/mapper"
+	"ecommerce-be/inventory/model"
+
+	"gorm.io/gorm"
+)
+
+// InventoryRepository defines the interface for inventory-related database operations
+type InventoryRepository interface {
+	FindByVariantAndLocation(ctx context.Context, variantID uint, locationID uint) (*entity.Inventory, error)
+	FindByVariantAndLocationBatch(ctx context.Context, variantIDs []uint, locationIDs []uint) ([]entity.Inventory, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]entity.Inventory, error)
+	Create(ctx context.Context, inventory *entity.Inventory) error
+	CreateBatch(ctx context.Context, inventories []*entity.Inventory) error
+	Update(ctx context.Context, inventory *entity.Inventory) error
+	UpdateBatch(ctx context.Context, inventories []*entity.Inventory) error
+	FindByVariantID(ctx context.Context, variantID uint) ([]entity.Inventory, error)
+	FindByLocationID(ctx context.Context, locationID uint) ([]entity.Inventory, error)
+	Exists(ctx context.Context, variantID uint, locationID uint) (bool, error)
+	GetLocationInventorySummary(ctx context.Context, locationID uint) (*mapper.LocationInventorySummaryAggregate, error)
+	GetLocationInventorySummaryBatch(
+		ctx context.Context,
+		locationIDs []uint,
+	) (map[uint]*mapper.LocationInventorySummaryAggregate, error)
+	GetVariantInventoriesAtLocation(ctx context.Context, locationID uint) ([]mapper.VariantInventoryRow, error)
+	// GetVariantInventoriesAtLocationWithSort retrieves variant inventories with sorting
+	// sortBy: quantity, reserved_quantity, threshold, available_quantity (computed)
+	// sortOrder: asc, desc
+	GetVariantInventoriesAtLocationWithSort(
+		ctx context.Context,
+		locationID uint,
+		variantIDs []uint,
+		sortBy string,
+		sortOrder string,
+	) ([]mapper.VariantInventoryRow, error)
+	// IncrementReservedQuantity atomically increments/decrements reserved_quantity
+	// Use negative delta to release reserved stock
+	IncrementReservedQuantity(ctx context.Context, inventoryID uint, delta int) error
+	// FindWithFilters retrieves inventories with filters, pagination and sorting
+	FindWithFilters(ctx context.Context, filter model.GetInventoriesFilter) ([]entity.Inventory, int64, error)
+}
+
+// InventoryRepositoryImpl implements the InventoryRepository interface
+type InventoryRepositoryImpl struct{}
+
+// NewInventoryRepository creates a new instance of InventoryRepository
+func NewInventoryRepository() InventoryRepository {
+	return &InventoryRepositoryImpl{}
+}
+
+// FindByVariantAndLocation finds inventory for a specific variant at a specific location
+func (r *InventoryRepositoryImpl) FindByVariantAndLocation(
+	ctx context.Context,
+	variantID uint,
+	locationID uint,
+) (*entity.Inventory, error) {
+	var inventory entity.Inventory
+	result := db.DB(ctx).Where("variant_id = ? AND location_id = ?", variantID, locationID).
+		First(&inventory)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, invErrors.ErrInventoryNotFound
+		}
+		return nil, result.Error
+	}
+	return &inventory, nil
+}
+
+// Create creates a new inventory record
+func (r *InventoryRepositoryImpl) Create(ctx context.Context, inventory *entity.Inventory) error {
+	return db.DB(ctx).Create(inventory).Error
+}
+
+// CreateBatch creates multiple inventory records in a single query
+func (r *InventoryRepositoryImpl) CreateBatch(ctx context.Context, inventories []*entity.Inventory) error {
+	if len(inventories) == 0 {
+		return nil
+	}
+	return db.DB(ctx).Create(inventories).Error
+}
+
+// Update updates an existing inventory record
+func (r *InventoryRepositoryImpl) Update(ctx context.Context, inventory *entity.Inventory) error {
+	return db.DB(ctx).Save(inventory).Error
+}
+
+// UpdateBatch updates multiple inventory records in a single transaction
+func (r *InventoryRepositoryImpl) UpdateBatch(ctx context.Context, inventories []*entity.Inventory) error {
+	if len(inventories) == 0 {
+		return nil
+	}
+	return db.DB(ctx).Save(inventories).Error
+}
+
+// FindByVariantID finds all inventory records for a variant across all locations
+func (r *InventoryRepositoryImpl) FindByVariantID(ctx context.Context, variantID uint) ([]entity.Inventory, error) {
+	var inventories []entity.Inventory
+	result := db.DB(ctx).Where("variant_id = ?", variantID).Find(&inventories)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return inventories, nil
+}
+
+// FindByLocationID finds all inventory records at a specific location
+func (r *InventoryRepositoryImpl) FindByLocationID(ctx context.Context, locationID uint) ([]entity.Inventory, error) {
+	var inventories []entity.Inventory
+	result := db.DB(ctx).Where("location_id = ?", locationID).Find(&inventories)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return inventories, nil
+}
+
+// FindByVariantAndLocationBatch finds multiple inventory records in one query (bulk query - avoids N+1)
+func (r *InventoryRepositoryImpl) FindByVariantAndLocationBatch(
+	ctx context.Context,
+	variantIDs []uint,
+	locationIDs []uint,
+) ([]entity.Inventory, error) {
+	var inventories []entity.Inventory
+	if len(variantIDs) == 0 || len(locationIDs) == 0 {
+		return inventories, nil
+	}
+
+	result := db.DB(ctx).Where("variant_id IN ? AND location_id IN ?", variantIDs, locationIDs).
+		Find(&inventories)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return inventories, nil
+}
+
+// Exists checks if inventory exists for a variant at a location
+func (r *InventoryRepositoryImpl) Exists(ctx context.Context, variantID uint, locationID uint) (bool, error) {
+	var count int64
+	result := db.DB(ctx).Model(&entity.Inventory{}).
+		Where("variant_id = ? AND location_id = ?", variantID, locationID).
+		Count(&count)
+
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return count > 0, nil
+}
+
+// FindByIDs finds multiple inventory records by IDs (bulk query - avoids N+1)
+func (r *InventoryRepositoryImpl) FindByIDs(ctx context.Context, ids []uint) ([]entity.Inventory, error) {
+	var inventories []entity.Inventory
+	if len(ids) == 0 {
+		return inventories, nil
+	}
+
+	result := db.DB(ctx).Where("id IN ?", ids).Find(&inventories)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return inventories, nil
+}
+
+// GetLocationInventorySummary aggregates inventory statistics for a location
+// Returns: LocationInventorySummaryAggregate with all metrics
+// Microservice-ready: Only queries inventory table, no product joins
+func (r *InventoryRepositoryImpl) GetLocationInventorySummary(
+	ctx context.Context,
+	locationID uint,
+) (*mapper.LocationInventorySummaryAggregate, error) {
+	var result mapper.LocationInventorySummaryAggregate
+
+	// Single aggregation query - no N+1 problem
+	err := db.DB(ctx).Model(&entity.Inventory{}).
+		Select(
+			"COUNT(DISTINCT variant_id) as variant_count",
+			"COALESCE(SUM(quantity), 0) as total_stock",
+			"COALESCE(SUM(reserved_quantity), 0) as total_reserved",
+			"COUNT(CASE WHEN quantity > 0 AND quantity <= threshold THEN 1 END) as low_stock_count",
+			"COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count",
+		).
+		Where("location_id = ?", locationID).
+		Scan(&result).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Get distinct variant IDs for product count calculation
+	err = db.DB(ctx).Model(&entity.Inventory{}).
+		Select("DISTINCT variant_id").
+		Where("location_id = ?", locationID).
+		Pluck("variant_id", &result.VariantIDs).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+// GetLocationInventorySummaryBatch aggregates inventory statistics for multiple locations
+// Efficient batch query - avoids N+1 problem by fetching all locations at once
+// Returns: map[locationID] -> LocationInventorySummaryAggregate
+func (r *InventoryRepositoryImpl) GetLocationInventorySummaryBatch(
+	ctx context.Context,
+	locationIDs []uint,
+) (map[uint]*mapper.LocationInventorySummaryAggregate, error) {
+	if len(locationIDs) == 0 {
+		return make(map[uint]*mapper.LocationInventorySummaryAggregate), nil
+	}
+
+	// Batch aggregation query for all locations
+	type AggregateResult struct {
+		LocationID      uint
+		VariantCount    uint
+		TotalStock      uint
+		TotalReserved   uint
+		LowStockCount   uint
+		OutOfStockCount uint
+	}
+
+	var results []AggregateResult
+	err := db.DB(ctx).Model(&entity.Inventory{}).
+		Select(
+			"location_id",
+			"COUNT(DISTINCT variant_id) as variant_count",
+			"COALESCE(SUM(quantity), 0) as total_stock",
+			"COALESCE(SUM(reserved_quantity), 0) as total_reserved",
+			"COUNT(CASE WHEN quantity > 0 AND quantity <= threshold THEN 1 END) as low_stock_count",
+			"COUNT(CASE WHEN quantity = 0 THEN 1 END) as out_of_stock_count",
+		).
+		Where("location_id IN ?", locationIDs).
+		Group("location_id").
+		Scan(&results).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Batch fetch variant IDs for all locations
+	type VariantIDResult struct {
+		LocationID uint
+		VariantID  uint
+	}
+
+	var variantResults []VariantIDResult
+	err = db.DB(ctx).Model(&entity.Inventory{}).
+		Select("DISTINCT location_id, variant_id").
+		Where("location_id IN ?", locationIDs).
+		Scan(&variantResults).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Group variant IDs by location
+	variantIDsByLocation := make(map[uint][]uint)
+	for _, vr := range variantResults {
+		variantIDsByLocation[vr.LocationID] = append(
+			variantIDsByLocation[vr.LocationID],
+			vr.VariantID,
+		)
+	}
+
+	// Build result map
+	summaryMap := make(map[uint]*mapper.LocationInventorySummaryAggregate)
+	for _, aggResult := range results {
+		summaryMap[aggResult.LocationID] = &mapper.LocationInventorySummaryAggregate{
+			VariantCount:    aggResult.VariantCount,
+			TotalStock:      aggResult.TotalStock,
+			TotalReserved:   aggResult.TotalReserved,
+			LowStockCount:   aggResult.LowStockCount,
+			OutOfStockCount: aggResult.OutOfStockCount,
+			VariantIDs:      variantIDsByLocation[aggResult.LocationID],
+		}
+	}
+
+	// Add empty results for locations with no inventory
+	for _, locationID := range locationIDs {
+		if _, exists := summaryMap[locationID]; !exists {
+			summaryMap[locationID] = &mapper.LocationInventorySummaryAggregate{
+				VariantIDs: []uint{},
+			}
+		}
+	}
+
+	return summaryMap, nil
+}
+
+// GetVariantInventoriesAtLocation retrieves all variant inventory records at a location
+// Returns flat list of variant inventory data for aggregation by product
+// Microservice-ready: Only queries inventory table, no product joins
+func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocation(
+	ctx context.Context,
+	locationID uint,
+) ([]mapper.VariantInventoryRow, error) {
+	var results []mapper.VariantInventoryRow
+
+	err := db.DB(ctx).Model(&entity.Inventory{}).
+		Select(
+			"variant_id",
+			"quantity",
+			"reserved_quantity",
+			"threshold",
+			"bin_location",
+		).
+		Where("location_id = ?", locationID).
+		Scan(&results).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Return empty slice instead of nil for consistency
+	if results == nil {
+		results = []mapper.VariantInventoryRow{}
+	}
+
+	return results, nil
+}
+
+// GetVariantInventoriesAtLocationWithSort retrieves variant inventories with DB-side sorting
+func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
+	ctx context.Context,
+	locationID uint,
+	variantIDs []uint,
+	sortBy string,
+	sortOrder string,
+) ([]mapper.VariantInventoryRow, error) {
+	var results []mapper.VariantInventoryRow
+
+	// Map sortBy to actual DB column names
+	columnMap := map[string]string{
+		"quantity":          "quantity",
+		"reservedQuantity":  "reserved_quantity",
+		"threshold":         "threshold",
+		"availableQuantity": "(quantity - reserved_quantity)",
+	}
+
+	// Default sorting
+	orderColumn := "quantity"
+	if col, ok := columnMap[sortBy]; ok {
+		orderColumn = col
+	}
+
+	// Validate sort order
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "asc"
+	}
+
+	query := db.DB(ctx).Model(&entity.Inventory{}).
+		Select(
+			"variant_id",
+			"quantity",
+			"reserved_quantity",
+			"threshold",
+			"bin_location",
+		).
+		Where("location_id = ?", locationID)
+
+	// Filter by variant IDs if provided
+	if len(variantIDs) > 0 {
+		query = query.Where("variant_id IN ?", variantIDs)
+	}
+
+	// Apply ordering
+	query = query.Order(orderColumn + " " + sortOrder)
+
+	err := query.Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if results == nil {
+		results = []mapper.VariantInventoryRow{}
+	}
+
+	return results, nil
+}
+
+// IncrementReservedQuantity atomically increments/decrements reserved_quantity
+// Use negative delta to release reserved stock
+func (r *InventoryRepositoryImpl) IncrementReservedQuantity(ctx context.Context, inventoryID uint, delta int) error {
+	return db.DB(ctx).Model(&entity.Inventory{}).
+		Where("id = ?", inventoryID).
+		Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta)).Error
+}
+
+// FindWithFilters retrieves inventories with filters, pagination and sorting
+func (r *InventoryRepositoryImpl) FindWithFilters(
+	ctx context.Context,
+	filter model.GetInventoriesFilter,
+) ([]entity.Inventory, int64, error) {
+	var inventories []entity.Inventory
+	var total int64
+
+	query := db.DB(ctx).Model(&entity.Inventory{})
+
+	// Filter by inventory IDs
+	if len(filter.IDs) > 0 {
+		query = query.Where("id IN ?", filter.IDs)
+	}
+
+	// Filter by location IDs
+	if len(filter.LocationIDs) > 0 {
+		query = query.Where("location_id IN ?", filter.LocationIDs)
+	}
+
+	// Filter by variant IDs
+	if len(filter.VariantIDs) > 0 {
+		query = query.Where("variant_id IN ?", filter.VariantIDs)
+	}
+
+	// Filter by min quantity (available = quantity - reserved_quantity)
+	if filter.MinQuantity != nil {
+		query = query.Where("(quantity - reserved_quantity) >= ?", *filter.MinQuantity)
+	}
+
+	// Filter by max quantity (available = quantity - reserved_quantity)
+	if filter.MaxQuantity != nil {
+		query = query.Where("(quantity - reserved_quantity) <= ?", *filter.MaxQuantity)
+	}
+
+	// Count total before pagination
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	allowedSortColumns := map[string]bool{
+		"id": true, "variant_id": true, "location_id": true,
+		"quantity": true, "reserved_quantity": true, "threshold": true,
+		"created_at": true, "updated_at": true,
+	}
+	sortBy := filter.SortBy
+	sortOrder := filter.SortOrder
+	if !allowedSortColumns[sortBy] {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+	query = query.Order(sortBy + " " + sortOrder)
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	query = query.Offset(offset).Limit(filter.PageSize)
+
+	if err := query.Find(&inventories).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return inventories, total, nil
+}
+

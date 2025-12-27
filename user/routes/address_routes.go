@@ -1,25 +1,23 @@
 package routes
 
 import (
-	"ecommerce-be/common/db"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
-	"ecommerce-be/user/handlers"
-	"ecommerce-be/user/repositories"
-	"ecommerce-be/user/service"
+	"ecommerce-be/user/factory/singleton"
+	"ecommerce-be/user/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AddressModule struct {
-	addressHandler *handlers.AddressHandler
+	addressHandler *handler.AddressHandler
 }
 
 func NewAddressModule() *AddressModule {
-	addressRepo := repositories.NewAddressRepository(db.GetDB())
-	addressService := service.NewAddressService(addressRepo)
+	f := singleton.GetInstance()
 
 	return &AddressModule{
-		addressHandler: handlers.NewAddressHandler(addressService),
+		addressHandler: f.GetAddressHandler(),
 	}
 }
 
@@ -28,13 +26,14 @@ func (m *AddressModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
 	auth := middleware.CustomerAuth()
 
-	// Address routes (protected)
-	userRoutes := router.Group("/api/users")
+	// Address routes (protected) - /api/user/addresses/*
+	addressRoutes := router.Group(constants.APIBaseUser + "/addresses")
 	{
-		userRoutes.GET("/addresses", auth, m.addressHandler.GetAddresses)
-		userRoutes.POST("/addresses", auth, m.addressHandler.AddAddress)
-		userRoutes.PUT("/addresses/:id", auth, m.addressHandler.UpdateAddress)
-		userRoutes.DELETE("/addresses/:id", auth, m.addressHandler.DeleteAddress)
-		userRoutes.PATCH("/addresses/:id/default", auth, m.addressHandler.SetDefaultAddress)
+		addressRoutes.GET("", auth, m.addressHandler.GetAddresses)
+		addressRoutes.GET("/:id", auth, m.addressHandler.GetAddressByID)
+		addressRoutes.POST("", auth, m.addressHandler.AddAddress)
+		addressRoutes.PUT("/:id", auth, m.addressHandler.UpdateAddress)
+		addressRoutes.DELETE("/:id", auth, m.addressHandler.DeleteAddress)
+		addressRoutes.PATCH("/:id/default", auth, m.addressHandler.SetDefaultAddress)
 	}
 }
