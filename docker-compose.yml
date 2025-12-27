@@ -5,12 +5,12 @@ services:
     container_name: ecommerce-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-ecommerce}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
@@ -29,6 +29,7 @@ services:
     restart: unless-stopped
     command: >
       redis-server
+      --requirepass ${REDIS_PASSWORD}
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
     ports:
@@ -38,39 +39,29 @@ services:
     networks:
       - ecommerce-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
 
-  # Application (Production)
+  # Application (Run ONLY - No Build)
   app:
+    # CRITICAL CHANGE: No 'build' context here.
+    # We use the exact image name that we load in the pipeline.
     image: ecommerce-backend:latest
     container_name: ecommerce-app
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
+    
+    # Load config from the generated .env file
+    env_file:
+      - .env
+      
+    # Dynamic runtime variables only
     environment:
-      # Database
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-ecommerce}
-      DB_SSLMODE: disable
+      REDIS_ADDR: ${REDIS_HOST}:${REDIS_PORT}
       
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      
-      # Application
-      PORT: 8080
-      GIN_MODE: ${GIN_MODE:-release}
-      
-      # JWT
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-24}
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,18 +76,12 @@ services:
       retries: 3
       start_period: 10s
 
-
-
-  # Database Migration Runner (one-time service)
+  # Migration Runner
   migrate:
     image: postgres:16-alpine
     container_name: ecommerce-migrate
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-ecommerce}
+    env_file:
+      - .env
     volumes:
       - .:/app
     working_dir: /app
