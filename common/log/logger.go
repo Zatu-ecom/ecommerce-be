@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ import (
 var Log *logrus.Logger
 
 // InitLogger initializes the global logger instance
-func InitLogger() {
+func InitLogger(cfg *config.Config) {
 	Log = logrus.New()
 
 	// Set JSON formatter for structured logging
@@ -30,9 +31,8 @@ func InitLogger() {
 	// Set output to stdout
 	Log.SetOutput(os.Stdout)
 
-	// Set log level from environment variable or default to Info
-	logLevel := os.Getenv("LOG_LEVEL")
-	switch logLevel {
+	// Set log level from config
+	switch cfg.Log.Level {
 	case "debug":
 		Log.SetLevel(logrus.DebugLevel)
 	case "warn":
@@ -49,7 +49,11 @@ func InitLogger() {
 // GetLogger returns the global logger instance
 func GetLogger() *logrus.Logger {
 	if Log == nil {
-		InitLogger()
+		// Fallback: initialize with default config if not initialized
+		Log = logrus.New()
+		Log.SetFormatter(&logrus.JSONFormatter{})
+		Log.SetOutput(os.Stdout)
+		Log.SetLevel(logrus.InfoLevel)
 	}
 	return Log
 }

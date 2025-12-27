@@ -3,11 +3,11 @@ package scheduler
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strconv"
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
 
@@ -68,19 +68,18 @@ func StartRedisWorkerPool() {
 	jobDispatcher(jobChannel)
 }
 
-// getPoolSize reads WORKER_POOL_SIZE from environment, defaults to 5
+// getPoolSize reads worker pool size from config, defaults to 5
 func getPoolSize() int {
-	poolSizeStr := os.Getenv("WORKER_POOL_SIZE")
-	if poolSizeStr == "" {
+	cfg := config.Get()
+	if cfg == nil {
 		return defaultPoolSize
 	}
-
-	poolSize, err := strconv.Atoi(poolSizeStr)
-	if err != nil || poolSize <= 0 {
-		log.Warn("Invalid WORKER_POOL_SIZE, using default: " + strconv.Itoa(defaultPoolSize))
+	
+	poolSize := cfg.Scheduler.WorkerPoolSize
+	if poolSize <= 0 {
 		return defaultPoolSize
 	}
-
+	
 	return poolSize
 }
 

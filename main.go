@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/db"
 	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
@@ -27,20 +29,28 @@ import (
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		logger.Info("No .env file found")
+		// Can't use logger yet, just print
+		fmt.Println("No .env file found")
 	}
 
-	/* Initialize Logger */
-	logger.InitLogger()
+	/* Load Configuration */
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Println("Failed to load configuration:", err)
+		os.Exit(1)
+	}
+
+	/* Initialize Logger (needs config for log level) */
+	logger.InitLogger(cfg)
 
 	/* Connect Database */
-	db.ConnectDB()
+	db.ConnectDB(cfg)
 
 	/* Connect Redis */
-	cache.ConnectRedis()
+	cache.ConnectRedis(cfg)
 
 	/* Initialize Gin Router */
-	gin.SetMode(gin.ReleaseMode) // Set to release mode for production
+	gin.SetMode(cfg.Server.Mode)
 
 	// Use gin.New() instead of gin.Default() to disable default logging
 	router := gin.New()
@@ -58,21 +68,16 @@ func main() {
 	go scheduler.StartRedisWorkerPool()
 
 	/* Start Server with Graceful Shutdown */
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080" // Default port
-	}
-
 	srv := &http.Server{
-		Addr:    ":" + port,
+		Addr:    cfg.Server.Addr(),
 		Handler: router,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		logger.Info("Server starting on port " + port)
+		logger.Info("Server starting on port " + cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to start server on port "+port, err)
+			logger.Fatal("Failed to start server on port "+cfg.Server.Port, err)
 		}
 	}()
 

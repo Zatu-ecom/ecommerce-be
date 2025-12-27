@@ -56,6 +56,7 @@
 							],
 							"path": [
 								"api",
+								"user",
 								"auth",
 								"register"
 							]
@@ -73,11 +74,24 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
-									"    if (response.success && response.data.token) {",
+									"    if (response.success && response.data && response.data.token) {",
+									"        // Set in both collection and environment variables",
 									"        pm.collectionVariables.set('authToken', response.data.token);",
-									"        pm.collectionVariables.set('userId', response.data.user.id);",
-									"        console.log('Token saved:', response.data.token);",
+									"        pm.environment.set('authToken', response.data.token);",
+									"        ",
+									"        if (response.data.user && response.data.user.id) {",
+									"            pm.collectionVariables.set('userId', response.data.user.id);",
+									"            pm.environment.set('userId', response.data.user.id);",
+									"        }",
+									"        ",
+									"        console.log('✅ Token saved successfully!');",
+									"        console.log('Token:', response.data.token.substring(0, 50) + '...');",
+									"    } else {",
+									"        console.log('❌ Token not found in response');",
+									"        console.log('Response:', JSON.stringify(response));",
 									"    }",
+									"} else {",
+									"    console.log('❌ Login failed with status:', pm.response.code);",
 									"}"
 								],
 								"type": "text/javascript",
@@ -113,6 +127,7 @@
 							],
 							"path": [
 								"api",
+								"user",
 								"auth",
 								"login"
 							]
@@ -143,6 +158,7 @@
 							],
 							"path": [
 								"api",
+								"user",
 								"auth",
 								"refresh"
 							]
@@ -173,6 +189,7 @@
 							],
 							"path": [
 								"api",
+								"user",
 								"auth",
 								"logout"
 							]
@@ -209,7 +226,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"profile"
 							]
 						},
@@ -247,7 +264,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"profile"
 							]
 						},
@@ -285,7 +302,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"password"
 							]
 						},
@@ -370,7 +387,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"addresses"
 							]
 						},
@@ -408,7 +425,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"addresses"
 							]
 						},
@@ -446,7 +463,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"addresses",
 								":id"
 							],
@@ -483,7 +500,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"addresses",
 								":id"
 							],
@@ -520,7 +537,7 @@
 							],
 							"path": [
 								"api",
-								"users",
+								"user",
 								"addresses",
 								":id",
 								"default"
@@ -568,6 +585,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories"
 							],
 							"query": [
@@ -612,6 +630,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								":categoryId"
 							],
@@ -652,6 +671,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								"by-parent"
 							],
@@ -692,6 +712,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								":categoryId",
 								"attributes"
@@ -737,6 +758,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories"
 							]
 						},
@@ -774,6 +796,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								":categoryId"
 							],
@@ -810,6 +833,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								":categoryId"
 							],
@@ -856,6 +880,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"attributes"
 							]
 						},
@@ -889,6 +914,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"attributes",
 								":attributeId"
 							],
@@ -933,6 +959,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"attributes"
 							]
 						},
@@ -970,6 +997,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"attributes",
 								":attributeId"
 							],
@@ -1006,6 +1034,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"attributes",
 								":attributeId"
 							],
@@ -1050,9 +1079,10 @@
 							],
 							"path": [
 								"api",
-								"attributes",
-								":attributeId",
-								"categories"
+								"product",
+								"categories",
+								":categoryId",
+								"attributes"
 							],
 							"variable": [
 								{
@@ -1087,6 +1117,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"categories",
 								":categoryId",
 								"attributes",
@@ -1139,6 +1170,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products"
 							],
 							"query": [
@@ -1205,6 +1237,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId"
 							],
@@ -1245,6 +1278,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								"search"
 							],
@@ -1297,6 +1331,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								"filters"
 							],
@@ -1337,6 +1372,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"related"
@@ -1382,6 +1418,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products"
 							]
 						},
@@ -1419,6 +1456,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId"
 							],
@@ -1455,6 +1493,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId"
 							],
@@ -1501,6 +1540,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options"
@@ -1546,6 +1586,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options"
@@ -1591,6 +1632,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -1633,6 +1675,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -1796,6 +1839,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -1861,6 +1905,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -1911,6 +1956,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants"
@@ -1956,6 +2002,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -2006,6 +2053,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -2052,6 +2100,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -2095,6 +2144,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"variants",
@@ -2151,6 +2201,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -2202,6 +2253,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -2254,6 +2306,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -2302,6 +2355,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"options",
@@ -2412,6 +2466,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"attributes"
@@ -2457,6 +2512,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"attributes"
@@ -2502,6 +2558,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"attributes",
@@ -2552,6 +2609,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"attributes",
@@ -2590,6 +2648,7 @@
 							],
 							"path": [
 								"api",
+								"product",
 								"products",
 								":productId",
 								"attributes",

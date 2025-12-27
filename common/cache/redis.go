@@ -3,9 +3,9 @@ package cache
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"github.com/go-redis/redis/v8"
@@ -16,24 +16,15 @@ var (
 	ctx         = context.Background()
 )
 
-// InitializeRedis initializes the Redis client
-func InitializeRedis() error {
-	addr := os.Getenv("REDIS_ADDR")
-	password := os.Getenv("REDIS_PASSWORD")
-	db := 0
-
+// ConnectRedis initializes the Redis client using the provided configuration.
+func ConnectRedis(cfg *config.Config) error {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
 	})
 
 	return nil
-}
-
-// ConnectRedis is a backward-compatible alias for InitializeRedis
-func ConnectRedis() error {
-	return InitializeRedis()
 }
 
 func SetRedisClient(client *redis.Client) {
