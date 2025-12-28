@@ -21,3 +21,7 @@ func (a *AppConfig) IsProduction() bool {
 func (a *AppConfig) IsDevelopment() bool {
 	return a.Env == "dev" || a.Env == ""
 }
+
+func (a *AppConfig) IsLocal() bool {
+	return a.Env == "local"
+}

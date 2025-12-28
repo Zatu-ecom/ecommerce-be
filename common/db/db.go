@@ -8,7 +8,6 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -22,15 +21,12 @@ func ConnectDB(cfg *config.Config) {
 
 	log.Info("Connecting to database: " + cfg.Database.LogSafeString())
 
-	/* Configure logger based on environment */
-	logLevel := logger.Info
-	if cfg.App.IsProduction() {
-		logLevel = logger.Error
-	}
+	// Use custom JSON logger for GORM (log level is determined from LOG_LEVEL env var)
+	gormLogger := log.NewGormLogger()
 
 	/* Initialize database */
 	_db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logLevel),
+		Logger: gormLogger,
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // Use singular table names
 		},
