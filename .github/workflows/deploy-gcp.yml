@@ -36,6 +36,7 @@ jobs:
           CONFIG_FILE="config-repo/${{ inputs.target_env }}/backend.env"
           
           if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ Config file missing: $CONFIG_FILE"
             exit 1
           fi
           
@@ -67,7 +68,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false 
+          push: false
+          load: true 
           tags: ${{ env.IMAGE_NAME }}:latest
           build-args: BUILDKIT_INLINE_CACHE=1
           cache-from: type=gha
@@ -99,6 +101,7 @@ jobs:
           
           APP_DIR="/home/vasugoriya1234/ecommerce-backend"
           
+          # Move files and fix ownership (Phase 1)
           sudo mv /tmp/.env \$APP_DIR/.env
           sudo mv /tmp/ecommerce-backend.tar \$APP_DIR/ecommerce-backend.tar
           sudo mv /tmp/deploy_assets.tar.gz \$APP_DIR/deploy_assets.tar.gz
@@ -107,15 +110,19 @@ jobs:
           sudo chown vasugoriya1234:vasugoriya1234 \$APP_DIR/ecommerce-backend.tar
           sudo chown vasugoriya1234:vasugoriya1234 \$APP_DIR/deploy_assets.tar.gz
           
+          # Deploy Application (Phase 2)
           sudo -u vasugoriya1234 bash -c "
             cd \$APP_DIR
             
+            # Unpack Assets
             tar -xzf deploy_assets.tar.gz
             rm deploy_assets.tar.gz
             
+            # Load Image
             docker load -i ecommerce-backend.tar
             rm ecommerce-backend.tar
             
+            # Restart
             docker-compose down
             docker-compose up -d --force-recreate
             
