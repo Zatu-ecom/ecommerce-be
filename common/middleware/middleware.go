@@ -124,8 +124,9 @@ func Logger() gin.HandlerFunc {
 			}
 		}
 
-		// Use logger package to ensure consistent JSON formatting
-		log.GetLogger().WithFields(fields).Info("Request processed")
+		// Use logger package with context to ensure consistent JSON formatting
+		// This will automatically include correlationId, sellerId, userId from context
+		log.WithContext(c).WithFields(fields).Info("Request processed")
 	}
 }
 
