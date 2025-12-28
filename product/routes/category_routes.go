@@ -28,15 +28,15 @@ func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 	publicRoutesAuth := middleware.PublicAPIAuth()
 
-	// Category routes - /api/product/categories/*
-	categoryRoutes := router.Group(constants.APIBaseProduct + "/categories")
+	// Category routes - /api/product/category/*
+	categoryRoutes := router.Group(constants.APIBaseProduct + "/category")
 	{
 		// Public routes
 		categoryRoutes.GET("", publicRoutesAuth, m.categoryHandler.GetAllCategories)
 		categoryRoutes.GET("/:categoryId", publicRoutesAuth, m.categoryHandler.GetCategoryByID)
 		categoryRoutes.GET("/by-parent", publicRoutesAuth, m.categoryHandler.GetCategoriesByParent)
 		categoryRoutes.GET(
-			"/:categoryId/attributes",
+			"/:categoryId/attribute",
 			publicRoutesAuth,
 			m.categoryHandler.GetAttributesByCategoryIDWithInheritance,
 		)
@@ -48,12 +48,12 @@ func (m *CategoryModule) RegisterRoutes(router *gin.Engine) {
 
 		// Link/Unlink attribute routes (protected)
 		categoryRoutes.POST(
-			"/:categoryId/attributes",
+			"/:categoryId/attribute",
 			sellerAuth,
 			m.categoryHandler.LinkAttributeToCategory,
 		)
 		categoryRoutes.DELETE(
-			"/:categoryId/attributes/:attributeId",
+			"/:categoryId/attribute/:attributeId",
 			sellerAuth,
 			m.categoryHandler.UnlinkAttributeFromCategory,
 		)

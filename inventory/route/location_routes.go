@@ -29,15 +29,15 @@ func NewLocationModule() *LocationModule {
 func (m *LocationModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 
-	// Location routes - all protected (seller only) - /api/inventory/locations/*
-	locationRoutes := router.Group(constants.APIBaseInventory + "/locations")
+	// Location routes - all protected (seller only) - /api/inventory/location/*
+	locationRoutes := router.Group(constants.APIBaseInventory + "/location")
 	{
 		locationRoutes.POST("", sellerAuth, m.locationHandler.CreateLocation)
 		locationRoutes.GET("", sellerAuth, m.locationHandler.GetAllLocations)
 		locationRoutes.GET("/summary", sellerAuth, m.inventorySummaryHandler.GetLocationsSummary)
 		locationRoutes.GET("/:locationId", sellerAuth, m.locationHandler.GetLocationByID)
-		locationRoutes.GET("/:locationId/products", sellerAuth, m.inventorySummaryHandler.GetProductsAtLocation)
-		locationRoutes.GET("/:locationId/products/:productId/variants", sellerAuth, m.inventorySummaryHandler.GetVariantInventoryAtLocation)
+		locationRoutes.GET("/:locationId/product", sellerAuth, m.inventorySummaryHandler.GetProductsAtLocation)
+		locationRoutes.GET("/:locationId/product/:productId/variant", sellerAuth, m.inventorySummaryHandler.GetVariantInventoryAtLocation)
 		locationRoutes.PUT("/:locationId", sellerAuth, m.locationHandler.UpdateLocation)
 		locationRoutes.DELETE("/:locationId", sellerAuth, m.locationHandler.DeleteLocation)
 	}

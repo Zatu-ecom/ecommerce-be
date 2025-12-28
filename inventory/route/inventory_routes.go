@@ -35,17 +35,17 @@ func (m *InventoryModule) RegisterRoutes(router *gin.Engine) {
 
 		// Manage inventory (quantity, reserved quantity, threshold, or physical count)
 		inventoryRoutes.POST("/manage", sellerAuth, m.inventoryHandler.ManageInventory)
-		
+
 		// Bulk manage inventory (multiple items in one request)
 		inventoryRoutes.POST("/manage/bulk", sellerAuth, m.inventoryHandler.BulkManageInventory)
-		
+
 		// Get inventory by variant (across all locations)
-		inventoryRoutes.GET("/products/:variantId", sellerAuth, m.inventoryHandler.GetInventoryByVariant)
-		
+		inventoryRoutes.GET("/product/:variantId", sellerAuth, m.inventoryHandler.GetInventoryByVariant)
+
 		// Get inventory by location (all variants at location)
-		inventoryRoutes.GET("/locations/:locationId/inventory", sellerAuth, m.inventoryHandler.GetInventoryByLocation)
+		inventoryRoutes.GET("/location/:locationId/inventory", sellerAuth, m.inventoryHandler.GetInventoryByLocation)
 
 		// List inventory transactions with filters
-		inventoryRoutes.GET("/transactions", sellerAuth, m.inventoryHandler.ListTransactions)
+		inventoryRoutes.GET("/transaction", sellerAuth, m.inventoryHandler.ListTransactions)
 	}
 }

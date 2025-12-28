@@ -28,8 +28,8 @@ func (m *AttributeModule) RegisterRoutes(router *gin.Engine) {
 	publicRoutesAuth := middleware.PublicAPIAuth()
 	auth := middleware.SellerAuth()
 
-	// Attribute routes - /api/product/attributes/*
-	attributeRoutes := router.Group(constants.APIBaseProduct + "/attributes")
+	// Attribute routes - /api/product/attribute/*
+	attributeRoutes := router.Group(constants.APIBaseProduct + "/attribute")
 	{
 
 		attributeRoutes.GET("", publicRoutesAuth, m.attributeHandler.GetAllAttributes)

@@ -28,8 +28,8 @@ func NewProductOptionModule() *ProductOptionModule {
 // RegisterRoutes registers all product option-related routes
 func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 	publicRoutesAuth := middleware.PublicAPIAuth()
-	// Public routes (reading options) - /api/product/products/:productId/options
-	publicOptionRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/options")
+	// Public routes (reading options) - /api/product/:productId/option
+	publicOptionRoutes := router.Group(constants.APIBaseProduct + "/:productId/option")
 	{
 		publicOptionRoutes.GET("", publicRoutesAuth, m.optionHandler.GetAvailableOptions)
 	}
@@ -37,7 +37,7 @@ func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
 	sellerAuth := middleware.SellerAuth()
 
-	protectedOptionRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/options")
+	protectedOptionRoutes := router.Group(constants.APIBaseProduct + "/:productId/option")
 	protectedOptionRoutes.Use(sellerAuth)
 	{
 		protectedOptionRoutes.POST("", m.optionHandler.CreateOption)
@@ -46,12 +46,12 @@ func (m *ProductOptionModule) RegisterRoutes(router *gin.Engine) {
 		protectedOptionRoutes.PUT("/bulk-update", m.optionHandler.BulkUpdateOptions)
 
 		// Option value routes
-		protectedOptionRoutes.POST("/:optionId/values", m.valueHandler.AddOptionValue)
-		protectedOptionRoutes.PUT("/:optionId/values/:valueId", m.valueHandler.UpdateOptionValue)
-		protectedOptionRoutes.DELETE("/:optionId/values/:valueId", m.valueHandler.DeleteOptionValue)
-		protectedOptionRoutes.POST("/:optionId/values/bulk", m.valueHandler.BulkAddOptionValues)
+		protectedOptionRoutes.POST("/:optionId/value", m.valueHandler.AddOptionValue)
+		protectedOptionRoutes.PUT("/:optionId/value/:valueId", m.valueHandler.UpdateOptionValue)
+		protectedOptionRoutes.DELETE("/:optionId/value/:valueId", m.valueHandler.DeleteOptionValue)
+		protectedOptionRoutes.POST("/:optionId/value/bulk", m.valueHandler.BulkAddOptionValues)
 		protectedOptionRoutes.PUT(
-			"/:optionId/values/bulk-update",
+			"/:optionId/value/bulk-update",
 			m.valueHandler.BulkUpdateOptionValues,
 		)
 	}

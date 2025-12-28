@@ -28,8 +28,8 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 	publicRoutesAuth := middleware.PublicAPIAuth()
 
-	// Product routes - /api/product/products/*
-	productRoutes := router.Group(constants.APIBaseProduct + "/products")
+	// Product routes - /api/product/*
+	productRoutes := router.Group(constants.APIBaseProduct)
 	{
 		// Public routes
 		productRoutes.GET("", publicRoutesAuth, m.productHandler.GetAllProducts)
