@@ -2,7 +2,11 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
@@ -12,6 +16,52 @@ import (
 )
 
 var Log *logrus.Logger
+
+// CallerHook is a custom hook to capture the real caller, skipping wrapper functions
+type CallerHook struct {
+	SkipFrames int
+}
+
+// Levels returns all log levels this hook should be applied to
+func (hook *CallerHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+// Fire is called when a log event is fired
+func (hook *CallerHook) Fire(entry *logrus.Entry) error {
+	// Skip frames to find the real caller (not the logger wrapper)
+	// We need to skip: runtime.Callers, this Fire func, logrus internals, and our wrapper funcs
+	for skip := 4; skip < 15; skip++ {
+		pc, file, line, ok := runtime.Caller(skip)
+		if !ok {
+			break
+		}
+
+		fn := runtime.FuncForPC(pc)
+		if fn == nil {
+			continue
+		}
+
+		funcName := fn.Name()
+		// Skip logrus internal functions and our wrapper functions
+		if strings.Contains(funcName, "logrus") ||
+			strings.Contains(funcName, "ecommerce-be/common/log.") {
+			continue
+		}
+
+		// Found the real caller
+		// Make path relative to project
+		if idx := strings.Index(file, "ecommerce-be/"); idx != -1 {
+			file = file[idx+len("ecommerce-be/"):]
+		}
+
+		entry.Data["file"] = fmt.Sprintf("%s:%d", file, line)
+		entry.Data["function"] = filepath.Base(funcName)
+		break
+	}
+
+	return nil
+}
 
 // InitLogger initializes the global logger instance
 func InitLogger(cfg *config.Config) {
@@ -25,8 +75,11 @@ func InitLogger(cfg *config.Config) {
 			logrus.FieldKeyLevel: "level",
 			logrus.FieldKeyMsg:   "message",
 		},
-		PrettyPrint: true,
+		PrettyPrint: cfg.App.IsLocal(), // Disable for production - easier for log aggregators
 	})
+
+	// Add custom caller hook
+	Log.AddHook(&CallerHook{})
 
 	// Set output to stdout
 	Log.SetOutput(os.Stdout)
@@ -51,7 +104,11 @@ func GetLogger() *logrus.Logger {
 	if Log == nil {
 		// Fallback: initialize with default config if not initialized
 		Log = logrus.New()
-		Log.SetFormatter(&logrus.JSONFormatter{})
+		Log.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
+			PrettyPrint:     config.Get().App.IsLocal(),
+		})
+		Log.AddHook(&CallerHook{})
 		Log.SetOutput(os.Stdout)
 		Log.SetLevel(logrus.InfoLevel)
 	}

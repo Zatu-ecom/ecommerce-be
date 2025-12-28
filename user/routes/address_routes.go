@@ -26,8 +26,8 @@ func (m *AddressModule) RegisterRoutes(router *gin.Engine) {
 	// Auth middleware for protected routes
 	auth := middleware.CustomerAuth()
 
-	// Address routes (protected) - /api/user/addresses/*
-	addressRoutes := router.Group(constants.APIBaseUser + "/addresses")
+	// Address routes (protected) - /api/user/address/*
+	addressRoutes := router.Group(constants.APIBaseUser + "/address")
 	{
 		addressRoutes.GET("", auth, m.addressHandler.GetAddresses)
 		addressRoutes.GET("/:id", auth, m.addressHandler.GetAddressByID)

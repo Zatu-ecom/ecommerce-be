@@ -28,8 +28,8 @@ func (m *ProductAttributeModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
 	publicRoutesAuth := middleware.PublicAPIAuth()
 
-	// Product Attribute routes - nested under products - /api/product/products/:productId/attributes/*
-	productAttrRoutes := router.Group(constants.APIBaseProduct + "/products/:productId/attributes")
+	// Product Attribute routes - nested under products - /api/product/:productId/attribute/*
+	productAttrRoutes := router.Group(constants.APIBaseProduct + "/:productId/attribute")
 	{
 		// Public route - get product attributes
 		productAttrRoutes.GET("", publicRoutesAuth, m.productAttrHandler.GetProductAttributes)

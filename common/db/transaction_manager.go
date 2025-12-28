@@ -11,6 +11,7 @@ type txKey struct{}
 
 // DB returns transaction if in transaction, otherwise connection pool
 // Use this in all repository methods to get the correct *gorm.DB
+// Automatically passes context to GORM for logging with correlationId, sellerId, userId
 //
 // Example:
 //
@@ -19,9 +20,9 @@ type txKey struct{}
 //	}
 func DB(ctx context.Context) *gorm.DB {
 	if tx, ok := ctx.Value(txKey{}).(*gorm.DB); ok {
-		return tx
+		return tx.WithContext(ctx)
 	}
-	return GetDB()
+	return GetDB().WithContext(ctx)
 }
 
 // IsInTransaction checks if the context is currently in a transaction

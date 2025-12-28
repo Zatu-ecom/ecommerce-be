@@ -84,14 +84,14 @@
 									"            pm.environment.set('userId', response.data.user.id);",
 									"        }",
 									"        ",
-									"        console.log('✅ Token saved successfully!');",
+									"        console.log('\u2705 Token saved successfully!');",
 									"        console.log('Token:', response.data.token.substring(0, 50) + '...');",
 									"    } else {",
-									"        console.log('❌ Token not found in response');",
+									"        console.log('\u274c Token not found in response');",
 									"        console.log('Response:', JSON.stringify(response));",
 									"    }",
 									"} else {",
-									"    console.log('❌ Login failed with status:', pm.response.code);",
+									"    console.log('\u274c Login failed with status:', pm.response.code);",
 									"}"
 								],
 								"type": "text/javascript",
@@ -381,14 +381,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/user/addresses",
+							"raw": "{{baseUrl}}/api/user/address",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"user",
-								"addresses"
+								"address"
 							]
 						},
 						"description": "Get all addresses for current user from `address` table (singular)."
@@ -419,14 +419,14 @@
 							"raw": "{\n  \"street\": \"123 Main Street\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"zipCode\": \"10001\",\n  \"country\": \"USA\",\n  \"isDefault\": true\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/user/addresses",
+							"raw": "{{baseUrl}}/api/user/address",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"user",
-								"addresses"
+								"address"
 							]
 						},
 						"description": "Add new address. Uses `street` and `zipCode` fields (not address_line1/postal_code)."
@@ -457,14 +457,14 @@
 							"raw": "{\n  \"street\": \"456 Oak Avenue\",\n  \"city\": \"Los Angeles\",\n  \"state\": \"CA\",\n  \"zipCode\": \"90001\",\n  \"country\": \"USA\",\n  \"isDefault\": false\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/user/addresses/:id",
+							"raw": "{{baseUrl}}/api/user/address/:id",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"user",
-								"addresses",
+								"address",
 								":id"
 							],
 							"variable": [
@@ -494,14 +494,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/user/addresses/:id",
+							"raw": "{{baseUrl}}/api/user/address/:id",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"user",
-								"addresses",
+								"address",
 								":id"
 							],
 							"variable": [
@@ -531,14 +531,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/user/addresses/:id/default",
+							"raw": "{{baseUrl}}/api/user/address/:id/default",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"user",
-								"addresses",
+								"address",
 								":id",
 								"default"
 							],
@@ -579,14 +579,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories?X-Seller-ID={{sellerId}}",
+							"raw": "{{baseUrl}}/api/product/category?X-Seller-ID={{sellerId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories"
+								"category"
 							],
 							"query": [
 								{
@@ -624,14 +624,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId"
 							],
 							"variable": [
@@ -665,14 +665,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/by-parent?parentId=1",
+							"raw": "{{baseUrl}}/api/product/category/by-parent?parentId=1",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								"by-parent"
 							],
 							"query": [
@@ -706,16 +706,16 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId/attributes",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId",
-								"attributes"
+								"attribute"
 							],
 							"variable": [
 								{
@@ -752,14 +752,14 @@
 							"raw": "{\n  \"name\": \"Laptops\",\n  \"parentId\": 1,\n  \"description\": \"Laptop computers\",\n  \"isGlobal\": true,\n  \"sellerId\": null\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories",
+							"raw": "{{baseUrl}}/api/product/category",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories"
+								"category"
 							]
 						},
 						"description": "Create new category. Requires seller authentication."
@@ -790,14 +790,14 @@
 							"raw": "{\n  \"name\": \"Updated Category Name\",\n  \"description\": \"Updated description\",\n  \"isGlobal\": true\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId"
 							],
 							"variable": [
@@ -827,14 +827,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId"
 							],
 							"variable": [
@@ -874,14 +874,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/attributes",
+							"raw": "{{baseUrl}}/api/product/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"attributes"
+								"attribute"
 							]
 						},
 						"description": "Get all attribute definitions from `attribute_definition` table."
@@ -908,14 +908,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -953,14 +953,14 @@
 							"raw": "{\n  \"key\": \"screen_size\",\n  \"name\": \"Screen Size\",\n  \"unit\": \"inches\",\n  \"allowedValues\": [\"5.5\", \"6.1\", \"6.7\"]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/attributes",
+							"raw": "{{baseUrl}}/api/product/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"attributes"
+								"attribute"
 							]
 						},
 						"description": "Create new attribute definition. Note: uses `key` field for unique identifier."
@@ -991,14 +991,14 @@
 							"raw": "{\n  \"name\": \"Updated Name\",\n  \"unit\": \"cm\",\n  \"allowedValues\": [\"Small\", \"Medium\", \"Large\"]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -1028,14 +1028,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -1073,16 +1073,16 @@
 							"raw": "{\n  \"attributeDefinitionId\": 5,\n  \"isRequired\": true,\n  \"isSearchable\": true,\n  \"isFilterable\": true,\n  \"defaultValue\": \"128\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId/attributes",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId",
-								"attributes"
+								"attribute"
 							],
 							"variable": [
 								{
@@ -1111,16 +1111,16 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/categories/:categoryId/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/category/:categoryId/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"categories",
+								"category",
 								":categoryId",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -1164,14 +1164,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products?page=1&limit=10&sellerId=2",
+							"raw": "{{baseUrl}}/api/product?page=1&limit=10&sellerId=2",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
-								"product",
-								"products"
+								"product"
 							],
 							"query": [
 								{
@@ -1231,14 +1230,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId",
+							"raw": "{{baseUrl}}/api/product/:productId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId"
 							],
 							"variable": [
@@ -1272,14 +1270,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/search?q=iphone&categoryId=4&minPrice=500&maxPrice=1500",
+							"raw": "{{baseUrl}}/api/product/search?q=iphone&categoryId=4&minPrice=500&maxPrice=1500",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								"search"
 							],
 							"query": [
@@ -1325,14 +1322,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/filters?categoryId=4",
+							"raw": "{{baseUrl}}/api/product/filters?categoryId=4",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								"filters"
 							],
 							"query": [
@@ -1366,14 +1362,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/related",
+							"raw": "{{baseUrl}}/api/product/:productId/related",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
 								"related"
 							],
@@ -1412,14 +1407,13 @@
 							"raw": "{\n  \"name\": \"Premium Leather Jacket\",\n  \"categoryId\": 7,\n  \"brand\": \"Zara\",\n  \"baseSku\": \"ZARA-JACKET-001\",\n  \"shortDescription\": \"Genuine leather jacket for men\",\n  \"longDescription\": \"Classic leather jacket made from premium genuine leather. Perfect for casual and semi-formal occasions.\",\n  \"tags\": [\"jacket\", \"leather\", \"mens\", \"fashion\", \"winter\"],\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Zara\"\n    },\n    {\n      \"key\": \"material\",\n      \"name\": \"Material\",\n      \"value\": \"Leather\"\n    },\n    {\n      \"key\": \"fit\",\n      \"name\": \"Fit Type\",\n      \"value\": \"Regular\"\n    }\n  ],\n  \"options\": [\n    {\n      \"name\": \"Size\",\n      \"displayName\": \"Size\",\n      \"position\": 1,\n      \"values\": [\n        {\n          \"value\": \"M\",\n          \"displayName\": \"Medium\",\n          \"position\": 1\n        },\n        {\n          \"value\": \"L\",\n          \"displayName\": \"Large\",\n          \"position\": 2\n        },\n        {\n          \"value\": \"XL\",\n          \"displayName\": \"Extra Large\",\n          \"position\": 3\n        }\n      ]\n    },\n    {\n      \"name\": \"Color\",\n      \"displayName\": \"Color\",\n      \"position\": 2,\n      \"values\": [\n        {\n          \"value\": \"Black\",\n          \"displayName\": \"Black\",\n          \"colorCode\": \"#000000\",\n          \"position\": 1\n        },\n        {\n          \"value\": \"Brown\",\n          \"displayName\": \"Brown\",\n          \"colorCode\": \"#8B4513\",\n          \"position\": 2\n        }\n      ]\n    }\n  ],\n  \"variants\": [\n    {\n      \"sku\": \"ZARA-JACKET-001-M-BLACK\",\n      \"price\": 249.99,\n      \"stock\": 20,\n      \"images\": [\"https://example.com/jacket-black-1.jpg\", \"https://example.com/jacket-black-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": true,\n      \"isDefault\": true,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"M\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Black\"\n        }\n      ]\n    },\n    {\n      \"sku\": \"ZARA-JACKET-001-L-BLACK\",\n      \"price\": 249.99,\n      \"stock\": 15,\n      \"images\": [\"https://example.com/jacket-black-1.jpg\", \"https://example.com/jacket-black-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": false,\n      \"isDefault\": false,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"L\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Black\"\n        }\n      ]\n    },\n    {\n      \"sku\": \"ZARA-JACKET-001-M-BROWN\",\n      \"price\": 249.99,\n      \"stock\": 10,\n      \"images\": [\"https://example.com/jacket-brown-1.jpg\", \"https://example.com/jacket-brown-2.jpg\"],\n      \"inStock\": true,\n      \"isPopular\": false,\n      \"isDefault\": false,\n      \"options\": [\n        {\n          \"optionName\": \"Size\",\n          \"value\": \"M\"\n        },\n        {\n          \"optionName\": \"Color\",\n          \"value\": \"Brown\"\n        }\n      ]\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products",
+							"raw": "{{baseUrl}}/api/product",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
-								"product",
-								"products"
+								"product"
 							]
 						},
 						"description": "Create new product. Requires seller authentication."
@@ -1450,14 +1444,13 @@
 							"raw": "{\n  \"name\": \"Premium Leather Jacket - Winter Collection\",\n  \"categoryId\": 7,\n  \"brand\": \"Zara\",\n  \"shortDescription\": \"Genuine leather jacket for men - Premium quality\",\n  \"longDescription\": \"Classic leather jacket made from premium genuine leather with soft inner lining. Perfect for casual and semi-formal occasions. Features high-quality stitching and modern fit design.\",\n  \"tags\": [\n    \"jacket\",\n    \"leather\",\n    \"mens\",\n    \"fashion\",\n    \"winter\",\n    \"premium\",\n    \"casual\"\n  ],\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Zara\",\n      \"sortOrder\": 1\n    },\n    {\n      \"key\": \"material\",\n      \"name\": \"Material\",\n      \"value\": \"Genuine Leather\",\n      \"sortOrder\": 2\n    },\n    {\n      \"key\": \"fit\",\n      \"name\": \"Fit Type\",\n      \"value\": \"Regular\",\n      \"sortOrder\": 3\n    }\n  ],\n  \"packageOptions\": [\n    {\n      \"name\": \"Leather Care Kit\",\n      \"description\": \"Professional leather cleaning and conditioning kit\",\n      \"price\": 24.99,\n      \"quantity\": 1\n    },\n    {\n      \"name\": \"Gift Wrapping\",\n      \"description\": \"Premium gift box with ribbon\",\n      \"price\": 9.99,\n      \"quantity\": 1\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId",
+							"raw": "{{baseUrl}}/api/product/:productId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId"
 							],
 							"variable": [
@@ -1487,14 +1480,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId",
+							"raw": "{{baseUrl}}/api/product/:productId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId"
 							],
 							"variable": [
@@ -1534,16 +1526,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options",
+							"raw": "{{baseUrl}}/api/product/:productId/option",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options"
+								"option"
 							],
 							"variable": [
 								{
@@ -1580,16 +1571,15 @@
 							"raw": "{\n  \"name\":\"rem\",\n  \"displayName\":\"Rem\",\n  \"position\" : 3,\n  \"values\" : [\n    {\n        \"value\":\"1_GB\",\n        \"displayName\":\"1 GB\",\n        \"position\":1\n    },\n    {\n        \"value\":\"2_GB\",\n        \"displayName\":\"2 GB\",\n        \"position\":2\n    },\n    {\n        \"value\":\"4_GB\",\n        \"displayName\":\"4 GB\",\n        \"position\":3\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options",
+							"raw": "{{baseUrl}}/api/product/:productId/option",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options"
+								"option"
 							],
 							"variable": [
 								{
@@ -1626,16 +1616,15 @@
 							"raw": "{\n  \"displayName\":\"ram\",\n  \"position\": 3\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId"
 							],
 							"variable": [
@@ -1669,16 +1658,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId"
 							],
 							"variable": [
@@ -1720,16 +1708,15 @@
 							"raw": "{\n  \"options\": [\n    {\n      \"id\": 1,\n      \"displayName\": \"Color Updated\",\n      \"position\": 1\n    },\n    {\n      \"id\": 2,\n      \"displayName\": \"Size Updated\",\n      \"position\": 2\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/bulk-update",
+							"raw": "{{baseUrl}}/api/product/:productId/option/bulk-update",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								"bulk-update"
 							],
 							"variable": [
@@ -1769,14 +1756,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/variants?page=1&pageSize=20",
+							"raw": "{{baseUrl}}/api/product/variant?page=1&pageSize=20",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"variants"
+								"variant"
 							],
 							"query": [
 								{
@@ -1833,16 +1820,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/find?Color=Natural Titanium&Storage=128GB",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/find?Color=Natural Titanium&Storage=128GB",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								"find"
 							],
 							"query": [
@@ -1899,16 +1885,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/:variantId",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/:variantId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								":variantId"
 							],
 							"variable": [
@@ -1950,16 +1935,15 @@
 							"raw": "{\n    \"sku\": \"IPHONE-15-PRO-WHT-256\",\n    \"price\": 15.00,\n    \"images\": [\n        \"https://example.com/iphone-15-pro-black titanium-4-tb.jpg\"\n    ],\n    \"stock\": 10,\n    \"inStock\": true,\n    \"isPopular\": false,\n    \"isDefault\": false,\n    \"options\": [\n        {\n            \"optionName\": \"Storage\",\n            \"value\": \"4_tb\"\n        },\n        {\n            \"optionName\": \"Color\",\n            \"value\": \"Black Titanium\"\n        }\n    ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants",
+							"raw": "{{baseUrl}}/api/product/:productId/variant",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants"
+								"variant"
 							],
 							"variable": [
 								{
@@ -1996,16 +1980,15 @@
 							"raw": "{\n    \"sku\": \"IPHONE-15-PRO-NAT-128\",\n    \"price\": 999,\n    \"images\": [\n        \"https://example.com/iphone-15-pro-natural-128.jpg\"\n    ],\n    \"inStock\": true,\n    \"isPopular\": true,\n    \"stock\": 50,\n    \"isDefault\": true\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/:variantId",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/:variantId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								":variantId"
 							],
 							"variable": [
@@ -2047,16 +2030,15 @@
 							"raw": "{\n    \"variants\": [\n        {\n            \"id\": 1,\n            \"sku\": \"IPHONE-15-PRO-NAT-128\",\n            \"price\": 999,\n            \"images\": [\n                \"https://example.com/iphone-15-pro-natural-128.jpg\"\n            ],\n            \"inStock\": true,\n            \"isPopular\": false,\n            \"stock\": 50,\n            \"isDefault\": true\n        },\n        {\n            \"id\": 2,\n            \"price\": 1099.00,\n            \"stockQuantity\": 45,\n            \"sku\": \"IPHONE-15-PRO-NAT-256\",\n            \"images\": [\n                \"https://example.com/iphone-15-pro-natural-128.jpg\"\n            ],\n            \"inStock\": true,\n            \"isPopular\": false,\n            \"stock\": 99,\n            \"isDefault\": false\n        }\n    ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/bulk",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/bulk",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								"bulk"
 							],
 							"variable": [
@@ -2094,16 +2076,15 @@
 							"raw": "{\n  \"stock\": 50,\n  \"operation\": \"add\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/:variantId/stock",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/:variantId/stock",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								":variantId",
 								"stock"
 							],
@@ -2138,16 +2119,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/variants/:variantId",
+							"raw": "{{baseUrl}}/api/product/:productId/variant/:variantId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"variants",
+								"variant",
 								":variantId"
 							],
 							"variable": [
@@ -2195,18 +2175,17 @@
 							"raw": "{\n    \"value\":\"2_TB\",\n    \"displayName\":\"2 TB\",\n    \"position\":1\n    // \"colorCode\":\"#vddg\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId/values",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId/value",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId",
-								"values"
+								"value"
 							],
 							"variable": [
 								{
@@ -2247,18 +2226,17 @@
 							"raw": "{\n    \"values\": [\n        {\n            \"value\": \"4_TB\",\n            \"displayName\": \"4 TB\",\n            \"position\": 6\n            // \"colorCode\":\"#vddg\"\n        },\n        {\n            \"value\": \"8_TB\",\n            \"displayName\": \"8 TB\",\n            \"position\": 7\n            // \"colorCode\":\"#vddg\"\n        }\n    ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId/values/bulk",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId/value/bulk",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId",
-								"values",
+								"value",
 								"bulk"
 							],
 							"variable": [
@@ -2300,18 +2278,17 @@
 							"raw": "{\n    // \"displayName\":\"\",\n    \"colorCode\":\"#dbtdgr\"\n    // \"position\":2\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId/values/:valueId",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId/value/:valueId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId",
-								"values",
+								"value",
 								":valueId"
 							],
 							"variable": [
@@ -2349,18 +2326,17 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId/values/:valueId",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId/value/:valueId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId",
-								"values",
+								"value",
 								":valueId"
 							],
 							"variable": [
@@ -2406,18 +2382,17 @@
 							"raw": "{\n  \"values\": [\n    {\n      \"id\": 1,\n      \"displayName\": \"Red Updated\",\n      \"colorCode\": \"#FF0000\",\n      \"position\": 1\n    },\n    {\n      \"id\": 2,\n      \"displayName\": \"Blue Updated\",\n      \"colorCode\": \"#0000FF\",\n      \"position\": 2\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/options/:optionId/values/bulk-update",
+							"raw": "{{baseUrl}}/api/product/:productId/option/:optionId/value/bulk-update",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"options",
+								"option",
 								":optionId",
-								"values",
+								"value",
 								"bulk-update"
 							],
 							"variable": [
@@ -2460,16 +2435,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/attributes",
+							"raw": "{{baseUrl}}/api/product/:productId/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"attributes"
+								"attribute"
 							],
 							"variable": [
 								{
@@ -2506,16 +2480,15 @@
 							"raw": "{\n  \"key\": \"processor\",\n  \"name\": \"Processor\",\n  \"value\": \"A15 Bionic\",\n  \"sortOrder\": 1\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/attributes",
+							"raw": "{{baseUrl}}/api/product/:productId/attribute",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"attributes"
+								"attribute"
 							],
 							"variable": [
 								{
@@ -2552,16 +2525,15 @@
 							"raw": "{\n  \"name\": \"Processor Type\",\n  \"value\": \"A16 Bionic\",\n  \"sortOrder\": 2\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/:productId/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -2603,16 +2575,15 @@
 							"raw": "{\n  \"attributes\": [\n    {\n      \"key\": \"brand\",\n      \"name\": \"Brand\",\n      \"value\": \"Apple\",\n      \"sortOrder\": 1\n    },\n    {\n      \"key\": \"processor\",\n      \"name\": \"Processor\",\n      \"value\": \"A16 Bionic\",\n      \"sortOrder\": 2\n    },\n    {\n      \"key\": \"display\",\n      \"name\": \"Display\",\n      \"value\": \"Super Retina XDR\",\n      \"sortOrder\": 3\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/attributes/bulk",
+							"raw": "{{baseUrl}}/api/product/:productId/attribute/bulk",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"attributes",
+								"attribute",
 								"bulk"
 							],
 							"variable": [
@@ -2642,16 +2613,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/product/products/:productId/attributes/:attributeId",
+							"raw": "{{baseUrl}}/api/product/:productId/attribute/:attributeId",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"product",
-								"products",
 								":productId",
-								"attributes",
+								"attribute",
 								":attributeId"
 							],
 							"variable": [
@@ -2698,14 +2668,14 @@
 									"raw": "{\n  \"name\": \"Main Warehouse\",\n  \"type\": \"WAREHOUSE\",\n  \"priority\": 1,\n  \"address\": {\n    \"street\": \"1500 Distribution Center Drive\",\n    \"city\": \"San Jose\",\n    \"state\": \"CA\",\n    \"zipCode\": \"95112\",\n    \"country\": \"USA\"\n  }\n}"
 								},
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations",
+									"raw": "{{baseUrl}}/api/inventory/location",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations"
+										"location"
 									]
 								},
 								"description": "Create a new inventory location (warehouse, store, etc.). Requires seller authentication. Location types: WAREHOUSE, STORE, DROPSHIP."
@@ -2724,14 +2694,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations?page=1&pageSize=10&isActive=true",
+									"raw": "{{baseUrl}}/api/inventory/location?page=1&pageSize=10&isActive=true",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations"
+										"location"
 									],
 									"query": [
 										{
@@ -2769,14 +2739,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId"
 									],
 									"variable": [
@@ -2802,14 +2772,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/summary?page=1&pageSize=10",
+									"raw": "{{baseUrl}}/api/inventory/location/summary?page=1&pageSize=10",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										"summary"
 									],
 									"query": [
@@ -2849,16 +2819,16 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/products?page=1&pageSize=10",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId/product?page=1&pageSize=10",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId",
-										"products"
+										"product"
 									],
 									"query": [
 										{
@@ -2923,18 +2893,18 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/products/:productId/variants",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId/product/:productId/variant",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId",
-										"products",
+										"product",
 										":productId",
-										"variants"
+										"variant"
 									],
 									"query": [
 										{
@@ -2993,14 +2963,14 @@
 									"raw": "{\n  \"name\": \"Main Warehouse - Updated\",\n  \"priority\": 1,\n  \"isActive\": true,\n  \"address\": {\n    \"street\": \"1500 New Distribution Center\",\n    \"city\": \"San Jose\"\n  }\n}"
 								},
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId"
 									],
 									"variable": [
@@ -3026,14 +2996,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId"
 									],
 									"variable": [
@@ -3393,14 +3363,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/products/:variantId",
+									"raw": "{{baseUrl}}/api/inventory/product/:variantId",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"products",
+										"product",
 										":variantId"
 									],
 									"variable": [
@@ -3426,14 +3396,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/locations/:locationId/inventory",
+									"raw": "{{baseUrl}}/api/inventory/location/:locationId/inventory",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"locations",
+										"location",
 										":locationId",
 										"inventory"
 									],
@@ -3460,14 +3430,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{baseUrl}}/api/inventory/transactions?page=1&pageSize=20",
+									"raw": "{{baseUrl}}/api/inventory/transaction?page=1&pageSize=20",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
 										"api",
 										"inventory",
-										"transactions"
+										"transaction"
 									],
 									"query": [
 										{
