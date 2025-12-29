@@ -126,6 +126,16 @@ jobs:
             docker-compose down
             docker-compose up -d --force-recreate
             
+            # Wait for services to be healthy
+            echo '⏳ Waiting for services to be ready...'
+            sleep 10
+            
+            # Run migrations
+            echo '🔄 Running database migrations...'
+            docker-compose --profile tools up migrate
+            
+            echo '✅ Migrations completed'
+            
             docker image prune -f
           "
           EOF
