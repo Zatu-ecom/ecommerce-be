@@ -61,6 +61,18 @@ func (f *SingletonFactory) GetUserQueryHandler() *handler.UserQueryHandler {
 	return f.handlerFactory.GetUserQueryHandler()
 }
 
+func (f *SingletonFactory) GetCountryHandler() *handler.CountryHandler {
+	return f.handlerFactory.GetCountryHandler()
+}
+
+func (f *SingletonFactory) GetCurrencyHandler() *handler.CurrencyHandler {
+	return f.handlerFactory.GetCurrencyHandler()
+}
+
+func (f *SingletonFactory) GetCountryCurrencyHandler() *handler.CountryCurrencyHandler {
+	return f.handlerFactory.GetCountryCurrencyHandler()
+}
+
 // ===============================
 // Service Getters (Delegates)
 // ===============================
@@ -77,6 +89,18 @@ func (f *SingletonFactory) GetUserQueryService() service.UserQueryService {
 	return f.serviceFactory.GetUserQueryService()
 }
 
+func (f *SingletonFactory) GetCountryService() service.CountryService {
+	return f.serviceFactory.GetCountryService()
+}
+
+func (f *SingletonFactory) GetCurrencyService() service.CurrencyService {
+	return f.serviceFactory.GetCurrencyService()
+}
+
+func (f *SingletonFactory) GetCountryCurrencyService() service.CountryCurrencyService {
+	return f.serviceFactory.GetCountryCurrencyService()
+}
+
 // ===============================
 // Repository Getters (Delegates)
 // ===============================
@@ -87,4 +111,16 @@ func (f *SingletonFactory) GetUserRepository() repository.UserRepository {
 
 func (f *SingletonFactory) GetAddressRepository() repository.AddressRepository {
 	return f.repoFactory.GetAddressRepository()
+}
+
+func (f *SingletonFactory) GetCountryRepository() repository.CountryRepository {
+	return f.repoFactory.GetCountryRepository()
+}
+
+func (f *SingletonFactory) GetCurrencyRepository() repository.CurrencyRepository {
+	return f.repoFactory.GetCurrencyRepository()
+}
+
+func (f *SingletonFactory) GetCountryCurrencyRepository() repository.CountryCurrencyRepository {
+	return f.repoFactory.GetCountryCurrencyRepository()
 }

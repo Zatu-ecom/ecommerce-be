@@ -12,7 +12,7 @@ import (
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/repository"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -48,13 +48,13 @@ func NewUserService(
 func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthResponse, error) {
 	// Validate password confirmation
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New(utils.PasswordMismatchMsg)
+		return nil, errors.New(constant.PASSWORD_MISMATCH_MSG)
 	}
 
 	// Check if user already exists
 	existingUser, _ := s.userRepo.FindByEmail(req.Email)
 	if existingUser != nil {
-		return nil, errors.New(utils.UserExistsMsg)
+		return nil, errors.New(constant.USER_EXISTS_MSG)
 	}
 
 	// Hash password
@@ -101,17 +101,17 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 	// Find user by email with role information
 	user, role, err := s.userRepo.FindByEmailWithRole(req.Email)
 	if err != nil {
-		return nil, errors.New(utils.InvalidCredentialsMsg)
+		return nil, errors.New(constant.INVALID_CREDENTIALS_MSG)
 	}
 
 	// Check if account is active
 	if !user.IsActive {
-		return nil, errors.New(utils.AccountDeactivatedMsg)
+		return nil, errors.New(constant.ACCOUNT_DEACTIVATED_MSG)
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return nil, errors.New(utils.InvalidCredentialsMsg)
+		return nil, errors.New(constant.INVALID_CREDENTIALS_MSG)
 	}
 
 	// Resolve seller ID using factory helper (eliminates duplication)
@@ -125,7 +125,7 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, errors.New(utils.UserNotFoundMsg)
+		return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 	}
 
 	// Create user response
@@ -140,6 +140,10 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 		IsActive:    user.IsActive,
 		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+		// Geo preferences
+		CountryID:  user.CountryID,
+		CurrencyID: user.CurrencyID,
+		Locale:     user.Locale,
 	}
 
 	addresses, err := s.addressService.GetAddresses(userID)
@@ -180,12 +184,34 @@ func (s *UserServiceImpl) UpdateProfile(
 		return nil, err
 	}
 
-	// Update user fields
-	user.FirstName = req.FirstName
-	user.LastName = req.LastName
-	user.Phone = req.Phone
-	user.DateOfBirth = req.DateOfBirth
-	user.Gender = req.Gender
+	// Update user fields only if provided (pointer is not nil)
+	if req.FirstName != nil {
+		user.FirstName = *req.FirstName
+	}
+	if req.LastName != nil {
+		user.LastName = *req.LastName
+	}
+	if req.Phone != nil {
+		user.Phone = *req.Phone
+	}
+	if req.DateOfBirth != nil {
+		user.DateOfBirth = *req.DateOfBirth
+	}
+	if req.Gender != nil {
+		user.Gender = *req.Gender
+	}
+
+	// Update geo preferences if provided
+	if req.CountryID != nil {
+		user.CountryID = req.CountryID
+	}
+	if req.CurrencyID != nil {
+		user.CurrencyID = req.CurrencyID
+	}
+	if req.Locale != nil {
+		user.Locale = *req.Locale
+	}
+
 	user.UpdatedAt = time.Now()
 
 	// Save changes to database
@@ -215,7 +241,7 @@ func (s *UserServiceImpl) UpdateProfile(
 func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChangeRequest) error {
 	// Check if new password matches confirmation
 	if req.NewPassword != req.ConfirmPassword {
-		return errors.New(utils.PasswordMismatchMsg)
+		return errors.New(constant.PASSWORD_MISMATCH_MSG)
 	}
 
 	// Find user by ID
@@ -226,7 +252,7 @@ func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChan
 
 	// Verify current password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
-		return errors.New(utils.InvalidCurrentPasswordMsg)
+		return errors.New(constant.INVALID_CURRENT_PASSWORD_MSG)
 	}
 
 	// Hash new password

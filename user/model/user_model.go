@@ -20,12 +20,18 @@ type UserLoginRequest struct {
 }
 
 // UserUpdateRequest represents the request body for updating user profile
+// Uses pointers to distinguish between null (don't update) and empty (set to empty)
 type UserUpdateRequest struct {
-	FirstName   string `json:"firstName"   binding:"required"`
-	LastName    string `json:"lastName"    binding:"required"`
-	Phone       string `json:"phone"`
-	DateOfBirth string `json:"dateOfBirth"`
-	Gender      string `json:"gender"`
+	FirstName   *string `json:"firstName"   binding:"omitempty,min=1"`
+	LastName    *string `json:"lastName"    binding:"omitempty,min=1"`
+	Phone       *string `json:"phone"`
+	DateOfBirth *string `json:"dateOfBirth"`
+	Gender      *string `json:"gender"`
+
+	// Geo preferences
+	CountryID  *uint   `json:"countryId"`                                   // User's country
+	CurrencyID *uint   `json:"currencyId"`                                  // Preferred display currency
+	Locale     *string `json:"locale"     binding:"omitempty,min=2,max=10"` // Locale: 'en-US', 'hi-IN'
 }
 
 // UserPasswordChangeRequest represents the request body for changing user password
@@ -47,6 +53,28 @@ type UserResponse struct {
 	IsActive    bool   `json:"isActive"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
+
+	// Geo preferences
+	CountryID  *uint  `json:"countryId,omitempty"`
+	CurrencyID *uint  `json:"currencyId,omitempty"`
+	Locale     string `json:"locale,omitempty"`
+}
+
+// UserDetailResponse represents user with expanded country/currency info
+type UserDetailResponse struct {
+	ID          uint              `json:"id"`
+	FirstName   string            `json:"firstName"`
+	LastName    string            `json:"lastName"`
+	Email       string            `json:"email"`
+	Phone       string            `json:"phone"`
+	DateOfBirth string            `json:"dateOfBirth"`
+	Gender      string            `json:"gender"`
+	Country     *CountryResponse  `json:"country,omitempty"`
+	Currency    *CurrencyResponse `json:"currency,omitempty"`
+	Locale      string            `json:"locale,omitempty"`
+	IsActive    bool              `json:"isActive"`
+	CreatedAt   string            `json:"createdAt"`
+	UpdatedAt   string            `json:"updatedAt"`
 }
 
 // AuthResponse represents the authentication response with user data and token

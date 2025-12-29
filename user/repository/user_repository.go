@@ -5,7 +5,7 @@ import (
 
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"gorm.io/gorm"
 )
@@ -53,7 +53,7 @@ func (r *UserRepositoryImpl) FindByID(id uint) (*entity.User, error) {
 	result := r.db.First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.UserNotFoundMsg)
+			return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -66,7 +66,7 @@ func (r *UserRepositoryImpl) FindByEmail(email string) (*entity.User, error) {
 	result := r.db.Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.UserNotFoundMsg)
+			return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -92,7 +92,7 @@ func (r *UserRepositoryImpl) FindByEmailWithRole(email string) (*entity.User, *e
 	result := r.db.Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil, errors.New(utils.UserNotFoundMsg)
+			return nil, nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, nil, result.Error
 	}
@@ -118,7 +118,7 @@ func (r *UserRepositoryImpl) FindByIDWithRole(id uint) (*entity.User, *entity.Ro
 	result := r.db.First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil, errors.New(utils.UserNotFoundMsg)
+			return nil, nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, nil, result.Error
 	}

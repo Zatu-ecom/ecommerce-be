@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"ecommerce-be/user/entity"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"gorm.io/gorm"
 )
@@ -67,7 +67,7 @@ func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address,
 	result := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.AddressNotFoundMsg)
+			return nil, errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -112,7 +112,7 @@ func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
 	var address entity.Address
 	if err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New(utils.AddressNotFoundMsg)
+			return errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return err
 	}
@@ -122,7 +122,7 @@ func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
 	r.db.Model(&entity.Address{}).Where("user_id = ?", userID).Count(&count)
 
 	if address.IsDefault && count == 1 {
-		return errors.New(utils.CannotDeleteOnlyDefaultAddressMsg)
+		return errors.New(constant.CANNOT_DELETE_ONLY_DEFAULT_ADDRESS_MSG)
 	}
 
 	tx := r.db.Begin()
@@ -162,7 +162,7 @@ func (r *AddressRepositoryImpl) SetDefault(id uint, userID uint) error {
 	if err := tx.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New(utils.AddressNotFoundMsg)
+			return errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return err
 	}

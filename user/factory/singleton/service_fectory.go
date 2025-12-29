@@ -10,9 +10,12 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	userService      service.UserService
-	addressService   service.AddressService
-	userQueryService service.UserQueryService
+	userService            service.UserService
+	addressService         service.AddressService
+	userQueryService       service.UserQueryService
+	countryService         service.CountryService
+	currencyService        service.CurrencyService
+	countryCurrencyService service.CountryCurrencyService
 
 	once sync.Once
 }
@@ -28,6 +31,9 @@ func (f *ServiceFactory) initialize() {
 		// Get repositories
 		userRepo := f.repoFactory.GetUserRepository()
 		addressRepo := f.repoFactory.GetAddressRepository()
+		countryRepo := f.repoFactory.GetCountryRepository()
+		currencyRepo := f.repoFactory.GetCurrencyRepository()
+		countryCurrencyRepo := f.repoFactory.GetCountryCurrencyRepository()
 
 		// Initialize services
 		f.addressService = service.NewAddressService(
@@ -39,6 +45,17 @@ func (f *ServiceFactory) initialize() {
 		)
 		f.userQueryService = service.NewUserQueryService(
 			userRepo,
+		)
+		f.countryService = service.NewCountryService(
+			countryRepo,
+		)
+		f.currencyService = service.NewCurrencyService(
+			currencyRepo,
+		)
+		f.countryCurrencyService = service.NewCountryCurrencyService(
+			countryCurrencyRepo,
+			countryRepo,
+			currencyRepo,
 		)
 	})
 }
@@ -59,4 +76,22 @@ func (f *ServiceFactory) GetAddressService() service.AddressService {
 func (f *ServiceFactory) GetUserQueryService() service.UserQueryService {
 	f.initialize()
 	return f.userQueryService
+}
+
+// GetCountryService returns the singleton country service
+func (f *ServiceFactory) GetCountryService() service.CountryService {
+	f.initialize()
+	return f.countryService
+}
+
+// GetCurrencyService returns the singleton currency service
+func (f *ServiceFactory) GetCurrencyService() service.CurrencyService {
+	f.initialize()
+	return f.currencyService
+}
+
+// GetCountryCurrencyService returns the singleton country-currency service
+func (f *ServiceFactory) GetCountryCurrencyService() service.CountryCurrencyService {
+	f.initialize()
+	return f.countryCurrencyService
 }
