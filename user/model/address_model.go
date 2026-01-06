@@ -6,7 +6,7 @@ type AddressRequest struct {
 	City      string `json:"city"      binding:"required"`
 	State     string `json:"state"     binding:"required"`
 	ZipCode   string `json:"zipCode"   binding:"required"`
-	Country   string `json:"country"   binding:"required"`
+	CountryID uint   `json:"countryId" binding:"required"`
 	IsDefault bool   `json:"isDefault"`
 }
 
@@ -17,17 +17,18 @@ type AddressUpdateRequest struct {
 	City      *string `json:"city"      binding:"omitempty,min=1"`
 	State     *string `json:"state"     binding:"omitempty,min=1"`
 	ZipCode   *string `json:"zipCode"   binding:"omitempty,min=1"`
-	Country   *string `json:"country"   binding:"omitempty,min=1"`
+	CountryID *uint   `json:"countryId"`
 	IsDefault *bool   `json:"isDefault"`
 }
 
 // AddressResponse represents the address data returned in API responses
 type AddressResponse struct {
-	ID        uint   `json:"id,omitempty"`
-	Street    string `json:"street,omitempty"`
-	City      string `json:"city,omitempty"`
-	State     string `json:"state,omitempty"`
-	ZipCode   string `json:"zipCode,omitempty"`
-	Country   string `json:"country,omitempty"`
-	IsDefault bool   `json:"isDefault,omitempty"`
+	ID        uint             `json:"id,omitempty"`
+	Street    string           `json:"street,omitempty"`
+	City      string           `json:"city,omitempty"`
+	State     string           `json:"state,omitempty"`
+	ZipCode   string           `json:"zipCode,omitempty"`
+	CountryID uint             `json:"countryId"`
+	Country   *CountryResponse `json:"country,omitempty"` // Expanded country info
+	IsDefault bool             `json:"isDefault,omitempty"`
 }

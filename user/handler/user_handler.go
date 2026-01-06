@@ -45,14 +45,19 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	authResponse, err := h.userService.Register(req)
+	authResponse, err := h.userService.Register(c, req)
 	if err != nil {
 		if err.Error() == constant.USER_EXISTS_MSG {
 			common.ErrorWithCode(c, http.StatusConflict, err.Error(), constant.USER_EXISTS_CODE)
 			return
 		}
 		if err.Error() == constant.PASSWORD_MISMATCH_MSG {
-			common.ErrorWithCode(c, http.StatusBadRequest, err.Error(), constant.PASSWORD_MISMATCH_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusBadRequest,
+				err.Error(),
+				constant.PASSWORD_MISMATCH_CODE,
+			)
 			return
 		}
 		common.ErrorResp(
@@ -79,10 +84,15 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	authResponse, err := h.userService.Login(req)
+	authResponse, err := h.userService.Login(c, req)
 	if err != nil {
 		if err.Error() == constant.ACCOUNT_DEACTIVATED_MSG {
-			common.ErrorWithCode(c, http.StatusForbidden, err.Error(), constant.ACCOUNT_DEACTIVATED_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusForbidden,
+				err.Error(),
+				constant.ACCOUNT_DEACTIVATED_CODE,
+			)
 			return
 		}
 		common.ErrorWithCode(
@@ -123,7 +133,11 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Generate new token
-	tokenResponse, err := h.userService.RefreshToken(userID.(uint), email.(string))
+	tokenResponse, err := h.userService.RefreshToken(
+		c,
+		userID.(uint),
+		email.(string),
+	)
 	if err != nil {
 		common.ErrorResp(
 			c,
@@ -151,7 +165,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	// Get user profile
-	profileResponse, err := h.userService.GetProfile(userID.(uint))
+	profileResponse, err := h.userService.GetProfile(c, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.USER_NOT_FOUND_MSG {
 			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.USER_NOT_FOUND_CODE)
@@ -165,9 +179,10 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_RETRIEVED_MSG, map[string]interface{}{
-		constant.USER_FIELD_NAME: profileResponse,
-	})
+	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_RETRIEVED_MSG,
+		map[string]interface{}{
+			constant.USER_FIELD_NAME: profileResponse,
+		})
 }
 
 // UpdateProfile handles updating user profile
@@ -202,7 +217,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Update profile
-	userResponse, err := h.userService.UpdateProfile(userID.(uint), req)
+	userResponse, err := h.userService.UpdateProfile(c, userID.(uint), req)
 	if err != nil {
 		common.ErrorResp(
 			c,
@@ -212,9 +227,10 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_UPDATED_MSG, map[string]interface{}{
-		constant.USER_FIELD_NAME: userResponse,
-	})
+	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_UPDATED_MSG,
+		map[string]interface{}{
+			constant.USER_FIELD_NAME: userResponse,
+		})
 }
 
 // ChangePassword handles changing user password
@@ -254,7 +270,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	}
 
 	// Change password
-	if err := h.userService.ChangePassword(userID.(uint), req); err != nil {
+	if err := h.userService.ChangePassword(c, userID.(uint), req); err != nil {
 		if err.Error() == constant.INVALID_CURRENT_PASSWORD_MSG {
 			common.ErrorWithCode(
 				c,

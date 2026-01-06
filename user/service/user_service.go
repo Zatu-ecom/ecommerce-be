@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
+	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/repository"
@@ -19,12 +21,23 @@ import (
 
 // UserService defines the interface for user-related business logic
 type UserService interface {
-	Register(req model.UserRegisterRequest) (*model.AuthResponse, error)
-	Login(req model.UserLoginRequest) (*model.AuthResponse, error)
-	GetProfile(userID uint) (*model.ProfileResponse, error)
-	UpdateProfile(userID uint, req model.UserUpdateRequest) (*model.UserResponse, error)
-	ChangePassword(userID uint, req model.UserPasswordChangeRequest) error
-	RefreshToken(userID uint, email string) (*model.TokenResponse, error)
+	Register(ctx context.Context, req model.UserRegisterRequest) (*model.AuthResponse, error)
+	Login(ctx context.Context, req model.UserLoginRequest) (*model.AuthResponse, error)
+	GetProfile(ctx context.Context, userID uint) (*model.ProfileResponse, error)
+	UpdateProfile(
+		ctx context.Context,
+		userID uint,
+		req model.UserUpdateRequest,
+	) (*model.UserResponse, error)
+	ChangePassword(ctx context.Context, userID uint, req model.UserPasswordChangeRequest) error
+	RefreshToken(ctx context.Context, userID uint, email string) (*model.TokenResponse, error)
+	// CreateUserWithRole creates a user with a specific role (for internal service use)
+	// Used by SellerRegistrationService to create seller users
+	CreateUserWithRole(
+		ctx context.Context,
+		req model.CreateUserRequest,
+		roleName string,
+	) (*entity.User, *entity.Role, error) // GetUserByID retrieves a user by ID (for internal service use)
 }
 
 // UserServiceImpl implements the UserService interface
@@ -44,51 +57,34 @@ func NewUserService(
 	}
 }
 
-// Register creates a new user account
-func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthResponse, error) {
+// Register creates a new user account (customer registration)
+func (s *UserServiceImpl) Register(
+	ctx context.Context,
+	req model.UserRegisterRequest,
+) (*model.AuthResponse, error) {
 	// Validate password confirmation
 	if req.Password != req.ConfirmPassword {
-		return nil, errors.New(constant.PASSWORD_MISMATCH_MSG)
+		return nil, userErrors.ErrPasswordMismatch
 	}
 
-	// Check if user already exists
-	existingUser, _ := s.userRepo.FindByEmail(req.Email)
-	if existingUser != nil {
-		return nil, errors.New(constant.USER_EXISTS_MSG)
-	}
-
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get customer role from database
-	customerRole, err := s.userRepo.FindRoleByName(constants.CUSTOMER_ROLE_NAME)
-	if err != nil {
-		return nil, errors.New("failed to find customer role")
-	}
-
-	// Create user entity with default customer role
-	user := &entity.User{
+	// Use CreateUserWithRole to create customer (reuses validation, hashing logic)
+	createUserReq := model.CreateUserRequest{
 		FirstName:   req.FirstName,
 		LastName:    req.LastName,
 		Email:       req.Email,
-		Password:    string(hashedPassword),
+		Password:    req.Password,
 		Phone:       req.Phone,
 		DateOfBirth: req.DateOfBirth,
 		Gender:      req.Gender,
-		IsActive:    true,
-		RoleID:      customerRole.ID,
 		SellerID:    req.SellerID,
-		BaseEntity: commonEntity.BaseEntity{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
 	}
 
-	// Save user to database
-	if err := s.userRepo.Create(user); err != nil {
+	user, customerRole, err := s.CreateUserWithRole(
+		ctx,
+		createUserReq,
+		constants.CUSTOMER_ROLE_NAME,
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -97,9 +93,12 @@ func (s *UserServiceImpl) Register(req model.UserRegisterRequest) (*model.AuthRe
 }
 
 // Login authenticates a user and returns a token
-func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse, error) {
+func (s *UserServiceImpl) Login(
+	ctx context.Context,
+	req model.UserLoginRequest,
+) (*model.AuthResponse, error) {
 	// Find user by email with role information
-	user, role, err := s.userRepo.FindByEmailWithRole(req.Email)
+	user, role, err := s.userRepo.FindByEmailWithRole(ctx, req.Email)
 	if err != nil {
 		return nil, errors.New(constant.INVALID_CREDENTIALS_MSG)
 	}
@@ -122,8 +121,11 @@ func (s *UserServiceImpl) Login(req model.UserLoginRequest) (*model.AuthResponse
 }
 
 // GetProfile retrieves user profile information including addresses
-func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error) {
-	user, err := s.userRepo.FindByID(userID)
+func (s *UserServiceImpl) GetProfile(
+	ctx context.Context,
+	userID uint,
+) (*model.ProfileResponse, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 	}
@@ -140,8 +142,7 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 		IsActive:    user.IsActive,
 		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-		// Geo preferences
-		CountryID:  user.CountryID,
+		// Preferences (Note: User's country is derived from default address)
 		CurrencyID: user.CurrencyID,
 		Locale:     user.Locale,
 	}
@@ -151,19 +152,8 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 		return nil, err
 	}
 
-	// For now, return empty addresses array
-	addressesResList := []model.AddressResponse{}
-	for _, address := range addresses {
-		addressesResList = append(addressesResList,
-			model.AddressResponse{
-				ID:      address.ID,
-				Street:  address.Street,
-				City:    address.City,
-				State:   address.State,
-				ZipCode: address.ZipCode,
-				Country: address.Country,
-			})
-	}
+	// Build addresses response - already in response format from service
+	addressesResList := addresses
 
 	profileResponse := &model.ProfileResponse{
 		UserResponse: userResponse,
@@ -175,11 +165,12 @@ func (s *UserServiceImpl) GetProfile(userID uint) (*model.ProfileResponse, error
 
 // UpdateProfile updates user profile information
 func (s *UserServiceImpl) UpdateProfile(
+	ctx context.Context,
 	userID uint,
 	req model.UserUpdateRequest,
 ) (*model.UserResponse, error) {
 	// Find user by ID
-	user, err := s.userRepo.FindByID(userID)
+	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,10 +192,7 @@ func (s *UserServiceImpl) UpdateProfile(
 		user.Gender = *req.Gender
 	}
 
-	// Update geo preferences if provided
-	if req.CountryID != nil {
-		user.CountryID = req.CountryID
-	}
+	// Update preferences if provided (Note: Country is derived from default address)
 	if req.CurrencyID != nil {
 		user.CurrencyID = req.CurrencyID
 	}
@@ -215,7 +203,7 @@ func (s *UserServiceImpl) UpdateProfile(
 	user.UpdatedAt = time.Now()
 
 	// Save changes to database
-	if err := s.userRepo.Update(user); err != nil {
+	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 
@@ -238,14 +226,18 @@ func (s *UserServiceImpl) UpdateProfile(
 }
 
 // ChangePassword updates a user's password
-func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChangeRequest) error {
+func (s *UserServiceImpl) ChangePassword(
+	ctx context.Context,
+	userID uint,
+	req model.UserPasswordChangeRequest,
+) error {
 	// Check if new password matches confirmation
 	if req.NewPassword != req.ConfirmPassword {
 		return errors.New(constant.PASSWORD_MISMATCH_MSG)
 	}
 
 	// Find user by ID
-	user, err := s.userRepo.FindByID(userID)
+	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -266,13 +258,17 @@ func (s *UserServiceImpl) ChangePassword(userID uint, req model.UserPasswordChan
 	user.UpdatedAt = time.Now()
 
 	// Save changes to database
-	return s.userRepo.Update(user)
+	return s.userRepo.Update(ctx, user)
 }
 
 // RefreshToken generates a new JWT token
-func (s *UserServiceImpl) RefreshToken(userID uint, email string) (*model.TokenResponse, error) {
+func (s *UserServiceImpl) RefreshToken(
+	ctx context.Context,
+	userID uint,
+	email string,
+) (*model.TokenResponse, error) {
 	// Get user with role information
-	user, role, err := s.userRepo.FindByIDWithRole(userID)
+	user, role, err := s.userRepo.FindByIDWithRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -282,4 +278,58 @@ func (s *UserServiceImpl) RefreshToken(userID uint, email string) (*model.TokenR
 
 	// Build token response using factory (eliminates duplication)
 	return factory.BuildTokenResponse(user, role, sellerID)
+}
+
+// CreateUserWithRole creates a user with a specific role
+// This is used internally by other services (e.g., SellerRegistrationService)
+// It handles: email validation, password hashing, role assignment
+// The caller is responsible for transaction management
+func (s *UserServiceImpl) CreateUserWithRole(
+	ctx context.Context,
+	req model.CreateUserRequest,
+	roleName string,
+) (*entity.User, *entity.Role, error) {
+	// 1. Check if user already exists
+	existingUser, _ := s.userRepo.FindByEmail(ctx, req.Email)
+	if existingUser != nil {
+		return nil, nil, errors.New(constant.USER_EXISTS_MSG)
+	}
+
+	// 2. Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, nil, errors.New("failed to hash password")
+	}
+
+	// 3. Get role from database
+	role, err := s.userRepo.FindRoleByName(ctx, roleName)
+	if err != nil {
+		return nil, nil, errors.New("failed to find role: " + roleName)
+	}
+
+	// 4. Create user entity
+	now := time.Now()
+	user := &entity.User{
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		Email:       req.Email,
+		Password:    string(hashedPassword),
+		Phone:       req.Phone,
+		DateOfBirth: req.DateOfBirth,
+		Gender:      req.Gender,
+		IsActive:    true,
+		RoleID:      role.ID,
+		SellerID:    req.SellerID,
+		BaseEntity: commonEntity.BaseEntity{
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	// 5. Save user to database
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, nil, err
+	}
+
+	return user, role, nil
 }

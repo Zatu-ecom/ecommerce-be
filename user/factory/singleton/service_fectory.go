@@ -10,12 +10,15 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	userService            service.UserService
-	addressService         service.AddressService
-	userQueryService       service.UserQueryService
-	countryService         service.CountryService
-	currencyService        service.CurrencyService
-	countryCurrencyService service.CountryCurrencyService
+	userService               service.UserService
+	addressService            service.AddressService
+	userQueryService          service.UserQueryService
+	countryService            service.CountryService
+	currencyService           service.CurrencyService
+	countryCurrencyService    service.CountryCurrencyService
+	sellerSettingsService     service.SellerSettingsService
+	sellerService             service.SellerService
+	sellerProfileService      service.SellerProfileService
 
 	once sync.Once
 }
@@ -34,8 +37,10 @@ func (f *ServiceFactory) initialize() {
 		countryRepo := f.repoFactory.GetCountryRepository()
 		currencyRepo := f.repoFactory.GetCurrencyRepository()
 		countryCurrencyRepo := f.repoFactory.GetCountryCurrencyRepository()
+		sellerProfileRepo := f.repoFactory.GetSellerProfileRepository()
+		sellerSettingsRepo := f.repoFactory.GetSellerSettingsRepository()
 
-		// Initialize services
+		// Initialize services - order matters due to dependencies
 		f.addressService = service.NewAddressService(
 			addressRepo,
 		)
@@ -56,6 +61,25 @@ func (f *ServiceFactory) initialize() {
 			countryCurrencyRepo,
 			countryRepo,
 			currencyRepo,
+		)
+		// SellerSettingsService uses CountryService and CurrencyService
+		f.sellerSettingsService = service.NewSellerSettingsService(
+			sellerSettingsRepo,
+			f.countryService,
+			f.currencyService,
+		)
+		// SellerService (registration) uses UserService and SellerSettingsService (SOLID)
+		f.sellerService = service.NewSellerService(
+			f.userService,
+			f.sellerSettingsService,
+			userRepo,
+			sellerProfileRepo,
+		)
+		// SellerProfileService handles profile get/update operations
+		f.sellerProfileService = service.NewSellerProfileService(
+			userRepo,
+			sellerProfileRepo,
+			f.sellerSettingsService,
 		)
 	})
 }
@@ -94,4 +118,22 @@ func (f *ServiceFactory) GetCurrencyService() service.CurrencyService {
 func (f *ServiceFactory) GetCountryCurrencyService() service.CountryCurrencyService {
 	f.initialize()
 	return f.countryCurrencyService
+}
+
+// GetSellerSettingsService returns the singleton seller settings service
+func (f *ServiceFactory) GetSellerSettingsService() service.SellerSettingsService {
+	f.initialize()
+	return f.sellerSettingsService
+}
+
+// GetSellerService returns the singleton seller service
+func (f *ServiceFactory) GetSellerService() service.SellerService {
+	f.initialize()
+	return f.sellerService
+}
+
+// GetSellerProfileService returns the singleton seller profile service
+func (f *ServiceFactory) GetSellerProfileService() service.SellerProfileService {
+	f.initialize()
+	return f.sellerProfileService
 }

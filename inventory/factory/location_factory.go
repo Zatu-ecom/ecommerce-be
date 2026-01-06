@@ -29,12 +29,12 @@ func BuildLocationResponse(location *entity.Location) *model.LocationResponse {
 // BuildAddressResponse converts an Address entity to AddressResponse DTO
 func BuildAddressResponse(address *userEntity.Address) model.AddressResponse {
 	return model.AddressResponse{
-		ID:      address.ID,
-		Street:  address.Street,
-		City:    address.City,
-		State:   address.State,
-		ZipCode: address.ZipCode,
-		Country: address.Country,
+		ID:        address.ID,
+		Street:    address.Street,
+		City:      address.City,
+		State:     address.State,
+		ZipCode:   address.ZipCode,
+		CountryID: address.CountryID,
 	}
 }
 
@@ -74,7 +74,7 @@ func BuildUserAddressReqToInventoryAddressReq(
 		City:      address.City,
 		State:     address.State,
 		ZipCode:   address.ZipCode,
-		Country:   address.Country,
+		CountryID: address.CountryID,
 		IsDefault: false,
 	}
 }
@@ -84,12 +84,12 @@ func BuildUserAddressResponseToInventoryAddressResponse(
 	userAddress *userModel.AddressResponse,
 ) model.AddressResponse {
 	return model.AddressResponse{
-		ID:      userAddress.ID,
-		Street:  userAddress.Street,
-		City:    userAddress.City,
-		State:   userAddress.State,
-		ZipCode: userAddress.ZipCode,
-		Country: userAddress.Country,
+		ID:        userAddress.ID,
+		Street:    userAddress.Street,
+		City:      userAddress.City,
+		State:     userAddress.State,
+		ZipCode:   userAddress.ZipCode,
+		CountryID: userAddress.CountryID,
 	}
 }
 
@@ -97,11 +97,11 @@ func BuildInventoryUserUpdateReqToUserAddressUpdateReq(
 	userAddress model.AddressUpdateRequest,
 ) userModel.AddressUpdateRequest {
 	return userModel.AddressUpdateRequest{
-		Street:  userAddress.Street,
-		City:    userAddress.City,
-		State:   userAddress.State,
-		ZipCode: userAddress.ZipCode,
-		Country: userAddress.Country,
+		Street:    userAddress.Street,
+		City:      userAddress.City,
+		State:     userAddress.State,
+		ZipCode:   userAddress.ZipCode,
+		CountryID: userAddress.CountryID,
 	}
 }
 

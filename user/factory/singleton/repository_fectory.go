@@ -16,6 +16,8 @@ type RepositoryFactory struct {
 	countryRepo         repository.CountryRepository
 	currencyRepo        repository.CurrencyRepository
 	countryCurrencyRepo repository.CountryCurrencyRepository
+	sellerProfileRepo   repository.SellerProfileRepository
+	sellerSettingsRepo  repository.SellerSettingsRepository
 	once                sync.Once
 }
 
@@ -29,11 +31,13 @@ func NewRepositoryFactory() *RepositoryFactory {
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
 		currentDB := db.GetDB()
-		f.userRepo = repository.NewUserRepository(currentDB)
+		f.userRepo = repository.NewUserRepository()
 		f.addressRepo = repository.NewAddressRepository(currentDB)
 		f.countryRepo = repository.NewCountryRepository()
 		f.currencyRepo = repository.NewCurrencyRepository()
 		f.countryCurrencyRepo = repository.NewCountryCurrencyRepository()
+		f.sellerProfileRepo = repository.NewSellerProfileRepository()
+		f.sellerSettingsRepo = repository.NewSellerSettingsRepository()
 	})
 }
 
@@ -65,4 +69,16 @@ func (f *RepositoryFactory) GetCurrencyRepository() repository.CurrencyRepositor
 func (f *RepositoryFactory) GetCountryCurrencyRepository() repository.CountryCurrencyRepository {
 	f.initialize()
 	return f.countryCurrencyRepo
+}
+
+// GetSellerProfileRepository returns the singleton seller profile repository
+func (f *RepositoryFactory) GetSellerProfileRepository() repository.SellerProfileRepository {
+	f.initialize()
+	return f.sellerProfileRepo
+}
+
+// GetSellerSettingsRepository returns the singleton seller settings repository
+func (f *RepositoryFactory) GetSellerSettingsRepository() repository.SellerSettingsRepository {
+	f.initialize()
+	return f.sellerSettingsRepo
 }

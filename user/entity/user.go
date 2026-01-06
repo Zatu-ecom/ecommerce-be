@@ -24,8 +24,8 @@ type User struct {
 	// so this can be null for admin, super admin, and the seller themselves.
 	SellerID uint `json:"sellerId"`
 
-	// --- Country and Currency Preferences ---
-	CountryID  *uint  `json:"countryId"`                                 // User's country (optional)
+	// --- Currency and Locale Preferences ---
+	// Note: User's country is derived from their default address
 	CurrencyID *uint  `json:"currencyId"`                                // User's preferred currency for display (optional)
 	Locale     string `json:"locale"     gorm:"size:10;default:'en-US'"` // Locale for formatting (e.g., 'en-US', 'hi-IN')
 }

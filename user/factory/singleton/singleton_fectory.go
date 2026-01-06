@@ -73,6 +73,10 @@ func (f *SingletonFactory) GetCountryCurrencyHandler() *handler.CountryCurrencyH
 	return f.handlerFactory.GetCountryCurrencyHandler()
 }
 
+func (f *SingletonFactory) GetSellerHandler() *handler.SellerHandler {
+	return f.handlerFactory.GetSellerHandler()
+}
+
 // ===============================
 // Service Getters (Delegates)
 // ===============================

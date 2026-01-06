@@ -18,6 +18,7 @@ type ListUsersQueryParams struct {
 	Emails      string `form:"emails"`
 	Phones      string `form:"phones"`
 	RoleIDs     string `form:"roleIds"`
+	RoleNames   string `form:"roleNames"` // e.g., "admin,seller,customer"
 	SellerIDs   string `form:"sellerIds"`
 	Name        string `form:"name"`
 	IsActive    *bool  `form:"isActive"`
@@ -33,7 +34,8 @@ type ListUsersFilter struct {
 	Emails    []string
 	Phones    []string
 	RoleIDs   []uint
-	SellerIDs []uint // Admin only
+	RoleNames []string // e.g., ["admin", "seller", "customer"]
+	SellerIDs []uint   // Admin only
 
 	// Search (partial match)
 	Name *string
@@ -63,6 +65,7 @@ func (p *ListUsersQueryParams) ToFilter() ListUsersFilter {
 	filter.Emails = helper.ParseCommaSeparated[string](p.Emails)
 	filter.Phones = helper.ParseCommaSeparated[string](p.Phones)
 	filter.RoleIDs = helper.ParseCommaSeparated[uint](p.RoleIDs)
+	filter.RoleNames = helper.ParseCommaSeparated[string](p.RoleNames)
 	filter.SellerIDs = helper.ParseCommaSeparated[uint](p.SellerIDs)
 
 	// Parse dates

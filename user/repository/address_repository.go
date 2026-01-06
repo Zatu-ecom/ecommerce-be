@@ -64,7 +64,7 @@ func (r *AddressRepositoryImpl) Create(address *entity.Address) error {
 // FindByID finds an address by ID and user ID
 func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address, error) {
 	var address entity.Address
-	result := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address)
+	result := r.db.Preload("Country").Where("id = ? AND user_id = ?", id, userID).First(&address)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New(constant.ADDRESS_NOT_FOUND_MSG)
@@ -77,7 +77,7 @@ func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address,
 // FindByUserID finds all addresses for a user
 func (r *AddressRepositoryImpl) FindByUserID(userID uint) ([]entity.Address, error) {
 	var addresses []entity.Address
-	result := r.db.Where("user_id = ?", userID).Find(&addresses)
+	result := r.db.Preload("Country").Where("user_id = ?", userID).Find(&addresses)
 	if result.Error != nil {
 		return nil, result.Error
 	}

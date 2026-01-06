@@ -70,6 +70,8 @@ const (
 const (
 	REQUEST_FIELD_NAME    = "request"
 	USER_FIELD_NAME       = "user"
+	SELLER_FIELD_NAME     = "seller"
+	PROFILE_FIELD_NAME    = "profile"
 	TOKEN_FIELD_NAME      = "token"
 	EXPIRES_IN_FIELD_NAME = "expiresIn"
 )

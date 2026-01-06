@@ -66,7 +66,7 @@ func (h *UserQueryHandler) ListUsers(c *gin.Context) {
 	callerSellerID := h.getCallerSellerID(c)
 
 	// Call service
-	response, err := h.userQueryService.ListUsers(filter, callerSellerID)
+	response, err := h.userQueryService.ListUsers(c, filter, callerSellerID)
 	if err != nil {
 		h.HandleError(c, err, constant.FAILED_TO_LIST_USERS_MSG)
 		return

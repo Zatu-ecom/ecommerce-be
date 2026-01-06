@@ -2,15 +2,21 @@ package model
 
 // UserRegisterRequest represents the request body for user registration
 type UserRegisterRequest struct {
-	FirstName       string `json:"firstName"       binding:"required"`
-	LastName        string `json:"lastName"        binding:"required"`
-	Email           string `json:"email"           binding:"required,email"`
-	Password        string `json:"password"        binding:"required,min=6"`
+	CreateUserRequest
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
-	SellerID        uint   `json:"sellerId"`
-	Phone           string `json:"phone"`
-	DateOfBirth     string `json:"dateOfBirth"`
-	Gender          string `json:"gender"`
+}
+
+// CreateUserRequest represents internal request for creating a user with any role
+// Used by services like SellerRegistrationService, UserService.Register
+type CreateUserRequest struct {
+	FirstName   string `json:"firstName"   binding:"required"`
+	LastName    string `json:"lastName"    binding:"required"`
+	Email       string `json:"email"       binding:"required,email"`
+	Password    string `json:"password"    binding:"required,min=6"`
+	Phone       string `json:"phone"`
+	DateOfBirth string `json:"dateOfBirth"`
+	Gender      string `json:"gender"`
+	SellerID    uint   `json:"sellerId"`
 }
 
 // UserLoginRequest represents the request body for user login
@@ -28,8 +34,7 @@ type UserUpdateRequest struct {
 	DateOfBirth *string `json:"dateOfBirth"`
 	Gender      *string `json:"gender"`
 
-	// Geo preferences
-	CountryID  *uint   `json:"countryId"`                                   // User's country
+	// Preferences (Note: User's country is derived from default address)
 	CurrencyID *uint   `json:"currencyId"`                                  // Preferred display currency
 	Locale     *string `json:"locale"     binding:"omitempty,min=2,max=10"` // Locale: 'en-US', 'hi-IN'
 }
@@ -54,13 +59,13 @@ type UserResponse struct {
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
 
-	// Geo preferences
-	CountryID  *uint  `json:"countryId,omitempty"`
+	// Preferences (Note: User's country is derived from default address)
 	CurrencyID *uint  `json:"currencyId,omitempty"`
 	Locale     string `json:"locale,omitempty"`
 }
 
-// UserDetailResponse represents user with expanded country/currency info
+// UserDetailResponse represents user with expanded currency info
+// Note: User's country is derived from default address
 type UserDetailResponse struct {
 	ID          uint              `json:"id"`
 	FirstName   string            `json:"firstName"`
@@ -69,7 +74,6 @@ type UserDetailResponse struct {
 	Phone       string            `json:"phone"`
 	DateOfBirth string            `json:"dateOfBirth"`
 	Gender      string            `json:"gender"`
-	Country     *CountryResponse  `json:"country,omitempty"`
 	Currency    *CurrencyResponse `json:"currency,omitempty"`
 	Locale      string            `json:"locale,omitempty"`
 	IsActive    bool              `json:"isActive"`

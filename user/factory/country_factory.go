@@ -28,6 +28,15 @@ func BuildCountryResponse(country *entity.Country) model.CountryResponse {
 	}
 }
 
+// BuildCountryResponsePtr converts a country entity to a response model pointer
+func BuildCountryResponsePtr(country *entity.Country) *model.CountryResponse {
+	if country == nil || country.ID == 0 {
+		return nil
+	}
+	response := BuildCountryResponse(country)
+	return &response
+}
+
 // BuildCountryDetailResponse converts a country entity to a detailed response with currencies
 func BuildCountryDetailResponse(country *entity.Country) model.CountryDetailResponse {
 	response := model.CountryDetailResponse{

@@ -17,7 +17,7 @@ func BuildAddressEntity(userID uint, req model.AddressRequest) *entity.Address {
 		City:      req.City,
 		State:     req.State,
 		ZipCode:   req.ZipCode,
-		Country:   req.Country,
+		CountryID: req.CountryID,
 		IsDefault: req.IsDefault,
 	}
 }
@@ -37,8 +37,8 @@ func UpdateAddressEntity(address *entity.Address, req model.AddressUpdateRequest
 	if req.ZipCode != nil {
 		address.ZipCode = *req.ZipCode
 	}
-	if req.Country != nil {
-		address.Country = *req.Country
+	if req.CountryID != nil {
+		address.CountryID = *req.CountryID
 	}
 	if req.IsDefault != nil {
 		address.IsDefault = *req.IsDefault
@@ -47,13 +47,20 @@ func UpdateAddressEntity(address *entity.Address, req model.AddressUpdateRequest
 
 // BuildAddressResponse converts an address entity to response model
 func BuildAddressResponse(address *entity.Address) model.AddressResponse {
-	return model.AddressResponse{
+	response := model.AddressResponse{
 		ID:        address.ID,
 		Street:    address.Street,
 		City:      address.City,
 		State:     address.State,
 		ZipCode:   address.ZipCode,
-		Country:   address.Country,
+		CountryID: address.CountryID,
 		IsDefault: address.IsDefault,
 	}
+
+	// Include expanded country info if relationship is loaded
+	if address.Country.ID != 0 {
+		response.Country = BuildCountryResponsePtr(&address.Country)
+	}
+
+	return response
 }

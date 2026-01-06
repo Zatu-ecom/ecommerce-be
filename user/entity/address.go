@@ -9,6 +9,9 @@ type Address struct {
 	City      string `json:"city"      binding:"required"`
 	State     string `json:"state"     binding:"required"`
 	ZipCode   string `json:"zipCode"   binding:"required"`
-	Country   string `json:"country"   binding:"required"`
-	IsDefault bool   `json:"isDefault"                    gorm:"default:false"`
+	CountryID uint   `json:"countryId" gorm:"not null"`
+	IsDefault bool   `json:"isDefault" gorm:"default:false"`
+
+	// Relationships
+	Country Country `json:"country,omitempty" gorm:"foreignKey:CountryID"`
 }

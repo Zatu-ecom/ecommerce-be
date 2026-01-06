@@ -29,8 +29,7 @@ func BuildUserResponse(user *entity.User) model.UserResponse {
 		IsActive:    user.IsActive,
 		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
-		// Geo preferences
-		CountryID:  user.CountryID,
+		// Preferences (Note: User's country is derived from default address)
 		CurrencyID: user.CurrencyID,
 		Locale:     user.Locale,
 	}

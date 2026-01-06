@@ -29,20 +29,20 @@ type LocationUpdateRequest struct {
 
 // AddressRequest represents the address information in a request
 type AddressRequest struct {
-	Street  string `json:"street"  binding:"required,min=5"`
-	City    string `json:"city"    binding:"required,min=2"`
-	State   string `json:"state"   binding:"required,min=2"`
-	ZipCode string `json:"zipCode" binding:"required"`
-	Country string `json:"country" binding:"required,min=2"`
+	Street    string `json:"street"    binding:"required,min=5"`
+	City      string `json:"city"      binding:"required,min=2"`
+	State     string `json:"state"     binding:"required,min=2"`
+	ZipCode   string `json:"zipCode"   binding:"required"`
+	CountryID uint   `json:"countryId" binding:"required"`
 }
 
 // AddressRequest represents the address information in a request
 type AddressUpdateRequest struct {
-	Street  *string `json:"street"  binding:"omitempty,min=5"`
-	City    *string `json:"city"    binding:"omitempty,min=2"`
-	State   *string `json:"state"   binding:"omitempty,min=2"`
-	ZipCode *string `json:"zipCode" binding:"omitempty"`
-	Country *string `json:"country" binding:"omitempty,min=2"`
+	Street    *string `json:"street"    binding:"omitempty,min=5"`
+	City      *string `json:"city"      binding:"omitempty,min=2"`
+	State     *string `json:"state"     binding:"omitempty,min=2"`
+	ZipCode   *string `json:"zipCode"   binding:"omitempty"`
+	CountryID *uint   `json:"countryId"`
 }
 
 // Locations filter API paramters
@@ -85,12 +85,12 @@ type LocationResponse struct {
 
 // AddressResponse represents the address data in a response
 type AddressResponse struct {
-	ID      uint   `json:"id,omitempty"`
-	Street  string `json:"street,omitempty"`
-	City    string `json:"city,omitempty"`
-	State   string `json:"state,omitempty"`
-	ZipCode string `json:"zipCode,omitempty"`
-	Country string `json:"country,omitempty"`
+	ID        uint   `json:"id,omitempty"`
+	Street    string `json:"street,omitempty"`
+	City      string `json:"city,omitempty"`
+	State     string `json:"state,omitempty"`
+	ZipCode   string `json:"zipCode,omitempty"`
+	CountryID uint   `json:"countryId"`
 }
 
 // LocationsResponse represents the paginated response for getting all locations
