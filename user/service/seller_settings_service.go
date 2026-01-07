@@ -83,7 +83,11 @@ func (s *SellerSettingsServiceImpl) Create(
 	}
 
 	// Validate country and currency
-	if err := s.ValidateSettingsData(ctx, req.BusinessCountryID, req.BaseCurrencyID, req.SettlementCurrencyID); err != nil {
+	if err := s.ValidateSettingsData(
+		ctx,
+		req.BusinessCountryID,
+		req.BaseCurrencyID,
+		req.SettlementCurrencyID); err != nil {
 		return nil, err
 	}
 

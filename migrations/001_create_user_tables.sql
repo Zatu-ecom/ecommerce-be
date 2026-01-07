@@ -60,6 +60,8 @@ CREATE INDEX IF NOT EXISTS idx_user_seller_id ON "user"(seller_id);
 CREATE INDEX IF NOT EXISTS idx_user_is_active ON "user"(is_active);
 
 -- Create address table if not exists
+-- Note: country_id references country table created in 008_create_geo_tables.sql
+-- The FK constraint will be added in that migration after country table exists
 CREATE TABLE IF NOT EXISTS "address" (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -67,7 +69,7 @@ CREATE TABLE IF NOT EXISTS "address" (
     city VARCHAR(255) NOT NULL,
     state VARCHAR(255) NOT NULL,
     zip_code VARCHAR(255) NOT NULL,
-    country VARCHAR(255) NOT NULL,
+    country_id BIGINT NOT NULL,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "address" (
 -- Create indexes on address
 CREATE INDEX IF NOT EXISTS idx_address_user_id ON "address"(user_id);
 CREATE INDEX IF NOT EXISTS idx_address_is_default ON "address"(is_default);
+CREATE INDEX IF NOT EXISTS idx_address_country_id ON "address"(country_id);
 
 -- Create subscription table if not exists
 CREATE TABLE IF NOT EXISTS subscription (

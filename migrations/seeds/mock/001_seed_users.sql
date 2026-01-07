@@ -1,48 +1,29 @@
--- Seed: 001_seed_user_data.sql
--- Description: Insert demo data for user service (matches entity structure)
+-- Seed: 001_seed_users.sql
+-- Description: Mock user data for development and testing
+-- Environment: DEV/STAGING ONLY (mock data)
 -- Created: 2025-10-23
--- Updated: 2025-10-23 - Cleaned for testcontainers
+
+-- ============================================================================
+-- MOCK USERS (Admin, Sellers, Customers)
+-- ============================================================================
 
 -- ------------------------------
--- Insert Roles
--- ------------------------------
-INSERT INTO role (id, name, description, level, created_at, updated_at) VALUES
-(1, 'ADMIN', 'System administrator with full access', 1, NOW(), NOW()),
-(2, 'SELLER', 'Seller/merchant who can manage products and orders', 2, NOW(), NOW()),
-(3, 'CUSTOMER', 'Regular customer who can browse and purchase', 3, NOW(), NOW())
-ON CONFLICT (id) DO UPDATE SET
-    description = EXCLUDED.description,
-    level = EXCLUDED.level,
-    updated_at = NOW();
-
-SELECT setval('role_id_seq', (SELECT MAX(id) FROM role));
-
--- ------------------------------
--- Insert Plans
--- ------------------------------
-INSERT INTO plan (id, name, description, price, currency, billing_cycle, is_popular, sort_order, trial_days, created_at, updated_at) VALUES
-(1, 'Free Starter', 'Up to 10 products, basic features', 0.00, 'USD', 'monthly', false, 1, 14, NOW(), NOW()),
-(2, 'Basic', 'Up to 100 products, email support', 29.99, 'USD', 'monthly', false, 2, 7, NOW(), NOW()),
-(3, 'Professional', 'Unlimited products, priority support', 79.99, 'USD', 'monthly', true, 3, 7, NOW(), NOW()),
-(4, 'Enterprise', 'Custom features, dedicated support', 199.99, 'USD', 'monthly', false, 4, 14, NOW(), NOW()),
-(5, 'Yearly Basic', 'Basic plan with yearly billing', 299.99, 'USD', 'yearly', false, 5, 14, NOW(), NOW()),
-(6, 'Yearly Pro', 'Professional plan with yearly billing', 799.99, 'USD', 'yearly', false, 6, 14, NOW(), NOW())
-ON CONFLICT (id) DO UPDATE SET
-    description = EXCLUDED.description,
-    price = EXCLUDED.price,
-    is_popular = EXCLUDED.is_popular,
-    trial_days = EXCLUDED.trial_days,
-    updated_at = NOW();
-
-SELECT setval('plan_id_seq', (SELECT MAX(id) FROM plan));
-
--- ------------------------------
--- Insert Users
+-- Insert Admin User
 -- ------------------------------
 INSERT INTO "user" (id, first_name, last_name, email, password, phone, date_of_birth, gender, is_active, role_id, created_at, updated_at) VALUES
--- Admin
-(1, 'Admin', 'User', 'admin@ecommerce.com', '$2a$12$iD08YgeBSaoVwXujHrWrBeQM4YwsnRfA8p.J0r8GCQLNZ6G4G8Kta', '+1234567890', NULL, NULL, true, 1, NOW(), NOW()),
--- Sellers
+(1, 'Admin', 'User', 'admin@ecommerce.com', '$2a$12$iD08YgeBSaoVwXujHrWrBeQM4YwsnRfA8p.J0r8GCQLNZ6G4G8Kta', '+1234567890', NULL, NULL, true, 1, NOW(), NOW())
+ON CONFLICT (id) DO UPDATE SET
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    phone = EXCLUDED.phone,
+    is_active = EXCLUDED.is_active,
+    role_id = EXCLUDED.role_id,
+    updated_at = NOW();
+
+-- ------------------------------
+-- Insert Sellers
+-- ------------------------------
+INSERT INTO "user" (id, first_name, last_name, email, password, phone, date_of_birth, gender, is_active, role_id, created_at, updated_at) VALUES
 (2, 'John', 'Seller', 'john.seller@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567891', '1985-05-15', 'male', true, 2, NOW(), NOW()),
 (3, 'Jane', 'Merchant', 'jane.merchant@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567892', '1990-08-22', 'female', true, 2, NOW(), NOW()),
 (4, 'Bob', 'Store', 'bob.store@example.com', '$2a$12$UgEs7psVsJ1/urkc0gb1M.yDs8BPY3iuWrL33iIbGPApBMOgeUUqS', '+1234567893', '1988-03-10', 'male', true, 2, NOW(), NOW())
@@ -77,7 +58,6 @@ UPDATE "user" SET seller_id = 2 WHERE id = 2;
 UPDATE "user" SET seller_id = 3 WHERE id = 3;
 UPDATE "user" SET seller_id = 4 WHERE id = 4;
 
-
 -- ------------------------------
 -- Insert Customers
 -- ------------------------------
@@ -96,6 +76,7 @@ ON CONFLICT (id) DO UPDATE SET
     seller_id = EXCLUDED.seller_id,
     updated_at = NOW();
 
+SELECT setval('user_id_seq', (SELECT MAX(id) FROM "user"));
 
 -- ------------------------------
 -- Insert Subscriptions
@@ -135,15 +116,32 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval('address_id_seq', (SELECT MAX(id) FROM "address"));
 
 -- ------------------------------
--- Final Summary Notice
+-- Insert Seller Settings (for country/currency)
+-- ------------------------------
+INSERT INTO seller_settings (seller_id, business_country_id, base_currency_id, settlement_currency_id, display_prices_in_buyer_currency)
+SELECT 2, 21, 4, 4, FALSE  -- Seller ID 2, India, INR
+WHERE EXISTS (SELECT 1 FROM "user" WHERE id = 2)
+  AND NOT EXISTS (SELECT 1 FROM seller_settings WHERE seller_id = 2);
+
+INSERT INTO seller_settings (seller_id, business_country_id, base_currency_id, settlement_currency_id, display_prices_in_buyer_currency)
+SELECT 3, 1, 1, 1, FALSE  -- Seller ID 3, USA, USD
+WHERE EXISTS (SELECT 1 FROM "user" WHERE id = 3)
+  AND NOT EXISTS (SELECT 1 FROM seller_settings WHERE seller_id = 3);
+
+INSERT INTO seller_settings (seller_id, business_country_id, base_currency_id, settlement_currency_id, display_prices_in_buyer_currency)
+SELECT 4, 4, 3, 3, FALSE  -- Seller ID 4, UK, GBP
+WHERE EXISTS (SELECT 1 FROM "user" WHERE id = 4)
+  AND NOT EXISTS (SELECT 1 FROM seller_settings WHERE seller_id = 4);
+
+-- ------------------------------
+-- Summary
 -- ------------------------------
 DO $$
 BEGIN
-    RAISE NOTICE 'Seed data completed successfully!';
-    RAISE NOTICE 'Roles: %', (SELECT COUNT(*) FROM role);
-    RAISE NOTICE 'Plans: %', (SELECT COUNT(*) FROM plan);
+    RAISE NOTICE 'Mock user data seeded successfully!';
     RAISE NOTICE 'Users: %', (SELECT COUNT(*) FROM "user");
     RAISE NOTICE 'Seller Profiles: %', (SELECT COUNT(*) FROM seller_profile);
     RAISE NOTICE 'Subscriptions: %', (SELECT COUNT(*) FROM subscription);
     RAISE NOTICE 'Addresses: %', (SELECT COUNT(*) FROM "address");
+    RAISE NOTICE 'Seller Settings: %', (SELECT COUNT(*) FROM seller_settings);
 END $$;
