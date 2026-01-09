@@ -189,11 +189,11 @@ CREATE TABLE payment_transaction (
     gateway_payment_id VARCHAR(255),         -- Gateway's payment/charge ID
     gateway_transaction_id VARCHAR(255),     -- Gateway's transaction reference
 
-    -- Amount details
+    -- Amount details (stored in cents for precision)
     currency VARCHAR(3) NOT NULL,            -- 'USD', 'INR'
-    amount DECIMAL(15,2) NOT NULL,           -- Total amount
-    gateway_fee DECIMAL(15,2),               -- Fee charged by gateway
-    net_amount DECIMAL(15,2),                -- Amount after fees
+    amount_cents BIGINT NOT NULL,            -- Total amount in cents (1999 = $19.99)
+    gateway_fee_cents BIGINT,                -- Fee charged by gateway in cents
+    net_amount_cents BIGINT,                 -- Amount after fees in cents
 
     -- Status
     status VARCHAR(30) NOT NULL,             -- See status enum below
@@ -259,9 +259,9 @@ CREATE TABLE payment_refund (
     -- Gateway reference
     gateway_refund_id VARCHAR(255),          -- Gateway's refund ID
 
-    -- Amount
+    -- Amount (stored in cents for precision)
     currency VARCHAR(3) NOT NULL,
-    amount DECIMAL(15,2) NOT NULL,           -- Refund amount
+    amount_cents BIGINT NOT NULL,            -- Refund amount in cents (1999 = $19.99)
 
     -- Status
     status VARCHAR(30) NOT NULL,             -- 'pending', 'processing', 'completed', 'failed'
@@ -389,7 +389,7 @@ type PaymentGateway interface {
     CancelPayment(ctx context.Context, transactionID string) error
 
     // Refunds
-    RefundPayment(ctx context.Context, transactionID string, amount decimal.Decimal) (*Refund, error)
+    RefundPayment(ctx context.Context, transactionID string, amountCents int64) (*Refund, error)
 
     // Webhooks
     VerifyWebhook(payload []byte, signature string) (bool, error)
