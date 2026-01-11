@@ -147,7 +147,7 @@ func (s *UserServiceImpl) GetProfile(
 		Locale:     user.Locale,
 	}
 
-	addresses, err := s.addressService.GetAddresses(userID)
+	addresses, err := s.addressService.GetAddresses(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

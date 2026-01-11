@@ -71,7 +71,7 @@ func (s *LocationServiceImpl) CreateLocation(
 	var response *model.LocationResponse
 	err := db.WithTransaction(ctx, func(txCtx context.Context) error {
 		// Create address
-		address, err := s.createAddress(sellerID, req.Address)
+		address, err := s.createAddress(txCtx, sellerID, req.Address)
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func (s *LocationServiceImpl) UpdateLocation(
 		}
 
 		// Handle address update or fetch
-		address, err := s.handleAddressForUpdate(req.Address, location.AddressID, sellerID)
+		address, err := s.handleAddressForUpdate(ctx, req.Address, location.AddressID, sellerID)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (s *LocationServiceImpl) GetLocationByID(
 	// Fetch address if address_id exists
 	if location.AddressID != 0 {
 		// TODO [MICROSERVICE]: Replace with HTTP call to User Service Address API
-		address, err := s.addressService.GetAddresses(sellerID)
+		address, err := s.addressService.GetAddresses(ctx, sellerID)
 		if err == nil {
 			for _, addr := range address {
 				if addr.ID == location.AddressID {
@@ -194,7 +194,7 @@ func (s *LocationServiceImpl) GetAllLocations(
 	}
 
 	// Fetch all addresses for seller once
-	addresses, _ := s.addressService.GetAddresses(sellerID)
+	addresses, _ := s.addressService.GetAddresses(ctx, sellerID)
 	addressMap := make(map[uint]model.AddressResponse)
 	for _, addr := range addresses {
 		addressMap[addr.ID] = factory.BuildUserAddressResponseToInventoryAddressResponse(&addr)
@@ -299,10 +299,12 @@ func (s *LocationServiceImpl) validateNameUniqueness(
 // createAddress creates a new address via user service
 // TODO [MICROSERVICE]: Replace with HTTP call to User Service Address API
 func (s *LocationServiceImpl) createAddress(
+	ctx context.Context,
 	sellerID uint,
 	addressReq model.AddressRequest,
 ) (*userModel.AddressResponse, error) {
 	return s.addressService.AddAddress(
+		ctx,
 		sellerID,
 		factory.BuildUserAddressReqToInventoryAddressReq(addressReq),
 	)
@@ -311,6 +313,7 @@ func (s *LocationServiceImpl) createAddress(
 // handleAddressForUpdate updates or fetches address based on request
 // TODO [MICROSERVICE]: Replace with HTTP call to User Service Address API
 func (s *LocationServiceImpl) handleAddressForUpdate(
+	ctx context.Context,
 	addressReq *model.AddressUpdateRequest,
 	addressID uint,
 	sellerID uint,
@@ -318,6 +321,7 @@ func (s *LocationServiceImpl) handleAddressForUpdate(
 	if addressReq != nil {
 		// Update address
 		return s.addressService.UpdateAddress(
+			ctx,
 			addressID,
 			sellerID,
 			factory.BuildInventoryUserUpdateReqToUserAddressUpdateReq(*addressReq),
@@ -325,7 +329,7 @@ func (s *LocationServiceImpl) handleAddressForUpdate(
 	}
 
 	// Fetch existing address
-	return s.addressService.GetAddressByID(addressID, sellerID)
+	return s.addressService.GetAddressByID(ctx, addressID, sellerID)
 }
 
 // buildLocationResponseWithAddress builds location response with address

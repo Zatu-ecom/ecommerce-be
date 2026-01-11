@@ -77,27 +77,27 @@ func (m *CountryModule) RegisterRoutes(router *gin.Engine) {
 		// COUNTRY-CURRENCY MAPPING ROUTES
 		// ========================================
 
-		// GET /api/user/admin/country/:countryId/currency - List currencies for a country
+		// GET /api/user/admin/country/:id/currency - List currencies for a country
 		// Response: CountryCurrencyListResponse
-		adminRoutes.GET("/:countryId/currency", m.countryCurrencyHandler.ListCountryCurrencies)
+		adminRoutes.GET("/:id/currency", m.countryCurrencyHandler.ListCountryCurrencies)
 
-		// POST /api/user/admin/country/:countryId/currency - Add currency to country
+		// POST /api/user/admin/country/:id/currency - Add currency to country
 		// Request: CountryCurrencyCreateRequest
 		// Response: CountryCurrencySimpleResponse
-		adminRoutes.POST("/:countryId/currency", m.countryCurrencyHandler.AddCurrencyToCountry)
+		adminRoutes.POST("/:id/currency", m.countryCurrencyHandler.AddCurrencyToCountry)
 
-		// POST /api/user/admin/country/:countryId/currency/bulk - Add multiple currencies to country
+		// POST /api/user/admin/country/:id/currency/bulk - Add multiple currencies to country
 		// Request: CountryCurrencyBulkRequest
 		// Response: []CountryCurrencySimpleResponse
-		adminRoutes.POST("/:countryId/currency/bulk", m.countryCurrencyHandler.BulkAddCurrenciesToCountry)
+		adminRoutes.POST("/:id/currency/bulk", m.countryCurrencyHandler.BulkAddCurrenciesToCountry)
 
-		// PUT /api/user/admin/country/:countryId/currency/:currencyId - Update mapping (set primary)
+		// PUT /api/user/admin/country/:id/currency/:currencyId - Update mapping (set primary)
 		// Request: CountryCurrencyUpdateRequest
 		// Response: CountryCurrencySimpleResponse
-		adminRoutes.PUT("/:countryId/currency/:currencyId", m.countryCurrencyHandler.UpdateCountryCurrency)
+		adminRoutes.PUT("/:id/currency/:currencyId", m.countryCurrencyHandler.UpdateCountryCurrency)
 
-		// DELETE /api/user/admin/country/:countryId/currency/:currencyId - Remove currency from country
+		// DELETE /api/user/admin/country/:id/currency/:currencyId - Remove currency from country
 		// Response: { "message": "Currency removed from country" }
-		adminRoutes.DELETE("/:countryId/currency/:currencyId", m.countryCurrencyHandler.RemoveCurrencyFromCountry)
+		adminRoutes.DELETE("/:id/currency/:currencyId", m.countryCurrencyHandler.RemoveCurrencyFromCountry)
 	}
 }

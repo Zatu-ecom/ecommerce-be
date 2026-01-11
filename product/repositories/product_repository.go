@@ -22,7 +22,11 @@ type ProductRepository interface {
 	Update(ctx context.Context, product *entity.Product) error
 	FindByID(ctx context.Context, id uint) (*entity.Product, error)
 	// FindBySKU removed - BaseSKU validation no longer required
-	FindAll(ctx context.Context, filter model.GetProductsFilter, page, limit int) ([]entity.Product, int64, error)
+	FindAll(
+		ctx context.Context,
+		filter model.GetProductsFilter,
+		page, limit int,
+	) ([]entity.Product, int64, error)
 	Search(
 		ctx context.Context,
 		query string,
@@ -46,7 +50,10 @@ type ProductRepository interface {
 		offset int,
 		strategies string,
 	) ([]mapper.RelatedProductScored, int64, error)
-	FindPackageOptionByProductID(ctx context.Context, productID uint) ([]entity.PackageOption, error)
+	FindPackageOptionByProductID(
+		ctx context.Context,
+		productID uint,
+	) ([]entity.PackageOption, error)
 	CreatePackageOptions(ctx context.Context, option []entity.PackageOption) error
 	UpdatePackageOptions(ctx context.Context, option []entity.PackageOption) error
 	GetProductFilters(ctx context.Context, sellerID *uint) (
@@ -64,13 +71,11 @@ type ProductRepository interface {
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
-type ProductRepositoryImpl struct {
-	db *gorm.DB
-}
+type ProductRepositoryImpl struct{}
 
 // NewProductRepository creates a new instance of ProductRepository
-func NewProductRepository(db *gorm.DB) ProductRepository {
-	return &ProductRepositoryImpl{db: db}
+func NewProductRepository() ProductRepository {
+	return &ProductRepositoryImpl{}
 }
 
 // Create creates a new product
@@ -312,7 +317,8 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	}
 
 	// Call stored procedure for related products using query constants
-	err := db.DB(ctx).Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
+	err := db.DB(ctx).
+		Raw(productQuery.FIND_RELATED_PRODUCTS_SCORED_QUERY, productID, sellerParam, limit, offset, strategies).
 		Scan(&results).
 		Error
 	if err != nil {
@@ -321,7 +327,8 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 
 	// Get total count for pagination
 	var totalCount int64
-	err = db.DB(ctx).Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
+	err = db.DB(ctx).
+		Raw(productQuery.FIND_RELATED_PRODUCTS_COUNT_QUERY, productID, sellerParam, strategies).
 		Scan(&totalCount).
 		Error
 	if err != nil {
@@ -343,11 +350,17 @@ func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
 	return packageOptions, nil
 }
 
-func (r *ProductRepositoryImpl) CreatePackageOptions(ctx context.Context, options []entity.PackageOption) error {
+func (r *ProductRepositoryImpl) CreatePackageOptions(
+	ctx context.Context,
+	options []entity.PackageOption,
+) error {
 	return db.DB(ctx).Create(options).Error
 }
 
-func (r *ProductRepositoryImpl) UpdatePackageOptions(ctx context.Context, options []entity.PackageOption) error {
+func (r *ProductRepositoryImpl) UpdatePackageOptions(
+	ctx context.Context,
+	options []entity.PackageOption,
+) error {
 	return db.DB(ctx).Save(options).Error
 }
 
@@ -482,6 +495,9 @@ func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID 
  ***********************************************/
 
 // DeletePackageOptionsByProductID deletes all package options for a given product
-func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(ctx context.Context, productID uint) error {
+func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(
+	ctx context.Context,
+	productID uint,
+) error {
 	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
 }

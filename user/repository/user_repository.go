@@ -82,7 +82,10 @@ func (r *UserRepositoryImpl) Delete(ctx context.Context, id uint) error {
 }
 
 // FindByEmailWithRole finds a user by email and includes role information
-func (r *UserRepositoryImpl) FindByEmailWithRole(ctx context.Context, email string) (*entity.User, *entity.Role, error) {
+func (r *UserRepositoryImpl) FindByEmailWithRole(
+	ctx context.Context,
+	email string,
+) (*entity.User, *entity.Role, error) {
 	var user entity.User
 	var role entity.Role
 
@@ -108,7 +111,10 @@ func (r *UserRepositoryImpl) FindByEmailWithRole(ctx context.Context, email stri
 }
 
 // FindByIDWithRole finds a user by ID and includes role information
-func (r *UserRepositoryImpl) FindByIDWithRole(ctx context.Context, id uint) (*entity.User, *entity.Role, error) {
+func (r *UserRepositoryImpl) FindByIDWithRole(
+	ctx context.Context,
+	id uint,
+) (*entity.User, *entity.Role, error) {
 	var user entity.User
 	var role entity.Role
 
@@ -134,7 +140,10 @@ func (r *UserRepositoryImpl) FindByIDWithRole(ctx context.Context, id uint) (*en
 }
 
 // FindRoleByName finds a role by its name
-func (r *UserRepositoryImpl) FindRoleByName(ctx context.Context, name string) (*entity.Role, error) {
+func (r *UserRepositoryImpl) FindRoleByName(
+	ctx context.Context,
+	name string,
+) (*entity.Role, error) {
 	var role entity.Role
 	result := db.DB(ctx).Where("name = ?", name).First(&role)
 	if result.Error != nil {
@@ -147,7 +156,10 @@ func (r *UserRepositoryImpl) FindRoleByName(ctx context.Context, name string) (*
 }
 
 // FindRolesByIDs finds roles by multiple IDs
-func (r *UserRepositoryImpl) FindRolesByIDs(ctx context.Context, ids []uint) ([]entity.Role, error) {
+func (r *UserRepositoryImpl) FindRolesByIDs(
+	ctx context.Context,
+	ids []uint,
+) ([]entity.Role, error) {
 	if len(ids) == 0 {
 		return []entity.Role{}, nil
 	}

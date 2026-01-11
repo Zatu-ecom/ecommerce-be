@@ -29,13 +29,11 @@ type ProductAttributeRepository interface {
 }
 
 // ProductAttributeRepositoryImpl implements the ProductAttributeRepository interface
-type ProductAttributeRepositoryImpl struct {
-	db *gorm.DB
-}
+type ProductAttributeRepositoryImpl struct{}
 
 // NewProductAttributeRepository creates a new instance of ProductAttributeRepository
-func NewProductAttributeRepository(db *gorm.DB) ProductAttributeRepository {
-	return &ProductAttributeRepositoryImpl{db: db}
+func NewProductAttributeRepository() ProductAttributeRepository {
+	return &ProductAttributeRepositoryImpl{}
 }
 
 // Create creates a new product attribute

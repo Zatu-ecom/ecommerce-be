@@ -25,12 +25,18 @@ func NewSellerProfileRepository() SellerProfileRepository {
 }
 
 // Create creates a new seller profile in the database
-func (r *SellerProfileRepositoryImpl) Create(ctx context.Context, profile *entity.SellerProfile) error {
+func (r *SellerProfileRepositoryImpl) Create(
+	ctx context.Context,
+	profile *entity.SellerProfile,
+) error {
 	return db.DB(ctx).Create(profile).Error
 }
 
 // FindByUserID retrieves a seller profile by user ID
-func (r *SellerProfileRepositoryImpl) FindByUserID(ctx context.Context, userID uint) (*entity.SellerProfile, error) {
+func (r *SellerProfileRepositoryImpl) FindByUserID(
+	ctx context.Context,
+	userID uint,
+) (*entity.SellerProfile, error) {
 	var profile entity.SellerProfile
 	err := db.DB(ctx).Where("user_id = ?", userID).First(&profile).Error
 	if err != nil {
@@ -40,12 +46,18 @@ func (r *SellerProfileRepositoryImpl) FindByUserID(ctx context.Context, userID u
 }
 
 // Update updates an existing seller profile
-func (r *SellerProfileRepositoryImpl) Update(ctx context.Context, profile *entity.SellerProfile) error {
+func (r *SellerProfileRepositoryImpl) Update(
+	ctx context.Context,
+	profile *entity.SellerProfile,
+) error {
 	return db.DB(ctx).Save(profile).Error
 }
 
 // ExistsByTaxID checks if a seller profile exists with the given tax ID
-func (r *SellerProfileRepositoryImpl) ExistsByTaxID(ctx context.Context, taxID string) (bool, error) {
+func (r *SellerProfileRepositoryImpl) ExistsByTaxID(
+	ctx context.Context,
+	taxID string,
+) (bool, error) {
 	if taxID == "" {
 		return false, nil
 	}
@@ -57,7 +69,11 @@ func (r *SellerProfileRepositoryImpl) ExistsByTaxID(ctx context.Context, taxID s
 }
 
 // ExistsByTaxIDExcluding checks if a seller profile exists with the given tax ID, excluding a specific user
-func (r *SellerProfileRepositoryImpl) ExistsByTaxIDExcluding(ctx context.Context, taxID string, excludeUserID uint) (bool, error) {
+func (r *SellerProfileRepositoryImpl) ExistsByTaxIDExcluding(
+	ctx context.Context,
+	taxID string,
+	excludeUserID uint,
+) (bool, error) {
 	if taxID == "" {
 		return false, nil
 	}

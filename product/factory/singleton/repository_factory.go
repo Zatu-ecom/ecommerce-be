@@ -1,9 +1,9 @@
 package singleton
 
 import (
-	"ecommerce-be/common/db"
-	"ecommerce-be/product/repositories"
 	"sync"
+
+	"ecommerce-be/product/repositories"
 )
 
 // RepositoryFactory manages all repository singleton instances
@@ -29,13 +29,12 @@ func NewRepositoryFactory() *RepositoryFactory {
 // Uses db.GetDB() to fetch current database connection dynamically
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
-		currentDB := db.GetDB()
-		f.categoryRepo = repositories.NewCategoryRepository(currentDB)
-		f.attributeRepo = repositories.NewAttributeDefinitionRepository(currentDB)
-		f.productRepo = repositories.NewProductRepository(currentDB)
-		f.variantRepo = repositories.NewVariantRepository(currentDB)
-		f.optionRepo = repositories.NewProductOptionRepository(currentDB)
-		f.productAttrRepo = repositories.NewProductAttributeRepository(currentDB)
+		f.categoryRepo = repositories.NewCategoryRepository()
+		f.attributeRepo = repositories.NewAttributeDefinitionRepository()
+		f.productRepo = repositories.NewProductRepository()
+		f.variantRepo = repositories.NewVariantRepository()
+		f.optionRepo = repositories.NewProductOptionRepository()
+		f.productAttrRepo = repositories.NewProductAttributeRepository()
 	})
 }
 

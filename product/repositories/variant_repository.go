@@ -19,7 +19,10 @@ import (
 // VariantRepository defines the interface for variant-related database operations
 type VariantRepository interface {
 	FindVariantByID(ctx context.Context, variantID uint) (*entity.ProductVariant, error)
-	FindVariantByProductIDAndVariantID(ctx context.Context, productID, variantID uint) (*entity.ProductVariant, error)
+	FindVariantByProductIDAndVariantID(
+		ctx context.Context,
+		productID, variantID uint,
+	) (*entity.ProductVariant, error)
 	FindVariantByOptions(
 		ctx context.Context,
 		productID uint,
@@ -28,7 +31,10 @@ type VariantRepository interface {
 	GetVariantOptionValues(ctx context.Context, variantID uint) ([]entity.VariantOptionValue, error)
 	CreateVariant(ctx context.Context, variant *entity.ProductVariant) error
 	BulkCreateVariants(ctx context.Context, variants []*entity.ProductVariant) error
-	CreateVariantOptionValues(ctx context.Context, variantOptionValues []entity.VariantOptionValue) error
+	CreateVariantOptionValues(
+		ctx context.Context,
+		variantOptionValues []entity.VariantOptionValue,
+	) error
 	UpdateVariant(ctx context.Context, variant *entity.ProductVariant) error
 	DeleteVariant(ctx context.Context, variantID uint) error
 	CountVariantsByProductID(ctx context.Context, productID uint) (int64, error)
@@ -36,9 +42,18 @@ type VariantRepository interface {
 	FindVariantsByIDs(ctx context.Context, variantIDs []uint) ([]entity.ProductVariant, error)
 	BulkUpdateVariants(ctx context.Context, variants []*entity.ProductVariant) error
 	UnsetAllDefaultVariantsForProduct(ctx context.Context, productID uint) error
-	GetProductVariantAggregation(ctx context.Context, productID uint) (*mapper.VariantAggregation, error)
-	GetProductsVariantAggregations(ctx context.Context, productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
-	GetProductVariantsWithOptions(ctx context.Context, productID uint) ([]mapper.VariantWithOptions, error)
+	GetProductVariantAggregation(
+		ctx context.Context,
+		productID uint,
+	) (*mapper.VariantAggregation, error)
+	GetProductsVariantAggregations(
+		ctx context.Context,
+		productIDs []uint,
+	) (map[uint]*mapper.VariantAggregation, error)
+	GetProductVariantsWithOptions(
+		ctx context.Context,
+		productID uint,
+	) ([]mapper.VariantWithOptions, error)
 	FindVariantsByProductID(ctx context.Context, productID uint) ([]entity.ProductVariant, error)
 	DeleteVariantsByProductID(ctx context.Context, productID uint) error
 	DeleteVariantOptionValuesByVariantIDs(ctx context.Context, variantIDs []uint) error
@@ -48,22 +63,31 @@ type VariantRepository interface {
 		sellerID *uint,
 		optionFilters map[string]string,
 	) ([]mapper.VariantWithOptions, int64, error)
-	GetProductCountByVariantIDs(ctx context.Context, variantIDs []uint, sellerID *uint) (uint, error)
-	GetProductBasicInfoByVariantIDs(ctx context.Context, variantIDs []uint, sellerID *uint) ([]mapper.VariantBasicInfoRow, error)
+	GetProductCountByVariantIDs(
+		ctx context.Context,
+		variantIDs []uint,
+		sellerID *uint,
+	) (uint, error)
+	GetProductBasicInfoByVariantIDs(
+		ctx context.Context,
+		variantIDs []uint,
+		sellerID *uint,
+	) ([]mapper.VariantBasicInfoRow, error)
 }
 
 // VariantRepositoryImpl implements the VariantRepository interface
-type VariantRepositoryImpl struct {
-	db *gorm.DB
-}
+type VariantRepositoryImpl struct{}
 
 // NewVariantRepository creates a new instance of VariantRepository
-func NewVariantRepository(db *gorm.DB) VariantRepository {
-	return &VariantRepositoryImpl{db: db}
+func NewVariantRepository() VariantRepository {
+	return &VariantRepositoryImpl{}
 }
 
 // FindVariantByID retrieves a variant by its ID
-func (r *VariantRepositoryImpl) FindVariantByID(ctx context.Context, variantID uint) (*entity.ProductVariant, error) {
+func (r *VariantRepositoryImpl) FindVariantByID(
+	ctx context.Context,
+	variantID uint,
+) (*entity.ProductVariant, error) {
 	var variant entity.ProductVariant
 	result := db.DB(ctx).Where("id = ?", variantID).First(&variant)
 
@@ -190,13 +214,19 @@ func (r *VariantRepositoryImpl) GetVariantOptionValues(
 }
 
 // CreateVariant creates a new variant for a product
-func (r *VariantRepositoryImpl) CreateVariant(ctx context.Context, variant *entity.ProductVariant) error {
+func (r *VariantRepositoryImpl) CreateVariant(
+	ctx context.Context,
+	variant *entity.ProductVariant,
+) error {
 	return db.DB(ctx).Create(variant).Error
 }
 
 // BulkCreateVariants creates multiple variants in a single INSERT query
 // Uses RETURNING clause to get generated IDs efficiently
-func (r *VariantRepositoryImpl) BulkCreateVariants(ctx context.Context, variants []*entity.ProductVariant) error {
+func (r *VariantRepositoryImpl) BulkCreateVariants(
+	ctx context.Context,
+	variants []*entity.ProductVariant,
+) error {
 	if len(variants) == 0 {
 		return nil
 	}
@@ -216,7 +246,10 @@ func (r *VariantRepositoryImpl) CreateVariantOptionValues(
 }
 
 // UpdateVariant updates an existing variant
-func (r *VariantRepositoryImpl) UpdateVariant(ctx context.Context, variant *entity.ProductVariant) error {
+func (r *VariantRepositoryImpl) UpdateVariant(
+	ctx context.Context,
+	variant *entity.ProductVariant,
+) error {
 	return db.DB(ctx).Save(variant).Error
 }
 
@@ -226,7 +259,10 @@ func (r *VariantRepositoryImpl) DeleteVariant(ctx context.Context, variantID uin
 }
 
 // CountVariantsByProductID counts the number of variants for a product
-func (r *VariantRepositoryImpl) CountVariantsByProductID(ctx context.Context, productID uint) (int64, error) {
+func (r *VariantRepositoryImpl) CountVariantsByProductID(
+	ctx context.Context,
+	productID uint,
+) (int64, error) {
 	var count int64
 	err := db.DB(ctx).Model(&entity.ProductVariant{}).
 		Where("product_id = ?", productID).
@@ -235,7 +271,10 @@ func (r *VariantRepositoryImpl) CountVariantsByProductID(ctx context.Context, pr
 }
 
 // DeleteVariantOptionValues deletes all option values for a variant
-func (r *VariantRepositoryImpl) DeleteVariantOptionValues(ctx context.Context, variantID uint) error {
+func (r *VariantRepositoryImpl) DeleteVariantOptionValues(
+	ctx context.Context,
+	variantID uint,
+) error {
 	return db.DB(ctx).Where("variant_id = ?", variantID).
 		Delete(&entity.VariantOptionValue{}).Error
 }
@@ -254,7 +293,10 @@ func (r *VariantRepositoryImpl) FindVariantsByIDs(
 }
 
 // BulkUpdateVariants updates multiple variants in a transaction
-func (r *VariantRepositoryImpl) BulkUpdateVariants(ctx context.Context, variants []*entity.ProductVariant) error {
+func (r *VariantRepositoryImpl) BulkUpdateVariants(
+	ctx context.Context,
+	variants []*entity.ProductVariant,
+) error {
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, variant := range variants {
 			if err := tx.Save(variant).Error; err != nil {
@@ -267,7 +309,10 @@ func (r *VariantRepositoryImpl) BulkUpdateVariants(ctx context.Context, variants
 
 // UnsetAllDefaultVariantsForProduct sets is_default=false for all variants of a product
 // This is used to enforce "only one default variant per product" constraint
-func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(ctx context.Context, productID uint) error {
+func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(
+	ctx context.Context,
+	productID uint,
+) error {
 	return db.DB(ctx).Model(&entity.ProductVariant{}).
 		Where("product_id = ? AND is_default = ?", productID, true).
 		Update("is_default", false).Error
@@ -565,7 +610,7 @@ func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(
 	}
 
 	var optionData []mapper.OptionValueData
-	err := r.db.Table("variant_option_value AS vov").
+	err := db.DB(ctx).Table("variant_option_value AS vov").
 		Select(`
 			vov.variant_id,
 			po.id AS option_id,
@@ -625,16 +670,25 @@ func (r *VariantRepositoryImpl) FindVariantsByProductID(
 }
 
 // DeleteVariantsByProductID deletes all variants for a product
-func (r *VariantRepositoryImpl) DeleteVariantsByProductID(ctx context.Context, productID uint) error {
+func (r *VariantRepositoryImpl) DeleteVariantsByProductID(
+	ctx context.Context,
+	productID uint,
+) error {
 	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.ProductVariant{}).Error
 }
 
 // DeleteVariantOptionValuesByVariantIDs deletes all variant option values for given variant IDs
-func (r *VariantRepositoryImpl) DeleteVariantOptionValuesByVariantIDs(ctx context.Context, variantIDs []uint) error {
+func (r *VariantRepositoryImpl) DeleteVariantOptionValuesByVariantIDs(
+	ctx context.Context,
+	variantIDs []uint,
+) error {
 	if len(variantIDs) == 0 {
 		return nil
 	}
-	return db.DB(ctx).Where("variant_id IN ?", variantIDs).Delete(&entity.VariantOptionValue{}).Error
+	return db.DB(ctx).
+		Where("variant_id IN ?", variantIDs).
+		Delete(&entity.VariantOptionValue{}).
+		Error
 }
 
 // ListVariantsWithFilters retrieves variants with comprehensive filtering and pagination

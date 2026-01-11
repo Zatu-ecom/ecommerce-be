@@ -279,7 +279,8 @@ run_seed_directory() {
             local error_file=$(mktemp)
             
             # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
-            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+            # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
                 local end_time=$(date +%s%3N)
                 local execution_time=$((end_time - start_time))
                 
@@ -411,7 +412,8 @@ run_seeds_legacy() {
             local start_time=$(date +%s%3N)
             local error_file=$(mktemp)
             
-            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+            # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
                 local end_time=$(date +%s%3N)
                 local execution_time=$((end_time - start_time))
                 print_success "Completed: $file (${execution_time}ms)"
@@ -526,7 +528,8 @@ run_seeds_force() {
         local error_file=$(mktemp)
         
         # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
-        if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+        # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+        if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
             local end_time=$(date +%s%3N)
             local execution_time=$((end_time - start_time))
             

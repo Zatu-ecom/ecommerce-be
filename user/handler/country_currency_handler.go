@@ -18,7 +18,9 @@ type CountryCurrencyHandler struct {
 }
 
 // NewCountryCurrencyHandler creates a new instance of CountryCurrencyHandler
-func NewCountryCurrencyHandler(countryCurrencyService service.CountryCurrencyService) *CountryCurrencyHandler {
+func NewCountryCurrencyHandler(
+	countryCurrencyService service.CountryCurrencyService,
+) *CountryCurrencyHandler {
 	return &CountryCurrencyHandler{
 		BaseHandler:            handler.NewBaseHandler(),
 		countryCurrencyService: countryCurrencyService,
@@ -26,9 +28,9 @@ func NewCountryCurrencyHandler(countryCurrencyService service.CountryCurrencySer
 }
 
 // ListCountryCurrencies handles listing all currencies for a country
-// GET /api/user/admin/country/:countryId/currency
+// GET /api/user/admin/country/:id/currency
 func (h *CountryCurrencyHandler) ListCountryCurrencies(c *gin.Context) {
-	countryID, err := h.ParseUintParam(c, "countryId")
+	countryID, err := h.ParseUintParam(c, "id")
 	if err != nil {
 		h.HandleError(c, err, constant.INVALID_COUNTRY_ID_MSG)
 		return
@@ -44,9 +46,9 @@ func (h *CountryCurrencyHandler) ListCountryCurrencies(c *gin.Context) {
 }
 
 // AddCurrencyToCountry handles adding a currency to a country
-// POST /api/user/admin/country/:countryId/currency
+// POST /api/user/admin/country/:id/currency
 func (h *CountryCurrencyHandler) AddCurrencyToCountry(c *gin.Context) {
-	countryID, err := h.ParseUintParam(c, "countryId")
+	countryID, err := h.ParseUintParam(c, "id")
 	if err != nil {
 		h.HandleError(c, err, constant.INVALID_COUNTRY_ID_MSG)
 		return
@@ -68,9 +70,9 @@ func (h *CountryCurrencyHandler) AddCurrencyToCountry(c *gin.Context) {
 }
 
 // BulkAddCurrenciesToCountry handles adding multiple currencies to a country
-// POST /api/user/admin/country/:countryId/currency/bulk
+// POST /api/user/admin/country/:id/currency/bulk
 func (h *CountryCurrencyHandler) BulkAddCurrenciesToCountry(c *gin.Context) {
-	countryID, err := h.ParseUintParam(c, "countryId")
+	countryID, err := h.ParseUintParam(c, "id")
 	if err != nil {
 		h.HandleError(c, err, constant.INVALID_COUNTRY_ID_MSG)
 		return
@@ -92,9 +94,9 @@ func (h *CountryCurrencyHandler) BulkAddCurrenciesToCountry(c *gin.Context) {
 }
 
 // UpdateCountryCurrency handles updating a country-currency mapping (e.g., set as primary)
-// PUT /api/user/admin/country/:countryId/currency/:currencyId
+// PUT /api/user/admin/country/:id/currency/:currencyId
 func (h *CountryCurrencyHandler) UpdateCountryCurrency(c *gin.Context) {
-	countryID, err := h.ParseUintParam(c, "countryId")
+	countryID, err := h.ParseUintParam(c, "id")
 	if err != nil {
 		h.HandleError(c, err, constant.INVALID_COUNTRY_ID_MSG)
 		return
@@ -122,9 +124,9 @@ func (h *CountryCurrencyHandler) UpdateCountryCurrency(c *gin.Context) {
 }
 
 // RemoveCurrencyFromCountry handles removing a currency from a country
-// DELETE /api/user/admin/country/:countryId/currency/:currencyId
+// DELETE /api/user/admin/country/:id/currency/:currencyId
 func (h *CountryCurrencyHandler) RemoveCurrencyFromCountry(c *gin.Context) {
-	countryID, err := h.ParseUintParam(c, "countryId")
+	countryID, err := h.ParseUintParam(c, "id")
 	if err != nil {
 		h.HandleError(c, err, constant.INVALID_COUNTRY_ID_MSG)
 		return

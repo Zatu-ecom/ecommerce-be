@@ -22,29 +22,35 @@ type AttributeDefinitionRepository interface {
 	Update(ctx context.Context, attribute *entity.AttributeDefinition) error
 	UpdateBulk(ctx context.Context, attributes []*entity.AttributeDefinition) error
 	Delete(ctx context.Context, id uint) error
-	CreateCategoryAttributeDefinition(ctx context.Context, attribute *entity.AttributeDefinition, categoryID uint) error
+	CreateCategoryAttributeDefinition(
+		ctx context.Context,
+		attribute *entity.AttributeDefinition,
+		categoryID uint,
+	) error
 	CreateProductAttribute(ctx context.Context, attribute *entity.ProductAttribute) error
 	CreateProductAttributesBulk(ctx context.Context, attributes []*entity.ProductAttribute) error
-	FindProductAttributeByProductID(ctx context.Context, productID uint) ([]entity.ProductAttribute, error)
+	FindProductAttributeByProductID(
+		ctx context.Context,
+		productID uint,
+	) ([]entity.ProductAttribute, error)
 
 	// Bulk deletion methods for product cleanup
 	DeleteProductAttributesByProductID(ctx context.Context, productID uint) error
 }
 
 // AttributeDefinitionRepositoryImpl implements the AttributeDefinitionRepository interface
-type AttributeDefinitionRepositoryImpl struct {
-	db *gorm.DB
-}
+type AttributeDefinitionRepositoryImpl struct{}
 
 // NewAttributeDefinitionRepository creates a new instance of AttributeDefinitionRepository
-func NewAttributeDefinitionRepository(db *gorm.DB) AttributeDefinitionRepository {
-	return &AttributeDefinitionRepositoryImpl{
-		db: db,
-	}
+func NewAttributeDefinitionRepository() AttributeDefinitionRepository {
+	return &AttributeDefinitionRepositoryImpl{}
 }
 
 // Create creates a new attribute definition in the database
-func (r *AttributeDefinitionRepositoryImpl) Create(ctx context.Context, attribute *entity.AttributeDefinition) error {
+func (r *AttributeDefinitionRepositoryImpl) Create(
+	ctx context.Context,
+	attribute *entity.AttributeDefinition,
+) error {
 	return db.DB(ctx).Create(attribute).Error
 }
 
@@ -60,7 +66,10 @@ func (r *AttributeDefinitionRepositoryImpl) CreateBulk(
 }
 
 // FindByID finds an attribute definition by ID
-func (r *AttributeDefinitionRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindByID(
+	ctx context.Context,
+	id uint,
+) (*entity.AttributeDefinition, error) {
 	var attribute entity.AttributeDefinition
 	result := db.DB(ctx).First(&attribute, id)
 	if result.Error != nil {
@@ -113,7 +122,9 @@ func (r *AttributeDefinitionRepositoryImpl) FindByKeys(
 }
 
 // FindAll finds all active attribute definitions
-func (r *AttributeDefinitionRepositoryImpl) FindAll(ctx context.Context) ([]entity.AttributeDefinition, error) {
+func (r *AttributeDefinitionRepositoryImpl) FindAll(
+	ctx context.Context,
+) ([]entity.AttributeDefinition, error) {
 	var attributes []entity.AttributeDefinition
 	result := db.DB(ctx).Order("name ASC").Find(&attributes)
 	if result.Error != nil {
@@ -123,7 +134,10 @@ func (r *AttributeDefinitionRepositoryImpl) FindAll(ctx context.Context) ([]enti
 }
 
 // Update updates an existing attribute definition
-func (r *AttributeDefinitionRepositoryImpl) Update(ctx context.Context, attribute *entity.AttributeDefinition) error {
+func (r *AttributeDefinitionRepositoryImpl) Update(
+	ctx context.Context,
+	attribute *entity.AttributeDefinition,
+) error {
 	return db.DB(ctx).Save(attribute).Error
 }
 

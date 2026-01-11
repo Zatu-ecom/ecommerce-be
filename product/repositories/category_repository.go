@@ -25,20 +25,25 @@ type CategoryRepository interface {
 	CheckHasProducts(ctx context.Context, id uint) (bool, error)
 	CheckHasChildren(ctx context.Context, id uint) (bool, error)
 	Exists(ctx context.Context, id uint) error
-	FindAttributesByCategoryIDWithInheritance(ctx context.Context, catagoryID uint) ([]entity.AttributeDefinition, error)
+	FindAttributesByCategoryIDWithInheritance(
+		ctx context.Context,
+		catagoryID uint,
+	) ([]entity.AttributeDefinition, error)
 	LinkAttribute(ctx context.Context, categoryAttribute *entity.CategoryAttribute) error
 	UnlinkAttribute(ctx context.Context, categoryID uint, attributeID uint) error
-	CheckAttributeLinked(ctx context.Context, categoryID uint, attributeID uint) (*entity.CategoryAttribute, error)
+	CheckAttributeLinked(
+		ctx context.Context,
+		categoryID uint,
+		attributeID uint,
+	) (*entity.CategoryAttribute, error)
 }
 
 // CategoryRepositoryImpl implements the CategoryRepository interface
-type CategoryRepositoryImpl struct {
-	db *gorm.DB
-}
+type CategoryRepositoryImpl struct{}
 
 // NewCategoryRepository creates a new instance of CategoryRepository
-func NewCategoryRepository(db *gorm.DB) CategoryRepository {
-	return &CategoryRepositoryImpl{db: db}
+func NewCategoryRepository() CategoryRepository {
+	return &CategoryRepositoryImpl{}
 }
 
 // Create creates a new category
@@ -100,7 +105,10 @@ func (r *CategoryRepositoryImpl) FindByNameAndParent(
 // FindAllHierarchical finds all categories with hierarchical structure
 // Multi-tenant: Returns global categories + seller-specific categories
 // If sellerID is nil (admin), returns all categories
-func (r *CategoryRepositoryImpl) FindAllHierarchical(ctx context.Context, sellerID *uint) ([]entity.Category, error) {
+func (r *CategoryRepositoryImpl) FindAllHierarchical(
+	ctx context.Context,
+	sellerID *uint,
+) ([]entity.Category, error) {
 	var categories []entity.Category
 	q := db.DB(ctx).Model(&entity.Category{})
 
@@ -189,7 +197,8 @@ func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(
 	catagoryID uint,
 ) ([]entity.AttributeDefinition, error) {
 	var attributes []entity.AttributeDefinition
-	result := db.DB(ctx).Raw(query.FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY, catagoryID).
+	result := db.DB(ctx).
+		Raw(query.FIND_ATTRIBUTES_BY_CATEGORY_ID_WITH_INHERITANCE_QUERY, catagoryID).
 		Scan(&attributes)
 	if result.Error != nil {
 		return nil, result.Error
@@ -199,7 +208,10 @@ func (r *CategoryRepositoryImpl) FindAttributesByCategoryIDWithInheritance(
 }
 
 // LinkAttribute creates a link between a category and an attribute
-func (r *CategoryRepositoryImpl) LinkAttribute(ctx context.Context, categoryAttribute *entity.CategoryAttribute) error {
+func (r *CategoryRepositoryImpl) LinkAttribute(
+	ctx context.Context,
+	categoryAttribute *entity.CategoryAttribute,
+) error {
 	result := db.DB(ctx).Create(categoryAttribute)
 	if result.Error != nil {
 		return result.Error
@@ -208,8 +220,13 @@ func (r *CategoryRepositoryImpl) LinkAttribute(ctx context.Context, categoryAttr
 }
 
 // UnlinkAttribute removes the link between a category and an attribute
-func (r *CategoryRepositoryImpl) UnlinkAttribute(ctx context.Context, categoryID uint, attributeID uint) error {
-	result := db.DB(ctx).Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
+func (r *CategoryRepositoryImpl) UnlinkAttribute(
+	ctx context.Context,
+	categoryID uint,
+	attributeID uint,
+) error {
+	result := db.DB(ctx).
+		Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
 		Delete(&entity.CategoryAttribute{})
 	if result.Error != nil {
 		return result.Error
@@ -227,7 +244,8 @@ func (r *CategoryRepositoryImpl) CheckAttributeLinked(
 	attributeID uint,
 ) (*entity.CategoryAttribute, error) {
 	var categoryAttribute entity.CategoryAttribute
-	result := db.DB(ctx).Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
+	result := db.DB(ctx).
+		Where("category_id = ? AND attribute_definition_id = ?", categoryID, attributeID).
 		First(&categoryAttribute)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {

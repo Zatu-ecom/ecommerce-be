@@ -18,9 +18,16 @@ type ProductOptionRepository interface {
 	BulkCreateOptions(ctx context.Context, options []*entity.ProductOption) error
 	UpdateOption(ctx context.Context, option *entity.ProductOption) error
 	FindOptionByID(ctx context.Context, id uint) (*entity.ProductOption, error)
-	FindOptionByName(ctx context.Context, productID uint, optionName string) (*entity.ProductOption, error)
+	FindOptionByName(
+		ctx context.Context,
+		productID uint,
+		optionName string,
+	) (*entity.ProductOption, error)
 	FindOptionsByProductID(ctx context.Context, productID uint) ([]entity.ProductOption, error)
-	FindOptionsByProductIDs(ctx context.Context, productIDs []uint) (map[uint][]entity.ProductOption, error)
+	FindOptionsByProductIDs(
+		ctx context.Context,
+		productIDs []uint,
+	) (map[uint][]entity.ProductOption, error)
 	DeleteOption(ctx context.Context, id uint) error
 	CheckOptionInUse(ctx context.Context, optionID uint) (bool, []uint, error)
 	BulkUpdateOptions(ctx context.Context, options []*entity.ProductOption) error
@@ -31,27 +38,35 @@ type ProductOptionRepository interface {
 	BulkCreateOptionValues(ctx context.Context, values []*entity.ProductOptionValue) error
 	UpdateOptionValue(ctx context.Context, value *entity.ProductOptionValue) error
 	FindOptionValueByID(ctx context.Context, id uint) (*entity.ProductOptionValue, error)
-	FindOptionValueByValue(ctx context.Context, optionID uint, value string) (*entity.ProductOptionValue, error)
-	FindOptionValuesByOptionID(ctx context.Context, optionID uint) ([]entity.ProductOptionValue, error)
+	FindOptionValueByValue(
+		ctx context.Context,
+		optionID uint,
+		value string,
+	) (*entity.ProductOptionValue, error)
+	FindOptionValuesByOptionID(
+		ctx context.Context,
+		optionID uint,
+	) ([]entity.ProductOptionValue, error)
 	DeleteOptionValue(ctx context.Context, id uint) error
 	CheckOptionValueInUse(ctx context.Context, valueID uint) (bool, []uint, error)
 	BulkUpdateOptionValues(ctx context.Context, values []*entity.ProductOptionValue) error
 
 	// Get options with variant counts
-	GetProductOptionsWithVariantCounts(ctx context.Context, productID uint) ([]entity.ProductOption, map[uint]int, error)
+	GetProductOptionsWithVariantCounts(
+		ctx context.Context,
+		productID uint,
+	) ([]entity.ProductOption, map[uint]int, error)
 
 	// Bulk deletion methods for product cleanup
 	DeleteOptionValuesByOptionID(ctx context.Context, optionID uint) error
 }
 
 // ProductOptionRepositoryImpl implements the ProductOptionRepository interface
-type ProductOptionRepositoryImpl struct {
-	db *gorm.DB
-}
+type ProductOptionRepositoryImpl struct{}
 
 // NewProductOptionRepository creates a new instance of ProductOptionRepository
-func NewProductOptionRepository(db *gorm.DB) ProductOptionRepository {
-	return &ProductOptionRepositoryImpl{db: db}
+func NewProductOptionRepository() ProductOptionRepository {
+	return &ProductOptionRepositoryImpl{}
 }
 
 /***********************************************
@@ -59,13 +74,19 @@ func NewProductOptionRepository(db *gorm.DB) ProductOptionRepository {
  ***********************************************/
 
 // CreateOption creates a new product option
-func (r *ProductOptionRepositoryImpl) CreateOption(ctx context.Context, option *entity.ProductOption) error {
+func (r *ProductOptionRepositoryImpl) CreateOption(
+	ctx context.Context,
+	option *entity.ProductOption,
+) error {
 	return db.DB(ctx).Create(option).Error
 }
 
 // BulkCreateOptions creates multiple product options in a single INSERT query
 // Uses RETURNING clause to get generated IDs efficiently
-func (r *ProductOptionRepositoryImpl) BulkCreateOptions(ctx context.Context, options []*entity.ProductOption) error {
+func (r *ProductOptionRepositoryImpl) BulkCreateOptions(
+	ctx context.Context,
+	options []*entity.ProductOption,
+) error {
 	if len(options) == 0 {
 		return nil
 	}
@@ -74,12 +95,18 @@ func (r *ProductOptionRepositoryImpl) BulkCreateOptions(ctx context.Context, opt
 }
 
 // UpdateOption updates an existing product option
-func (r *ProductOptionRepositoryImpl) UpdateOption(ctx context.Context, option *entity.ProductOption) error {
+func (r *ProductOptionRepositoryImpl) UpdateOption(
+	ctx context.Context,
+	option *entity.ProductOption,
+) error {
 	return db.DB(ctx).Save(option).Error
 }
 
 // FindOptionByID finds a product option by ID
-func (r *ProductOptionRepositoryImpl) FindOptionByID(ctx context.Context, id uint) (*entity.ProductOption, error) {
+func (r *ProductOptionRepositoryImpl) FindOptionByID(
+	ctx context.Context,
+	id uint,
+) (*entity.ProductOption, error) {
 	var option entity.ProductOption
 	err := db.DB(ctx).Preload("Values").First(&option, id).Error
 	if err != nil {
@@ -168,7 +195,10 @@ func (r *ProductOptionRepositoryImpl) DeleteOption(ctx context.Context, id uint)
 }
 
 // CheckOptionInUse checks if an option is being used by any variants
-func (r *ProductOptionRepositoryImpl) CheckOptionInUse(ctx context.Context, optionID uint) (bool, []uint, error) {
+func (r *ProductOptionRepositoryImpl) CheckOptionInUse(
+	ctx context.Context,
+	optionID uint,
+) (bool, []uint, error) {
 	var variantIDs []uint
 	err := db.DB(ctx).Model(&entity.VariantOptionValue{}).
 		Where("option_id = ?", optionID).
@@ -186,12 +216,18 @@ func (r *ProductOptionRepositoryImpl) CheckOptionInUse(ctx context.Context, opti
  ***********************************************/
 
 // CreateOptionValue creates a new product option value
-func (r *ProductOptionRepositoryImpl) CreateOptionValue(ctx context.Context, value *entity.ProductOptionValue) error {
+func (r *ProductOptionRepositoryImpl) CreateOptionValue(
+	ctx context.Context,
+	value *entity.ProductOptionValue,
+) error {
 	return db.DB(ctx).Create(value).Error
 }
 
 // CreateOptionValues creates multiple product option values
-func (r *ProductOptionRepositoryImpl) CreateOptionValues(ctx context.Context, values []entity.ProductOptionValue) error {
+func (r *ProductOptionRepositoryImpl) CreateOptionValues(
+	ctx context.Context,
+	values []entity.ProductOptionValue,
+) error {
 	if len(values) == 0 {
 		return nil
 	}
@@ -212,7 +248,10 @@ func (r *ProductOptionRepositoryImpl) BulkCreateOptionValues(
 }
 
 // UpdateOptionValue updates an existing product option value
-func (r *ProductOptionRepositoryImpl) UpdateOptionValue(ctx context.Context, value *entity.ProductOptionValue) error {
+func (r *ProductOptionRepositoryImpl) UpdateOptionValue(
+	ctx context.Context,
+	value *entity.ProductOptionValue,
+) error {
 	return db.DB(ctx).Save(value).Error
 }
 
@@ -278,7 +317,10 @@ func (r *ProductOptionRepositoryImpl) DeleteOptionValue(ctx context.Context, id 
 }
 
 // CheckOptionValueInUse checks if an option value is being used by any variants
-func (r *ProductOptionRepositoryImpl) CheckOptionValueInUse(ctx context.Context, valueID uint) (bool, []uint, error) {
+func (r *ProductOptionRepositoryImpl) CheckOptionValueInUse(
+	ctx context.Context,
+	valueID uint,
+) (bool, []uint, error) {
 	var variantIDs []uint
 	err := db.DB(ctx).Model(&entity.VariantOptionValue{}).
 		Where("option_value_id = ?", valueID).
@@ -335,7 +377,10 @@ func (r *ProductOptionRepositoryImpl) GetProductOptionsWithVariantCounts(
  ***********************************************/
 
 // DeleteOptionValuesByOptionID deletes all option values for a given option
-func (r *ProductOptionRepositoryImpl) DeleteOptionValuesByOptionID(ctx context.Context, optionID uint) error {
+func (r *ProductOptionRepositoryImpl) DeleteOptionValuesByOptionID(
+	ctx context.Context,
+	optionID uint,
+) error {
 	return db.DB(ctx).Where("option_id = ?", optionID).Delete(&entity.ProductOptionValue{}).Error
 }
 
@@ -344,7 +389,10 @@ func (r *ProductOptionRepositoryImpl) DeleteOptionValuesByOptionID(ctx context.C
  ***********************************************/
 
 // BulkUpdateOptions updates multiple options in a transaction
-func (r *ProductOptionRepositoryImpl) BulkUpdateOptions(ctx context.Context, options []*entity.ProductOption) error {
+func (r *ProductOptionRepositoryImpl) BulkUpdateOptions(
+	ctx context.Context,
+	options []*entity.ProductOption,
+) error {
 	if len(options) == 0 {
 		return nil
 	}

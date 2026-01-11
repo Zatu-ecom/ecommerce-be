@@ -39,7 +39,7 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 	}
 
 	// Get addresses
-	addresses, err := h.addressService.GetAddresses(userID.(uint))
+	addresses, err := h.addressService.GetAddresses(c, userID.(uint))
 	if err != nil {
 		common.ErrorResp(
 			c,
@@ -49,9 +49,14 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESSES_RETRIEVED_MSG, map[string]interface{}{
-		constant.ADDRESSES_FIELD_NAME: addresses,
-	})
+	common.SuccessResponse(
+		c,
+		http.StatusOK,
+		constant.ADDRESSES_RETRIEVED_MSG,
+		map[string]interface{}{
+			constant.ADDRESSES_FIELD_NAME: addresses,
+		},
+	)
 }
 
 // GetAddressByID handles retrieving a specific address by ID
@@ -81,10 +86,15 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	}
 
 	// Get address
-	address, err := h.addressService.GetAddressByID(addressID, userID.(uint))
+	address, err := h.addressService.GetAddressByID(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.ADDRESS_NOT_FOUND_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusNotFound,
+				err.Error(),
+				constant.ADDRESS_NOT_FOUND_CODE,
+			)
 			return
 		}
 		common.ErrorResp(
@@ -132,7 +142,7 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 	}
 
 	// Add address
-	address, err := h.addressService.AddAddress(userID.(uint), req)
+	address, err := h.addressService.AddAddress(c, userID.(uint), req)
 	if err != nil {
 		common.ErrorResp(
 			c,
@@ -142,9 +152,14 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusCreated, constant.ADDRESS_CREATED_MSG, map[string]interface{}{
-		constant.ADDRESS_FIELD_NAME: address,
-	})
+	common.SuccessResponse(
+		c,
+		http.StatusCreated,
+		constant.ADDRESS_CREATED_MSG,
+		map[string]interface{}{
+			constant.ADDRESS_FIELD_NAME: address,
+		},
+	)
 }
 
 // UpdateAddress handles updating an existing address
@@ -191,10 +206,15 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	}
 
 	// Update address
-	address, err := h.addressService.UpdateAddress(addressID, userID.(uint), req)
+	address, err := h.addressService.UpdateAddress(c, addressID, userID.(uint), req)
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.ADDRESS_NOT_FOUND_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusNotFound,
+				err.Error(),
+				constant.ADDRESS_NOT_FOUND_CODE,
+			)
 			return
 		}
 		common.ErrorWithCode(
@@ -238,10 +258,15 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	}
 
 	// Delete address
-	err = h.addressService.DeleteAddress(addressID, userID.(uint))
+	err = h.addressService.DeleteAddress(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.ADDRESS_NOT_FOUND_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusNotFound,
+				err.Error(),
+				constant.ADDRESS_NOT_FOUND_CODE,
+			)
 			return
 		}
 		if err.Error() == constant.CANNOT_DELETE_ONLY_DEFAULT_ADDRESS_MSG {
@@ -291,10 +316,15 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 	}
 
 	// Set default address
-	address, err := h.addressService.SetDefaultAddress(addressID, userID.(uint))
+	address, err := h.addressService.SetDefaultAddress(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.ADDRESS_NOT_FOUND_CODE)
+			common.ErrorWithCode(
+				c,
+				http.StatusNotFound,
+				err.Error(),
+				constant.ADDRESS_NOT_FOUND_CODE,
+			)
 			return
 		}
 		common.ErrorResp(
@@ -305,9 +335,14 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.DEFAULT_ADDRESS_UPDATED_MSG, map[string]interface{}{
-		constant.ADDRESS_FIELD_NAME: address,
-	})
+	common.SuccessResponse(
+		c,
+		http.StatusOK,
+		constant.DEFAULT_ADDRESS_UPDATED_MSG,
+		map[string]interface{}{
+			constant.ADDRESS_FIELD_NAME: address,
+		},
+	)
 }
 
 // getAddressIDParam gets an address ID from a path parameter
