@@ -95,21 +95,26 @@ SELECT setval('subscription_id_seq', (SELECT MAX(id) FROM subscription));
 -- ------------------------------
 -- Insert Addresses
 -- ------------------------------
-INSERT INTO "address" (id, user_id, street, city, state, zip_code, country, is_default, created_at, updated_at) VALUES
+INSERT INTO "address" (id, user_id, type, address, landmark, city, state, zip_code, country_id, latitude, longitude, is_default, created_at, updated_at) VALUES
 -- Customer addresses
-(1, 5, '123 Main Street, Apt 4B', 'New York', 'NY', '10001', 'USA', true, NOW(), NOW()),
-(2, 5, '456 Oak Avenue', 'Brooklyn', 'NY', '11201', 'USA', false, NOW(), NOW()),
-(3, 6, '789 Pine Road, Suite 200', 'Los Angeles', 'CA', '90001', 'USA', true, NOW(), NOW()),
-(4, 7, '321 Elm Street', 'Chicago', 'IL', '60601', 'USA', true, NOW(), NOW()),
--- Seller addresses
-(5, 2, '1000 Tech Park Drive, Building A', 'San Jose', 'CA', '95110', 'USA', true, NOW(), NOW()),
-(6, 3, '500 Fashion Boulevard, Floor 3', 'Miami', 'FL', '33101', 'USA', true, NOW(), NOW()),
-(7, 4, '750 Home Avenue', 'Seattle', 'WA', '98101', 'USA', true, NOW(), NOW())
+(1, 5, 'HOME', '123 Main Street, Apt 4B', 'Near Central Park', 'New York', 'NY', '10001', 1, 40.7128, -74.0060, true, NOW(), NOW()),
+(2, 5, 'WORK', '456 Oak Avenue, Floor 12', 'Empire State Building', 'Brooklyn', 'NY', '11201', 1, 40.6782, -73.9442, false, NOW(), NOW()),
+(3, 6, 'HOME', '789 Pine Road, Suite 200', 'Next to Whole Foods', 'Los Angeles', 'CA', '90001', 1, 34.0522, -118.2437, true, NOW(), NOW()),
+(4, 7, 'HOME', '321 Elm Street', 'Near Willis Tower', 'Chicago', 'IL', '60601', 1, 41.8781, -87.6298, true, NOW(), NOW()),
+-- Seller addresses (office/work)
+(5, 2, 'WORK', '1000 Tech Park Drive, Building A', 'Tech Park Campus', 'San Jose', 'CA', '95110', 1, 37.3382, -121.8863, true, NOW(), NOW()),
+(6, 3, 'WORK', '500 Fashion Boulevard, Floor 3', 'Fashion District', 'Miami', 'FL', '33101', 1, 25.7617, -80.1918, true, NOW(), NOW()),
+(7, 4, 'WORK', '750 Home Avenue', 'Near Pike Place Market', 'Seattle', 'WA', '98101', 1, 47.6062, -122.3321, true, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
-    street = EXCLUDED.street,
+    type = EXCLUDED.type,
+    address = EXCLUDED.address,
+    landmark = EXCLUDED.landmark,
     city = EXCLUDED.city,
     state = EXCLUDED.state,
     zip_code = EXCLUDED.zip_code,
+    country_id = EXCLUDED.country_id,
+    latitude = EXCLUDED.latitude,
+    longitude = EXCLUDED.longitude,
     is_default = EXCLUDED.is_default,
     updated_at = NOW();
 

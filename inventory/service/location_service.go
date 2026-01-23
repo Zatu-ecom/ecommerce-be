@@ -70,8 +70,8 @@ func (s *LocationServiceImpl) CreateLocation(
 
 	var response *model.LocationResponse
 	err := db.WithTransaction(ctx, func(txCtx context.Context) error {
-		// Create address
-		address, err := s.createAddress(txCtx, sellerID, req.Address)
+		// Create address (sync address type with location type)
+		address, err := s.createAddress(txCtx, sellerID, req.Address, req.Type)
 		if err != nil {
 			return err
 		}
@@ -118,8 +118,14 @@ func (s *LocationServiceImpl) UpdateLocation(
 			return err
 		}
 
-		// Handle address update or fetch
-		address, err := s.handleAddressForUpdate(ctx, req.Address, location.AddressID, sellerID)
+		// Handle address update or fetch (sync address type if location type changed)
+		address, err := s.handleAddressForUpdate(
+			ctx,
+			req.Address,
+			location.AddressID,
+			sellerID,
+			req.Type,
+		)
 		if err != nil {
 			return err
 		}
@@ -302,11 +308,12 @@ func (s *LocationServiceImpl) createAddress(
 	ctx context.Context,
 	sellerID uint,
 	addressReq model.AddressRequest,
+	locType entity.LocationType,
 ) (*userModel.AddressResponse, error) {
 	return s.addressService.AddAddress(
 		ctx,
 		sellerID,
-		factory.BuildUserAddressReqToInventoryAddressReq(addressReq),
+		factory.BuildUserAddressReqToInventoryAddressReq(addressReq, locType),
 	)
 }
 
@@ -317,14 +324,19 @@ func (s *LocationServiceImpl) handleAddressForUpdate(
 	addressReq *model.AddressUpdateRequest,
 	addressID uint,
 	sellerID uint,
+	locType *entity.LocationType,
 ) (*userModel.AddressResponse, error) {
-	if addressReq != nil {
-		// Update address
+	if addressReq != nil || locType != nil {
+		// Update address (include address type sync if location type changed)
+		var addrReq model.AddressUpdateRequest
+		if addressReq != nil {
+			addrReq = *addressReq
+		}
 		return s.addressService.UpdateAddress(
 			ctx,
 			addressID,
 			sellerID,
-			factory.BuildInventoryUserUpdateReqToUserAddressUpdateReq(*addressReq),
+			factory.BuildInventoryUserUpdateReqToUserAddressUpdateReq(addrReq, locType),
 		)
 	}
 

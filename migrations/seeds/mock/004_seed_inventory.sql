@@ -13,23 +13,28 @@
 -- Insert Warehouse/Store Addresses (for locations)
 -- Using IDs starting from 10 to avoid conflict with user addresses (1-7)
 -- ------------------------------
-INSERT INTO "address" (id, user_id, street, city, state, zip_code, country, is_default, created_at, updated_at) VALUES
+INSERT INTO "address" (id, user_id, type, address, landmark, city, state, zip_code, country_id, latitude, longitude, is_default, created_at, updated_at) VALUES
 -- Seller 2 (Tech Gadgets Pro) - Warehouse addresses
-(10, 2, '1500 Tech Distribution Center', 'San Jose', 'CA', '95112', 'USA', false, NOW(), NOW()),
-(11, 2, '2500 Retail Tech Plaza', 'San Francisco', 'CA', '94102', 'USA', false, NOW(), NOW()),
+(10, 2, 'WAREHOUSE', '1500 Tech Distribution Center, Unit A', 'Tech Industrial Park', 'San Jose', 'CA', '95112', 1, 37.3541, -121.9552, false, NOW(), NOW()),
+(11, 2, 'STORE', '2500 Retail Tech Plaza, Ground Floor', 'Union Square Area', 'San Francisco', 'CA', '94102', 1, 37.7879, -122.4074, false, NOW(), NOW()),
 
 -- Seller 3 (Fashion Forward) - Warehouse addresses
-(12, 3, '800 Fashion Warehouse Blvd', 'Miami', 'FL', '33125', 'USA', false, NOW(), NOW()),
-(13, 3, '450 Fashion Outlet Drive', 'Orlando', 'FL', '32801', 'USA', false, NOW(), NOW()),
+(12, 3, 'WAREHOUSE', '800 Fashion Warehouse Blvd, Building C', 'Miami Industrial Zone', 'Miami', 'FL', '33125', 1, 25.7823, -80.2310, false, NOW(), NOW()),
+(13, 3, 'STORE', '450 Fashion Outlet Drive', 'Orlando Premium Outlets', 'Orlando', 'FL', '32801', 1, 28.5383, -81.3792, false, NOW(), NOW()),
 
 -- Seller 4 (Home & Living Store) - Warehouse addresses
-(14, 4, '3000 Furniture Distribution Hub', 'Seattle', 'WA', '98108', 'USA', false, NOW(), NOW()),
-(15, 4, '1200 Home Store Main Street', 'Portland', 'OR', '97201', 'USA', false, NOW(), NOW())
+(14, 4, 'WAREHOUSE', '3000 Furniture Distribution Hub, Dock 5', 'Seattle Industrial District', 'Seattle', 'WA', '98108', 1, 47.5412, -122.3349, false, NOW(), NOW()),
+(15, 4, 'STORE', '1200 Home Store Main Street', 'Pearl District', 'Portland', 'OR', '97201', 1, 45.5231, -122.6765, false, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
-    street = EXCLUDED.street,
+    type = EXCLUDED.type,
+    address = EXCLUDED.address,
+    landmark = EXCLUDED.landmark,
     city = EXCLUDED.city,
     state = EXCLUDED.state,
     zip_code = EXCLUDED.zip_code,
+    country_id = EXCLUDED.country_id,
+    latitude = EXCLUDED.latitude,
+    longitude = EXCLUDED.longitude,
     updated_at = NOW();
 
 SELECT setval('address_id_seq', (SELECT MAX(id) FROM "address"));

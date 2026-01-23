@@ -65,20 +65,25 @@ CREATE INDEX IF NOT EXISTS idx_user_is_active ON "user"(is_active);
 CREATE TABLE IF NOT EXISTS "address" (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    street VARCHAR(255) NOT NULL,
-    city VARCHAR(255) NOT NULL,
-    state VARCHAR(255) NOT NULL,
-    zip_code VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'HOME',  -- HOME, WORK, WAREHOUSE, STORE, RETURN_CENTER, OTHER
+    address VARCHAR(500) NOT NULL,             -- Full street address
+    landmark VARCHAR(255),                     -- Nearby landmark (optional)
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    zip_code VARCHAR(20) NOT NULL,
     country_id BIGINT NOT NULL,
+    latitude DOUBLE PRECISION,                 -- Geo coordinate (optional)
+    longitude DOUBLE PRECISION,                -- Geo coordinate (optional)
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 );
 
 -- Create indexes on address
 CREATE INDEX IF NOT EXISTS idx_address_user_id ON "address"(user_id);
 CREATE INDEX IF NOT EXISTS idx_address_is_default ON "address"(is_default);
 CREATE INDEX IF NOT EXISTS idx_address_country_id ON "address"(country_id);
+CREATE INDEX IF NOT EXISTS idx_address_type ON "address"(type);
 
 -- Create subscription table if not exists
 CREATE TABLE IF NOT EXISTS subscription (
