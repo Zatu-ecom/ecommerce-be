@@ -3,19 +3,19 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 )
 
 // RepositoryFactory manages all repository singleton instances
 // Note: DB is fetched dynamically via db.GetDB() to support test scenarios
 // where database connections change between test runs
 type RepositoryFactory struct {
-	categoryRepo    repositories.CategoryRepository
-	attributeRepo   repositories.AttributeDefinitionRepository
-	productRepo     repositories.ProductRepository
-	variantRepo     repositories.VariantRepository
-	optionRepo      repositories.ProductOptionRepository
-	productAttrRepo repositories.ProductAttributeRepository
+	categoryRepo    repository.CategoryRepository
+	attributeRepo   repository.AttributeDefinitionRepository
+	productRepo     repository.ProductRepository
+	variantRepo     repository.VariantRepository
+	optionRepo      repository.ProductOptionRepository
+	productAttrRepo repository.ProductAttributeRepository
 
 	once sync.Once
 }
@@ -29,47 +29,47 @@ func NewRepositoryFactory() *RepositoryFactory {
 // Uses db.GetDB() to fetch current database connection dynamically
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
-		f.categoryRepo = repositories.NewCategoryRepository()
-		f.attributeRepo = repositories.NewAttributeDefinitionRepository()
-		f.productRepo = repositories.NewProductRepository()
-		f.variantRepo = repositories.NewVariantRepository()
-		f.optionRepo = repositories.NewProductOptionRepository()
-		f.productAttrRepo = repositories.NewProductAttributeRepository()
+		f.categoryRepo = repository.NewCategoryRepository()
+		f.attributeRepo = repository.NewAttributeDefinitionRepository()
+		f.productRepo = repository.NewProductRepository()
+		f.variantRepo = repository.NewVariantRepository()
+		f.optionRepo = repository.NewProductOptionRepository()
+		f.productAttrRepo = repository.NewProductAttributeRepository()
 	})
 }
 
 // GetCategoryRepository returns the singleton category repository
-func (f *RepositoryFactory) GetCategoryRepository() repositories.CategoryRepository {
+func (f *RepositoryFactory) GetCategoryRepository() repository.CategoryRepository {
 	f.initialize()
 	return f.categoryRepo
 }
 
 // GetAttributeDefinitionRepository returns the singleton attribute repository
-func (f *RepositoryFactory) GetAttributeDefinitionRepository() repositories.AttributeDefinitionRepository {
+func (f *RepositoryFactory) GetAttributeDefinitionRepository() repository.AttributeDefinitionRepository {
 	f.initialize()
 	return f.attributeRepo
 }
 
 // GetProductRepository returns the singleton product repository
-func (f *RepositoryFactory) GetProductRepository() repositories.ProductRepository {
+func (f *RepositoryFactory) GetProductRepository() repository.ProductRepository {
 	f.initialize()
 	return f.productRepo
 }
 
 // GetVariantRepository returns the singleton variant repository
-func (f *RepositoryFactory) GetVariantRepository() repositories.VariantRepository {
+func (f *RepositoryFactory) GetVariantRepository() repository.VariantRepository {
 	f.initialize()
 	return f.variantRepo
 }
 
 // GetProductOptionRepository returns the singleton product option repository
-func (f *RepositoryFactory) GetProductOptionRepository() repositories.ProductOptionRepository {
+func (f *RepositoryFactory) GetProductOptionRepository() repository.ProductOptionRepository {
 	f.initialize()
 	return f.optionRepo
 }
 
 // GetProductAttributeRepository returns the singleton product attribute repository
-func (f *RepositoryFactory) GetProductAttributeRepository() repositories.ProductAttributeRepository {
+func (f *RepositoryFactory) GetProductAttributeRepository() repository.ProductAttributeRepository {
 	f.initialize()
 	return f.productAttrRepo
 }

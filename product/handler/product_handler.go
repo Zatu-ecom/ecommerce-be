@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"net/http"
@@ -14,7 +14,7 @@ import (
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
 
-	productErrors "ecommerce-be/product/errors"
+	productErrors "ecommerce-be/product/error"
 
 	"github.com/gin-gonic/gin"
 )

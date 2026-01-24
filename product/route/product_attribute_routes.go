@@ -4,14 +4,14 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // ProductAttributeModule implements the Module interface for product attribute routes
 type ProductAttributeModule struct {
-	productAttrHandler *handlers.ProductAttributeHandler
+	productAttrHandler *handler.ProductAttributeHandler
 }
 
 // NewProductAttributeModule creates a new instance of ProductAttributeModule

@@ -2,7 +2,7 @@ package product
 
 import (
 	"ecommerce-be/common"
-	"ecommerce-be/product/routes"
+	"ecommerce-be/product/route"
 
 	"github.com/gin-gonic/gin"
 )

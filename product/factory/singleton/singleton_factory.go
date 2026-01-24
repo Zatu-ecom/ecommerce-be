@@ -3,13 +3,13 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/product/handlers"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/handler"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/service"
 )
 
 // SingletonFactory is the main facade for accessing all factories
-// Delegates to specialized factories for repositories, services, and handlers
+// Delegates to specialized factories for repository, services, and handler
 type SingletonFactory struct {
 	repoFactory    *RepositoryFactory
 	serviceFactory *ServiceFactory
@@ -22,7 +22,7 @@ var (
 )
 
 // GetInstance returns the singleton instance of SingletonFactory
-// DB connection is fetched dynamically from db.GetDB() when repositories are accessed
+// DB connection is fetched dynamically from db.GetDB() when repository are accessed
 func GetInstance() *SingletonFactory {
 	once.Do(func() {
 		repoFactory := NewRepositoryFactory()
@@ -49,27 +49,27 @@ func ResetInstance() {
 // Repository Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetCategoryRepository() repositories.CategoryRepository {
+func (f *SingletonFactory) GetCategoryRepository() repository.CategoryRepository {
 	return f.repoFactory.GetCategoryRepository()
 }
 
-func (f *SingletonFactory) GetAttributeDefinitionRepository() repositories.AttributeDefinitionRepository {
+func (f *SingletonFactory) GetAttributeDefinitionRepository() repository.AttributeDefinitionRepository {
 	return f.repoFactory.GetAttributeDefinitionRepository()
 }
 
-func (f *SingletonFactory) GetProductRepository() repositories.ProductRepository {
+func (f *SingletonFactory) GetProductRepository() repository.ProductRepository {
 	return f.repoFactory.GetProductRepository()
 }
 
-func (f *SingletonFactory) GetVariantRepository() repositories.VariantRepository {
+func (f *SingletonFactory) GetVariantRepository() repository.VariantRepository {
 	return f.repoFactory.GetVariantRepository()
 }
 
-func (f *SingletonFactory) GetProductOptionRepository() repositories.ProductOptionRepository {
+func (f *SingletonFactory) GetProductOptionRepository() repository.ProductOptionRepository {
 	return f.repoFactory.GetProductOptionRepository()
 }
 
-func (f *SingletonFactory) GetProductAttributeRepository() repositories.ProductAttributeRepository {
+func (f *SingletonFactory) GetProductAttributeRepository() repository.ProductAttributeRepository {
 	return f.repoFactory.GetProductAttributeRepository()
 }
 
@@ -121,30 +121,30 @@ func (f *SingletonFactory) GetProductValidatorService() service.ProductValidator
 // Handler Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetCategoryHandler() *handlers.CategoryHandler {
+func (f *SingletonFactory) GetCategoryHandler() *handler.CategoryHandler {
 	return f.handlerFactory.GetCategoryHandler()
 }
 
-func (f *SingletonFactory) GetAttributeHandler() *handlers.AttributeHandler {
+func (f *SingletonFactory) GetAttributeHandler() *handler.AttributeHandler {
 	return f.handlerFactory.GetAttributeHandler()
 }
 
-func (f *SingletonFactory) GetProductHandler() *handlers.ProductHandler {
+func (f *SingletonFactory) GetProductHandler() *handler.ProductHandler {
 	return f.handlerFactory.GetProductHandler()
 }
 
-func (f *SingletonFactory) GetVariantHandler() *handlers.VariantHandler {
+func (f *SingletonFactory) GetVariantHandler() *handler.VariantHandler {
 	return f.handlerFactory.GetVariantHandler()
 }
 
-func (f *SingletonFactory) GetProductAttributeHandler() *handlers.ProductAttributeHandler {
+func (f *SingletonFactory) GetProductAttributeHandler() *handler.ProductAttributeHandler {
 	return f.handlerFactory.GetProductAttributeHandler()
 }
 
-func (f *SingletonFactory) GetProductOptionHandler() *handlers.ProductOptionHandler {
+func (f *SingletonFactory) GetProductOptionHandler() *handler.ProductOptionHandler {
 	return f.handlerFactory.GetProductOptionHandler()
 }
 
-func (f *SingletonFactory) GetProductOptionValueHandler() *handlers.ProductOptionValueHandler {
+func (f *SingletonFactory) GetProductOptionValueHandler() *handler.ProductOptionValueHandler {
 	return f.handlerFactory.GetProductOptionValueHandler()
 }

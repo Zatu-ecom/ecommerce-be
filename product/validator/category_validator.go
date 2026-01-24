@@ -3,7 +3,7 @@ package validator
 import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 )
 
 // ValidateParentCategory validates that the parent category exists

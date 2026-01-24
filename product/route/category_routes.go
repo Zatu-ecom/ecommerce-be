@@ -4,14 +4,14 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // CategoryModule implements the Module interface for category routes
 type CategoryModule struct {
-	categoryHandler *handlers.CategoryHandler
+	categoryHandler *handler.CategoryHandler
 }
 
 // NewCategoryModule creates a new instance of CategoryModule

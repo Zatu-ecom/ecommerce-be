@@ -5,11 +5,11 @@ import (
 	"math"
 
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 )
 
 // ProductQueryService defines the interface for product query operations
@@ -47,7 +47,7 @@ type ProductQueryService interface {
 
 // ProductQueryServiceImpl implements the ProductQueryService interface
 type ProductQueryServiceImpl struct {
-	productRepo             repositories.ProductRepository
+	productRepo             repository.ProductRepository
 	variantQueryService     VariantQueryService
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
@@ -56,7 +56,7 @@ type ProductQueryServiceImpl struct {
 
 // NewProductQueryService creates a new instance of ProductQueryService
 func NewProductQueryService(
-	productRepo repositories.ProductRepository,
+	productRepo repository.ProductRepository,
 	variantQueryService VariantQueryService,
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,

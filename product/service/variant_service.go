@@ -5,10 +5,10 @@ import (
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -36,7 +36,7 @@ type VariantService interface {
 
 // VariantServiceImpl implements the VariantService interface
 type VariantServiceImpl struct {
-	variantRepo      repositories.VariantRepository
+	variantRepo      repository.VariantRepository
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 	queryService     VariantQueryService
@@ -44,7 +44,7 @@ type VariantServiceImpl struct {
 
 // NewVariantService creates a new instance of VariantService
 func NewVariantService(
-	variantRepo repositories.VariantRepository,
+	variantRepo repository.VariantRepository,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 	queryService VariantQueryService,

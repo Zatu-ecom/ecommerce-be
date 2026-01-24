@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -34,12 +34,12 @@ type AttributeDefinitionService interface {
 
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
 type AttributeDefinitionServiceImpl struct {
-	attributeRepo repositories.AttributeDefinitionRepository
+	attributeRepo repository.AttributeDefinitionRepository
 }
 
 // NewAttributeDefinitionService creates a new instance of AttributeDefinitionService
 func NewAttributeDefinitionService(
-	attributeRepo repositories.AttributeDefinitionRepository,
+	attributeRepo repository.AttributeDefinitionRepository,
 ) AttributeDefinitionService {
 	return &AttributeDefinitionServiceImpl{
 		attributeRepo: attributeRepo,
@@ -123,7 +123,9 @@ func (s *AttributeDefinitionServiceImpl) DeleteAttribute(ctx context.Context, id
 }
 
 // GetAllAttributes gets all active attribute definitions
-func (s *AttributeDefinitionServiceImpl) GetAllAttributes(ctx context.Context) (*model.AttributeDefinitionsResponse, error) {
+func (s *AttributeDefinitionServiceImpl) GetAllAttributes(
+	ctx context.Context,
+) (*model.AttributeDefinitionsResponse, error) {
 	attributes, err := s.attributeRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err

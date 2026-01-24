@@ -4,14 +4,14 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // VariantModule implements the Module interface for variant routes
 type VariantModule struct {
-	variantHandler *handlers.VariantHandler
+	variantHandler *handler.VariantHandler
 }
 
 // NewVariantModule creates a new instance of VariantModule

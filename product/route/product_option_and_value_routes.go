@@ -4,15 +4,15 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // ProductOptionModule implements the Module interface for product option routes
 type ProductOptionModule struct {
-	optionHandler *handlers.ProductOptionHandler
-	valueHandler  *handlers.ProductOptionValueHandler
+	optionHandler *handler.ProductOptionHandler
+	valueHandler  *handler.ProductOptionValueHandler
 }
 
 // NewProductOptionModule creates a new instance of ProductOptionModule

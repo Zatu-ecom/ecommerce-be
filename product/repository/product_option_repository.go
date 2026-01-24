@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 
 	"gorm.io/gorm"
 )

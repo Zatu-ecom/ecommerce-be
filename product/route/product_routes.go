@@ -4,14 +4,14 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 
 	"github.com/gin-gonic/gin"
 )
 
 // ProductModule implements the Module interface for product routes
 type ProductModule struct {
-	productHandler *handlers.ProductHandler
+	productHandler *handler.ProductHandler
 }
 
 // NewProductModule creates a new instance of ProductModule

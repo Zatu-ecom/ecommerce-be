@@ -2,7 +2,7 @@ package validator
 
 import (
 	commonError "ecommerce-be/common/error"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 )
 
 // ValidateProductAttributeValue validates the attribute value

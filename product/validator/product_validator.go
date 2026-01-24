@@ -3,7 +3,7 @@ package validator
 import (
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/model"
 )
 

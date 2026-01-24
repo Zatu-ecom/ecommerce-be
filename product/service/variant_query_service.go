@@ -7,7 +7,7 @@ import (
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -66,14 +66,14 @@ type VariantQueryService interface {
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
 type VariantQueryServiceImpl struct {
-	variantRepo      repositories.VariantRepository
+	variantRepo      repository.VariantRepository
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
 func NewVariantQueryService(
-	variantRepo repositories.VariantRepository,
+	variantRepo repository.VariantRepository,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 ) VariantQueryService {

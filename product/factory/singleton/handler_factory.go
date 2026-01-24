@@ -3,20 +3,20 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/product/handlers"
+	"ecommerce-be/product/handler"
 )
 
 // HandlerFactory manages all handler singleton instances
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	categoryHandler         *handlers.CategoryHandler
-	attributeHandler        *handlers.AttributeHandler
-	productHandler          *handlers.ProductHandler
-	variantHandler          *handlers.VariantHandler
-	productAttributeHandler *handlers.ProductAttributeHandler
-	productOptionHandler    *handlers.ProductOptionHandler
-	optionValueHandler      *handlers.ProductOptionValueHandler
+	categoryHandler         *handler.CategoryHandler
+	attributeHandler        *handler.AttributeHandler
+	productHandler          *handler.ProductHandler
+	variantHandler          *handler.VariantHandler
+	productAttributeHandler *handler.ProductAttributeHandler
+	productOptionHandler    *handler.ProductOptionHandler
+	optionValueHandler      *handler.ProductOptionValueHandler
 
 	once sync.Once
 }
@@ -29,69 +29,69 @@ func NewHandlerFactory(serviceFactory *ServiceFactory) *HandlerFactory {
 // initialize creates all handler instances (lazy loading)
 func (f *HandlerFactory) initialize() {
 	f.once.Do(func() {
-		f.categoryHandler = handlers.NewCategoryHandler(f.serviceFactory.GetCategoryService())
-		f.attributeHandler = handlers.NewAttributeHandler(
+		f.categoryHandler = handler.NewCategoryHandler(f.serviceFactory.GetCategoryService())
+		f.attributeHandler = handler.NewAttributeHandler(
 			f.serviceFactory.GetAttributeDefinitionService(),
 		)
-		f.productHandler = handlers.NewProductHandler(
+		f.productHandler = handler.NewProductHandler(
 			f.serviceFactory.GetProductService(),
 			f.serviceFactory.GetProductQueryService(),
 		)
-		f.variantHandler = handlers.NewVariantHandler(
+		f.variantHandler = handler.NewVariantHandler(
 			f.serviceFactory.GetVariantService(),
 			f.serviceFactory.GetVariantQueryService(),
 			f.serviceFactory.GetVariantBulkService(),
 		)
-		f.productAttributeHandler = handlers.NewProductAttributeHandler(
+		f.productAttributeHandler = handler.NewProductAttributeHandler(
 			f.serviceFactory.GetProductAttributeService(),
 		)
-		f.productOptionHandler = handlers.NewProductOptionHandler(
+		f.productOptionHandler = handler.NewProductOptionHandler(
 			f.serviceFactory.GetProductOptionService(),
 		)
-		f.optionValueHandler = handlers.NewProductOptionValueHandler(
+		f.optionValueHandler = handler.NewProductOptionValueHandler(
 			f.serviceFactory.GetProductOptionValueService(),
 		)
 	})
 }
 
 // GetCategoryHandler returns the singleton category handler
-func (f *HandlerFactory) GetCategoryHandler() *handlers.CategoryHandler {
+func (f *HandlerFactory) GetCategoryHandler() *handler.CategoryHandler {
 	f.initialize()
 	return f.categoryHandler
 }
 
 // GetAttributeHandler returns the singleton attribute handler
-func (f *HandlerFactory) GetAttributeHandler() *handlers.AttributeHandler {
+func (f *HandlerFactory) GetAttributeHandler() *handler.AttributeHandler {
 	f.initialize()
 	return f.attributeHandler
 }
 
 // GetProductHandler returns the singleton product handler
-func (f *HandlerFactory) GetProductHandler() *handlers.ProductHandler {
+func (f *HandlerFactory) GetProductHandler() *handler.ProductHandler {
 	f.initialize()
 	return f.productHandler
 }
 
 // GetVariantHandler returns the singleton variant handler
-func (f *HandlerFactory) GetVariantHandler() *handlers.VariantHandler {
+func (f *HandlerFactory) GetVariantHandler() *handler.VariantHandler {
 	f.initialize()
 	return f.variantHandler
 }
 
 // GetProductAttributeHandler returns the singleton product attribute handler
-func (f *HandlerFactory) GetProductAttributeHandler() *handlers.ProductAttributeHandler {
+func (f *HandlerFactory) GetProductAttributeHandler() *handler.ProductAttributeHandler {
 	f.initialize()
 	return f.productAttributeHandler
 }
 
 // GetProductOptionHandler returns the singleton product option handler
-func (f *HandlerFactory) GetProductOptionHandler() *handlers.ProductOptionHandler {
+func (f *HandlerFactory) GetProductOptionHandler() *handler.ProductOptionHandler {
 	f.initialize()
 	return f.productOptionHandler
 }
 
 // GetProductOptionValueHandler returns the singleton product option value handler
-func (f *HandlerFactory) GetProductOptionValueHandler() *handlers.ProductOptionValueHandler {
+func (f *HandlerFactory) GetProductOptionValueHandler() *handler.ProductOptionValueHandler {
 	f.initialize()
 	return f.optionValueHandler
 }

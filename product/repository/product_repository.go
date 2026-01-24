@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
-	productError "ecommerce-be/product/errors"
+	productError "ecommerce-be/product/error"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	productQuery "ecommerce-be/product/query"
