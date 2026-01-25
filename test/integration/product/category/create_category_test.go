@@ -17,7 +17,8 @@ func TestCreateCategory(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -39,7 +40,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Electronic devices and accessories",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 
 		response := helpers.AssertSuccessResponse(
 			t,
@@ -67,7 +68,7 @@ func TestCreateCategory(t *testing.T) {
 			"name":        "Home & Garden",
 			"description": "Home and garden products",
 		}
-		parentW := client.Post(t, "/api/categories", parentRequest)
+		parentW := client.Post(t, "/api/product/category", parentRequest)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -86,7 +87,7 @@ func TestCreateCategory(t *testing.T) {
 			"parentId":    parentID,
 		}
 
-		w := client.Post(t, "/api/categories", childRequest)
+		w := client.Post(t, "/api/product/category", childRequest)
 
 		response := helpers.AssertSuccessResponse(
 			t,
@@ -121,7 +122,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Test description",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -140,7 +141,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Test description",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -153,7 +154,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Test description",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -172,7 +173,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": longDesc,
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -189,7 +190,7 @@ func TestCreateCategory(t *testing.T) {
 			"name":        "Books",
 			"description": "Books and magazines",
 		}
-		client.Post(t, "/api/categories", firstRequest)
+		client.Post(t, "/api/product/category", firstRequest)
 
 		// Try to create duplicate
 		duplicateRequest := map[string]interface{}{
@@ -197,7 +198,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Different description",
 		}
 
-		w := client.Post(t, "/api/categories", duplicateRequest)
+		w := client.Post(t, "/api/product/category", duplicateRequest)
 		helpers.AssertErrorResponse(t, w, http.StatusConflict)
 	}) // ============================================================================
 	// PARENT HIERARCHY TESTS (P0 & P1)
@@ -213,7 +214,7 @@ func TestCreateCategory(t *testing.T) {
 			"parentId":    99999, // Non-existent ID
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -229,7 +230,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Should fail",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
 	})
 
@@ -242,7 +243,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Should fail",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
 	})
 
@@ -259,7 +260,7 @@ func TestCreateCategory(t *testing.T) {
 			"name":        "Global Sports",
 			"description": "Global sports category",
 		}
-		parentW := client.Post(t, "/api/categories", globalParentRequest)
+		parentW := client.Post(t, "/api/product/category", globalParentRequest)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -281,7 +282,7 @@ func TestCreateCategory(t *testing.T) {
 			"parentId":    globalParentID,
 		}
 
-		w := client.Post(t, "/api/categories", childRequest)
+		w := client.Post(t, "/api/product/category", childRequest)
 		// This should fail because sellers cannot create subcategories under global categories
 		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 	})
@@ -295,7 +296,7 @@ func TestCreateCategory(t *testing.T) {
 			"name":        "Global Fashion",
 			"description": "Global fashion category",
 		}
-		parentW := client.Post(t, "/api/categories", parentRequest)
+		parentW := client.Post(t, "/api/product/category", parentRequest)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -311,7 +312,7 @@ func TestCreateCategory(t *testing.T) {
 			"parentId":    parentID,
 		}
 
-		w := client.Post(t, "/api/categories", childRequest)
+		w := client.Post(t, "/api/product/category", childRequest)
 		response := helpers.AssertSuccessResponse(
 			t,
 			w,
@@ -333,7 +334,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Testing global category properties",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		response := helpers.AssertSuccessResponse(
 			t,
 			w,
@@ -359,7 +360,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Testing seller-specific category properties",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 		response := helpers.AssertSuccessResponse(
 			t,
 			w,
@@ -394,7 +395,7 @@ func TestCreateCategory(t *testing.T) {
 			"description": "Category with all fields",
 		}
 
-		w := client.Post(t, "/api/categories", requestBody)
+		w := client.Post(t, "/api/product/category", requestBody)
 
 		response := helpers.AssertSuccessResponse(
 			t,

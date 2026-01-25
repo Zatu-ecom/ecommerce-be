@@ -12,7 +12,7 @@
 
 ### **1.1 Create Category**
 
-`POST /api/categories`
+`POST /api/product/category/`
 
 #### **Test Scenarios:**
 
@@ -67,7 +67,7 @@
 
 ### **1.2 Get All Categories**
 
-`GET /api/categories`
+`GET /api/product/category/`
 
 #### **Test Scenarios:**
 
@@ -138,7 +138,7 @@
 
 ### **1.3 Get Category by ID**
 
-`GET /api/categories/:id`
+`GET /api/product/category/:id`
 
 #### **Test Scenarios:**
 
@@ -192,7 +192,7 @@
 
 ### **1.4 Update Category**
 
-`PUT /api/categories/:id`
+`PUT /api/product/category/:id`
 
 #### **Test Scenarios:**
 
@@ -270,7 +270,7 @@
 
 ### **1.5 Delete Category**
 
-`DELETE /api/categories/:id`
+`DELETE /api/product/category/:id`
 
 #### **Test Scenarios:**
 
@@ -338,7 +338,7 @@
 
 ### **1.6 Get Category Attributes**
 
-`GET /api/categories/:id/attribute`
+`GET /api/product/category/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -418,7 +418,7 @@
 
 ### **1.8 Assign Attributes to Category** ⭐ NEW
 
-`POST /api/categories/:id/attribute`
+`POST /api/product/category/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -451,7 +451,7 @@
 
 ### **1.9 Remove Attributes from Category** ⭐ NEW
 
-`DELETE /api/categories/:id/attribute/:attribute_id`
+`DELETE /api/product/category/:id/attribute/:attribute_id`
 
 #### **Test Scenarios:**
 
@@ -962,11 +962,11 @@
    └─> Store auth token
 
 2. Create Root Category (Electronics)
-   ├─> POST /api/categories
+   ├─> POST /api/product/category/
    └─> Store category_id
 
 3. Create Subcategory (Mobile Phones)
-   ├─> POST /api/categories (parent_id = Electronics)
+   ├─> POST /api/product/category/ (parent_id = Electronics)
    └─> Store subcategory_id
 
 4. Create Attribute (Brand)
@@ -974,19 +974,19 @@
    └─> Store attribute_id
 
 5. Assign Attribute to Category
-   ├─> POST /api/categories/:id/attribute
+   ├─> POST /api/product/category/:id/attribute
    └─> Verify assignment
 
 6. Get Category Hierarchy
-   ├─> GET /api/categories?hierarchy=true
+   ├─> GET /api/product/category/?hierarchy=true
    └─> Verify nested structure
 
 7. Update Category
-   ├─> PUT /api/categories/:id
+   ├─> PUT /api/product/category/:id
    └─> Verify changes
 
 8. Attempt Delete with Products (should fail)
-   └─> DELETE /api/categories/:id
+   └─> DELETE /api/product/category/:id
 ```
 
 **Assertions:**
@@ -1006,7 +1006,7 @@
    └─> Store auth token
 
 2. Get Available Categories
-   ├─> GET /api/categories
+   ├─> GET /api/product/category/
    └─> Select "Mobile Phones" category
 
 3. Create Product (iPhone 15)
@@ -1209,7 +1209,7 @@
    └─> Expect 404
 
 3. Delete Category with Products
-   ├─> DELETE /api/categories/:id
+   ├─> DELETE /api/product/category/:id
    └─> Expect 400 CATEGORY_HAS_PRODUCTS
 
 4. Create Variant for Product Without Options

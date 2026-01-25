@@ -19,7 +19,8 @@ func TestGetCategoriesByParent(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -55,7 +56,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 				"name":        "Global Root Category",
 				"description": "Global root category",
 			}
-			client.Post(t, "/api/categories", globalReq)
+			client.Post(t, "/api/product/category", globalReq)
 
 			// Create seller-specific root category
 			client.SetToken(sellerToken)
@@ -63,13 +64,13 @@ func TestGetCategoriesByParent(t *testing.T) {
 				"name":        "Seller Root Category",
 				"description": "Seller's root category",
 			}
-			client.Post(t, "/api/categories", sellerReq)
+			client.Post(t, "/api/product/category", sellerReq)
 
 			// Get root categories using public API with seller ID
 			client.SetToken("")
 			client.SetHeader(constants.SELLER_ID_HEADER, "3") // Seller ID = 3
 
-			getW := client.Get(t, "/api/categories/by-parent")
+			getW := client.Get(t, "/api/product/category/by-parent")
 			response := helpers.AssertSuccessResponse(
 				t,
 				getW,
@@ -107,7 +108,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"name":        "Parent Category for Children Test",
 			"description": "Parent category",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -122,20 +123,20 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"description": "First child",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", child1Req)
+		client.Post(t, "/api/product/category", child1Req)
 
 		child2Req := map[string]interface{}{
 			"name":        "Child Category 2",
 			"description": "Second child",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", child2Req)
+		client.Post(t, "/api/product/category", child2Req)
 
 		// Get children using public API
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -169,7 +170,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 				"name":        "Seller1 Private Parent",
 				"description": "Seller1's private parent",
 			}
-			parentW := client.Post(t, "/api/categories", parentReq)
+			parentW := client.Post(t, "/api/product/category", parentReq)
 			parentResponse := helpers.AssertSuccessResponse(
 				t,
 				parentW,
@@ -184,13 +185,16 @@ func TestGetCategoriesByParent(t *testing.T) {
 				"description": "Seller1's private child",
 				"parentId":    parentID,
 			}
-			client.Post(t, "/api/categories", childReq)
+			client.Post(t, "/api/product/category", childReq)
 
 			// Try to access as Seller2 (different seller)
 			client.SetToken("")
 			client.SetHeader(constants.SELLER_ID_HEADER, "4") // Seller2's ID
 
-			getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+			getW := client.Get(
+				t,
+				fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID),
+			)
 			response := helpers.AssertSuccessResponse(
 				t,
 				getW,
@@ -213,7 +217,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"name":        "Global Parent Category",
 			"description": "Global parent accessible to all",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -228,20 +232,20 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"description": "First global child",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", child1Req)
+		client.Post(t, "/api/product/category", child1Req)
 
 		child2Req := map[string]interface{}{
 			"name":        "Global Child 2",
 			"description": "Second global child",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", child2Req)
+		client.Post(t, "/api/product/category", child2Req)
 
 		// Access as any seller
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Any seller
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -262,7 +266,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "")
 
-		getW := client.Get(t, "/api/categories/by-parent")
+		getW := client.Get(t, "/api/product/category/by-parent")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -274,7 +278,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "invalid")
 
-		getW := client.Get(t, "/api/categories/by-parent")
+		getW := client.Get(t, "/api/product/category/by-parent")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -295,7 +299,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"name":        "Auth Test Parent",
 			"description": "Parent for auth test",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -309,10 +313,10 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"description": "Child for auth test",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", childReq)
+		client.Post(t, "/api/product/category", childReq)
 
 		// Get children with authentication
-		getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -337,7 +341,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"name":        "Seller Specific for Admin Test",
 			"description": "Seller category",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -351,11 +355,11 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"description": "Seller child",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", childReq)
+		client.Post(t, "/api/product/category", childReq)
 
 		// Admin accesses seller's category children
 		client.SetToken(adminToken)
-		getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -375,7 +379,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/by-parent?parentId=99999")
+		getW := client.Get(t, "/api/product/category/by-parent?parentId=99999")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -396,7 +400,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			"name":        "Childless Parent",
 			"description": "Parent with no children",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -409,7 +413,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/by-parent?parentId=%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/by-parent?parentId=%d", parentID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -425,7 +429,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/by-parent?parentId=invalid")
+		getW := client.Get(t, "/api/product/category/by-parent?parentId=invalid")
 		helpers.AssertErrorResponse(
 			t,
 			getW,

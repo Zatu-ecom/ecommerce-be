@@ -1,4 +1,4 @@
-package routes
+package route
 
 import (
 	"ecommerce-be/common/constants"
@@ -36,8 +36,16 @@ func (m *LocationModule) RegisterRoutes(router *gin.Engine) {
 		locationRoutes.GET("", sellerAuth, m.locationHandler.GetAllLocations)
 		locationRoutes.GET("/summary", sellerAuth, m.inventorySummaryHandler.GetLocationsSummary)
 		locationRoutes.GET("/:locationId", sellerAuth, m.locationHandler.GetLocationByID)
-		locationRoutes.GET("/:locationId/product", sellerAuth, m.inventorySummaryHandler.GetProductsAtLocation)
-		locationRoutes.GET("/:locationId/product/:productId/variant", sellerAuth, m.inventorySummaryHandler.GetVariantInventoryAtLocation)
+		locationRoutes.GET(
+			"/:locationId/product",
+			sellerAuth,
+			m.inventorySummaryHandler.GetProductsAtLocation,
+		)
+		locationRoutes.GET(
+			"/:locationId/product/:productId/variant",
+			sellerAuth,
+			m.inventorySummaryHandler.GetVariantInventoryAtLocation,
+		)
 		locationRoutes.PUT("/:locationId", sellerAuth, m.locationHandler.UpdateLocation)
 		locationRoutes.DELETE("/:locationId", sellerAuth, m.locationHandler.DeleteLocation)
 	}

@@ -43,7 +43,7 @@ func TestCreateCategory(t *testing.T) {
 
     // Test with real database, real Redis, real HTTP handlers
     client := helpers.NewAPIClient(server)
-    response := client.Post(t, "/api/categories", requestBody)
+    response := client.Post(t, "/api/product/category/", requestBody)
 
     // Validate actual response from real service
     assert.Equal(t, http.StatusCreated, response.Code)
@@ -203,7 +203,6 @@ func TestCreateCategory(t *testing.T) {
 #### Required Test Scenarios
 
 1. **Unit Tests** - Test individual components in isolation
-
    - Service layer logic (business rules)
    - Repository methods (data access)
    - Validators and mappers
@@ -211,7 +210,6 @@ func TestCreateCategory(t *testing.T) {
    - Error handling
 
 2. **Integration Tests** - Test component interactions
-
    - REST API endpoints with real database
    - Service layer with real repository
    - Database migrations
@@ -356,7 +354,7 @@ func TestErrorScenarios(t *testing.T) {
         requestBody := map[string]interface{}{
             "name": "",  // Invalid: empty name
         }
-        w := client.Post(t, "/api/categories", requestBody)
+        w := client.Post(t, "/api/product/category/", requestBody)
 
         // Then: Validate error response
         response := helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -365,11 +363,11 @@ func TestErrorScenarios(t *testing.T) {
 
     t.Run("Error - Duplicate resource returns conflict", func(t *testing.T) {
         // First creation succeeds
-        w1 := client.Post(t, "/api/categories", requestBody)
+        w1 := client.Post(t, "/api/product/category/", requestBody)
         helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 
         // Second creation with same data fails
-        w2 := client.Post(t, "/api/categories", requestBody)
+        w2 := client.Post(t, "/api/product/category/", requestBody)
         helpers.AssertErrorResponse(t, w2, http.StatusConflict)
     })
 }
@@ -392,13 +390,13 @@ func TestCacheInvalidation(t *testing.T) {
 
         // Create category
         createBody := map[string]interface{}{"name": "Electronics"}
-        w1 := client.Post(t, "/api/categories", createBody)
+        w1 := client.Post(t, "/api/product/category/", createBody)
         response1 := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
         category := helpers.GetResponseData(t, response1, "category")
         categoryID := int(category["id"].(float64))
 
         // Get category (caches result)
-        url := fmt.Sprintf("/api/categories/%d", categoryID)
+        url := fmt.Sprintf("/api/product/category/%d", categoryID)
         w2 := client.Get(t, url)
         helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 
@@ -488,7 +486,6 @@ This is a modular monolithic Go application designed for future microservices:
 **Discovering Test Data:**
 
 1. **Before writing tests**, always check `migrations/seeds/*.sql` files to understand:
-
    - What users are available (admin, seller, customer, etc.)
    - What products/categories exist
    - Relationships between entities (which seller owns which products)

@@ -30,7 +30,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.1 Get All Categories
 
-- **Endpoint**: `GET /api/categories`
+- **Endpoint**: `GET /api/product/category/`
 - **Description**: Get hierarchical list of all product categories
 - **Headers**:
   - `Authorization`: Bearer token (optional for public access)
@@ -75,7 +75,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.2 Create Category
 
-- **Endpoint**: `POST /api/categories`
+- **Endpoint**: `POST /api/product/category/`
 - **Description**: Create a new product category
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
@@ -117,7 +117,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.3 Update Category
 
-- **Endpoint**: `PUT /api/categories/{categoryId}`
+- **Endpoint**: `PUT /api/product/category/{categoryId}`
 - **Description**: Update an existing category
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
@@ -153,7 +153,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.4 Delete Category
 
-- **Endpoint**: `DELETE /api/categories/{categoryId}`
+- **Endpoint**: `DELETE /api/product/category/{categoryId}`
 - **Description**: Permanently delete a category
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
@@ -177,7 +177,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.1.5 Get Category Attributes with Inheritance
 
-- **Endpoint**: `GET /api/categories/{categoryId}/attribute`
+- **Endpoint**: `GET /api/product/category/{categoryId}/attribute`
 - **Description**: Get all attributes for a category including inherited attributes from parent categories
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
@@ -368,7 +368,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.3.1 Get Category Attributes
 
-- **Endpoint**: `GET /api/categories/{categoryId}/attribute` (Now returns inherited attributes)
+- **Endpoint**: `GET /api/product/category/{categoryId}/attribute` (Now returns inherited attributes)
 - **Description**: Get all attributes for a category including inherited attributes from parent categories
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
@@ -410,7 +410,7 @@ This document outlines the API specifications for the Product Service in our e-c
 
 #### 3.3.2 Configure Category Attributes
 
-- **Endpoint**: `POST /api/categories/{categoryId}/attribute` (Now creates category-specific attributes)
+- **Endpoint**: `POST /api/product/category/{categoryId}/attribute` (Now creates category-specific attributes)
 - **Description**: Create a new attribute definition and associate it with a specific category
 - **Headers**:
   - `Authorization`: Bearer token (Admin required)
