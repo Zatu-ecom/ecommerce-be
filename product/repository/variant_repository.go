@@ -45,10 +45,12 @@ type VariantRepository interface {
 	GetProductVariantAggregation(
 		ctx context.Context,
 		productID uint,
+		userID *uint, // Optional: if provided, checks if any variant is wishlisted by this user
 	) (*mapper.VariantAggregation, error)
 	GetProductsVariantAggregations(
 		ctx context.Context,
 		productIDs []uint,
+		userID *uint, // Optional: if provided, checks if any variant is wishlisted by this user
 	) (map[uint]*mapper.VariantAggregation, error)
 	GetProductVariantsWithOptions(
 		ctx context.Context,
@@ -319,9 +321,11 @@ func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(
 }
 
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
+// If userID is provided, also checks if any variant is wishlisted by that user
 func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	ctx context.Context,
 	productID uint,
+	userID *uint,
 ) (*mapper.VariantAggregation, error) {
 	var aggregation mapper.VariantAggregation
 	aggregation.OptionValues = make(map[string][]string)
@@ -414,13 +418,25 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 		aggregation.OptionNames = append(aggregation.OptionNames, name)
 	}
 
+	// Check if any variant is wishlisted by the user (if userID is provided)
+	if userID != nil {
+		var isWishlisted bool
+		err = db.DB(ctx).Raw(productQuery.WISHLIST_CHECK_SINGLE_PRODUCT, productID, *userID).Scan(&isWishlisted).Error
+		if err != nil {
+			return nil, err
+		}
+		aggregation.IsWishlisted = isWishlisted
+	}
+
 	return &aggregation, nil
 }
 
 // GetProductsVariantAggregations retrieves aggregated variant data for multiple products
+// If userID is provided, also checks if any variant of each product is wishlisted by that user
 func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 	ctx context.Context,
 	productIDs []uint,
+	userID *uint,
 ) (map[uint]*mapper.VariantAggregation, error) {
 	result := make(map[uint]*mapper.VariantAggregation)
 
@@ -578,6 +594,25 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 			if result[productID] != nil {
 				for name := range optionNames {
 					result[productID].OptionNames = append(result[productID].OptionNames, name)
+				}
+			}
+		}
+
+		// Check if any variant is wishlisted by the user (if userID is provided)
+		if userID != nil {
+			var wishlistedProducts []struct {
+				ProductID uint
+			}
+
+			err = db.DB(ctx).Raw(productQuery.WISHLIST_CHECK_MULTIPLE_PRODUCTS, variantProductIDs, *userID).Scan(&wishlistedProducts).Error
+			if err != nil {
+				return nil, err
+			}
+
+			// Mark products as wishlisted
+			for _, wp := range wishlistedProducts {
+				if result[wp.ProductID] != nil {
+					result[wp.ProductID].IsWishlisted = true
 				}
 			}
 		}

@@ -14,11 +14,13 @@ import (
 // VariantQueryService defines the interface for variant read operations
 type VariantQueryService interface {
 	// GetVariantByID retrieves detailed information about a specific variant
+	// If userID is provided, also checks if the variant is wishlisted by that user
 	GetVariantByID(
 		ctx context.Context,
 		productID,
 		variantID uint,
 		sellerID uint,
+		userID *uint,
 	) (*model.VariantDetailResponse, error)
 
 	// FindVariantByOptions finds a variant based on selected options
@@ -27,32 +29,52 @@ type VariantQueryService interface {
 		productID uint,
 		optionValues map[string]string,
 		sellerID *uint,
+		userID *uint,
 	) (*model.VariantResponse, error)
 
 	// GetProductVariantsWithOptions retrieves all variants with their selected option values
 	// Optimized single query to prevent N+1 issues when fetching variant details
-	GetProductVariantsWithOptions(ctx context.Context, productID uint) ([]model.VariantDetailResponse, error)
+	GetProductVariantsWithOptions(
+		ctx context.Context,
+		productID uint,
+	) ([]model.VariantDetailResponse, error)
 
 	// GetProductVariantAggregation retrieves aggregated variant data for a single product
-	GetProductVariantAggregation(ctx context.Context, productID uint) (*mapper.VariantAggregation, error)
+	// If userID is provided, also checks if any variant is wishlisted by that user
+	GetProductVariantAggregation(
+		ctx context.Context,
+		productID uint,
+		userID *uint,
+	) (*mapper.VariantAggregation, error)
 
 	// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 	// This is optimized for batch operations to prevent N+1 queries
-	GetProductsVariantAggregations(ctx context.Context, productIDs []uint) (map[uint]*mapper.VariantAggregation, error)
+	// If userID is provided, also checks if any variant is wishlisted by that user
+	GetProductsVariantAggregations(
+		ctx context.Context,
+		productIDs []uint,
+		userID *uint,
+	) (map[uint]*mapper.VariantAggregation, error)
 
 	// ListVariants lists variants with comprehensive filtering support
 	// Used for: home page recommendations, search results, filtered listings
+	// If userID is provided, also checks wishlist status for each variant
 	ListVariants(
 		ctx context.Context,
 		request *model.ListVariantsRequest,
 		sellerID *uint,
 		optionFilters map[string]string,
+		userID *uint,
 	) (*model.ListVariantsResponse, error)
 
 	// GetProductCountByVariantIDs counts unique products from variant IDs
 	// Microservice-ready: Enables inventory service to count products without DB joins
 	// Used by inventory module to aggregate product counts per location
-	GetProductCountByVariantIDs(ctx context.Context, variantIDs []uint, sellerID *uint) (uint, error)
+	GetProductCountByVariantIDs(
+		ctx context.Context,
+		variantIDs []uint,
+		sellerID *uint,
+	) (uint, error)
 
 	// GetProductBasicInfoByVariantIDs retrieves basic product info for variant IDs
 	// Microservice-ready: Enables inventory service to get product details without DB joins
@@ -66,32 +88,41 @@ type VariantQueryService interface {
 
 // VariantQueryServiceImpl implements the VariantQueryService interface
 type VariantQueryServiceImpl struct {
-	variantRepo      repository.VariantRepository
-	optionService    ProductOptionService
-	validatorService ProductValidatorService
+	variantRepo         repository.VariantRepository
+	wishlistItemService WishlistItemService
+	optionService       ProductOptionService
+	validatorService    ProductValidatorService
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
 func NewVariantQueryService(
 	variantRepo repository.VariantRepository,
+	wishlistItemService WishlistItemService,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 ) VariantQueryService {
 	return &VariantQueryServiceImpl{
-		variantRepo:      variantRepo,
-		optionService:    optionService,
-		validatorService: validatorService,
+		variantRepo:         variantRepo,
+		wishlistItemService: wishlistItemService,
+		optionService:       optionService,
+		validatorService:    validatorService,
 	}
 }
 
 // GetVariantByID retrieves detailed information about a specific variant
+// If userID is provided, also checks if the variant is wishlisted by that user
 func (s *VariantQueryServiceImpl) GetVariantByID(
 	ctx context.Context,
 	productID, variantID uint,
 	sellerID uint,
+	userID *uint,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access using validator service
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(
+		ctx,
+		productID,
+		sellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +134,22 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 	}
 
 	// Build response using helper method (reduces code duplication)
-	return s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
+	response, err := s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if variant is wishlisted by user (if userID is provided)
+	if userID != nil {
+		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variantID, *userID)
+		if err != nil {
+			// Log error but don't fail the request - wishlist status is non-critical
+			isWishlisted = false
+		}
+		response.IsWishlisted = isWishlisted
+	}
+
+	return response, nil
 }
 
 // FindVariantByOptions finds a variant based on selected options
@@ -112,6 +158,7 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 	productID uint,
 	optionValues map[string]string,
 	sellerID *uint,
+	userID *uint,
 ) (*model.VariantResponse, error) {
 	// Validate seller access FIRST (security priority)
 	_, err := s.validatorService.GetAndValidateProductOwnership(ctx, productID, sellerID)
@@ -148,8 +195,18 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 		optionsResponse,
 	)
 
-	// Map to response
-	return factory.BuildVariantResponse(variant, selectedOptions), nil
+	// Build response
+	response := factory.BuildVariantResponse(variant, selectedOptions)
+
+	// Check wishlist status if user is logged in
+	if userID != nil {
+		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
+		if err == nil {
+			response.IsWishlisted = isWishlisted
+		}
+	}
+
+	return response, nil
 }
 
 // GetProductVariantsWithOptions retrieves all variants with their selected option values
@@ -175,20 +232,24 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
 // Returns summary information about all variants for a product
+// If userID is provided, also checks if any variant is wishlisted by that user
 func (s *VariantQueryServiceImpl) GetProductVariantAggregation(
 	ctx context.Context,
 	productID uint,
+	userID *uint,
 ) (*mapper.VariantAggregation, error) {
-	return s.variantRepo.GetProductVariantAggregation(ctx, productID)
+	return s.variantRepo.GetProductVariantAggregation(ctx, productID, userID)
 }
 
 // GetProductsVariantAggregations retrieves aggregated variant data for multiple products
 // This is optimized for batch operations to prevent N+1 queries
+// If userID is provided, also checks if any variant is wishlisted by that user
 func (s *VariantQueryServiceImpl) GetProductsVariantAggregations(
 	ctx context.Context,
 	productIDs []uint,
+	userID *uint,
 ) (map[uint]*mapper.VariantAggregation, error) {
-	return s.variantRepo.GetProductsVariantAggregations(ctx, productIDs)
+	return s.variantRepo.GetProductsVariantAggregations(ctx, productIDs, userID)
 }
 
 // buildVariantDetailResponse builds the variant detail response from variant data
@@ -232,6 +293,7 @@ func (s *VariantQueryServiceImpl) ListVariants(
 	request *model.ListVariantsRequest,
 	sellerID *uint,
 	optionFilters map[string]string,
+	userID *uint,
 ) (*model.ListVariantsResponse, error) {
 	// Set default pagination if not provided
 	if request.Page == 0 {
@@ -262,6 +324,24 @@ func (s *VariantQueryServiceImpl) ListVariants(
 
 	// Build response using factory method (reduces code duplication)
 	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+
+	// Check wishlist status for each variant if user is logged in
+	if userID != nil && len(variantResponses) > 0 {
+		// Collect variant IDs for batch wishlist check
+		variantIDs := make([]uint, len(variantResponses))
+		for i, v := range variantResponses {
+			variantIDs[i] = v.ID
+		}
+
+		// Check wishlist status for all variants in one call
+		wishlistMap, err := s.wishlistItemService.AreVariantsInUserWishlist(ctx, variantIDs, *userID)
+		if err == nil {
+			// Set IsWishlisted for each variant
+			for i := range variantResponses {
+				variantResponses[i].IsWishlisted = wishlistMap[variantResponses[i].ID]
+			}
+		}
+	}
 
 	return &model.ListVariantsResponse{
 		Variants: variantResponses,

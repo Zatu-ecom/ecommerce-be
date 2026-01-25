@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS "address" (
     longitude DOUBLE PRECISION,                -- Geo coordinate (optional)
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes on address

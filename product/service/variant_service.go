@@ -67,7 +67,11 @@ func (s *VariantServiceImpl) CreateVariant(
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(
+		ctx,
+		productID,
+		sellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +145,11 @@ func (s *VariantServiceImpl) UpdateVariant(
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(
+		ctx,
+		productID,
+		sellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +188,11 @@ func (s *VariantServiceImpl) UpdateVariant(
 /***********************************************
  *                DeleteVariant                *
  ***********************************************/
-func (s *VariantServiceImpl) DeleteVariant(ctx context.Context, productID, variantID uint, sellerID uint) error {
+func (s *VariantServiceImpl) DeleteVariant(
+	ctx context.Context,
+	productID, variantID uint,
+	sellerID uint,
+) error {
 	// Get product and validate seller access
 	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {

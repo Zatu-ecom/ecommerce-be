@@ -21,8 +21,9 @@ func TestUpdateProductHappyPath(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -52,7 +53,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Updated Premium Product Name",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -110,7 +111,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 			"longDescription":  "This is a much longer updated description with detailed information about the product",
 			"tags":             []string{"updated", "multiple", "fields"},
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -169,7 +170,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"categoryId": newCategory.ID,
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -224,7 +225,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"tags": newTags,
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -264,7 +265,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Admin Updated Product Name",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -316,7 +317,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"brand": "PartialUpdateBrand",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -351,7 +352,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"brand": "", // Empty string = clear the field
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -384,7 +385,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"tags": []string{}, // Empty array = clear all tags
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -421,7 +422,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 			"shortDescription": "", // Clear short description
 			"longDescription":  "", // Clear long description
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response

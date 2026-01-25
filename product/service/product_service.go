@@ -157,7 +157,12 @@ func (s *ProductServiceImpl) createProductAssociations(
 
 	// Create options if provided
 	if len(req.Options) > 0 {
-		options, err := s.productOptionService.CreateOptionsBulk(ctx, productID, sellerID, req.Options)
+		options, err := s.productOptionService.CreateOptionsBulk(
+			ctx,
+			productID,
+			sellerID,
+			req.Options,
+		)
 		if err != nil {
 			return err
 		}
@@ -336,7 +341,8 @@ func (s *ProductServiceImpl) UpdateProduct(
 	// TODO: Update attributes and package options if provided in request
 
 	// Return updated product with full details
-	return s.productQueryService.GetProductByID(ctx, product.ID, sellerId)
+	// Note: userID is nil here as this is a seller/admin update operation
+	return s.productQueryService.GetProductByID(ctx, product.ID, sellerId, nil)
 }
 
 /***************************************************

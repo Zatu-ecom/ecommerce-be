@@ -17,7 +17,7 @@ func getAndVerifyVariant(
 	client *helpers.APIClient,
 	productID, variantID uint,
 ) map[string]interface{} {
-	url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+	url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 	w := client.Get(t, url)
 	response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 	return helpers.GetResponseData(t, response, "variant")
@@ -30,8 +30,9 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -62,7 +63,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -76,13 +77,13 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Len(t, variants, 2)
 
 		// Verify variant 2 price was updated
-		variant2URL := fmt.Sprintf("/api/products/%d/variants/2", productID)
+		variant2URL := fmt.Sprintf("/api/product/%d/variant/2", productID)
 		w2 := client.Get(t, variant2URL)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		variant2Data := helpers.GetResponseData(t, response2, "variant")
 		assert.Equal(t, 1299.99, variant2Data["price"].(float64))
 
-		variant3URL := fmt.Sprintf("/api/products/%d/variants/3", productID)
+		variant3URL := fmt.Sprintf("/api/product/%d/variant/3", productID)
 		w3 := client.Get(t, variant3URL)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 		_ = helpers.GetResponseData(t, response3, "variant")
@@ -111,7 +112,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -121,19 +122,19 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(3), data["updatedCount"])
 
 		// Verify variant 1 price was updated
-		variant1URL := fmt.Sprintf("/api/products/%d/variants/1", productID)
+		variant1URL := fmt.Sprintf("/api/product/%d/variant/1", productID)
 		w1 := client.Get(t, variant1URL)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1Data := helpers.GetResponseData(t, response1, "variant")
 		assert.Equal(t, 1099.99, variant1Data["price"].(float64))
 
-		variant2URL := fmt.Sprintf("/api/products/%d/variants/2", productID)
+		variant2URL := fmt.Sprintf("/api/product/%d/variant/2", productID)
 		w2 := client.Get(t, variant2URL)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		_ = helpers.GetResponseData(t, response2, "variant")
 
 		// Verify variant 3 flags were updated
-		variant3URL := fmt.Sprintf("/api/products/%d/variants/3", productID)
+		variant3URL := fmt.Sprintf("/api/product/%d/variant/3", productID)
 		w3 := client.Get(t, variant3URL)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 		variant3Data := helpers.GetResponseData(t, response3, "variant")
@@ -156,7 +157,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -192,7 +193,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -215,7 +216,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -262,7 +263,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -289,7 +290,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -319,7 +320,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -349,7 +350,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -359,13 +360,13 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(2), data["updatedCount"])
 
 		// Verify only variant 6 is default (last one wins)
-		variant5URL := fmt.Sprintf("/api/products/%d/variants/5", productID)
+		variant5URL := fmt.Sprintf("/api/product/%d/variant/5", productID)
 		w5 := client.Get(t, variant5URL)
 		response5 := helpers.AssertSuccessResponse(t, w5, http.StatusOK)
 		variant5Data := helpers.GetResponseData(t, response5, "variant")
 		assert.False(t, variant5Data["isDefault"].(bool), "Variant 5 should NOT be default")
 
-		variant6URL := fmt.Sprintf("/api/products/%d/variants/6", productID)
+		variant6URL := fmt.Sprintf("/api/product/%d/variant/6", productID)
 		w6 := client.Get(t, variant6URL)
 		response6 := helpers.AssertSuccessResponse(t, w6, http.StatusOK)
 		variant6Data := helpers.GetResponseData(t, response6, "variant")
@@ -385,7 +386,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -425,7 +426,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -448,7 +449,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -471,7 +472,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -495,7 +496,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			"variants": []map[string]interface{}{},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		// Empty array should fail validation (min=1)
@@ -519,7 +520,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -538,7 +539,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -557,7 +558,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -583,7 +584,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		// Depending on implementation, this might be partial success or full failure
@@ -604,7 +605,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		assert.Contains(t, []int{http.StatusOK, http.StatusNotFound, http.StatusBadRequest}, w.Code)
@@ -624,7 +625,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		assert.Contains(t, []int{http.StatusOK, http.StatusNotFound, http.StatusBadRequest}, w.Code)
@@ -644,7 +645,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		assert.Contains(
@@ -667,7 +668,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		// Should fail with 404 - duplicate IDs not allowed
@@ -686,7 +687,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -704,7 +705,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]interface{}{}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -720,7 +721,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			"variants": nil,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -738,7 +739,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -756,7 +757,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -774,7 +775,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -792,7 +793,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -810,7 +811,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -831,7 +832,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := unauthClient.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -849,7 +850,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -870,7 +871,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 				},
 			}
 
-			url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+			url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 			w := client.Put(t, url, requestBody)
 
 			helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -890,7 +891,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -913,7 +914,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -939,7 +940,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -963,7 +964,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -973,19 +974,19 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(3), data["updatedCount"])
 
 		// Verify only variant 3 is default (last one wins)
-		variant1URL := fmt.Sprintf("/api/products/%d/variants/1", productID)
+		variant1URL := fmt.Sprintf("/api/product/%d/variant/1", productID)
 		w1 := client.Get(t, variant1URL)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1Data := helpers.GetResponseData(t, response1, "variant")
 		assert.False(t, variant1Data["isDefault"].(bool), "Variant 1 should NOT be default")
 
-		variant2URL := fmt.Sprintf("/api/products/%d/variants/2", productID)
+		variant2URL := fmt.Sprintf("/api/product/%d/variant/2", productID)
 		w2 := client.Get(t, variant2URL)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		variant2Data := helpers.GetResponseData(t, response2, "variant")
 		assert.False(t, variant2Data["isDefault"].(bool), "Variant 2 should NOT be default")
 
-		variant3URL := fmt.Sprintf("/api/products/%d/variants/3", productID)
+		variant3URL := fmt.Sprintf("/api/product/%d/variant/3", productID)
 		w3 := client.Get(t, variant3URL)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 		variant3Data := helpers.GetResponseData(t, response3, "variant")
@@ -1005,7 +1006,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -1027,7 +1028,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -1037,7 +1038,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(1), data["updatedCount"])
 
 		// Verify variant 17 is now default
-		variant17URL := fmt.Sprintf("/api/products/%d/variants/17", productID)
+		variant17URL := fmt.Sprintf("/api/product/%d/variant/17", productID)
 		w17 := client.Get(t, variant17URL)
 		response17 := helpers.AssertSuccessResponse(t, w17, http.StatusOK)
 		variant17Data := helpers.GetResponseData(t, response17, "variant")
@@ -1060,7 +1061,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/invalid/variants/bulk"
+		url := "/api/product/invalid/variant/bulk"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -1076,7 +1077,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/-1/variants/bulk"
+		url := "/api/product/-1/variant/bulk"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -1092,7 +1093,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/0/variants/bulk"
+		url := "/api/product/0/variant/bulk"
 		w := client.Put(t, url, requestBody)
 
 		// Returns 404 instead of 400

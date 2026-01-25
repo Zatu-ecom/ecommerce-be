@@ -17,8 +17,8 @@ import (
 // including validation, cascading deletes, authorization, and database integrity
 //
 // Test Requirements:
-// - migrations/seeds/001_seed_user_data.sql (for authentication)
-// - migrations/seeds/002_seed_product_data.sql (for test products)
+// - migrations/seeds/mock/001_seed_users.sql (for authentication)
+// - migrations/seeds/mock/002_seed_products.sql (for test products)
 func TestDeleteProduct(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
@@ -26,8 +26,9 @@ func TestDeleteProduct(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -64,7 +65,7 @@ func TestDeleteProduct(t *testing.T) {
 			Count(&attributeCount)
 
 		// When: Seller sends DELETE request
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Validate response
@@ -115,7 +116,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Admin sends DELETE request
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Validate response
@@ -154,7 +155,7 @@ func TestDeleteProduct(t *testing.T) {
 		require.Greater(t, variantCount, int64(1), "Product should have multiple variants")
 
 		// When: Owner sends DELETE request
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Validate all variants are deleted
@@ -195,7 +196,7 @@ func TestDeleteProduct(t *testing.T) {
 		require.Greater(t, attributeCount, int64(0), "Product should have attributes")
 
 		// When: Owner sends DELETE request
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Validate deletion
@@ -229,7 +230,7 @@ func TestDeleteProduct(t *testing.T) {
 			productID := product.ID
 
 			// When: Owner sends DELETE request
-			url := fmt.Sprintf("/api/products/%d", productID)
+			url := fmt.Sprintf("/api/product/%d", productID)
 			w := client.Delete(t, url)
 
 			// Then: Validate deletion
@@ -258,7 +259,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Request sent without token
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 401
@@ -282,7 +283,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Request sent with invalid token
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected
@@ -306,7 +307,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Request sent with malformed token
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected
@@ -335,7 +336,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Jane tries to delete product owned by seller 2
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 403 Forbidden
@@ -360,7 +361,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// When: Customer tries to delete product
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 403 Forbidden
@@ -385,7 +386,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := uint(99999)
 
 		// When: Seller tries to delete non-existent product
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 404
@@ -398,7 +399,7 @@ func TestDeleteProduct(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller sends request with non-numeric ID
-		url := "/api/products/abc"
+		url := "/api/product/abc"
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 400
@@ -411,7 +412,7 @@ func TestDeleteProduct(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller sends request with negative ID
-		url := "/api/products/-5"
+		url := "/api/product/-5"
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 400
@@ -424,7 +425,7 @@ func TestDeleteProduct(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller sends request with zero ID
-		url := "/api/products/0"
+		url := "/api/product/0"
 		w := client.Delete(t, url)
 
 		// Then: Request is rejected with 404 (product with ID 0 doesn't exist)
@@ -439,7 +440,7 @@ func TestDeleteProduct(t *testing.T) {
 			client.SetToken(sellerToken)
 
 			// When: Seller sends request with very large number
-			url := "/api/products/99999999999999999999"
+			url := "/api/product/99999999999999999999"
 			w := client.Delete(t, url)
 
 			// Then: Request is rejected with 400
@@ -459,7 +460,7 @@ func TestDeleteProduct(t *testing.T) {
 			client.SetToken(sellerToken)
 
 			// When: Seller sends request with SQL injection attempt
-			url := "/api/products/1; DROP TABLE product--"
+			url := "/api/product/1; DROP TABLE product--"
 			w := client.Delete(t, url)
 
 			// Then: Request is safely rejected
@@ -484,7 +485,7 @@ func TestDeleteProduct(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller sends request with XSS payload
-		url := "/api/products/<script>alert('xss')</script>"
+		url := "/api/product/<script>alert('xss')</script>"
 		w := client.Delete(t, url)
 
 		// Then: Request doesn't match route pattern - returns 404
@@ -502,7 +503,7 @@ func TestDeleteProduct(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller sends request with path traversal
-		url := "/api/products/../../etc/passwd"
+		url := "/api/product/../../etc/passwd"
 		w := client.Delete(t, url)
 
 		// Then: Request doesn't match route pattern - returns 404
@@ -518,7 +519,7 @@ func TestDeleteProduct(t *testing.T) {
 			client.SetToken(sellerToken)
 
 			// When: Seller sends request with Unicode characters
-			url := "/api/products/产品123"
+			url := "/api/product/产品123"
 			w := client.Delete(t, url)
 
 			// Then: Request is rejected
@@ -535,7 +536,7 @@ func TestDeleteProduct(t *testing.T) {
 
 			// When: Seller sends request with special characters (URL encoded)
 			// Note: Special characters need to be URL encoded: !@#$%^&*() -> %21%40%23%24%25%5E%26%2A%28%29
-			url := "/api/products/%21%40%23%24%25%5E%26%2A%28%29"
+			url := "/api/product/%21%40%23%24%25%5E%26%2A%28%29"
 			w := client.Delete(t, url)
 
 			// Then: Request is rejected as invalid product ID format
@@ -562,7 +563,7 @@ func TestDeleteProduct(t *testing.T) {
 			productID := product.ID
 
 			// When: Seller tries to delete another seller's product
-			url := fmt.Sprintf("/api/products/%d", productID)
+			url := fmt.Sprintf("/api/product/%d", productID)
 			w := client.Delete(t, url)
 
 			// Then: Authorization check prevents deletion
@@ -600,7 +601,7 @@ func TestDeleteProduct(t *testing.T) {
 		client2.SetToken(seller2Token)
 
 		// When: Both clients try to delete simultaneously
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 
 		// Execute deletions (one should succeed, one should fail)
 		done := make(chan *int, 2)
@@ -645,7 +646,7 @@ func TestDeleteProduct(t *testing.T) {
 		categoryID := product.CategoryID
 
 		// When: Product is deleted
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Delete(t, url)
 
 		// Then: Product deletion succeeds (category has ON DELETE RESTRICT, but from category to product)
@@ -681,7 +682,7 @@ func TestDeleteProduct(t *testing.T) {
 		productID := product.ID
 
 		// First deletion
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w1 := client.Delete(t, url)
 		helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 
@@ -710,7 +711,7 @@ func TestDeleteProduct(t *testing.T) {
 		require.NoError(t, err, "Should find product")
 
 		productID := product.ID
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 
 		// Simulate: First request completes on server
 		w1 := client.Delete(t, url)

@@ -53,7 +53,7 @@ type ProductsAtLocationResponse struct {
 
 // =========================================================================
 // API 3: Get Variant Details with Inventory
-// Endpoint: GET /api/inventory/locations/{locationId}/products/{productId}/variants
+// Endpoint: GET /api/inventory/locations/{locationId}/product/{productId}/variant
 // Purpose: Shows all variants of a product with their inventory at a location
 // =========================================================================
 

@@ -52,7 +52,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"description":   "Product brand",
 			"allowedValues": []string{"Apple", "Samsung", "Sony"},
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -61,7 +61,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		linkResponse := helpers.AssertSuccessResponse(t, linkW, http.StatusCreated)
 
 		// Verify response structure
@@ -83,7 +83,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		assert.Contains(t, data["createdAt"].(string), "T", "createdAt should be in ISO8601 format")
 
 		// Verify the link by getting category attributes
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		getResponse := helpers.AssertSuccessResponse(t, getW, http.StatusOK)
 		getData := getResponse["data"].(map[string]interface{})
 		attributes := getData["attributes"].([]interface{})
@@ -123,7 +123,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Color",
 			"description": "Product color",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -132,7 +132,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		linkResponse := helpers.AssertSuccessResponse(t, linkW, http.StatusCreated)
 
 		// Verify response
@@ -161,7 +161,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Size",
 			"description": "Product size",
 		}
-		attr1W := client.Post(t, "/api/attributes", attr1Req)
+		attr1W := client.Post(t, "/api/attribute", attr1Req)
 		attr1Response := helpers.AssertSuccessResponse(t, attr1W, http.StatusCreated)
 		attr1 := helpers.GetResponseData(t, attr1Response, "attribute")
 		attr1ID := uint(attr1["id"].(float64))
@@ -169,7 +169,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		link1Req := map[string]interface{}{
 			"attributeDefinitionId": attr1ID,
 		}
-		link1W := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), link1Req)
+		link1W := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), link1Req)
 		helpers.AssertSuccessResponse(t, link1W, http.StatusCreated)
 
 		// Create and link second attribute
@@ -178,7 +178,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Weight",
 			"description": "Product weight",
 		}
-		attr2W := client.Post(t, "/api/attributes", attr2Req)
+		attr2W := client.Post(t, "/api/attribute", attr2Req)
 		attr2Response := helpers.AssertSuccessResponse(t, attr2W, http.StatusCreated)
 		attr2 := helpers.GetResponseData(t, attr2Response, "attribute")
 		attr2ID := uint(attr2["id"].(float64))
@@ -186,11 +186,11 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		link2Req := map[string]interface{}{
 			"attributeDefinitionId": attr2ID,
 		}
-		link2W := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), link2Req)
+		link2W := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), link2Req)
 		helpers.AssertSuccessResponse(t, link2W, http.StatusCreated)
 
 		// Verify both attributes are linked
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		getResponse := helpers.AssertSuccessResponse(t, getW, http.StatusOK)
 		getData := getResponse["data"].(map[string]interface{})
 		attributes := getData["attributes"].([]interface{})
@@ -208,7 +208,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": 1,
 		}
-		linkW := client.Post(t, "/api/categories/99999/attributes", linkReq)
+		linkW := client.Post(t, "/api/categories/99999/attribute", linkReq)
 		errorResponse := helpers.AssertErrorResponse(t, linkW, http.StatusNotFound)
 
 		// Assert error code
@@ -238,7 +238,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": 99999,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		errorResponse := helpers.AssertErrorResponse(t, linkW, http.StatusNotFound)
 
 		// Assert error code
@@ -266,7 +266,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 
 		// Try to link without attributeDefinitionId
 		linkReq := map[string]interface{}{}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		helpers.AssertErrorResponse(t, linkW, http.StatusBadRequest)
 	})
 
@@ -290,7 +290,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Duplicate Test",
 			"description": "For duplicate link testing",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -299,11 +299,11 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		link1W := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		link1W := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		helpers.AssertSuccessResponse(t, link1W, http.StatusCreated)
 
 		// Link second time - should fail
-		link2W := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		link2W := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		errorResponse := helpers.AssertErrorResponse(t, link2W, http.StatusConflict)
 
 		// Assert error code
@@ -326,7 +326,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": 1,
 		}
-		linkW := client.Post(t, "/api/categories/1/attributes", linkReq)
+		linkW := client.Post(t, "/api/categories/1/attribute", linkReq)
 		helpers.AssertErrorResponse(t, linkW, http.StatusUnauthorized)
 	})
 
@@ -338,7 +338,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": 1,
 		}
-		linkW := client.Post(t, "/api/categories/1/attributes", linkReq)
+		linkW := client.Post(t, "/api/categories/1/attribute", linkReq)
 		helpers.AssertErrorResponse(t, linkW, http.StatusForbidden)
 	})
 
@@ -362,7 +362,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Unauthorized",
 			"description": "Seller shouldn't link this",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -374,7 +374,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		errorResponse := helpers.AssertErrorResponse(t, linkW, http.StatusForbidden)
 
 		// Assert error code
@@ -406,7 +406,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Cross Seller",
 			"description": "Cross seller test",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -418,7 +418,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		errorResponse := helpers.AssertErrorResponse(t, linkW, http.StatusForbidden)
 
 		// Assert error code
@@ -454,7 +454,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Unlink Test",
 			"description": "For unlink testing",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -463,11 +463,11 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		helpers.AssertSuccessResponse(t, linkW, http.StatusCreated)
 
 		// Verify link exists
-		getW1 := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW1 := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		getResponse1 := helpers.AssertSuccessResponse(t, getW1, http.StatusOK)
 		getData1 := getResponse1["data"].(map[string]interface{})
 		attributes1 := getData1["attributes"].([]interface{})
@@ -476,12 +476,12 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		// Unlink attribute
 		unlinkW := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		helpers.AssertSuccessResponse(t, unlinkW, http.StatusOK)
 
 		// Verify link no longer exists
-		getW2 := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW2 := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		getResponse2 := helpers.AssertSuccessResponse(t, getW2, http.StatusOK)
 		getData2 := getResponse2["data"].(map[string]interface{})
 
@@ -520,7 +520,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Seller Unlink",
 			"description": "For seller unlink testing",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -528,12 +528,12 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 
 		// Unlink attribute
 		unlinkW := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		helpers.AssertSuccessResponse(t, unlinkW, http.StatusOK)
 	})
@@ -546,7 +546,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		unlinkW := client.Delete(t, "/api/categories/99999/attributes/1")
+		unlinkW := client.Delete(t, "/api/categories/99999/attribute/1")
 		errorResponse := helpers.AssertErrorResponse(t, unlinkW, http.StatusNotFound)
 
 		// Assert error code
@@ -573,7 +573,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Try to unlink non-existent attribute (attribute ID that doesn't exist)
-		unlinkW := client.Delete(t, fmt.Sprintf("/api/categories/%d/attributes/99999", categoryID))
+		unlinkW := client.Delete(t, fmt.Sprintf("/api/categories/%d/attribute/99999", categoryID))
 		errorResponse := helpers.AssertErrorResponse(t, unlinkW, http.StatusNotFound)
 
 		// Assert error code
@@ -605,7 +605,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Double Unlink",
 			"description": "For double unlink testing",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -613,19 +613,19 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 
 		// Unlink first time - should succeed
 		unlink1W := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		helpers.AssertSuccessResponse(t, unlink1W, http.StatusOK)
 
 		// Unlink second time - should fail
 		unlink2W := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		errorResponse := helpers.AssertErrorResponse(t, unlink2W, http.StatusNotFound)
 
@@ -645,7 +645,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 	t.Run("Unauthorized user cannot unlink attribute", func(t *testing.T) {
 		client.SetToken("")
 
-		unlinkW := client.Delete(t, "/api/categories/1/attributes/1")
+		unlinkW := client.Delete(t, "/api/categories/1/attribute/1")
 		helpers.AssertErrorResponse(t, unlinkW, http.StatusUnauthorized)
 	})
 
@@ -653,7 +653,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		unlinkW := client.Delete(t, "/api/categories/1/attributes/1")
+		unlinkW := client.Delete(t, "/api/categories/1/attribute/1")
 		helpers.AssertErrorResponse(t, unlinkW, http.StatusForbidden)
 	})
 
@@ -676,7 +676,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Global Unlink",
 			"description": "For global unlink test",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -684,7 +684,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 
 		// Seller tries to unlink
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
@@ -692,7 +692,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 
 		unlinkW := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		errorResponse := helpers.AssertErrorResponse(t, unlinkW, http.StatusForbidden)
 
@@ -724,7 +724,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Cross Seller Unlink",
 			"description": "Cross seller unlink test",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -732,7 +732,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 
 		// Seller 2 tries to unlink
 		seller2Token := helpers.Login(t, client, "bob.store@example.com", "seller123")
@@ -740,7 +740,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 
 		unlinkW := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		errorResponse := helpers.AssertErrorResponse(t, unlinkW, http.StatusForbidden)
 
@@ -777,7 +777,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Toggle",
 			"description": "For toggle testing",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -787,19 +787,19 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		}
 
 		// Cycle 1: Link -> Unlink
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
-		client.Delete(t, fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID))
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
+		client.Delete(t, fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID))
 
 		// Cycle 2: Link -> Unlink
-		client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
-		client.Delete(t, fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID))
+		client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
+		client.Delete(t, fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID))
 
 		// Cycle 3: Link (leave linked)
-		link3W := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		link3W := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		helpers.AssertSuccessResponse(t, link3W, http.StatusCreated)
 
 		// Verify final state
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		getResponse := helpers.AssertSuccessResponse(t, getW, http.StatusOK)
 		getData := getResponse["data"].(map[string]interface{})
 		attributes := getData["attributes"].([]interface{})
@@ -838,7 +838,7 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 			"name":        "Admin Manage",
 			"description": "Admin managing seller category",
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(t, attrW, http.StatusCreated)
 		attribute := helpers.GetResponseData(t, attrResponse, "attribute")
 		attributeID := uint(attribute["id"].(float64))
@@ -846,13 +846,13 @@ func TestLinkUnlinkAttributes(t *testing.T) {
 		linkReq := map[string]interface{}{
 			"attributeDefinitionId": attributeID,
 		}
-		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID), linkReq)
+		linkW := client.Post(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID), linkReq)
 		helpers.AssertSuccessResponse(t, linkW, http.StatusCreated)
 
 		// Admin unlinks from seller's category
 		unlinkW := client.Delete(
 			t,
-			fmt.Sprintf("/api/categories/%d/attributes/%d", categoryID, attributeID),
+			fmt.Sprintf("/api/categories/%d/attribute/%d", categoryID, attributeID),
 		)
 		helpers.AssertSuccessResponse(t, unlinkW, http.StatusOK)
 	})

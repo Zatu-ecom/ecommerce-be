@@ -18,8 +18,9 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -43,7 +44,7 @@ func TestUpdateVariant(t *testing.T) {
 			"sku": "IPHONE-15-PRO-512GB-UPDATED",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -64,7 +65,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 1399.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -89,7 +90,7 @@ func TestUpdateVariant(t *testing.T) {
 			"images": newImages,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -111,7 +112,7 @@ func TestUpdateVariant(t *testing.T) {
 			"allowPurchase": false,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -131,7 +132,7 @@ func TestUpdateVariant(t *testing.T) {
 			"isPopular": true,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -154,7 +155,7 @@ func TestUpdateVariant(t *testing.T) {
 			"isPopular":     true,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -187,7 +188,7 @@ func TestUpdateVariant(t *testing.T) {
 			"isDefault":     true,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -215,7 +216,7 @@ func TestUpdateVariant(t *testing.T) {
 			"images": []string{},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -243,7 +244,7 @@ func TestUpdateVariant(t *testing.T) {
 				"isDefault": true,
 			}
 
-			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 			w := client.Put(t, url, requestBody)
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -265,7 +266,7 @@ func TestUpdateVariant(t *testing.T) {
 			"isDefault": false,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -289,7 +290,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": -10.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -306,7 +307,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -330,7 +331,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 999.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := unauthClient.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -347,7 +348,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 999.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -367,7 +368,7 @@ func TestUpdateVariant(t *testing.T) {
 				"price": 999.99,
 			}
 
-			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 			w := client.Put(t, url, requestBody)
 
 			helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -385,7 +386,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 1149.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -409,7 +410,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -426,7 +427,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -443,7 +444,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -464,7 +465,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 999999.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -486,7 +487,7 @@ func TestUpdateVariant(t *testing.T) {
 			"sku": longSKU,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -517,7 +518,7 @@ func TestUpdateVariant(t *testing.T) {
 			"images": manyImages,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -539,7 +540,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 1234.56,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -559,7 +560,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 0.01,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -575,7 +576,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 9
 		variantID := 18
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 
 		// First update
 		requestBody1 := map[string]interface{}{
@@ -615,7 +616,7 @@ func TestUpdateVariant(t *testing.T) {
 
 		requestBody := map[string]interface{}{}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		// Empty body might be accepted as no-op or validation error depending on implementation
@@ -635,7 +636,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": "invalid",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -652,7 +653,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": "not-a-number",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -669,7 +670,7 @@ func TestUpdateVariant(t *testing.T) {
 			"allowPurchase": "yes",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -686,7 +687,7 @@ func TestUpdateVariant(t *testing.T) {
 			"images": "not-an-array",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -704,7 +705,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := "/api/products/invalid/variants/1"
+		url := "/api/product/invalid/variant/1"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -718,7 +719,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := "/api/products/5/variants/invalid"
+		url := "/api/product/5/variant/invalid"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -732,7 +733,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := "/api/products/-1/variants/1"
+		url := "/api/product/-1/variant/1"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -746,7 +747,7 @@ func TestUpdateVariant(t *testing.T) {
 			"price": 99.99,
 		}
 
-		url := "/api/products/0/variants/1"
+		url := "/api/product/0/variant/1"
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)

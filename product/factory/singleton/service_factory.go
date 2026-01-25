@@ -3,6 +3,7 @@ package singleton
 import (
 	"sync"
 
+	orderRepo "ecommerce-be/order/repository"
 	"ecommerce-be/product/service"
 )
 
@@ -21,6 +22,8 @@ type ServiceFactory struct {
 	productOptionService    service.ProductOptionService
 	optionValueService      service.ProductOptionValueService
 	validatorService        service.ProductValidatorService
+	wishlistService         service.WishlistService
+	wishlistItemService     service.WishlistItemService
 
 	once sync.Once
 }
@@ -52,9 +55,22 @@ func (f *ServiceFactory) initialize() {
 			f.validatorService,
 		)
 
+		// Initialize WishlistService (needed by WishlistItemService)
+		f.wishlistService = service.NewWishlistService(
+			f.repoFactory.GetWishlistRepository(),
+		)
+
+		// Initialize WishlistItemService (needed by VariantQueryService)
+		f.wishlistItemService = service.NewWishlistItemService(
+			f.repoFactory.GetWishlistItemRepository(),
+			f.repoFactory.GetWishlistRepository(),
+			orderRepo.NewCartRepository(),
+		)
+
 		// Initialize VariantQueryService (query operations only - no circular dependencies)
 		f.variantQueryService = service.NewVariantQueryService(
 			variantRepo,
+			f.wishlistItemService,
 			f.productOptionService,
 			f.validatorService,
 		)
@@ -170,4 +186,16 @@ func (f *ServiceFactory) GetProductOptionValueService() service.ProductOptionVal
 func (f *ServiceFactory) GetProductValidatorService() service.ProductValidatorService {
 	f.initialize()
 	return f.validatorService
+}
+
+// GetWishlistService returns the singleton wishlist service
+func (f *ServiceFactory) GetWishlistService() service.WishlistService {
+	f.initialize()
+	return f.wishlistService
+}
+
+// GetWishlistItemService returns the singleton wishlist item service
+func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
+	f.initialize()
+	return f.wishlistItemService
 }

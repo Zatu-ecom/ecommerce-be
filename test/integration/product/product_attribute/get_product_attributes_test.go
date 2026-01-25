@@ -18,8 +18,9 @@ func TestGetProductAttributes(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -35,7 +36,7 @@ func TestGetProductAttributes(t *testing.T) {
 			"sortOrder":             sortOrder,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
@@ -62,7 +63,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3") // Jane's seller ID
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(
@@ -92,7 +93,7 @@ func TestGetProductAttributes(t *testing.T) {
 
 		client.SetHeader("X-Seller-ID", "3") // Required for public API
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		// Should succeed with list (might have seed data)
@@ -124,7 +125,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3") // Jane's seller ID
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		// Should succeed with X-Seller-ID header
@@ -146,7 +147,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -193,7 +194,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -245,7 +246,7 @@ func TestGetProductAttributes(t *testing.T) {
 		// Invalid product ID format
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := "/api/products/invalid/attributes"
+		url := "/api/product/invalid/attribute"
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -257,7 +258,7 @@ func TestGetProductAttributes(t *testing.T) {
 
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -284,7 +285,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -313,7 +314,7 @@ func TestGetProductAttributes(t *testing.T) {
 			"value":     "Regular",
 			"sortOrder": 5,
 		}
-		updateURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		updateURL := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		wUpdate := client.Put(t, updateURL, updateBody)
 		helpers.AssertSuccessResponse(t, wUpdate, http.StatusOK)
 
@@ -321,7 +322,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
+		getURL := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, getURL)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -359,7 +360,7 @@ func TestGetProductAttributes(t *testing.T) {
 		attr1ID := int(attr1["id"].(float64))
 
 		// Delete first attribute
-		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr1ID)
+		deleteURL := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attr1ID)
 		wDelete := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, wDelete, http.StatusOK)
 
@@ -367,7 +368,7 @@ func TestGetProductAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
+		getURL := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Get(t, getURL)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)

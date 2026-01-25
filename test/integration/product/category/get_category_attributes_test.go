@@ -57,7 +57,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description":   "Product brand",
 			"allowedValues": []string{"Apple", "Samsung", "Sony"},
 		}
-		attrW := client.Post(t, "/api/attributes", attrReq)
+		attrW := client.Post(t, "/api/attribute", attrReq)
 		attrResponse := helpers.AssertSuccessResponse(
 			t,
 			attrW,
@@ -65,7 +65,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			)
 		_ = helpers.GetResponseData(t, attrResponse, "attribute") // Just validate structure
 
-		// Create and link attribute to category using /api/attributes/:categoryId endpoint
+		// Create and link attribute to category using /api/attribute/:categoryId endpoint
 		// This endpoint creates a category-specific attribute definition
 		catAttrReq := map[string]interface{}{
 			"key":           "color",
@@ -73,14 +73,14 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description":   "Product color for this category",
 			"allowedValues": []string{"Red", "Blue", "Green"},
 		}
-		catAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", categoryID), catAttrReq)
+		catAttrW := client.Post(t, fmt.Sprintf("/api/attribute/%d", categoryID), catAttrReq)
 		helpers.AssertSuccessResponse(t, catAttrW, http.StatusCreated)
 
 		// Get attributes using public API
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -133,7 +133,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Size",
 			"description": "Product size",
 		}
-		attrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", categoryID), attrReq)
+		attrW := client.Post(t, fmt.Sprintf("/api/attribute/%d", categoryID), attrReq)
 		helpers.AssertSuccessResponse(
 			t,
 			attrW,
@@ -144,7 +144,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -189,7 +189,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "4") // Seller2
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -222,7 +222,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Material",
 			"description": "Product material",
 		}
-		attr1W := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), attr1Req)
+		attr1W := client.Post(t, fmt.Sprintf("/api/attribute/%d", parentID), attr1Req)
 		helpers.AssertSuccessResponse(t, attr1W, http.StatusCreated)
 
 		attr2Req := map[string]interface{}{
@@ -230,7 +230,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Color",
 			"description": "Product color",
 		}
-		attr2W := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), attr2Req)
+		attr2W := client.Post(t, fmt.Sprintf("/api/attribute/%d", parentID), attr2Req)
 		helpers.AssertSuccessResponse(t, attr2W, http.StatusCreated)
 
 		// Create child category
@@ -255,14 +255,14 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description": "Product weight",
 			"unit":        "kg",
 		}
-		attr3W := client.Post(t, fmt.Sprintf("/api/attributes/%d", childID), attr3Req)
+		attr3W := client.Post(t, fmt.Sprintf("/api/attribute/%d", childID), attr3Req)
 		helpers.AssertSuccessResponse(t, attr3W, http.StatusCreated)
 
 		// Get child's attributes with inheritance
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", childID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", childID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -317,7 +317,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Origin",
 			"description": "Country of origin",
 		}
-		gAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", grandparentID), gAttrReq)
+		gAttrW := client.Post(t, fmt.Sprintf("/api/attribute/%d", grandparentID), gAttrReq)
 		helpers.AssertSuccessResponse(t, gAttrW, http.StatusCreated)
 
 		// Create parent
@@ -341,7 +341,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Warranty",
 			"description": "Warranty period",
 		}
-		pAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", parentID), pAttrReq)
+		pAttrW := client.Post(t, fmt.Sprintf("/api/attribute/%d", parentID), pAttrReq)
 		helpers.AssertSuccessResponse(t, pAttrW, http.StatusCreated)
 
 		// Create child
@@ -365,14 +365,14 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"name":        "Model",
 			"description": "Model number",
 		}
-		cAttrW := client.Post(t, fmt.Sprintf("/api/attributes/%d", childID), cAttrReq)
+		cAttrW := client.Post(t, fmt.Sprintf("/api/attribute/%d", childID), cAttrReq)
 		helpers.AssertSuccessResponse(t, cAttrW, http.StatusCreated)
 
 		// Get child's attributes - should include all 3 levels
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", childID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", childID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -415,7 +415,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "")
 
-		getW := client.Get(t, "/api/categories/1/attributes")
+		getW := client.Get(t, "/api/categories/1/attribute")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -427,7 +427,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "invalid")
 
-		getW := client.Get(t, "/api/categories/1/attributes")
+		getW := client.Get(t, "/api/categories/1/attribute")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -458,7 +458,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Get attributes with authentication
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -492,7 +492,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -530,7 +530,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -552,7 +552,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/99999/attributes")
+		getW := client.Get(t, "/api/categories/99999/attribute")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -564,7 +564,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/invalid/attributes")
+		getW := client.Get(t, "/api/categories/invalid/attribute")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -597,13 +597,13 @@ func TestGetCategoryAttributes(t *testing.T) {
 			"description":   "Detailed attribute",
 			"allowedValues": []string{"Option1", "Option2"},
 		}
-		client.Post(t, fmt.Sprintf("/api/attributes/%d", categoryID), attrReq)
+		client.Post(t, fmt.Sprintf("/api/attribute/%d", categoryID), attrReq)
 
 		// Get attributes and verify response structure
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attributes", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/categories/%d/attribute", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,

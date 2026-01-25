@@ -227,7 +227,8 @@ func (h *BulkInventoryHelper) fetchVariantBatchByIDs(
 		PageSize: len(variantIDs),
 	}
 
-	response, err := h.variantQueryService.ListVariants(ctx, filters, sellerID, nil)
+	// Pass nil for optionFilters and userID (inventory service doesn't need wishlist status)
+	response, err := h.variantQueryService.ListVariants(ctx, filters, sellerID, nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestSearchProducts tests the GET /api/products/search endpoint with various scenarios
+// TestSearchProducts tests the GET /api/product/search endpoint with various scenarios
 func TestSearchProducts(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
@@ -20,8 +20,9 @@ func TestSearchProducts(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -38,19 +39,19 @@ func TestSearchProducts(t *testing.T) {
 	// ============================================================================
 
 	t.Run("Error - Missing search query parameter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search")
+		w := client.Get(t, "/api/product/search")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
 
 	t.Run("Error - Empty search query parameter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=")
+		w := client.Get(t, "/api/product/search?q=")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
 
 	t.Run("Error - Whitespace only search query", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=   ")
+		w := client.Get(t, "/api/product/search?q=   ")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -66,7 +67,7 @@ func TestSearchProducts(t *testing.T) {
 			longQuery += "a"
 		}
 
-		w := client.Get(t, fmt.Sprintf("/api/products/search?q=%s", url.QueryEscape(longQuery)))
+		w := client.Get(t, fmt.Sprintf("/api/product/search?q=%s", url.QueryEscape(longQuery)))
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -86,7 +87,7 @@ func TestSearchProducts(t *testing.T) {
 		}
 
 		for _, query := range specialQueries {
-			w := client.Get(t, fmt.Sprintf("/api/products/search?q=%s", url.QueryEscape(query)))
+			w := client.Get(t, fmt.Sprintf("/api/product/search?q=%s", url.QueryEscape(query)))
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -105,7 +106,7 @@ func TestSearchProducts(t *testing.T) {
 		}
 
 		for _, query := range sqlInjectionQueries {
-			w := client.Get(t, fmt.Sprintf("/api/products/search?q=%s", url.QueryEscape(query)))
+			w := client.Get(t, fmt.Sprintf("/api/product/search?q=%s", url.QueryEscape(query)))
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -121,7 +122,7 @@ func TestSearchProducts(t *testing.T) {
 	// ============================================================================
 
 	t.Run("Success - Search by exact product name", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone 15 Pro")
+		w := client.Get(t, "/api/product/search?q=iPhone 15 Pro")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -144,7 +145,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search by partial product name (case insensitive)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iphone")
+		w := client.Get(t, "/api/product/search?q=iphone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -166,7 +167,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search by brand name", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=Apple")
+		w := client.Get(t, "/api/product/search?q=Apple")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -183,7 +184,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search by description keyword", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=smartphone")
+		w := client.Get(t, "/api/product/search?q=smartphone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -205,7 +206,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search by tag", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=flagship")
+		w := client.Get(t, "/api/product/search?q=flagship")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -221,7 +222,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search returns multiple matching products", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=premium")
+		w := client.Get(t, "/api/product/search?q=premium")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -233,7 +234,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with no matching results", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=xyz123nonexistent")
+		w := client.Get(t, "/api/product/search?q=xyz123nonexistent")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -248,7 +249,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with numeric query", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=15")
+		w := client.Get(t, "/api/product/search?q=15")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -267,7 +268,7 @@ func TestSearchProducts(t *testing.T) {
 
 	t.Run("Success - Search with category filter", func(t *testing.T) {
 		// Category 4 = Smartphones (iPhone, Samsung)
-		w := client.Get(t, "/api/products/search?q=phone&categoryId=4")
+		w := client.Get(t, "/api/product/search?q=phone&categoryId=4")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -283,7 +284,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with brand filter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&brand=Apple")
+		w := client.Get(t, "/api/product/search?q=phone&brand=Apple")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -299,7 +300,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with minimum price filter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&minPrice=1000")
+		w := client.Get(t, "/api/product/search?q=pro&minPrice=1000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -315,7 +316,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with maximum price filter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&maxPrice=50000")
+		w := client.Get(t, "/api/product/search?q=phone&maxPrice=50000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -331,7 +332,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with price range (min and max)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&minPrice=500&maxPrice=100000")
+		w := client.Get(t, "/api/product/search?q=pro&minPrice=500&maxPrice=100000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -347,7 +348,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with multiple filters combined", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&categoryId=4&brand=Apple&minPrice=1000")
+		w := client.Get(t, "/api/product/search?q=phone&categoryId=4&brand=Apple&minPrice=1000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -365,7 +366,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with invalid category filter (ignored)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&categoryId=999999")
+		w := client.Get(t, "/api/product/search?q=phone&categoryId=999999")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -375,7 +376,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with invalid price filter (non-numeric)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&minPrice=abc&maxPrice=xyz")
+		w := client.Get(t, "/api/product/search?q=phone&minPrice=abc&maxPrice=xyz")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -385,7 +386,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with negative price filter (ignored)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&minPrice=-100")
+		w := client.Get(t, "/api/product/search?q=phone&minPrice=-100")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -395,7 +396,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with zero price filter", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&minPrice=0&maxPrice=0")
+		w := client.Get(t, "/api/product/search?q=phone&minPrice=0&maxPrice=0")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -409,7 +410,7 @@ func TestSearchProducts(t *testing.T) {
 	// ============================================================================
 
 	t.Run("Success - Search with default pagination", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro")
+		w := client.Get(t, "/api/product/search?q=pro")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -424,7 +425,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with custom page and limit", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&page=1&limit=2")
+		w := client.Get(t, "/api/product/search?q=pro&page=1&limit=2")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -438,7 +439,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with page 2", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&page=2&limit=1")
+		w := client.Get(t, "/api/product/search?q=pro&page=2&limit=1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -448,7 +449,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with limit exceeding maximum (capped at 100)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&limit=200")
+		w := client.Get(t, "/api/product/search?q=pro&limit=200")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -459,7 +460,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with page beyond total pages", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&page=999")
+		w := client.Get(t, "/api/product/search?q=pro&page=999")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -472,7 +473,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with invalid page number (defaults to 1)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&page=0")
+		w := client.Get(t, "/api/product/search?q=pro&page=0")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -483,7 +484,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with negative page number (defaults to 1)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&page=-5")
+		w := client.Get(t, "/api/product/search?q=pro&page=-5")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -493,7 +494,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with invalid limit (defaults to 20)", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=pro&limit=0")
+		w := client.Get(t, "/api/product/search?q=pro&limit=0")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -511,7 +512,7 @@ func TestSearchProducts(t *testing.T) {
 		clientNoHeader := helpers.NewAPIClient(server)
 		// Don't set X-Seller-ID header
 
-		w := clientNoHeader.Get(t, "/api/products/search?q=phone")
+		w := clientNoHeader.Get(t, "/api/product/search?q=phone")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -520,7 +521,7 @@ func TestSearchProducts(t *testing.T) {
 		clientInvalidHeader := helpers.NewAPIClient(server)
 		clientInvalidHeader.SetHeader("X-Seller-ID", "invalid")
 
-		w := clientInvalidHeader.Get(t, "/api/products/search?q=phone")
+		w := clientInvalidHeader.Get(t, "/api/product/search?q=phone")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -529,7 +530,7 @@ func TestSearchProducts(t *testing.T) {
 		clientZeroHeader := helpers.NewAPIClient(server)
 		clientZeroHeader.SetHeader("X-Seller-ID", "0")
 
-		w := clientZeroHeader.Get(t, "/api/products/search?q=phone")
+		w := clientZeroHeader.Get(t, "/api/product/search?q=phone")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -538,7 +539,7 @@ func TestSearchProducts(t *testing.T) {
 		clientNegativeHeader := helpers.NewAPIClient(server)
 		clientNegativeHeader.SetHeader("X-Seller-ID", "-1")
 
-		w := clientNegativeHeader.Get(t, "/api/products/search?q=phone")
+		w := clientNegativeHeader.Get(t, "/api/product/search?q=phone")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -547,7 +548,7 @@ func TestSearchProducts(t *testing.T) {
 		client2 := helpers.NewAPIClient(server)
 		client2.SetHeader("X-Seller-ID", "2")
 
-		w := client2.Get(t, "/api/products/search?q=pro")
+		w := client2.Get(t, "/api/product/search?q=pro")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -566,7 +567,7 @@ func TestSearchProducts(t *testing.T) {
 		client3 := helpers.NewAPIClient(server)
 		client3.SetHeader("X-Seller-ID", "3")
 
-		w := client3.Get(t, "/api/products/search?q=shirt")
+		w := client3.Get(t, "/api/product/search?q=shirt")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -585,7 +586,7 @@ func TestSearchProducts(t *testing.T) {
 		client3 := helpers.NewAPIClient(server)
 		client3.SetHeader("X-Seller-ID", "3")
 
-		w := client3.Get(t, "/api/products/search?q=iPhone")
+		w := client3.Get(t, "/api/product/search?q=iPhone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -598,7 +599,7 @@ func TestSearchProducts(t *testing.T) {
 		client4 := helpers.NewAPIClient(server)
 		client4.SetHeader("X-Seller-ID", "4")
 
-		w := client4.Get(t, "/api/products/search?q=sofa")
+		w := client4.Get(t, "/api/product/search?q=sofa")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -613,34 +614,37 @@ func TestSearchProducts(t *testing.T) {
 		}
 	})
 
-	t.Run("Success - Different sellers get different search results for same query", func(t *testing.T) {
-		// Seller 2 searches for "pro"
-		client2 := helpers.NewAPIClient(server)
-		client2.SetHeader("X-Seller-ID", "2")
-		w2 := client2.Get(t, "/api/products/search?q=pro")
-		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		results2, _ := response2["data"].(map[string]interface{})["results"].([]interface{})
+	t.Run(
+		"Success - Different sellers get different search results for same query",
+		func(t *testing.T) {
+			// Seller 2 searches for "pro"
+			client2 := helpers.NewAPIClient(server)
+			client2.SetHeader("X-Seller-ID", "2")
+			w2 := client2.Get(t, "/api/product/search?q=pro")
+			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
+			results2, _ := response2["data"].(map[string]interface{})["results"].([]interface{})
 
-		// Seller 3 searches for "pro"
-		client3 := helpers.NewAPIClient(server)
-		client3.SetHeader("X-Seller-ID", "3")
-		w3 := client3.Get(t, "/api/products/search?q=pro")
-		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
-		results3, _ := response3["data"].(map[string]interface{})["results"].([]interface{})
+			// Seller 3 searches for "pro"
+			client3 := helpers.NewAPIClient(server)
+			client3.SetHeader("X-Seller-ID", "3")
+			w3 := client3.Get(t, "/api/product/search?q=pro")
+			response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
+			results3, _ := response3["data"].(map[string]interface{})["results"].([]interface{})
 
-		// Results should be different (or empty for one seller)
-		// Seller 2 has iPhone Pro, MacBook Pro
-		// Seller 3 has no "pro" products
-		assert.NotEmpty(t, results2, "Seller 2 should have 'pro' products")
-		assert.Empty(t, results3, "Seller 3 should not have 'pro' products")
-	})
+			// Results should be different (or empty for one seller)
+			// Seller 2 has iPhone Pro, MacBook Pro
+			// Seller 3 has no "pro" products
+			assert.NotEmpty(t, results2, "Seller 2 should have 'pro' products")
+			assert.Empty(t, results3, "Seller 3 should not have 'pro' products")
+		},
+	)
 
 	// ============================================================================
 	// RESPONSE STRUCTURE VALIDATION TESTS
 	// ============================================================================
 
 	t.Run("Success - Search response includes all required fields", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone")
+		w := client.Get(t, "/api/product/search?q=iPhone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -666,7 +670,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search result includes product fields", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone")
+		w := client.Get(t, "/api/product/search?q=iPhone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -694,12 +698,16 @@ func TestSearchProducts(t *testing.T) {
 		assert.NotNil(t, firstResult["variantPreview"], "Result should include variantPreview")
 
 		variantPreview := firstResult["variantPreview"].(map[string]interface{})
-		assert.NotNil(t, variantPreview["totalVariants"], "Variant preview should include totalVariants")
+		assert.NotNil(
+			t,
+			variantPreview["totalVariants"],
+			"Variant preview should include totalVariants",
+		)
 		assert.NotNil(t, variantPreview["options"], "Variant preview should include options")
 	})
 
 	t.Run("Success - Search result does NOT include full variants array", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone")
+		w := client.Get(t, "/api/product/search?q=iPhone")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -711,34 +719,45 @@ func TestSearchProducts(t *testing.T) {
 
 		// Full variants array should NOT be present in search results (listing view)
 		_, hasVariants := firstResult["variants"]
-		assert.False(t, hasVariants, "Search results should NOT include full variants array (use variantPreview)")
+		assert.False(
+			t,
+			hasVariants,
+			"Search results should NOT include full variants array (use variantPreview)",
+		)
 	})
 
-	t.Run("Success - Search result includes variantPreview with correct structure", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone")
+	t.Run(
+		"Success - Search result includes variantPreview with correct structure",
+		func(t *testing.T) {
+			w := client.Get(t, "/api/product/search?q=iPhone")
 
-		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results := response["data"].(map[string]interface{})["results"].([]interface{})
-		assert.NotEmpty(t, results, "Should have at least one result")
+			results := response["data"].(map[string]interface{})["results"].([]interface{})
+			assert.NotEmpty(t, results, "Should have at least one result")
 
-		firstResult := results[0].(map[string]interface{})
-		variantPreview := firstResult["variantPreview"].(map[string]interface{})
+			firstResult := results[0].(map[string]interface{})
+			variantPreview := firstResult["variantPreview"].(map[string]interface{})
 
-		// Verify variantPreview structure
-		totalVariants := int(variantPreview["totalVariants"].(float64))
-		assert.Greater(t, totalVariants, 0, "Product should have at least one variant")
+			// Verify variantPreview structure
+			totalVariants := int(variantPreview["totalVariants"].(float64))
+			assert.Greater(t, totalVariants, 0, "Product should have at least one variant")
 
-		options, ok := variantPreview["options"].([]interface{})
-		assert.True(t, ok, "Options should be an array")
-		assert.NotEmpty(t, options, "Product should have at least one option")
+			options, ok := variantPreview["options"].([]interface{})
+			assert.True(t, ok, "Options should be an array")
+			assert.NotEmpty(t, options, "Product should have at least one option")
 
-		// Verify option structure
-		firstOption := options[0].(map[string]interface{})
-		assert.NotNil(t, firstOption["name"], "Option should have name")
-		assert.NotNil(t, firstOption["displayName"], "Option should have displayName")
-		assert.NotNil(t, firstOption["availableValues"], "Option should have availableValues array")
-	})
+			// Verify option structure
+			firstOption := options[0].(map[string]interface{})
+			assert.NotNil(t, firstOption["name"], "Option should have name")
+			assert.NotNil(t, firstOption["displayName"], "Option should have displayName")
+			assert.NotNil(
+				t,
+				firstOption["availableValues"],
+				"Option should have availableValues array",
+			)
+		},
+	)
 
 	// ============================================================================
 	// EDGE CASES AND SPECIAL SCENARIOS
@@ -746,7 +765,7 @@ func TestSearchProducts(t *testing.T) {
 
 	t.Run("Success - Search with URL encoded special characters", func(t *testing.T) {
 		// Test that URL encoding is handled correctly
-		w := client.Get(t, "/api/products/search?q=MacBook+Pro")
+		w := client.Get(t, "/api/product/search?q=MacBook+Pro")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -757,7 +776,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with Unicode characters", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q="+url.QueryEscape("手机"))
+		w := client.Get(t, "/api/product/search?q="+url.QueryEscape("手机"))
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -767,7 +786,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with multiple spaces in query", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=iPhone++15++Pro")
+		w := client.Get(t, "/api/product/search?q=iPhone++15++Pro")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -778,7 +797,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with query containing only numbers", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=1000")
+		w := client.Get(t, "/api/product/search?q=1000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -788,7 +807,7 @@ func TestSearchProducts(t *testing.T) {
 	})
 
 	t.Run("Success - Search with both minPrice and maxPrice where min > max", func(t *testing.T) {
-		w := client.Get(t, "/api/products/search?q=phone&minPrice=10000&maxPrice=1000")
+		w := client.Get(t, "/api/product/search?q=phone&minPrice=10000&maxPrice=1000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -801,7 +820,7 @@ func TestSearchProducts(t *testing.T) {
 
 	t.Run("Success - Search combines query and filters correctly", func(t *testing.T) {
 		// Search for "phone" AND filter by brand "Apple"
-		w := client.Get(t, "/api/products/search?q=phone&brand=Apple")
+		w := client.Get(t, "/api/product/search?q=phone&brand=Apple")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -819,7 +838,7 @@ func TestSearchProducts(t *testing.T) {
 
 	t.Run("Success - Search performance with multiple results", func(t *testing.T) {
 		// Search for common term that might match multiple products
-		w := client.Get(t, "/api/products/search?q=premium")
+		w := client.Get(t, "/api/product/search?q=premium")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 

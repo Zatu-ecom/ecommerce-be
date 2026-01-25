@@ -5,6 +5,7 @@ const (
 	// Admin credentials
 	AdminEmail    = "admin@ecommerce.com"
 	AdminPassword = "admin123"
+	AdminUserID   = 1
 
 	// Seller credentials
 	SellerEmail    = "jane.merchant@example.com"
@@ -24,4 +25,14 @@ const (
 	// Customer credentials
 	CustomerEmail    = "alice.j@example.com"
 	CustomerPassword = "customer123"
+	CustomerUserID   = 5 // Alice Johnson's user ID from seed data (has seller_id = 2)
+
+	// Additional Customers
+	Customer2Email    = "michael.s@example.com"
+	Customer2Password = "customer123"
+	Customer2UserID   = 6 // Michael Smith's user ID from seed data (has seller_id = 3)
+
+	Customer3Email    = "sarah.w@example.com"
+	Customer3Password = "customer123"
+	Customer3UserID   = 7 // Sarah Williams's user ID from seed data (has seller_id = 4)
 )

@@ -42,7 +42,7 @@ func NewVariantHandler(
  *                GetVariantByID               *
  ***********************************************/
 // GetVariantByID handles retrieving a specific variant by ID
-// GET /api/products/:productId/variants/:variantId
+// GET /api/product/:productId/variant/:variantId
 func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	// Parse and validate IDs
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -60,8 +60,14 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	// Extract seller ID from context (set by PublicAPIAuth middleware)
 	sellerID, _ := auth.GetSellerIDFromContext(c)
 
+	// Extract user ID from context (optional - for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
 	// Call query service
-	variantResponse, err := h.variantQueryService.GetVariantByID(c, productID, variantID, sellerID)
+	variantResponse, err := h.variantQueryService.GetVariantByID(c, productID, variantID, sellerID, userIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -81,7 +87,7 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
  *            FindVariantByOptions             *
  ***********************************************/
 // FindVariantByOptions handles finding a variant by selected options
-// GET /api/products/:productId/variants/find?color=red&size=m
+// GET /api/product/:productId/variant/find?color=red&size=m
 func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 	// Parse and validate product ID
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -106,12 +112,19 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
 		sellerID = &id
 	}
 
+	// Extract user ID from context (optional - for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
 	// Call query service
 	variantResponse, err := h.variantQueryService.FindVariantByOptions(
 		c,
 		productID,
 		optionValues,
 		sellerID,
+		userIDPtr,
 	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_FIND_VARIANT_MSG)
@@ -132,7 +145,7 @@ func (h *VariantHandler) FindVariantByOptions(c *gin.Context) {
  *              CreateVariant                  *
  ***********************************************/
 // CreateVariant handles creating a new variant for a product
-// POST /api/products/:productId/variants
+// POST /api/product/:productId/variant
 func (h *VariantHandler) CreateVariant(c *gin.Context) {
 	// Parse and validate product ID
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -175,7 +188,7 @@ func (h *VariantHandler) CreateVariant(c *gin.Context) {
  *              UpdateVariant                  *
  ***********************************************/
 // UpdateVariant handles updating an existing variant
-// PUT /api/products/:productId/variants/:variantId
+// PUT /api/product/:productId/variant/:variantId
 func (h *VariantHandler) UpdateVariant(c *gin.Context) {
 	// Parse and validate IDs
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -230,7 +243,7 @@ func (h *VariantHandler) UpdateVariant(c *gin.Context) {
  *              DeleteVariant                  *
  ***********************************************/
 // DeleteVariant handles deleting a specific variant
-// DELETE /api/products/:productId/variants/:variantId
+// DELETE /api/product/:productId/variant/:variantId
 func (h *VariantHandler) DeleteVariant(c *gin.Context) {
 	// Parse and validate IDs
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -265,7 +278,7 @@ func (h *VariantHandler) DeleteVariant(c *gin.Context) {
  *           BulkUpdateVariants                *
  ***********************************************/
 // BulkUpdateVariants handles updating multiple variants at once
-// PUT /api/products/:productId/variants/bulk
+// PUT /api/product/:productId/variant/bulk
 func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 	// Parse and validate product ID
 	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
@@ -311,7 +324,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
  ***********************************************/
 // ListVariants handles listing/filtering variants via query parameters
 // Supports both formats: ?ids=1,2,3 OR ?ids=1&ids=2&ids=3
-// GET /api/variants?ids=1,2,3&minPrice=100&maxPrice=500&color=red&size=M&allowPurchase=true
+// GET /api/variant?ids=1,2,3&minPrice=100&maxPrice=500&color=red&size=M&allowPurchase=true
 func (h *VariantHandler) ListVariants(c *gin.Context) {
 	var request model.ListVariantsRequest
 
@@ -327,6 +340,12 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 		sellerID = &id
 	}
 
+	// Extract user ID from context (optional - for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
 	// Parse option filters from query params (e.g., ?color=red&size=M)
 	// These are variant options (color, size, etc.) and handled separately from the struct filters
 	queryParams := c.Request.URL.Query()
@@ -337,7 +356,7 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 	optionFilters := helper.ParseOptionsFromQuery(queryParams, defaultExcludes)
 
 	// Call variant query service (same service used for other variant queries)
-	response, err := h.variantQueryService.ListVariants(c, &request, sellerID, optionFilters)
+	response, err := h.variantQueryService.ListVariants(c, &request, sellerID, optionFilters, userIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_LIST_VARIANTS_MSG)
 		return

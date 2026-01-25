@@ -29,6 +29,7 @@ type VariantDetailResponse struct {
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
+	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 	CreatedAt       string                  `json:"createdAt,omitempty"`
 	UpdatedAt       string                  `json:"updatedAt,omitempty"`
@@ -43,6 +44,7 @@ type VariantResponse struct {
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
+	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 }
 

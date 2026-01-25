@@ -30,7 +30,7 @@ func NewProductAttributeHandler(
 }
 
 // AddProductAttribute handles adding an attribute to a product
-// POST /api/products/:productId/attributes
+// POST /api/product/:productId/attribute
 func (h *ProductAttributeHandler) AddProductAttribute(c *gin.Context) {
 	// Parse product ID
 	productID, err := h.ParseUintParam(c, "productId")
@@ -74,7 +74,7 @@ func (h *ProductAttributeHandler) AddProductAttribute(c *gin.Context) {
 }
 
 // UpdateProductAttribute handles updating a product attribute
-// PUT /api/products/:productId/attributes/:attributeId
+// PUT /api/product/:productId/attribute/:attributeId
 func (h *ProductAttributeHandler) UpdateProductAttribute(c *gin.Context) {
 	// Parse product ID
 	productID, err := h.ParseUintParam(c, "productId")
@@ -127,7 +127,7 @@ func (h *ProductAttributeHandler) UpdateProductAttribute(c *gin.Context) {
 }
 
 // DeleteProductAttribute handles deleting a product attribute
-// DELETE /api/products/:productId/attributes/:attributeId
+// DELETE /api/product/:productId/attribute/:attributeId
 func (h *ProductAttributeHandler) DeleteProductAttribute(c *gin.Context) {
 	// Parse product ID
 	productID, err := h.ParseUintParam(c, "productId")
@@ -165,7 +165,7 @@ func (h *ProductAttributeHandler) DeleteProductAttribute(c *gin.Context) {
 }
 
 // GetProductAttributes handles retrieving all attributes for a product
-// GET /api/products/:productId/attributes
+// GET /api/product/:productId/attribute
 func (h *ProductAttributeHandler) GetProductAttributes(c *gin.Context) {
 	// Parse product ID
 	productID, err := h.ParseUintParam(c, "productId")
@@ -191,7 +191,7 @@ func (h *ProductAttributeHandler) GetProductAttributes(c *gin.Context) {
 }
 
 // BulkUpdateProductAttributes handles bulk updating multiple attributes for a product
-// PUT /api/products/:productId/attributes/bulk
+// PUT /api/product/:productId/attribute/bulk
 func (h *ProductAttributeHandler) BulkUpdateProductAttributes(c *gin.Context) {
 	// Parse product ID
 	productID, err := h.ParseUintParam(c, "productId")

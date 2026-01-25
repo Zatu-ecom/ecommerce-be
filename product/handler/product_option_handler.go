@@ -136,7 +136,7 @@ func (h *ProductOptionHandler) DeleteOption(c *gin.Context) {
  *           GetAvailableOptions               *
  ***********************************************/
 // GetAvailableOptions handles retrieving all available options for a product
-// GET /api/products/:productId/options
+// GET /api/product/:productId/option
 func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
 	// Parse and validate product ID
 	productID, err := h.ParseUintParam(c, "productId")
@@ -167,7 +167,7 @@ func (h *ProductOptionHandler) GetAvailableOptions(c *gin.Context) {
  *       BulkUpdateOptionPositions             *
  ***********************************************/
 // BulkUpdateOptions handles bulk updating product options
-// PUT /api/products/:productId/options/bulk-update
+// PUT /api/product/:productId/option/bulk-update
 func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
 	// Parse product ID from URL
 	productID, err := h.ParseUintParam(c, "productId")

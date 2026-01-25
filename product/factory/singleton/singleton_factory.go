@@ -73,6 +73,14 @@ func (f *SingletonFactory) GetProductAttributeRepository() repository.ProductAtt
 	return f.repoFactory.GetProductAttributeRepository()
 }
 
+func (f *SingletonFactory) GetWishlistRepository() repository.WishlistRepository {
+	return f.repoFactory.GetWishlistRepository()
+}
+
+func (f *SingletonFactory) GetWishlistItemRepository() repository.WishlistItemRepository {
+	return f.repoFactory.GetWishlistItemRepository()
+}
+
 // ===============================
 // Service Getters (Delegates)
 // ===============================
@@ -117,6 +125,14 @@ func (f *SingletonFactory) GetProductValidatorService() service.ProductValidator
 	return f.serviceFactory.GetProductValidatorService()
 }
 
+func (f *SingletonFactory) GetWishlistService() service.WishlistService {
+	return f.serviceFactory.GetWishlistService()
+}
+
+func (f *SingletonFactory) GetWishlistItemService() service.WishlistItemService {
+	return f.serviceFactory.GetWishlistItemService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================
@@ -147,4 +163,12 @@ func (f *SingletonFactory) GetProductOptionHandler() *handler.ProductOptionHandl
 
 func (f *SingletonFactory) GetProductOptionValueHandler() *handler.ProductOptionValueHandler {
 	return f.handlerFactory.GetProductOptionValueHandler()
+}
+
+func (f *SingletonFactory) GetWishlistHandler() *handler.WishlistHandler {
+	return f.handlerFactory.GetWishlistHandler()
+}
+
+func (f *SingletonFactory) GetWishlistItemHandler() *handler.WishlistItemHandler {
+	return f.handlerFactory.GetWishlistItemHandler()
 }

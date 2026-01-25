@@ -18,8 +18,9 @@ func TestDeleteVariant(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -38,7 +39,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 1 // iPhone with 4 variants
 		variantID := 2 // Non-default variant
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -55,7 +56,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 5 // T-Shirt with 3 variants, variant 9 is default
 		variantID := 9 // Default variant
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -65,11 +66,11 @@ func TestDeleteVariant(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, wGet.Code)
 
 		// Verify other variants still exist
-		variant10URL := fmt.Sprintf("/api/products/%d/variants/10", productID)
+		variant10URL := fmt.Sprintf("/api/product/%d/variant/10", productID)
 		w10 := client.Get(t, variant10URL)
 		assert.Equal(t, http.StatusOK, w10.Code)
 
-		variant11URL := fmt.Sprintf("/api/products/%d/variants/11", productID)
+		variant11URL := fmt.Sprintf("/api/product/%d/variant/11", productID)
 		w11 := client.Get(t, variant11URL)
 		assert.Equal(t, http.StatusOK, w11.Code)
 	})
@@ -81,7 +82,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 2 // Samsung with variants having images
 		variantID := 5
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -98,7 +99,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 1 // iPhone with color/storage options
 		variantID := 3
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -115,7 +116,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 1 // Belongs to seller 2
 		variantID := 4
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -128,7 +129,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 5 // Belongs to seller 3
 		variantID := 10
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -141,16 +142,16 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 3 // MacBook with 2 variants
 
 		// Verify we have 2 variants initially
-		variant7URL := fmt.Sprintf("/api/products/%d/variants/7", productID)
+		variant7URL := fmt.Sprintf("/api/product/%d/variant/7", productID)
 		w7Before := client.Get(t, variant7URL)
 		assert.Equal(t, http.StatusOK, w7Before.Code)
 
-		variant8URL := fmt.Sprintf("/api/products/%d/variants/8", productID)
+		variant8URL := fmt.Sprintf("/api/product/%d/variant/8", productID)
 		w8Before := client.Get(t, variant8URL)
 		assert.Equal(t, http.StatusOK, w8Before.Code)
 
 		// Delete one variant
-		deleteURL := fmt.Sprintf("/api/products/%d/variants/8", productID)
+		deleteURL := fmt.Sprintf("/api/product/%d/variant/8", productID)
 		wDelete := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, wDelete, http.StatusOK)
 
@@ -169,12 +170,12 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 8 // Sofa with 2 variants (16, 17)
 
 		// Delete first variant - should succeed
-		url16 := fmt.Sprintf("/api/products/%d/variants/16", productID)
+		url16 := fmt.Sprintf("/api/product/%d/variant/16", productID)
 		w16 := client.Delete(t, url16)
 		helpers.AssertSuccessResponse(t, w16, http.StatusOK)
 
 		// Try to delete last variant - should fail
-		url17 := fmt.Sprintf("/api/products/%d/variants/17", productID)
+		url17 := fmt.Sprintf("/api/product/%d/variant/17", productID)
 		w17 := client.Delete(t, url17)
 		helpers.AssertErrorResponse(t, w17, http.StatusBadRequest)
 	})
@@ -190,7 +191,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 9 // TV with only 1 variant (variant 18)
 		variantID := 18
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -209,12 +210,12 @@ func TestDeleteVariant(t *testing.T) {
 			productID := 6 // Summer Dress with 2 variants (12, 13)
 
 			// Delete first variant - should succeed
-			url12 := fmt.Sprintf("/api/products/%d/variants/12", productID)
+			url12 := fmt.Sprintf("/api/product/%d/variant/12", productID)
 			w12 := client.Delete(t, url12)
 			helpers.AssertSuccessResponse(t, w12, http.StatusOK)
 
 			// Try to delete last remaining variant - should fail
-			url13 := fmt.Sprintf("/api/products/%d/variants/13", productID)
+			url13 := fmt.Sprintf("/api/product/%d/variant/13", productID)
 			w13 := client.Delete(t, url13)
 			helpers.AssertErrorResponse(t, w13, http.StatusBadRequest)
 
@@ -233,12 +234,12 @@ func TestDeleteVariant(t *testing.T) {
 			productID := 7 // Running Shoes with 2 variants (14 is default, 15 is not)
 
 			// Delete non-default variant - should succeed
-			url15 := fmt.Sprintf("/api/products/%d/variants/15", productID)
+			url15 := fmt.Sprintf("/api/product/%d/variant/15", productID)
 			w15 := client.Delete(t, url15)
 			helpers.AssertSuccessResponse(t, w15, http.StatusOK)
 
 			// Verify default variant still exists
-			url14 := fmt.Sprintf("/api/products/%d/variants/14", productID)
+			url14 := fmt.Sprintf("/api/product/%d/variant/14", productID)
 			w14 := client.Get(t, url14)
 			assert.Equal(t, http.StatusOK, w14.Code)
 
@@ -258,7 +259,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 2
 		variantID := 6
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := unauthClient.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -271,7 +272,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 2
 		variantID := 6
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -286,7 +287,7 @@ func TestDeleteVariant(t *testing.T) {
 			productID := 2 // Belongs to seller 2
 			variantID := 6
 
-			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 			w := client.Delete(t, url)
 
 			helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -304,7 +305,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 9999 // Doesn't exist
 		variantID := 1
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -317,7 +318,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 2    // Exists
 		variantID := 9999 // Doesn't exist
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -330,7 +331,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 2 // Samsung
 		variantID := 1 // Belongs to product 1 (iPhone), not product 2
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -343,7 +344,7 @@ func TestDeleteVariant(t *testing.T) {
 		productID := 6  // Summer Dress - we already deleted variant 12 earlier
 		variantID := 12 // This was deleted in a previous test
 
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 
 		// Try to delete already deleted variant - should fail with 404
 		w := client.Delete(t, url)

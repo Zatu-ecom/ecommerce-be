@@ -338,7 +338,7 @@
 
 ### **1.6 Get Category Attributes**
 
-`GET /api/categories/:id/attributes`
+`GET /api/categories/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -418,7 +418,7 @@
 
 ### **1.8 Assign Attributes to Category** ⭐ NEW
 
-`POST /api/categories/:id/attributes`
+`POST /api/categories/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -451,7 +451,7 @@
 
 ### **1.9 Remove Attributes from Category** ⭐ NEW
 
-`DELETE /api/categories/:id/attributes/:attribute_id`
+`DELETE /api/categories/:id/attribute/:attribute_id`
 
 #### **Test Scenarios:**
 
@@ -592,7 +592,7 @@
 
 ### **2.3 Get Product by ID**
 
-`GET /api/products/:id`
+`GET /api/product/:id`
 
 #### **Test Scenarios:**
 
@@ -617,7 +617,7 @@
 
 ### **2.4 Update Product**
 
-`PUT /api/products/:id`
+`PUT /api/product/:id`
 
 #### **Test Scenarios:**
 
@@ -645,7 +645,7 @@
 
 ### **2.5 Delete Product**
 
-`DELETE /api/products/:id`
+`DELETE /api/product/:id`
 
 #### **Test Scenarios:**
 
@@ -669,7 +669,7 @@
 
 ### **3.1 Get Product Variants**
 
-`GET /api/products/:id/variants`
+`GET /api/product/:id/variant`
 
 #### **Test Scenarios:**
 
@@ -690,7 +690,7 @@
 
 ### **3.2 Create Product Variant**
 
-`POST /api/products/:id/variants`
+`POST /api/product/:id/variant`
 
 #### **Test Scenarios:**
 
@@ -717,7 +717,7 @@
 
 ### **3.3 Get Variant by ID**
 
-`GET /api/products/:productId/variants/:variantId`
+`GET /api/product/:productId/variant/:variantId`
 
 #### **Test Scenarios:**
 
@@ -738,7 +738,7 @@
 
 ### **3.4 Update Product Variant**
 
-`PUT /api/products/:productId/variants/:variantId`
+`PUT /api/product/:productId/variant/:variantId`
 
 #### **Test Scenarios:**
 
@@ -763,7 +763,7 @@
 
 ### **3.5 Delete Product Variant**
 
-`DELETE /api/products/:productId/variants/:variantId`
+`DELETE /api/product/:productId/variant/:variantId`
 
 #### **Test Scenarios:**
 
@@ -784,7 +784,7 @@
 
 ### **3.6 Update Variant Stock**
 
-`PATCH /api/products/:productId/variants/:variantId/stock`
+`PATCH /api/product/:productId/variant/:variantId/stock`
 
 #### **Test Scenarios:**
 
@@ -807,7 +807,7 @@
 
 ### **3.7 Bulk Update Variants**
 
-`PUT /api/products/:id/variants/bulk`
+`PUT /api/product/:id/variant/bulk`
 
 #### **Test Scenarios:**
 
@@ -829,7 +829,7 @@
 
 ### **4.1 Get Product Options**
 
-`GET /api/products/:id/options`
+`GET /api/product/:id/option`
 
 #### **Test Scenarios:**
 
@@ -848,7 +848,7 @@
 
 ### **4.2 Create Product Option**
 
-`POST /api/products/:id/options`
+`POST /api/product/:id/option`
 
 #### **Test Scenarios:**
 
@@ -872,7 +872,7 @@
 
 ### **4.3 Update Product Option**
 
-`PUT /api/products/:productId/options/:optionId`
+`PUT /api/product/:productId/option/:optionId`
 
 #### **Test Scenarios:**
 
@@ -894,7 +894,7 @@
 
 ### **4.4 Delete Product Option**
 
-`DELETE /api/products/:productId/options/:optionId`
+`DELETE /api/product/:productId/option/:optionId`
 
 #### **Test Scenarios:**
 
@@ -915,7 +915,7 @@
 
 ### **5.1 Get Product Attributes**
 
-`GET /api/products/:id/attributes`
+`GET /api/product/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -934,7 +934,7 @@
 
 ### **5.2 Update Product Attributes**
 
-`PUT /api/products/:id/attributes`
+`PUT /api/product/:id/attribute`
 
 #### **Test Scenarios:**
 
@@ -970,11 +970,11 @@
    └─> Store subcategory_id
 
 4. Create Attribute (Brand)
-   ├─> POST /api/attributes
+   ├─> POST /api/attribute
    └─> Store attribute_id
 
 5. Assign Attribute to Category
-   ├─> POST /api/categories/:id/attributes
+   ├─> POST /api/categories/:id/attribute
    └─> Verify assignment
 
 6. Get Category Hierarchy
@@ -1020,7 +1020,7 @@
    └─> Store product_id
 
 4. Create Option: Color
-   ├─> POST /api/products/:id/options
+   ├─> POST /api/product/:id/option
    │   {
    │     "name": "Color",
    │     "values": ["Black", "White", "Blue"]
@@ -1028,7 +1028,7 @@
    └─> Store color_option_id and value_ids
 
 5. Create Option: Storage
-   ├─> POST /api/products/:id/options
+   ├─> POST /api/product/:id/option
    │   {
    │     "name": "Storage",
    │     "values": ["128GB", "256GB", "512GB"]
@@ -1036,7 +1036,7 @@
    └─> Store storage_option_id and value_ids
 
 6. Create Variant: Black + 128GB
-   ├─> POST /api/products/:id/variants
+   ├─> POST /api/product/:id/variant
    │   {
    │     "sku": "IPH15-BLK-128",
    │     "price": 999.99,
@@ -1046,7 +1046,7 @@
    └─> Store variant_id_1
 
 7. Create Variant: White + 256GB
-   ├─> POST /api/products/:id/variants
+   ├─> POST /api/product/:id/variant
    │   {
    │     "sku": "IPH15-WHT-256",
    │     "price": 1099.99,
@@ -1056,7 +1056,7 @@
    └─> Store variant_id_2
 
 8. Create Variant: Blue + 512GB
-   ├─> POST /api/products/:id/variants
+   ├─> POST /api/product/:id/variant
    │   {
    │     "sku": "IPH15-BLU-512",
    │     "price": 1299.99,
@@ -1066,7 +1066,7 @@
    └─> Store variant_id_3
 
 9. Update Product Attributes
-   ├─> PUT /api/products/:id/attributes
+   ├─> PUT /api/product/:id/attribute
    │   {
    │     "attributes": [
    │       {"attribute_id": brand_id, "value": "Apple"},
@@ -1076,11 +1076,11 @@
    └─> Verify updated
 
 10. Get Product with All Details
-    ├─> GET /api/products/:id
+    ├─> GET /api/product/:id
     └─> Verify: product + options + variants + attributes
 
 11. Update Variant Stock
-    ├─> PATCH /api/products/:id/variants/:variant_id/stock
+    ├─> PATCH /api/product/:id/variant/:variant_id/stock
     │   {
     │     "operation": "subtract",
     │     "quantity": 5
@@ -1088,12 +1088,12 @@
     └─> Verify stock decreased
 
 12. Attempt Duplicate SKU (should fail)
-    ├─> POST /api/products/:id/variants
+    ├─> POST /api/product/:id/variant
     │   {"sku": "IPH15-BLK-128", ...}
     └─> Expect 409 VARIANT_SKU_EXISTS
 
 13. Attempt Duplicate Combination (should fail)
-    ├─> POST /api/products/:id/variants
+    ├─> POST /api/product/:id/variant
     │   {"option_values": [black_value_id, 128gb_value_id], ...}
     └─> Expect 409 VARIANT_OPTION_COMBINATION_EXISTS
 ```
@@ -1133,19 +1133,19 @@
    └─> Verify ascending order
 
 6. View Product Details
-   ├─> GET /api/products/:id
+   ├─> GET /api/product/:id
    └─> Verify product + variants + options shown
 
 7. Check Variant Availability
-   ├─> GET /api/products/:id/variants
+   ├─> GET /api/product/:id/variant
    └─> Verify stock info for each variant
 
 8. Select Specific Variant
-   ├─> GET /api/products/:product_id/variants/:variant_id
+   ├─> GET /api/product/:product_id/variant/:variant_id
    └─> Verify variant details (SKU, price, stock, options)
 
 9. View Product Attributes
-   ├─> GET /api/products/:id/attributes
+   ├─> GET /api/product/:id/attribute
    └─> Verify product specifications
 ```
 
@@ -1169,24 +1169,24 @@
    └─> GET /api/products?include_inactive=true
 
 3. Update Other Seller's Product
-   ├─> PUT /api/products/:id
+   ├─> PUT /api/product/:id
    └─> Verify admin can update any product
 
 4. Deactivate Product
-   ├─> PATCH /api/products/:id/status
+   ├─> PATCH /api/product/:id/status
    │   {"is_active": false}
    └─> Verify product hidden from public
 
 5. Verify Public Can't See Inactive Product
-   ├─> GET /api/products/:id (no auth)
+   ├─> GET /api/product/:id (no auth)
    └─> Expect 404
 
 6. Admin Can Still See Inactive Product
-   ├─> GET /api/products/:id (admin auth)
+   ├─> GET /api/product/:id (admin auth)
    └─> Expect 200
 
 7. Delete Product
-   └─> DELETE /api/products/:id
+   └─> DELETE /api/product/:id
 ```
 
 **Assertions:**
@@ -1205,7 +1205,7 @@
    └─> Expect 400 with validation details
 
 2. Update Non-existent Product
-   ├─> PUT /api/products/00000000-0000-0000-0000-000000000000
+   ├─> PUT /api/product/00000000-0000-0000-0000-000000000000
    └─> Expect 404
 
 3. Delete Category with Products
@@ -1213,15 +1213,15 @@
    └─> Expect 400 CATEGORY_HAS_PRODUCTS
 
 4. Create Variant for Product Without Options
-   ├─> POST /api/products/:id/variants
+   ├─> POST /api/product/:id/variant
    └─> Expect 400 PRODUCT_HAS_NO_OPTIONS
 
 5. Delete Last Variant
-   ├─> DELETE /api/products/:id/variants/:last_variant_id
+   ├─> DELETE /api/product/:id/variant/:last_variant_id
    └─> Expect 400 LAST_VARIANT_DELETE_NOT_ALLOWED
 
 6. Insufficient Stock Operation
-   ├─> PATCH /api/products/:id/variants/:id/stock
+   ├─> PATCH /api/product/:id/variant/:id/stock
    │   {"operation": "subtract", "quantity": 9999}
    └─> Expect 400 INSUFFICIENT_STOCK
 
@@ -1230,7 +1230,7 @@
    └─> Expect 401
 
 8. Forbidden Access
-   ├─> PUT /api/products/:other_seller_product_id (seller token)
+   ├─> PUT /api/product/:other_seller_product_id (seller token)
    └─> Expect 403
 ```
 

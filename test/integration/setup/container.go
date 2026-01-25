@@ -23,8 +23,8 @@ func ResetProductSingletons() {
 	singleton.ResetInstance()
 }
 
-// TestContainers holds the containers for testing
-type TestContainers struct {
+// TestContainer holds the containers for testing
+type TestContainer struct {
 	Postgres    *postgres.PostgresContainer
 	Redis       testcontainers.Container
 	DB          *gorm.DB
@@ -33,7 +33,7 @@ type TestContainers struct {
 }
 
 // SetupTestContainers sets up the test containers for Postgres and Redis
-func SetupTestContainers(t *testing.T) *TestContainers {
+func SetupTestContainers(t *testing.T) *TestContainer {
 	ctx := context.Background()
 
 	// Postgres container
@@ -100,7 +100,7 @@ func SetupTestContainers(t *testing.T) *TestContainers {
 		Addr: fmt.Sprintf("%s:%s", redisHost, redisPort.Port()),
 	})
 
-	return &TestContainers{
+	return &TestContainer{
 		Postgres:    pgContainer,
 		Redis:       redisContainer,
 		DB:          gormDB,
@@ -110,14 +110,14 @@ func SetupTestContainers(t *testing.T) *TestContainers {
 }
 
 // Cleanup terminates the test containers
-func (tc *TestContainers) Cleanup(t *testing.T) {
+func (tc *TestContainer) Cleanup(t *testing.T) {
 	if err := tc.Postgres.Terminate(tc.ctx); err != nil {
 		t.Logf("failed to terminate postgres container: %v", err)
 	}
 	if err := tc.Redis.Terminate(tc.ctx); err != nil {
 		t.Logf("failed to terminate redis container: %v", err)
 	}
-	
+
 	// Reset singleton factory to ensure clean state for next test
 	// This is needed because Go test runner reuses the same process
 	// and singleton instances persist across test functions

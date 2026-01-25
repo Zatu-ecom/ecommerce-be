@@ -516,10 +516,10 @@ func (q *ProductsAtLocationQuery) Validate() error {
       {
         "productId": 10,
         "productName": "iPhone 15 Pro",
-        "productImage": "https://cdn.example.com/products/iphone-15-pro.jpg",
+        "productImage": "https://cdn.example.com/product/iphone-15-pro.jpg",
         "category": {
           "id": 5,
-          "name": "Smartphones",
+          "name": "Smartphones"
         },
         "inventorySummary": {
           "variantCount": 3,
@@ -528,14 +528,14 @@ func (q *ProductsAtLocationQuery) Validate() error {
           "totalAvailable": 235,
           "lowStockVariants": 0,
           "outOfStockVariants": 0,
-          "stockStatus": "IN_STOCK",
+          "stockStatus": "IN_STOCK"
         }
       },
       {
         "productId": 11,
         "productName": "Samsung Galaxy S24",
         "productSlug": "samsung-galaxy-s24",
-        "productImage": "https://cdn.example.com/products/samsung-s24.jpg",
+        "productImage": "https://cdn.example.com/product/samsung-s24.jpg",
         "category": {
           "id": 5,
           "name": "Smartphones",
@@ -548,14 +548,14 @@ func (q *ProductsAtLocationQuery) Validate() error {
           "totalAvailable": 84,
           "lowStockVariants": 2,
           "outOfStockVariants": 0,
-          "stockStatus": "LOW_STOCK",
+          "stockStatus": "LOW_STOCK"
         }
       },
       {
         "productId": 12,
         "productName": "MacBook Pro 14\"",
         "productSlug": "macbook-pro-14",
-        "productImage": "https://cdn.example.com/products/macbook-pro-14.jpg",
+        "productImage": "https://cdn.example.com/product/macbook-pro-14.jpg",
         "category": {
           "id": 8,
           "name": "Laptops",
@@ -568,14 +568,14 @@ func (q *ProductsAtLocationQuery) Validate() error {
           "totalAvailable": 37,
           "lowStockVariants": 0,
           "outOfStockVariants": 0,
-          "stockStatus": "IN_STOCK",
+          "stockStatus": "IN_STOCK"
         }
       },
       {
         "productId": 15,
         "productName": "Nike Air Max Sneakers",
         "productSlug": "nike-air-max-sneakers",
-        "productImage": "https://cdn.example.com/products/nike-air-max.jpg",
+        "productImage": "https://cdn.example.com/product/nike-air-max.jpg",
         "category": {
           "id": 20,
           "name": "Footwear",
@@ -588,7 +588,7 @@ func (q *ProductsAtLocationQuery) Validate() error {
           "totalAvailable": 12,
           "lowStockVariants": 2,
           "outOfStockVariants": 5,
-          "stockStatus": "OUT_OF_STOCK",
+          "stockStatus": "OUT_OF_STOCK"
         }
       }
     ],
@@ -984,7 +984,7 @@ func (s *VariantQueryServiceImpl) GetProductsByVariantIDs(
 ### Endpoint
 
 ```
-GET /api/inventory/products/{productId}/variants
+GET /api/inventory/product/{productId}/variant
 ```
 
 ### Authentication
@@ -1015,13 +1015,13 @@ GET /api/inventory/products/{productId}/variants
 
 ```bash
 # Get variants with inventory at location
-GET /api/inventory/products/10/variants?locationId=1
+GET /api/inventory/product/10/variant?locationId=1
 
 # Include recent transactions
-GET /api/inventory/products/10/variants?locationId=1&includeTransactions=true
+GET /api/inventory/product/10/variant?locationId=1&includeTransactions=true
 
 # Get more transaction history
-GET /api/inventory/products/10/variants?locationId=1&includeTransactions=true&transactionLimit=10
+GET /api/inventory/product/10/variant?locationId=1&includeTransactions=true&transactionLimit=10
 ```
 
 ### Request Validation
@@ -1078,7 +1078,7 @@ func (q *VariantInventoryQuery) Validate() error {
         "variantId": 55,
         "sku": "IPH15PRO-BLK-256",
         "variantName": "Black - 256GB",
-        "imageUrl": "https://cdn.example.com/variants/iph15pro-black-256.jpg",
+        "imageUrl": "https://cdn.example.com/variant/iph15pro-black-256.jpg",
         "options": [
           {
             "name": "Color",
@@ -1160,7 +1160,7 @@ func (q *VariantInventoryQuery) Validate() error {
         "price": 999.99,
         "compareAtPrice": 1099.99,
         "costPrice": 750.0,
-        "imageUrl": "https://cdn.example.com/variants/iph15pro-white-256.jpg",
+        "imageUrl": "https://cdn.example.com/variant/iph15pro-white-256.jpg",
         "barcode": "1234567890124",
         "options": [
           {
@@ -1226,7 +1226,7 @@ func (q *VariantInventoryQuery) Validate() error {
         "price": 1199.99,
         "compareAtPrice": 1299.99,
         "costPrice": 900.0,
-        "imageUrl": "https://cdn.example.com/variants/iph15pro-black-512.jpg",
+        "imageUrl": "https://cdn.example.com/variant/iph15pro-black-512.jpg",
         "barcode": "1234567890125",
         "options": [
           {

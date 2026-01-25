@@ -20,8 +20,9 @@ func TestAddOptionValue(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -37,7 +38,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    position,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "option")
@@ -54,7 +55,7 @@ func TestAddOptionValue(t *testing.T) {
 			requestBody["colorCode"] = colorCode
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		return client.Post(t, url, requestBody)
 	}
 
@@ -102,7 +103,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 
@@ -130,7 +131,7 @@ func TestAddOptionValue(t *testing.T) {
 			"colorCode":   "#8B4513",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 
@@ -372,7 +373,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := "/api/products/invalid/options/1/values"
+		url := "/api/product/invalid/option/1/value"
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -388,7 +389,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := "/api/products/5/options/abc/values"
+		url := "/api/product/5/option/abc/value"
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -404,7 +405,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := "/api/products/99999/options/1/values"
+		url := "/api/product/99999/option/1/value"
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
@@ -423,7 +424,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/99999/values", productID)
+		url := fmt.Sprintf("/api/product/%d/option/99999/value", productID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
@@ -463,7 +464,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -485,7 +486,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position": 1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -676,7 +677,7 @@ func TestAddOptionValue(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -694,7 +695,7 @@ func TestAddOptionValue(t *testing.T) {
 
 		requestBody := map[string]interface{}{}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})

@@ -205,7 +205,7 @@ func (h *ProductOptionValueHandler) BulkAddOptionValues(c *gin.Context) {
 }
 
 // BulkUpdateOptionValuePositions handles bulk updating product option values
-// PUT /api/products/:productId/options/:optionId/values/bulk-update
+// PUT /api/product/:productId/option/:optionId/value/bulk-update
 func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
 	// Parse IDs from URL
 	productID, err := h.ParseUintParam(c, "productId")

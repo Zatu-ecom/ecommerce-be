@@ -21,8 +21,9 @@ func TestCreateProductIntegration(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -74,7 +75,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		}
 
 		// POST - Create product
-		w1 := client.Post(t, "/api/products", createRequest)
+		w1 := client.Post(t, "/api/product", createRequest)
 		createResponse := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 		createdProduct := helpers.GetResponseData(t, createResponse, "product")
 
@@ -82,7 +83,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		t.Logf("Created product with ID: %d", productID)
 
 		// GET - Immediately fetch the product
-		getURL := fmt.Sprintf("/api/products/%d", productID)
+		getURL := fmt.Sprintf("/api/product/%d", productID)
 		w2 := client.Get(t, getURL)
 		fetchResponse := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		fetchedProduct := helpers.GetResponseData(t, fetchResponse, "product")
@@ -132,7 +133,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		}
 
 		// Create product
-		w1 := client.Post(t, "/api/products", createRequest)
+		w1 := client.Post(t, "/api/product", createRequest)
 		createResponse := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 		product := helpers.GetResponseData(t, createResponse, "product")
 
@@ -152,7 +153,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			},
 		}
 
-		variantURL := fmt.Sprintf("/api/products/%d/variants", productID)
+		variantURL := fmt.Sprintf("/api/product/%d/variant", productID)
 		w2 := client.Post(t, variantURL, addVariantRequest)
 
 		// Verify variant was added
@@ -164,7 +165,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			assert.Equal(t, "TEST-ADD-VAR-001-RED", newVariant["sku"], "New variant SKU should match")
 
 			// Fetch product again to verify total variants
-			getURL := fmt.Sprintf("/api/products/%d", productID)
+			getURL := fmt.Sprintf("/api/product/%d", productID)
 			w3 := client.Get(t, getURL)
 			finalProduct := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 			fetchedProduct := helpers.GetResponseData(t, finalProduct, "product")
@@ -182,7 +183,7 @@ func TestCreateProductIntegration(t *testing.T) {
 	// CONCURRENT REQUEST SCENARIOS
 	// ============================================================================
 
-	t.Run("Concurrency - Multiple sellers creating products simultaneously", func(t *testing.T) {
+	t.Run("Concurrency - Multiple sellers creating product simultaneously", func(t *testing.T) {
 		// This test verifies that concurrent product creation by different sellers
 		// maintains data isolation and doesn't cause race conditions
 
@@ -193,7 +194,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		results := make(chan bool, numConcurrent)
 		productIDs := make(chan int, numConcurrent)
 
-		// Create multiple products concurrently
+		// Create multiple product concurrently
 		for i := 0; i < numConcurrent; i++ {
 			wg.Add(1)
 			go func(index int) {
@@ -227,7 +228,7 @@ func TestCreateProductIntegration(t *testing.T) {
 					},
 				}
 
-				w := concurrentClient.Post(t, "/api/products", requestBody)
+				w := concurrentClient.Post(t, "/api/product", requestBody)
 
 				if w.Code == http.StatusCreated {
 					response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -248,7 +249,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		close(results)
 		close(productIDs)
 
-		// Verify all products were created successfully
+		// Verify all product were created successfully
 		successCount := 0
 		for success := range results {
 			if success {
@@ -256,7 +257,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			}
 		}
 
-		assert.Equal(t, numConcurrent, successCount, "All concurrent products should be created")
+		assert.Equal(t, numConcurrent, successCount, "All concurrent product should be created")
 
 		// Verify all product IDs are unique
 		uniqueIDs := make(map[int]bool)
@@ -266,7 +267,7 @@ func TestCreateProductIntegration(t *testing.T) {
 
 		assert.Len(t, uniqueIDs, numConcurrent, "All product IDs should be unique")
 
-		t.Logf("Concurrency test passed: %d products created simultaneously with unique IDs", numConcurrent)
+		t.Logf("Concurrency test passed: %d product created simultaneously with unique IDs", numConcurrent)
 	})
 
 	// ============================================================================
@@ -386,7 +387,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")

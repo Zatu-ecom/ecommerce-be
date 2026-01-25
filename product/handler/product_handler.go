@@ -148,6 +148,12 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
+	// Get user ID from context if authenticated (for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
 	// Convert params to filter model (parses comma-separated values)
 	filter := params.ToGetProductsFilter(sellerIDPtr)
 
@@ -160,6 +166,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 		params.Page,
 		params.PageSize,
 		filter,
+		userIDPtr,
 	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCTS_MSG)
@@ -185,7 +192,13 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		sellerIDPtr = &sellerID
 	}
 
-	productResponse, err := h.productQueryService.GetProductByID(c, productID, sellerIDPtr)
+	// Get user ID from context if authenticated (for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
+	productResponse, err := h.productQueryService.GetProductByID(c, productID, sellerIDPtr, userIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_MSG)
 		return
@@ -227,7 +240,13 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		filters["sellerId"] = sellerID
 	}
 
-	searchResponse, err := h.productQueryService.SearchProducts(c, query, filters, page, limit)
+	// Get user ID from context if authenticated (for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
+	searchResponse, err := h.productQueryService.SearchProducts(c, query, filters, page, limit, userIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_SEARCH_PRODUCTS_MSG)
 		return
@@ -304,8 +323,14 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 		sellerID = &id
 	}
 
+	// Get user ID from context if authenticated (for wishlist status)
+	var userIDPtr *uint
+	if userID, exists := auth.GetUserIDFromContext(c); exists {
+		userIDPtr = &userID
+	}
+
 	// Verify product exists before getting related products
-	_, err = h.productQueryService.GetProductByID(c, productID, sellerID)
+	_, err = h.productQueryService.GetProductByID(c, productID, sellerID, userIDPtr)
 	if err != nil {
 		h.HandleError(c, productErrors.ErrProductNotFound, utils.PRODUCT_NOT_FOUND_MSG)
 		return
@@ -318,6 +343,7 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 		page,
 		strategies,
 		sellerID,
+		userIDPtr,
 	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_RELATED_PRODUCTS_MSG)

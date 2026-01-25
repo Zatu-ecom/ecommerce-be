@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // APIClient wraps HTTP requests for testing
@@ -18,10 +20,12 @@ type APIClient struct {
 
 // NewAPIClient creates a new API client for testing
 func NewAPIClient(handler http.Handler) *APIClient {
-	return &APIClient{
+	client := &APIClient{
 		Handler: handler,
 		Headers: make(map[string]string),
 	}
+	client.SetHeader("X-Correlation-ID", uuid.New().String())
+	return client
 }
 
 // SetToken sets the authentication token for subsequent requests
@@ -53,6 +57,11 @@ func (c *APIClient) Post(t *testing.T, url string, body interface{}) *httptest.R
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
 	}
 
 	w := httptest.NewRecorder()
