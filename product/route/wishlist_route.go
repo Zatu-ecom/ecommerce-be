@@ -1,6 +1,7 @@
 package route
 
 import (
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handler"
@@ -27,7 +28,7 @@ func (m *WishlistModule) RegisterRoutes(router *gin.Engine) {
 	customerAuth := middleware.CustomerAuth()
 
 	// Wishlist routes - /api/wishlist
-	wishlistRoutes := router.Group("/api/wishlist")
+	wishlistRoutes := router.Group(constants.APIBaseProduct + "/wishlist")
 	{
 		// Customer routes (protected)
 		wishlistRoutes.GET("", customerAuth, m.wishlistHandler.GetAllWishlists)

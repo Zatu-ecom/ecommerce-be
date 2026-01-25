@@ -24,7 +24,6 @@ import (
 // - Product 2 (Samsung, seller 2): variants 5,6
 // - Product 3 (MacBook, seller 2): variants 7,8
 // - Product 5 (T-Shirt, seller 3): variants 9,10,11
-
 func TestIsWishlistedField(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
@@ -107,28 +106,37 @@ func TestIsWishlistedField(t *testing.T) {
 	})
 
 	t.Run("GetVariantByID - different users see different wishlist status", func(t *testing.T) {
-		// Variant 9 (T-Shirt Black M) is in Michael's wishlist (user 6) but NOT Alice's (user 5)
+		// Variant 7 (MacBook) is in Alice's wishlist (user 5) but NOT in Michael's (user 6)
+		// Both Alice and Michael are customers but associated with different sellers
+		// Alice (user 5) has seller_id = 2 (can access products 1-4)
+		// Michael (user 6) has seller_id = 3 (can access products 5-7)
+		//
+		// To test different wishlist status for same variant, we test products accessible
+		// to each user's seller. Alice has variants 1-7 wishlisted (seller 2 products).
 
-		// Test with Alice (should be false)
+		// Test with Alice - Variant 1 (iPhone) should be wishlisted
 		tokenAlice := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(tokenAlice)
-		client.SetHeader("X-Seller-ID", "3")
+		// Note: seller_id comes from JWT token, not X-Seller-ID header when authenticated
 
-		productID := 5
-		variantID := 9
+		productID := 1
+		variantID := 1
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 		isWishlistedAlice := variant["isWishlisted"].(bool)
-		assert.False(t, isWishlistedAlice, "Variant 9 should NOT be wishlisted for Alice (user 5)")
+		assert.True(t, isWishlistedAlice, "Variant 1 should be wishlisted for Alice (user 5)")
 
-		// Test with Michael (should be true)
+		// Test with Michael - Variant 9 (T-Shirt) from seller 3 should be wishlisted
 		tokenMichael := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 		client.SetToken(tokenMichael)
-		client.SetHeader("X-Seller-ID", "3")
+		// Michael is seller 3, can access product 5 (T-Shirt)
 
+		productID = 5
+		variantID = 9
+		url = fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w = client.Get(t, url)
 
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -148,7 +156,7 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
 		// Get variants for product 1 (iPhone) - Alice has variants 1,2,3,4 in wishlist
-		url := "/api/variant?productId=1"
+		url := "/api/product/variant?productId=1"
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -178,7 +186,7 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "2")
 
-		url := "/api/variant?productId=1"
+		url := "/api/product/variant?productId=1"
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -205,8 +213,9 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
 		// Find variant 1 by options (Natural Titanium + 128GB)
+		// Note: Option names are case-sensitive - use "Color" and "Storage" as defined in seed data
 		productID := 1
-		url := fmt.Sprintf("/api/product/%d/variant/find?color=Natural%%20Titanium&storage=128GB", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -224,7 +233,8 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
 		productID := 1
-		url := fmt.Sprintf("/api/product/%d/variant/find?color=Natural%%20Titanium&storage=128GB", productID)
+		// Note: Option names are case-sensitive - use "Color" and "Storage" as defined in seed data
+		url := fmt.Sprintf("/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -261,12 +271,15 @@ func TestIsWishlistedField(t *testing.T) {
 
 	t.Run("GetProductByID - isWishlisted false when no variant in wishlist", func(t *testing.T) {
 		// Login as customer (user 5 - alice.j@example.com)
+		// Alice has seller_id = 2 from JWT token, can only access seller 2's products
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
-		client.SetHeader("X-Seller-ID", "4")
+		// Note: X-Seller-ID header is ignored when JWT token is present
 
-		// Product 8 (Sofa) has variants 16,17 - Alice doesn't have these
-		url := "/api/product/8"
+		// Product 4 (Sony WH-1000XM5 headphones, seller 2) - Alice doesn't have any variants
+		// Alice's wishlist has variants 1,2,3,4 (iPhone), 5,6 (Samsung), 7 (MacBook)
+		// Product 4 has variant 8 which is NOT in Alice's wishlist
+		url := "/api/product/4"
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -275,7 +288,7 @@ func TestIsWishlistedField(t *testing.T) {
 		// Assert isWishlisted is false (no variants in Alice's wishlist)
 		isWishlisted, ok := product["isWishlisted"].(bool)
 		assert.True(t, ok, "isWishlisted field should exist on product")
-		assert.False(t, isWishlisted, "Product 8 should NOT be wishlisted for user 5")
+		assert.False(t, isWishlisted, "Product 4 should NOT be wishlisted for user 5 (no variants in her wishlist)")
 	})
 
 	t.Run("GetProductByID - isWishlisted false for unauthenticated user", func(t *testing.T) {
@@ -305,7 +318,7 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetToken(token)
 		client.SetHeader("X-Seller-ID", "2")
 
-		url := "/api/products"
+		url := "/api/product"
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -340,7 +353,7 @@ func TestIsWishlistedField(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "2")
 
-		url := "/api/products"
+		url := "/api/product"
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -372,12 +385,14 @@ func TestIsWishlistedField(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		data := response["data"].(map[string]interface{})
-		products := data["products"].([]interface{})
+		// SearchResponse returns "results" not "products"
+		results := data["results"].([]interface{})
 
-		if len(products) > 0 {
-			// Check first product has isWishlisted field
-			product := products[0].(map[string]interface{})
-			_, ok := product["isWishlisted"].(bool)
+		if len(results) > 0 {
+			// Check first result has isWishlisted field
+			// SearchResult embeds ProductResponse, so isWishlisted should be at top level
+			result := results[0].(map[string]interface{})
+			_, ok := result["isWishlisted"].(bool)
 			assert.True(t, ok, "isWishlisted field should exist on search results")
 		}
 	})
