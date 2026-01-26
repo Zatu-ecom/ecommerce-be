@@ -131,6 +131,11 @@ func (r *ProductRepositoryImpl) FindAll(
 		query = query.Where("id IN ?", filter.IDs)
 	}
 
+	// Variant IDs filter - finds products containing any of the specified variants
+	if len(filter.VariantIDs) > 0 {
+		query = query.Where(productQuery.FILTER_VARIANT_IDS_SUBQUERY, filter.VariantIDs)
+	}
+
 	// Price filters - now based on variants
 	if filter.MinPrice != nil {
 		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, *filter.MinPrice)

@@ -242,6 +242,7 @@ type GetProductsParams struct {
 	CategoryIDs *string `form:"categoryIds"`
 	Brands      *string `form:"brands"`
 	IDs         *string `form:"ids"`
+	VariantIDs  *string `form:"variantIds"`
 }
 
 type GetProductsFilter struct {
@@ -249,6 +250,7 @@ type GetProductsFilter struct {
 	CategoryIDs []uint
 	Brands      []string
 	IDs         []uint
+	VariantIDs  []uint
 }
 
 func (p *GetProductsParams) ToGetProductsFilter(
@@ -259,6 +261,7 @@ func (p *GetProductsParams) ToGetProductsFilter(
 		CategoryIDs:           helper.ParseCommaSeparatedPtr[uint](p.CategoryIDs),
 		Brands:                helper.ParseCommaSeparatedPtr[string](p.Brands),
 		IDs:                   helper.ParseCommaSeparatedPtr[uint](p.IDs),
+		VariantIDs:            helper.ParseCommaSeparatedPtr[uint](p.VariantIDs),
 	}
 	filter.SellerID = sellerID
 	return filter

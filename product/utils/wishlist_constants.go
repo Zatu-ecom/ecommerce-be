@@ -43,8 +43,9 @@ const (
 	FAILED_TO_DELETE_WISHLIST_MSG = "Failed to delete wishlist"
 )
 
-// Wishlist limits
+// Wishlist limits - these are default values
+// Actual values are loaded from config (environment variables)
+// Use config.Get().Wishlist.MaxWishlistsPerUser, etc. instead
 const (
-	MAX_WISHLISTS_PER_USER = 10
-	DEFAULT_WISHLIST_NAME  = "My Wishlist"
+	DEFAULT_WISHLIST_NAME = "My Wishlist" // Kept for backward compatibility
 )

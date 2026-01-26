@@ -39,4 +39,11 @@ const (
 		WHERE pv.product_id = product.id 
 		AND pv.is_popular = ?
 	)`
+
+	// FILTER_VARIANT_IDS_SUBQUERY filters products that have any of the specified variant IDs
+	FILTER_VARIANT_IDS_SUBQUERY = `EXISTS (
+		SELECT 1 FROM product_variant pv 
+		WHERE pv.product_id = product.id 
+		AND pv.id IN ?
+	)`
 )

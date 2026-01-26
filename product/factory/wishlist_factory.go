@@ -51,25 +51,3 @@ func BuildWishlistEntity(userID uint, name string, isDefault bool) *entity.Wishl
 		IsDefault: isDefault,
 	}
 }
-
-// BuildWishlistDetailResponse builds WishlistDetailResponse from entity with items
-func BuildWishlistDetailResponse(wishlist *entity.Wishlist) *model.WishlistDetailResponse {
-	items := make([]model.WishlistItemResponse, 0, len(wishlist.Items))
-	for _, item := range wishlist.Items {
-		items = append(items, model.WishlistItemResponse{
-			ID:        item.ID,
-			VariantID: item.VariantID,
-			CreatedAt: item.CreatedAt,
-		})
-	}
-
-	return &model.WishlistDetailResponse{
-		ID:        wishlist.ID,
-		Name:      wishlist.Name,
-		IsDefault: wishlist.IsDefault,
-		ItemCount: len(wishlist.Items),
-		Items:     items,
-		CreatedAt: wishlist.CreatedAt,
-		UpdatedAt: wishlist.UpdatedAt,
-	}
-}

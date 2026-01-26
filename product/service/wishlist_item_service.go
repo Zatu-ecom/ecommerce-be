@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"ecommerce-be/common/config"
 	"ecommerce-be/order/repository"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
@@ -45,7 +46,11 @@ type WishlistItemService interface {
 	// AreVariantsInUserWishlist checks if multiple variants are in any of user's wishlists
 	// Returns a map of variantID -> isWishlisted for efficient batch lookup
 	// Used for isWishlisted field in list endpoints (ListVariants, etc.)
-	AreVariantsInUserWishlist(ctx context.Context, variantIDs []uint, userID uint) (map[uint]bool, error)
+	AreVariantsInUserWishlist(
+		ctx context.Context,
+		variantIDs []uint,
+		userID uint,
+	) (map[uint]bool, error)
 }
 
 // ============================================================================
@@ -72,6 +77,7 @@ func NewWishlistItemService(
 }
 
 // AddItem adds an item to a wishlist
+// If wishlist has reached MaxWishlistItems (configurable, default 100), removes the oldest item first
 func (s *wishlistItemServiceImpl) AddItem(
 	ctx context.Context,
 	userID, wishlistID uint,
@@ -98,6 +104,19 @@ func (s *wishlistItemServiceImpl) AddItem(
 	}
 	if exists {
 		return nil, prodErrors.ErrWishlistItemExists
+	}
+
+	// Check wishlist item count and remove oldest if limit reached
+	itemCount, err := s.wishlistItemRepo.CountByWishlistID(ctx, wishlistID)
+	if err != nil {
+		return nil, err
+	}
+
+	if itemCount >= int64(config.Get().App.MaxWishlistItems) {
+		// Remove oldest item to make room for new item
+		if err := s.wishlistItemRepo.DeleteOldestByWishlistID(ctx, wishlistID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Create wishlist item
@@ -239,6 +258,7 @@ func (s *wishlistItemServiceImpl) IsVariantInUserWishlist(
 ) (bool, error) {
 	return s.wishlistItemRepo.IsVariantInUserWishlist(ctx, variantID, userID)
 }
+
 // AreVariantsInUserWishlist checks if multiple variants are in any of user's wishlists
 // Returns a map of variantID -> isWishlisted for efficient batch lookup
 // This method can be extended with additional validation or business logic

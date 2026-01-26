@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/product/model"
@@ -35,7 +36,7 @@ func (h *WishlistHandler) GetAllWishlists(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistService.GetAllWishlists(c.Request.Context(), userID)
+	response, err := h.wishlistService.GetAllWishlists(c, userID)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_WISHLISTS_MSG)
 		return
@@ -65,7 +66,7 @@ func (h *WishlistHandler) CreateWishlist(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistService.CreateWishlist(c.Request.Context(), userID, req)
+	response, err := h.wishlistService.CreateWishlist(c, userID, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_CREATE_WISHLIST_MSG)
 		return
@@ -80,8 +81,8 @@ func (h *WishlistHandler) CreateWishlist(c *gin.Context) {
 	)
 }
 
-// GetWishlistByID handles getting a wishlist with items
-// GET /api/wishlist/:id
+// GetWishlistByID handles getting a wishlist with products (paginated)
+// GET /api/wishlist/:id?page=1&pageSize=20
 func (h *WishlistHandler) GetWishlistByID(c *gin.Context) {
 	userID, exists := auth.GetUserIDFromContext(c)
 	if !exists || userID == 0 {
@@ -95,7 +96,14 @@ func (h *WishlistHandler) GetWishlistByID(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistService.GetWishlistByID(c.Request.Context(), userID, wishlistID)
+	// Parse pagination params
+	var params common.BaseListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	response, err := h.wishlistService.GetWishlistByID(c, userID, wishlistID, params)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_WISHLIST_MSG)
 		return
@@ -131,7 +139,7 @@ func (h *WishlistHandler) UpdateWishlist(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistService.UpdateWishlist(c.Request.Context(), userID, wishlistID, req)
+	response, err := h.wishlistService.UpdateWishlist(c, userID, wishlistID, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_UPDATE_WISHLIST_MSG)
 		return
@@ -161,7 +169,7 @@ func (h *WishlistHandler) DeleteWishlist(c *gin.Context) {
 		return
 	}
 
-	if err := h.wishlistService.DeleteWishlist(c.Request.Context(), userID, wishlistID); err != nil {
+	if err := h.wishlistService.DeleteWishlist(c, userID, wishlistID); err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_DELETE_WISHLIST_MSG)
 		return
 	}

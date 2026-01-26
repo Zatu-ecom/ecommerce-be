@@ -36,13 +36,14 @@ type WishlistsResponse struct {
 	Wishlists []WishlistResponse `json:"wishlists"`
 }
 
-// WishlistDetailResponse represents the response for getting a wishlist with items
+// WishlistDetailResponse represents the response for getting a wishlist with products
+// Uses ProductsResponse for full product details with pagination support
 type WishlistDetailResponse struct {
-	ID        uint                   `json:"id"`
-	Name      string                 `json:"name"`
-	IsDefault bool                   `json:"isDefault"`
-	ItemCount int                    `json:"itemCount"`
-	Items     []WishlistItemResponse `json:"items"`
-	CreatedAt time.Time              `json:"createdAt"`
-	UpdatedAt time.Time              `json:"updatedAt"`
+	ID        uint             `json:"id"`
+	Name      string           `json:"name"`
+	IsDefault bool             `json:"isDefault"`
+	ItemCount int              `json:"itemCount"` // Total items in wishlist (not paginated count)
+	Products  ProductsResponse `json:"products"`  // Paginated products with full details
+	CreatedAt time.Time        `json:"createdAt"`
+	UpdatedAt time.Time        `json:"updatedAt"`
 }

@@ -98,7 +98,7 @@ func (r *WishlistRepositoryImpl) FindByUserIDWithItemCount(
 ) ([]mapper.WishlistWithItemCount, error) {
 	var wishlists []mapper.WishlistWithItemCount
 	result := db.DB(ctx).
-		Table("wishlists w").
+		Table("wishlist w").
 		Select(`
 			w.id,
 			w.user_id,
@@ -108,8 +108,8 @@ func (r *WishlistRepositoryImpl) FindByUserIDWithItemCount(
 			w.updated_at,
 			COALESCE(COUNT(wi.id), 0) AS item_count
 		`).
-		Joins("LEFT JOIN wishlist_items wi ON wi.wishlist_id = w.id AND wi.deleted_at IS NULL").
-		Where("w.user_id = ? AND w.deleted_at IS NULL", userID).
+		Joins("LEFT JOIN wishlist_item wi ON wi.wishlist_id = w.id").
+		Where("w.user_id = ?", userID).
 		Group("w.id, w.user_id, w.name, w.is_default, w.created_at, w.updated_at").
 		Order("w.is_default DESC, w.created_at ASC").
 		Scan(&wishlists)

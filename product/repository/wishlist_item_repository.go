@@ -46,6 +46,20 @@ type WishlistItemRepository interface {
 		variantIDs []uint,
 		userID uint,
 	) (map[uint]bool, error)
+
+	// CountByWishlistID counts items in a wishlist
+	CountByWishlistID(ctx context.Context, wishlistID uint) (int64, error)
+
+	// DeleteOldestByWishlistID deletes the oldest item in a wishlist
+	DeleteOldestByWishlistID(ctx context.Context, wishlistID uint) error
+
+	// FindVariantIDsByWishlistID finds all variant IDs for a wishlist with pagination
+	// Returns variant IDs ordered by created_at DESC (newest first)
+	FindVariantIDsByWishlistID(
+		ctx context.Context,
+		wishlistID uint,
+		page, limit int,
+	) ([]uint, int64, error)
 }
 
 // ============================================================================
@@ -180,4 +194,72 @@ func (r *wishlistItemRepositoryImpl) AreVariantsInUserWishlist(
 	}
 
 	return result, nil
+}
+
+// CountByWishlistID counts items in a wishlist
+func (r *wishlistItemRepositoryImpl) CountByWishlistID(
+	ctx context.Context,
+	wishlistID uint,
+) (int64, error) {
+	var count int64
+	err := r.getDB().WithContext(ctx).
+		Model(&entity.WishlistItem{}).
+		Where("wishlist_id = ?", wishlistID).
+		Count(&count).Error
+	return count, err
+}
+
+// DeleteOldestByWishlistID deletes the oldest item in a wishlist
+func (r *wishlistItemRepositoryImpl) DeleteOldestByWishlistID(
+	ctx context.Context,
+	wishlistID uint,
+) error {
+	// Find the oldest item (by created_at ASC)
+	var oldestItem entity.WishlistItem
+	err := r.getDB().WithContext(ctx).
+		Where("wishlist_id = ?", wishlistID).
+		Order("created_at ASC").
+		First(&oldestItem).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete the oldest item
+	return r.getDB().WithContext(ctx).Delete(&entity.WishlistItem{}, oldestItem.ID).Error
+}
+
+// FindVariantIDsByWishlistID finds all variant IDs for a wishlist with pagination
+// Returns variant IDs ordered by created_at DESC (newest first)
+func (r *wishlistItemRepositoryImpl) FindVariantIDsByWishlistID(
+	ctx context.Context,
+	wishlistID uint,
+	page, limit int,
+) ([]uint, int64, error) {
+	var total int64
+	var variantIDs []uint
+
+	// Count total items
+	err := r.getDB().WithContext(ctx).
+		Model(&entity.WishlistItem{}).
+		Where("wishlist_id = ?", wishlistID).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get variant IDs with pagination
+	offset := (page - 1) * limit
+	err = r.getDB().WithContext(ctx).
+		Model(&entity.WishlistItem{}).
+		Select("variant_id").
+		Where("wishlist_id = ?", wishlistID).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Pluck("variant_id", &variantIDs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return variantIDs, total, nil
 }

@@ -3,17 +3,22 @@ package service
 import (
 	"context"
 
+	"ecommerce-be/common"
+	"ecommerce-be/common/config"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
-	"ecommerce-be/product/utils"
 )
 
 // WishlistService defines the interface for wishlist management business logic
 type WishlistService interface {
 	GetAllWishlists(ctx context.Context, userID uint) (*model.WishlistsResponse, error)
-	GetWishlistByID(ctx context.Context, userID, wishlistID uint) (*model.WishlistDetailResponse, error)
+	GetWishlistByID(
+		ctx context.Context,
+		userID, wishlistID uint,
+		params common.BaseListParams,
+	) (*model.WishlistDetailResponse, error)
 	CreateWishlist(
 		ctx context.Context,
 		userID uint,
@@ -29,13 +34,21 @@ type WishlistService interface {
 
 // WishlistServiceImpl implements the WishlistService interface
 type WishlistServiceImpl struct {
-	wishlistRepo repository.WishlistRepository
+	wishlistRepo        repository.WishlistRepository
+	wishlistItemRepo    repository.WishlistItemRepository
+	productQueryService ProductQueryService
 }
 
 // NewWishlistService creates a new instance of WishlistService
-func NewWishlistService(wishlistRepo repository.WishlistRepository) WishlistService {
+func NewWishlistService(
+	wishlistRepo repository.WishlistRepository,
+	wishlistItemRepo repository.WishlistItemRepository,
+	productQueryService ProductQueryService,
+) WishlistService {
 	return &WishlistServiceImpl{
-		wishlistRepo: wishlistRepo,
+		wishlistRepo:        wishlistRepo,
+		wishlistItemRepo:    wishlistItemRepo,
+		productQueryService: productQueryService,
 	}
 }
 
@@ -52,12 +65,15 @@ func (s *WishlistServiceImpl) GetAllWishlists(
 	return factory.BuildWishlistsResponse(wishlists), nil
 }
 
-// GetWishlistByID retrieves a wishlist with its items
+// GetWishlistByID retrieves a wishlist with paginated products
+// Uses ProductQueryService to get full product details for wishlist items
 func (s *WishlistServiceImpl) GetWishlistByID(
 	ctx context.Context,
 	userID, wishlistID uint,
+	params common.BaseListParams,
 ) (*model.WishlistDetailResponse, error) {
-	wishlist, err := s.wishlistRepo.FindByIDWithItems(ctx, wishlistID)
+	// Get wishlist to verify ownership and get basic info
+	wishlist, err := s.wishlistRepo.FindByID(ctx, wishlistID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +83,62 @@ func (s *WishlistServiceImpl) GetWishlistByID(
 		return nil, prodErrors.ErrUnauthorizedWishlist
 	}
 
-	return factory.BuildWishlistDetailResponse(wishlist), nil
+	// Set default pagination
+	params.SetDefaults()
+	page := params.Page
+	pageSize := params.PageSize
+
+	// Get variant IDs from wishlist items with pagination
+	variantIDs, totalItems, err := s.wishlistItemRepo.FindVariantIDsByWishlistID(
+		ctx,
+		wishlistID,
+		page,
+		pageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build products response
+	var productsResponse model.ProductsResponse
+
+	if len(variantIDs) > 0 {
+		// Get products using the variant IDs filter
+		filter := model.GetProductsFilter{
+			VariantIDs: variantIDs,
+		}
+		// Use page 1 and high limit since we already paginated variant IDs
+		// This fetches products for the paginated variant IDs
+		products, err := s.productQueryService.GetAllProducts(
+			ctx,
+			1,
+			len(variantIDs),
+			filter,
+			&userID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		productsResponse = model.ProductsResponse{
+			Products:   products.Products,
+			Pagination: common.NewPaginationResponse(page, pageSize, totalItems),
+		}
+	} else {
+		productsResponse = model.ProductsResponse{
+			Products:   []model.ProductResponse{},
+			Pagination: common.NewPaginationResponse(page, pageSize, 0),
+		}
+	}
+
+	return &model.WishlistDetailResponse{
+		ID:        wishlist.ID,
+		Name:      wishlist.Name,
+		IsDefault: wishlist.IsDefault,
+		ItemCount: int(totalItems),
+		Products:  productsResponse,
+		CreatedAt: wishlist.CreatedAt,
+		UpdatedAt: wishlist.UpdatedAt,
+	}, nil
 }
 
 // CreateWishlist creates a new wishlist for a user
@@ -81,7 +152,7 @@ func (s *WishlistServiceImpl) CreateWishlist(
 	if err != nil {
 		return nil, err
 	}
-	if count >= utils.MAX_WISHLISTS_PER_USER {
+	if count >= int64(config.Get().App.MaxWishlistsPerUser) {
 		return nil, prodErrors.ErrMaxWishlistsReached
 	}
 

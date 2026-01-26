@@ -47,7 +47,7 @@ func (h *WishlistItemHandler) AddItem(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistItemService.AddItem(c.Request.Context(), userID, wishlistID, req)
+	response, err := h.wishlistItemService.AddItem(c, userID, wishlistID, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_ADD_WISHLIST_ITEM_MSG)
 		return
@@ -83,7 +83,7 @@ func (h *WishlistItemHandler) RemoveItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.wishlistItemService.RemoveItem(c.Request.Context(), userID, wishlistID, itemID); err != nil {
+	if err := h.wishlistItemService.RemoveItem(c, userID, wishlistID, itemID); err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_REMOVE_WISHLIST_ITEM_MSG)
 		return
 	}
@@ -118,7 +118,7 @@ func (h *WishlistItemHandler) MoveItem(c *gin.Context) {
 		return
 	}
 
-	response, err := h.wishlistItemService.MoveItem(c.Request.Context(), userID, wishlistID, itemID, req)
+	response, err := h.wishlistItemService.MoveItem(c, userID, wishlistID, itemID, req)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_MOVE_WISHLIST_ITEM_MSG)
 		return
