@@ -130,9 +130,10 @@ func getValidationErrorMessage(fieldErr validator.FieldError) string {
 }
 
 // ParseUintParam parses a uint parameter from the URL
+// Supports 64-bit IDs to match PostgreSQL BIGSERIAL primary keys
 func (h *BaseHandler) ParseUintParam(c *gin.Context, paramName string) (uint, error) {
 	paramValue := c.Param(paramName)
-	id, err := strconv.ParseUint(paramValue, 10, 32)
+	id, err := strconv.ParseUint(paramValue, 10, 64)
 	if err != nil {
 		return 0, commonError.ErrInvalidID.WithMessagef("Invalid %s", paramName)
 	}
