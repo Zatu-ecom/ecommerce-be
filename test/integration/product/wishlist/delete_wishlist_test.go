@@ -14,16 +14,17 @@ import (
 )
 
 // TestDeleteWishlist tests the Delete Wishlist (DELETE /api/product/wishlist/:id) API
+//
 // This endpoint deletes a wishlist and all its items.
 //
 // Endpoint: DELETE /api/product/wishlist/:id
 // Authentication: Required (Customer Auth only)
 //
 // Business Rules:
-// - User can only delete their own wishlists
-// - Cannot delete the default wishlist
-// - Deleting a wishlist removes all its items
-// - Returns 200 OK on successful deletion
+// 	- User can only delete their own wishlists
+// 	- Cannot delete the default wishlist
+// 	- Deleting a wishlist removes all its items
+// 	- Returns 200 OK on successful deletion
 func TestDeleteWishlist(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

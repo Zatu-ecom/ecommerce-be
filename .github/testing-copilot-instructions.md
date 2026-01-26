@@ -10,7 +10,7 @@
 
 **Real Issues Should Fail Tests**: Tests should catch real implementation bugs. A failing test indicates a genuine problem that must be fixed in the production code, not the test.
 
-And we are not asserting the response message we should the assert the https code always. because the message can be changed later but the code should remain same for the particular scenario. and if nessory then we can assert the code because the messgae and code is one to one mapping so code will never change for the particular scenario
+And we are not asserting the response message we should the assert the https code always. because the message can be changed later but the code should remain same for the particular scenario. and if necessary then we can assert the code because the message and code is one to one mapping so code will never change for the particular scenario
 
 ### Test Design Guidelines
 

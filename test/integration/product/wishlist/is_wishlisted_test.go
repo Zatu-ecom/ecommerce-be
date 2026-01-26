@@ -15,15 +15,15 @@ import (
 // This test verifies that the wishlist status is correctly returned for logged-in users
 //
 // Test Data Setup (from 005_seed_wishlist_data.sql):
-// - User 5 (alice.j@example.com) has variants 1,2,3,4,5,6,7 in wishlists
-// - User 6 (michael.s@example.com) has variants 9,10,12,14 in wishlists
-// - User 7 (sarah.w@example.com) has variants 16,17,18 in wishlists
+// 	- User 5 (alice.j@example.com) has variants 1,2,3,4,5,6,7 in wishlists
+// 	- User 6 (michael.s@example.com) has variants 9,10,12,14 in wishlists
+// 	- User 7 (sarah.w@example.com) has variants 16,17,18 in wishlists
 //
 // Product/Variant Mapping:
-// - Product 1 (iPhone, seller 2): variants 1,2,3,4
-// - Product 2 (Samsung, seller 2): variants 5,6
-// - Product 3 (MacBook, seller 2): variants 7,8
-// - Product 5 (T-Shirt, seller 3): variants 9,10,11
+// 	- Product 1 (iPhone, seller 2): variants 1,2,3,4
+// 	- Product 2 (Samsung, seller 2): variants 5,6
+// 	- Product 3 (MacBook, seller 2): variants 7,8
+// 	- Product 5 (T-Shirt, seller 3): variants 9,10,11
 func TestIsWishlistedField(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
