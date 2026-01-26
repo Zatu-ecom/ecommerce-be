@@ -148,6 +148,29 @@ func (c *APIClient) Patch(t *testing.T, url string, body interface{}) *httptest.
 	return w
 }
 
+// PutRaw makes a PUT request with raw bytes (for testing invalid JSON)
+func (c *APIClient) PutRaw(t *testing.T, url string, body []byte) *httptest.ResponseRecorder {
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
+	w := httptest.NewRecorder()
+	c.Handler.ServeHTTP(w, req)
+
+	return w
+}
+
 // Delete makes a DELETE request
 func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
