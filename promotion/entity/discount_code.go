@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
-
-	"gorm.io/gorm"
 )
 
 type DiscountType string
@@ -17,6 +15,17 @@ const (
 	DiscountBuyXGetY     DiscountType = "buy_x_get_y"
 )
 
+// ResetTimeType defines the time unit for usage reset period
+type ResetTimeType string
+
+const (
+	ResetTimeTypeNone  ResetTimeType = "none"  // No reset (lifetime limit)
+	ResetTimeTypeDay   ResetTimeType = "day"   // Reset every X days
+	ResetTimeTypeWeek  ResetTimeType = "week"  // Reset every X weeks
+	ResetTimeTypeMonth ResetTimeType = "month" // Reset every X months
+	ResetTimeTypeYear  ResetTimeType = "year"  // Reset every X years
+)
+
 // DiscountCode represents a coupon/discount code created by a seller
 type DiscountCode struct {
 	db.BaseEntity
@@ -25,14 +34,22 @@ type DiscountCode struct {
 	SellerID uint `json:"sellerId" gorm:"column:seller_id;not null;index"`
 
 	// Code
-	Code  string  `json:"code"  gorm:"column:code;size:50;not null"`
-	Title *string `json:"title" gorm:"column:title;size:255"`
+	Code        string  `json:"code"        gorm:"column:code;size:50;not null"`
+	Title       *string `json:"title"       gorm:"column:title;size:255"`
+	Description *string `json:"description" gorm:"column:description;type:text"`
 
 	// Discount Type
 	DiscountType DiscountType `json:"discountType" gorm:"column:discount_type;size:50;not null"`
 
 	// Discount Value
+	// For percentage: value = 15 means 15%
+	// For fixed_amount: value = 10000 means ₹100 (in cents/paise)
 	Value int64 `json:"value" gorm:"column:value;not null"`
+
+	// Maximum Discount Cap (for percentage discounts)
+	// If set, caps the discount amount even if percentage would give more
+	// Example: 15% discount with MaxDiscountAmountCents=10000 means max ₹100 discount
+	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents" gorm:"column:max_discount_amount_cents"`
 
 	// Applies To
 	AppliesTo ScopeType `json:"appliesTo" gorm:"column:applies_to;size:50;not null;default:all_products"`
@@ -48,7 +65,11 @@ type DiscountCode struct {
 	// Usage Limits
 	UsageLimitTotal       *int `json:"usageLimitTotal"       gorm:"column:usage_limit_total"`
 	UsageLimitPerCustomer *int `json:"usageLimitPerCustomer" gorm:"column:usage_limit_per_customer;default:1"`
-	CurrentUsageCount     int  `json:"currentUsageCount"     gorm:"column:current_usage_count;default:0"`
+
+	// Usage Reset Configuration (e.g., reset every 1 month, 2 weeks, 30 days)
+	// If ResetTimeType is "none", UsageLimitPerCustomer is lifetime limit
+	UsageResetTimeType ResetTimeType `json:"usageResetTimeType" gorm:"column:usage_reset_time_type;size:20;default:'none'"`
+	UsageResetAmount   *int          `json:"usageResetAmount"   gorm:"column:usage_reset_amount"`
 
 	// Combinations
 	CanCombineWithOtherDiscounts *bool `json:"canCombineWithOtherDiscounts" gorm:"column:can_combine_with_other_discounts;default:false"`
@@ -62,22 +83,4 @@ type DiscountCode struct {
 
 	// Metadata
 	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
-
-	// Relationships
-	Products    []DiscountCodeProduct    `json:"products,omitempty"    gorm:"foreignKey:DiscountCodeID"`
-	Categories  []DiscountCodeCategory   `json:"categories,omitempty"  gorm:"foreignKey:DiscountCodeID"`
-	Collections []DiscountCodeCollection `json:"collections,omitempty" gorm:"foreignKey:DiscountCodeID"`
-	Usages      []DiscountCodeUsage      `json:"usages,omitempty"      gorm:"foreignKey:DiscountCodeID"`
-}
-
-// TableName specifies the table name
-func (DiscountCode) TableName() string {
-	return "discount_code"
-}
-
-// BeforeCreate hook
-func (dc *DiscountCode) BeforeCreate(tx *gorm.DB) error {
-	// Code validation can be added here
-	// For example, ensure code is uppercase, alphanumeric, etc.
-	return nil
 }

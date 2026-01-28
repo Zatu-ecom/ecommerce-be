@@ -6,7 +6,6 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-be/common/config"
-	"ecommerce-be/order/repository"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/model"
@@ -60,19 +59,16 @@ type WishlistItemService interface {
 type wishlistItemServiceImpl struct {
 	wishlistItemRepo prodRepo.WishlistItemRepository
 	wishlistRepo     prodRepo.WishlistRepository
-	cartRepo         repository.CartRepository
 }
 
 // NewWishlistItemService creates a new instance of WishlistItemService
 func NewWishlistItemService(
 	wishlistItemRepo prodRepo.WishlistItemRepository,
 	wishlistRepo prodRepo.WishlistRepository,
-	cartRepo repository.CartRepository,
 ) WishlistItemService {
 	return &wishlistItemServiceImpl{
 		wishlistItemRepo: wishlistItemRepo,
 		wishlistRepo:     wishlistRepo,
-		cartRepo:         cartRepo,
 	}
 }
 

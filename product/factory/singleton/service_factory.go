@@ -3,7 +3,6 @@ package singleton
 import (
 	"sync"
 
-	orderRepo "ecommerce-be/order/repository"
 	"ecommerce-be/product/service"
 )
 
@@ -59,7 +58,6 @@ func (f *ServiceFactory) initialize() {
 		f.wishlistItemService = service.NewWishlistItemService(
 			f.repoFactory.GetWishlistItemRepository(),
 			f.repoFactory.GetWishlistRepository(),
-			orderRepo.NewCartRepository(),
 		)
 
 		// Initialize VariantQueryService (query operations only - no circular dependencies)
