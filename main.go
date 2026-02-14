@@ -20,6 +20,7 @@ import (
 	"ecommerce-be/order"
 	"ecommerce-be/payment"
 	product "ecommerce-be/product"
+	"ecommerce-be/promotion"
 	user "ecommerce-be/user"
 
 	"github.com/gin-gonic/gin"
@@ -123,4 +124,5 @@ func registerContainer(router *gin.Engine) {
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
 	_ = notification.NewContainer(router)
+	_ = promotion.NewContainer(router)
 }

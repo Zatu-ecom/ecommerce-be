@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/helper"
 
 	"gorm.io/gorm"
 )
@@ -25,9 +26,9 @@ const (
 type ScopeType string
 
 const (
-	ScopeAllProducts        ScopeType = "all_products"
-	ScopeSpecificProducts   ScopeType = "specific_products"
-	ScopeSpecificCategories ScopeType = "specific_categories"
+	ScopeAllProducts         ScopeType = "all_products"
+	ScopeSpecificProducts    ScopeType = "specific_products"
+	ScopeSpecificCategories  ScopeType = "specific_categories"
 	ScopeSpecificCollections ScopeType = "specific_collections"
 )
 
@@ -38,17 +39,6 @@ const (
 	EligibleNewCustomers       EligibilityType = "new_customers"
 	EligibleReturningCustomers EligibilityType = "returning_customers"
 	EligibleSpecificSegment    EligibilityType = "specific_segment"
-)
-
-type PromotionStatus string
-
-const (
-	StatusDraft     PromotionStatus = "draft"
-	StatusScheduled PromotionStatus = "scheduled"
-	StatusActive    PromotionStatus = "active"
-	StatusPaused    PromotionStatus = "paused"
-	StatusEnded     PromotionStatus = "ended"
-	StatusCancelled PromotionStatus = "cancelled"
 )
 
 // Promotion represents a seller-created sale or promotional offer
@@ -94,7 +84,7 @@ type Promotion struct {
 	AutoEnd   *bool `json:"autoEnd"   gorm:"column:auto_end;default:true"`
 
 	// Status
-	Status PromotionStatus `json:"status" gorm:"column:status;size:50;default:draft;index"`
+	Status CampaignStatus `json:"status" gorm:"column:status;size:50;default:draft;index"`
 
 	// Stacking Rules
 	CanStackWithOtherPromotions *bool `json:"canStackWithOtherPromotions" gorm:"column:can_stack_with_other_promotions;default:false"`
@@ -110,6 +100,9 @@ type Promotion struct {
 
 	// Metadata
 	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+
+	// Sale
+	SaleID *uint `json:"saleId" gorm:"column:sale_id;index"`
 
 	// Relationships
 	Products    []PromotionProduct    `json:"products,omitempty"    gorm:"foreignKey:PromotionID"`
@@ -179,16 +172,8 @@ func (Promotion) TableName() string {
 func (p *Promotion) BeforeCreate(tx *gorm.DB) error {
 	// Generate slug if not provided
 	if p.Slug == nil || *p.Slug == "" {
-		// Simple slug generation (can be improved)
-		slug := generateSlug(p.Name)
+		slug := helper.GenerateSlug(p.Name)
 		p.Slug = &slug
 	}
 	return nil
-}
-
-// Helper function to generate slug (basic implementation)
-func generateSlug(name string) string {
-	// This is a simple implementation
-	// In production, use a proper slug generation library
-	return name
 }

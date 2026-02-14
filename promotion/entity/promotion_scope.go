@@ -9,12 +9,8 @@ type PromotionProduct struct {
 	db.BaseEntity
 
 	// References
-	PromotionID uint  `json:"promotionId" gorm:"column:promotion_id;not null;index"`
-	ProductID   uint  `json:"productId"   gorm:"column:product_id;not null;index"`
-	VariantID   *uint `json:"variantId"   gorm:"column:variant_id;index"`
-
-	// Variant-specific override (optional)
-	OverrideDiscountConfig *DiscountConfig `json:"overrideDiscountConfig" gorm:"column:override_discount_config;type:jsonb"`
+	PromotionID uint `json:"promotionId" gorm:"column:promotion_id;not null;index"`
+	ProductID   uint `json:"productId"   gorm:"column:product_id;not null;index"`
 
 	// Relationships
 	Promotion *Promotion `json:"promotion,omitempty" gorm:"foreignKey:PromotionID"`
@@ -23,6 +19,22 @@ type PromotionProduct struct {
 // TableName specifies the table name
 func (PromotionProduct) TableName() string {
 	return "promotion_product"
+}
+
+type PromotionProductVariant struct {
+	db.BaseEntity
+
+	// References
+	PromotionID uint `json:"promotionId" gorm:"column:promotion_id;not null;index"`
+	VariantID   uint `json:"variantId"   gorm:"column:variant_id;not null;index"`
+
+	// Relationships
+	Promotion *Promotion `json:"promotion,omitempty" gorm:"foreignKey:PromotionID"`
+}
+
+// TableName specifies the table name
+func (PromotionProductVariant) TableName() string {
+	return "promotion_product_variant"
 }
 
 // PromotionCategory represents categories included in a promotion

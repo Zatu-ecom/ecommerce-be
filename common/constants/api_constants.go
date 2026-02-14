@@ -20,4 +20,6 @@ const (
 
 	// Notification Service Base Path (Future)
 	APIBaseNotification = "/api/notification"
+
+	APIBasePromotion = "/api/promotion"
 )
