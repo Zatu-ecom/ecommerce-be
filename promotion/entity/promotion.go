@@ -35,10 +35,9 @@ const (
 type EligibilityType string
 
 const (
-	EligibleEveryone           EligibilityType = "everyone"
-	EligibleNewCustomers       EligibilityType = "new_customers"
-	EligibleReturningCustomers EligibilityType = "returning_customers"
-	EligibleSpecificSegment    EligibilityType = "specific_segment"
+	EligibleEveryone        EligibilityType = "everyone"
+	EligibleNewCustomers    EligibilityType = "new_customers"
+	EligibleSpecificSegment EligibilityType = "specific_segment"
 )
 
 // Promotion represents a seller-created sale or promotional offer
