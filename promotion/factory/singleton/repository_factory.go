@@ -8,6 +8,7 @@ import (
 
 // RepositoryFactory manages all repository singleton instances
 type RepositoryFactory struct {
+	promotionRepository               repository.PromotionRepository
 	promotionProductRepository        repository.PromotionProductScopeRepository
 	promotionProductVariantRepository repository.PromotionProductVariantScopeRepository
 	promotionCategoryRepository       repository.PromotionCategoryScopeRepository
@@ -23,6 +24,7 @@ func NewRepositoryFactory() *RepositoryFactory {
 // initialize creates all repository instances (lazy loading)
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
+		f.promotionRepository = repository.NewPromotionRepository()
 		f.promotionProductRepository = repository.NewPromotionProductScopeRepository()
 		f.promotionProductVariantRepository = repository.NewPromotionProductVariantScopeRepository()
 		f.promotionCategoryRepository = repository.NewPromotionCategoryScopeRepository()
@@ -48,4 +50,9 @@ func (f *RepositoryFactory) GetPromotionCategoryScopeRepository() repository.Pro
 func (f *RepositoryFactory) GetPromotionCollectionScopeRepository() repository.PromotionCollectionScopeRepository {
 	f.initialize()
 	return f.promotionCollectionRepository
+}
+
+func (f *RepositoryFactory) GetPromotionRepository() repository.PromotionRepository {
+	f.initialize()
+	return f.promotionRepository
 }

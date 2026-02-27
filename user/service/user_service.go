@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -37,23 +39,36 @@ type UserService interface {
 		ctx context.Context,
 		req model.CreateUserRequest,
 		roleName string,
-	) (*entity.User, *entity.Role, error) // GetUserByID retrieves a user by ID (for internal service use)
+	) (*entity.User, *entity.Role, error)
+
+	// GetPreferredCurrency retrieves the final currency configuration (buyer localized or seller native)
+	GetPreferredCurrency(
+		ctx context.Context,
+		userID uint,
+		sellerID uint,
+	) (*model.CurrencyResponse, error)
 }
 
 // UserServiceImpl implements the UserService interface
 type UserServiceImpl struct {
-	userRepo       repository.UserRepository
-	addressService AddressService
+	userRepo              repository.UserRepository
+	addressService        AddressService
+	sellerSettingsService SellerSettingsService
+	currencyService       CurrencyService
 }
 
 // NewUserService creates a new instance of UserService
 func NewUserService(
 	userRepo repository.UserRepository,
 	addressService AddressService,
+	sellerSettingsService SellerSettingsService,
+	currencyService CurrencyService,
 ) UserService {
 	return &UserServiceImpl{
-		userRepo:       userRepo,
-		addressService: addressService,
+		userRepo:              userRepo,
+		addressService:        addressService,
+		sellerSettingsService: sellerSettingsService,
+		currencyService:       currencyService,
 	}
 }
 
@@ -332,4 +347,61 @@ func (s *UserServiceImpl) CreateUserWithRole(
 	}
 
 	return user, role, nil
+}
+
+// GetPreferredCurrency retrieves the currency rules dynamically based on seller preferences and buyer locales
+func (s *UserServiceImpl) GetPreferredCurrency(
+	ctx context.Context,
+	userID uint,
+	sellerID uint,
+) (*model.CurrencyResponse, error) {
+
+	cacheKey := fmt.Sprintf("user_currency:%d:%d", userID, sellerID)
+
+	// 1. Check Cache First
+	if cachedStr, err := cache.Get(cacheKey); err == nil && cachedStr != "" {
+		var currencyRes model.CurrencyResponse
+		if err := json.Unmarshal([]byte(cachedStr), &currencyRes); err == nil {
+			return &currencyRes, nil
+		}
+	}
+
+	// 2. Fetch User and Seller Settings
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New(constant.USER_NOT_FOUND_MSG)
+	}
+
+	sellerSettings, err := s.sellerSettingsService.GetBySellerID(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Determine Final Currency ID
+	var targetCurrencyID uint
+
+	if sellerSettings.DisplayPricesInBuyerCurrency && user.CurrencyID != nil {
+		targetCurrencyID = *user.CurrencyID
+	} else {
+		targetCurrencyID = sellerSettings.BaseCurrencyID
+	}
+
+	// 4. Retrieve Full Currency Information
+	currencyDetails, err := s.currencyService.GetCurrencyByID(ctx, targetCurrencyID)
+	if err != nil {
+		return nil, err
+	}
+
+	currencyRes := &model.CurrencyResponse{
+		CurrencyBase: currencyDetails.CurrencyBase,
+		ID:           currencyDetails.ID,
+		IsActive:     currencyDetails.IsActive,
+	}
+
+	// 5. Store cleanly in Redis for 1 Hour
+	if bytes, err := json.Marshal(currencyRes); err == nil {
+		_ = cache.Set(cacheKey, string(bytes), 1*time.Hour)
+	}
+
+	return currencyRes, nil
 }

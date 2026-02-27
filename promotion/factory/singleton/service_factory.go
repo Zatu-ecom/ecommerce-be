@@ -3,6 +3,7 @@ package singleton
 import (
 	"sync"
 
+	productSingleton "ecommerce-be/product/factory/singleton"
 	"ecommerce-be/promotion/service"
 )
 
@@ -10,6 +11,7 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
+	promotionService           service.PromotionService
 	promotionProductService    service.PromotionProductScopeService
 	promotionVariantService    service.PromotionVariantScopeService
 	promotionCategoryService   service.PromotionCategoryScopeService
@@ -41,6 +43,18 @@ func (f *ServiceFactory) initialize() {
 		f.promotionCollectionService = service.NewPromotionCollectionScopeService(
 			promotionCollectionRepo,
 		)
+
+		// Initialize promotion service with all dependencies
+		promotionRepo := f.repoFactory.GetPromotionRepository()
+		collectionProductService := productSingleton.GetInstance().GetCollectionProductService()
+
+		f.promotionService = service.NewPromotionService(
+			promotionRepo,
+			f.promotionProductService,
+			f.promotionCategoryService,
+			f.promotionCollectionService,
+			collectionProductService,
+		)
 	})
 }
 
@@ -62,4 +76,9 @@ func (f *ServiceFactory) GetPromotionCategoryScopeService() service.PromotionCat
 func (f *ServiceFactory) GetPromotionCollectionScopeService() service.PromotionCollectionScopeService {
 	f.initialize()
 	return f.promotionCollectionService
+}
+
+func (f *ServiceFactory) GetPromotionService() service.PromotionService {
+	f.initialize()
+	return f.promotionService
 }

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	handler "ecommerce-be/inventory/handler"
+	"ecommerce-be/inventory/service"
 )
 
 // SingletonFactory is the main facade for accessing all factories
@@ -64,4 +65,8 @@ func (f *SingletonFactory) GetInventoryReservationHandler() *handler.InventoryRe
 
 func (f *SingletonFactory) GetScheduleInventoryReservationHandler() *handler.ScheduleInventoryReservationHandler {
 	return f.handlerFactory.GetScheduleInventoryReservationHandler()
+}
+
+func (f *SingletonFactory) GetInventoryQueryService() service.InventoryQueryService {
+	return f.serviceFactory.GetInventoryQueryService()
 }

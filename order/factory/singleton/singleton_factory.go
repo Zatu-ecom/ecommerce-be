@@ -3,8 +3,9 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/promotion/handler"
-	"ecommerce-be/promotion/service"
+	"ecommerce-be/order/handler"
+	"ecommerce-be/order/repository"
+	"ecommerce-be/order/service"
 )
 
 // SingletonFactory is the main facade for accessing all factories
@@ -42,25 +43,25 @@ func ResetInstance() {
 }
 
 // ===============================
+// Repository Getters (Delegates)
+// ===============================
+
+func (f *SingletonFactory) GetCartRepository() repository.CartRepository {
+	return f.repoFactory.GetCartRepository()
+}
+
+// ===============================
+// Service Getters (Delegates)
+// ===============================
+
+func (f *SingletonFactory) GetCartService() service.CartService {
+	return f.serviceFactory.GetCartService()
+}
+
+// ===============================
 // Handler Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetPromotionProductScopeHandler() *handler.PromotionProductScopeHandler {
-	return f.handlerFactory.GetPromotionProductScopeHandler()
-}
-
-func (f *SingletonFactory) GetPromotionVariantScopeHandler() *handler.PromotionVariantScopeHandler {
-	return f.handlerFactory.GetPromotionVariantScopeHandler()
-}
-
-func (f *SingletonFactory) GetPromotionCategoryScopeHandler() *handler.PromotionCategoryScopeHandler {
-	return f.handlerFactory.GetPromotionCategoryScopeHandler()
-}
-
-func (f *SingletonFactory) GetPromotionCollectionScopeHandler() *handler.PromotionCollectionScopeHandler {
-	return f.handlerFactory.GetPromotionCollectionScopeHandler()
-}
-
-func (f *SingletonFactory) GetPromotionService() service.PromotionService {
-	return f.serviceFactory.GetPromotionService()
+func (f *SingletonFactory) GetCartHandler() *handler.CartHandler {
+	return f.handlerFactory.GetCartHandler()
 }

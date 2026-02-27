@@ -44,10 +44,6 @@ func (f *ServiceFactory) initialize() {
 		f.addressService = service.NewAddressService(
 			addressRepo,
 		)
-		f.userService = service.NewUserService(
-			userRepo,
-			f.addressService,
-		)
 		f.userQueryService = service.NewUserQueryService(
 			userRepo,
 		)
@@ -66,6 +62,14 @@ func (f *ServiceFactory) initialize() {
 		f.sellerSettingsService = service.NewSellerSettingsService(
 			sellerSettingsRepo,
 			f.countryService,
+			f.currencyService,
+		)
+
+		// Initialize UserService now that Address, Settings, and Currency are ready
+		f.userService = service.NewUserService(
+			userRepo,
+			f.addressService,
+			f.sellerSettingsService,
 			f.currencyService,
 		)
 		// SellerService (registration) uses UserService and SellerSettingsService (SOLID)

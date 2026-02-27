@@ -219,3 +219,34 @@ func (h *InventoryHandler) GetInventories(c *gin.Context) {
 		inventories,
 	)
 }
+
+// GetTotalAvailableQuantities handles batch fetching total aggregated available inventory
+func (h *InventoryHandler) GetTotalAvailableQuantities(c *gin.Context) {
+	var req model.TotalAvailableQuantityRequest
+
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	// Validate at least one array has items
+	if len(req.VariantIDs) == 0 && len(req.ProductIDs) == 0 {
+		h.HandleError(c, commonErr.NewAppError("SYSTEM_ERROR", "Must provide variantIds or productIds", 400), "Bad Request")
+		return
+	}
+
+	// Get seller ID from authenticated user
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
+	response, err := h.inventoryQueryService.GetTotalAvailableQuantities(c, req, sellerID)
+	if err != nil {
+		h.HandleError(c, err, invConstants.FAILED_TO_GET_INVENTORY_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, invConstants.INVENTORIES_RETRIEVED_MSG, response)
+}

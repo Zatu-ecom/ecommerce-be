@@ -20,9 +20,10 @@ type ServiceFactory struct {
 	productAttributeService service.ProductAttributeService
 	productOptionService    service.ProductOptionService
 	optionValueService      service.ProductOptionValueService
-	validatorService        service.ProductValidatorService
-	wishlistService         service.WishlistService
-	wishlistItemService     service.WishlistItemService
+	validatorService         service.ProductValidatorService
+	wishlistService          service.WishlistService
+	wishlistItemService      service.WishlistItemService
+	collectionProductService service.CollectionProductService
 
 	once sync.Once
 }
@@ -106,6 +107,11 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetWishlistRepository(),
 			f.repoFactory.GetWishlistItemRepository(),
 			f.productQueryService,
+		)
+
+		// Initialize CollectionProductService
+		f.collectionProductService = service.NewCollectionProductService(
+			f.repoFactory.GetCollectionProductRepository(),
 		)
 
 		// Initialize ProductService with its dependencies
@@ -198,4 +204,9 @@ func (f *ServiceFactory) GetWishlistService() service.WishlistService {
 func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
 	f.initialize()
 	return f.wishlistItemService
+}
+
+func (f *ServiceFactory) GetCollectionProductService() service.CollectionProductService {
+	f.initialize()
+	return f.collectionProductService
 }

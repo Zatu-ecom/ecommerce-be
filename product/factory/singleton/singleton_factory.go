@@ -133,6 +133,10 @@ func (f *SingletonFactory) GetWishlistItemService() service.WishlistItemService 
 	return f.serviceFactory.GetWishlistItemService()
 }
 
+func (f *SingletonFactory) GetCollectionProductService() service.CollectionProductService {
+	return f.serviceFactory.GetCollectionProductService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================
