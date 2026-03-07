@@ -1043,6 +1043,7 @@ func (r *VariantRepositoryImpl) GetProductBasicInfoByVariantIDs(
 			"product.category_id as category_id",
 			"product.base_sku as base_sku",
 			"product.seller_id as seller_id",
+			"product_variant.price as price",
 		).
 		Joins("INNER JOIN product ON product.id = product_variant.product_id").
 		Where("product_variant.id IN ?", variantIDs)

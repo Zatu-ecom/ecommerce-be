@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strconv"
+	"strings"
 
 	"ecommerce-be/common/db"
 	errs "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
 	"ecommerce-be/order/entity"
+	orderError "ecommerce-be/order/error"
+	"ecommerce-be/order/factory"
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/repository"
 
@@ -17,6 +19,10 @@ import (
 
 	inventoryModel "ecommerce-be/inventory/model"
 	inventoryService "ecommerce-be/inventory/service"
+
+	productModel "ecommerce-be/product/model"
+	productVariantService "ecommerce-be/product/service"
+	userService "ecommerce-be/user/service"
 )
 
 type CartService interface {
@@ -28,20 +34,26 @@ type CartService interface {
 }
 
 type CartServiceImpl struct {
-	cartRepo     repository.CartRepository
-	promotionSvc promotionService.PromotionService
-	inventorySvc inventoryService.InventoryQueryService
+	cartRepo        repository.CartRepository
+	promotionSvc    promotionService.PromotionService
+	inventorySvc    inventoryService.InventoryQueryService
+	variantQuerySvc productVariantService.VariantQueryService
+	userSvc         userService.UserService
 }
 
 func NewCartService(
 	cartRepo repository.CartRepository,
 	promotionSvc promotionService.PromotionService,
 	inventorySvc inventoryService.InventoryQueryService,
+	variantQuerySvc productVariantService.VariantQueryService,
+	userSvc userService.UserService,
 ) CartService {
 	return &CartServiceImpl{
-		cartRepo:     cartRepo,
-		promotionSvc: promotionSvc,
-		inventorySvc: inventorySvc,
+		cartRepo:        cartRepo,
+		promotionSvc:    promotionSvc,
+		inventorySvc:    inventorySvc,
+		variantQuerySvc: variantQuerySvc,
+		userSvc:         userSvc,
 	}
 }
 
@@ -57,7 +69,14 @@ func (s *CartServiceImpl) AddToCart(
 			return nil, err
 		}
 
-		// 2. Validate inventory locally
+		// 2. Fetch Preferred Currency
+		// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP/gRPC call to User Service
+		currencyMap, err := s.userSvc.GetPreferredCurrency(txCtx, userID, sellerID)
+		if err != nil {
+			return nil, err
+		}
+
+		// 3. Validate inventory locally
 		if err := s.validateInventory(txCtx, req.VariantID, req.Quantity, sellerID); err != nil {
 			return nil, err
 		}
@@ -73,8 +92,17 @@ func (s *CartServiceImpl) AddToCart(
 			return nil, err
 		}
 
+		// 4.5 Fetch variant details via ListVariants
+		variantMap, err := s.fetchVariantMap(txCtx, items, sellerID)
+		if err != nil {
+			return nil, err
+		}
+
 		// 5. Build Promotion Validation Request
-		promoReq := s.buildPromotionRequest(sellerID, userID, items)
+		promoReq, err := s.buildPromotionRequest(txCtx, sellerID, userID, items, variantMap)
+		if err != nil {
+			return nil, err
+		}
 
 		// 6. Apply Promotions
 		// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP call to Promotion Service
@@ -82,15 +110,11 @@ func (s *CartServiceImpl) AddToCart(
 		promoSummary, err := s.promotionSvc.ApplyPromotionsToCart(txCtx, promoReq)
 		if err != nil {
 			log.ErrorWithContext(txCtx, "Failed to apply promotions", err)
-			return nil, errs.NewAppError(
-				"SYSTEM_ERROR",
-				"Promotion service unavailable: "+err.Error(),
-				500,
-			)
+			return nil, orderError.ErrPromotionServiceUnavailable(err)
 		}
 
 		// 7. Map back to CartResponse
-		return s.mapToCartResponse(cart, items, promoSummary), nil
+		return factory.BuildCartResponse(cart, items, promoSummary, currencyMap, variantMap), nil
 	})
 }
 
@@ -129,16 +153,11 @@ func (s *CartServiceImpl) validateInventory(
 	}
 
 	if len(invRes.Items) == 0 || invRes.Items[0].TotalAvailable < quantity {
-		return errs.NewAppError(
-			"INSUFFICIENT_STOCK",
-			fmt.Sprintf("Only %d items available for this variant", func() int {
-				if len(invRes.Items) > 0 {
-					return invRes.Items[0].TotalAvailable
-				}
-				return 0
-			}()),
-			400,
-		)
+		available := 0
+		if len(invRes.Items) > 0 {
+			available = invRes.Items[0].TotalAvailable
+		}
+		return orderError.ErrInsufficientStock(available)
 	}
 	return nil
 }
@@ -170,9 +189,11 @@ func (s *CartServiceImpl) addOrUpdateCartItem(
 }
 
 func (s *CartServiceImpl) buildPromotionRequest(
+	ctx context.Context,
 	sellerID, userID uint,
 	items []entity.CartItem,
-) *promotionModel.CartValidationRequest {
+	variantMap map[uint]productModel.VariantDetailResponse,
+) (*promotionModel.CartValidationRequest, error) {
 	promoReq := &promotionModel.CartValidationRequest{
 		SellerID:      sellerID,
 		CustomerID:    &userID, // Optional but good for segment targeting
@@ -182,141 +203,60 @@ func (s *CartServiceImpl) buildPromotionRequest(
 	}
 
 	for i, item := range items {
-		// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP call to Product Service
-		// For now, we simulate fetching the variant price (assuming 100000 cents = ₹1000 for demo if we can't fetch it)
-		// Usually you'd inject a product repository here, but for module separation we mock the struct we feed to promotion
+		variant, exists := variantMap[item.VariantID]
+		if !exists {
+			log.WarnWithContext(
+				ctx,
+				"Variant information not found for variant ID: "+strconv.Itoa(int(item.VariantID)),
+			)
+			return nil, orderError.ErrVariantNotFound
+		}
 
-		variantPriceCents := int64(100000) // Mock price: ₹1000.00
-
+		variantPriceCents := int64(variant.Price * 100) // Convert floating price format to cents
 		lineTotal := variantPriceCents * int64(item.Quantity)
 		promoReq.SubtotalCents += lineTotal
 
 		promoReq.Items[i] = promotionModel.CartItem{
 			ItemID:     strconv.Itoa(int(item.ID)),
 			VariantID:  &item.VariantID,
-			ProductID:  1, // Mock product ID
-			CategoryID: 1, // Mock category ID
+			ProductID:  variant.ProductID,
+			CategoryID: 0, // ListVariants doesn't return CategoryID
 			Quantity:   item.Quantity,
 			PriceCents: variantPriceCents,
 			TotalCents: lineTotal,
 		}
 	}
-	return promoReq
+	return promoReq, nil
 }
 
-// mapToCartResponse converts entities and promotion summary into the final CartResponse
-func (s *CartServiceImpl) mapToCartResponse(
-	cart *entity.Cart,
+func (s *CartServiceImpl) fetchVariantMap(
+	ctx context.Context,
 	items []entity.CartItem,
-	promo *promotionModel.AppliedPromotionSummary,
-) *model.CartResponse {
-	response := &model.CartResponse{
-		CartBase: model.CartBase{
-			ID:     cart.ID,
-			UserID: cart.UserID,
-			Currency: model.CurrencyInfo{
-				Code:          "INR",
-				Symbol:        "₹",
-				DecimalDigits: 2,
-			},
-			Metadata: cart.Metadata,
-		},
-		Summary: model.CartSummary{
-			ItemCount:                  0,
-			UniqueItems:                len(items),
-			Subtotal:                   promo.OriginalSubtotal,
-			SubtotalFormatted:          formatCurrency(promo.OriginalSubtotal),
-			PromotionCount:             len(promo.AppliedPromotions),
-			PromotionDiscount:          promo.TotalDiscountCents,
-			PromotionDiscountFormatted: formatCurrency(promo.TotalDiscountCents),
-			TotalDiscount:              promo.TotalDiscountCents, // No coupons yet
-			TotalDiscountFormatted:     formatCurrency(promo.TotalDiscountCents),
-			AfterDiscount:              promo.FinalSubtotal,
-			AfterDiscountFormatted:     formatCurrency(promo.FinalSubtotal),
-			Total:                      promo.FinalSubtotal,
-			TotalFormatted:             formatCurrency(promo.FinalSubtotal),
-		},
-		Items:          make([]model.CartItemWithPricingResponse, len(items)),
-		AppliedCoupons: make([]model.AppliedCouponInfo, 0), // Not implemented yet
+	sellerID uint,
+) (map[uint]productModel.VariantDetailResponse, error) {
+	variantMap := make(map[uint]productModel.VariantDetailResponse)
+	if len(items) == 0 {
+		return variantMap, nil
 	}
 
-	// Build map of item promotions from summary
-	itemPromoMap := make(map[string]promotionModel.CartItemSummary)
-	for _, summaryItem := range promo.Items {
-		itemPromoMap[summaryItem.ItemID] = summaryItem
-	}
-
+	ids := make([]string, len(items))
 	for i, item := range items {
-		response.Summary.ItemCount += item.Quantity
-		itemIDStr := strconv.Itoa(int(item.ID))
-
-		summaryItem, exists := itemPromoMap[itemIDStr]
-
-		// Fallback values if not found in summary
-		unitPrice := int64(100000)
-		lineTotal := unitPrice * int64(item.Quantity)
-		discountedLineTotal := lineTotal
-		totalItemDiscount := int64(0)
-		var appliedPromos []model.ItemAppliedPromotionInfo
-
-		if exists {
-			unitPrice = summaryItem.OriginalPriceCents
-			lineTotal = unitPrice * int64(item.Quantity)
-			discountedLineTotal = summaryItem.FinalPriceCents * int64(item.Quantity)
-			totalItemDiscount = summaryItem.TotalDiscountCents
-
-			for _, p := range summaryItem.AppliedPromotions {
-				appliedPromos = append(appliedPromos, model.ItemAppliedPromotionInfo{
-					PromotionID:       p.PromotionID,
-					Name:              p.PromotionName,
-					Type:              "applied_promotion", // Generic type for now
-					Discount:          p.DiscountCents,
-					DiscountFormatted: formatCurrency(p.DiscountCents),
-				})
-			}
-		}
-
-		response.Items[i] = model.CartItemWithPricingResponse{
-			CartItemBase: model.CartItemBase{
-				ID:        item.ID,
-				CartID:    item.CartID,
-				VariantID: item.VariantID,
-				Quantity:  item.Quantity,
-				Variant: model.VariantInfo{
-					ID:      item.VariantID,
-					SKU:     "MOCK-SKU", // TODO [MICROSERVICE] Get from Product Service
-					Product: model.ProductBasicInfo{Name: "Mock Product"},
-				},
-			},
-			UnitPrice:              unitPrice,
-			LineTotal:              lineTotal,
-			TotalPromotionDiscount: totalItemDiscount,
-			DiscountedLineTotal:    discountedLineTotal,
-			AppliedPromotions:      appliedPromos,
-		}
+		ids[i] = strconv.Itoa(int(item.VariantID))
 	}
 
-	// Add savings info if discount > 0
-	if response.Summary.TotalDiscount > 0 {
-		percentage := float64(
-			response.Summary.TotalDiscount,
-		) / float64(
-			response.Summary.Subtotal,
-		) * 100
-		response.Summary.Savings = &model.SavingsInfo{
-			Amount:     response.Summary.TotalDiscount,
-			Percentage: percentage,
-			Message: fmt.Sprintf(
-				"You're saving %s (%.0f%% off)!",
-				response.Summary.TotalDiscountFormatted,
-				percentage,
-			),
-		}
+	listReq := &productModel.ListVariantsRequest{
+		IDs:      strings.Join(ids, ","),
+		PageSize: len(items),
 	}
 
-	return response
-}
+	listResp, err := s.variantQuerySvc.ListVariants(ctx, listReq, &sellerID, nil, nil)
+	if err != nil {
+		log.ErrorWithContext(ctx, "Failed to fetch variant information using ListVariants", err)
+		return nil, err
+	}
 
-func formatCurrency(cents int64) string {
-	return fmt.Sprintf("₹%.2f", float64(cents)/100.0)
+	for _, v := range listResp.Variants {
+		variantMap[v.ID] = v
+	}
+	return variantMap, nil
 }

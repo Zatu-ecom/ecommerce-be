@@ -57,7 +57,7 @@ func (h *CartHandler) AddToCart(c *gin.Context) {
 	// 2. Bind request body
 	var req model.AddCartItemRequest
 	if err := h.BindJSON(c, &req); err != nil {
-		log.WarnWithContext(c, "addToCart: validation failed: " + err.Error())
+		log.WarnWithContext(c, "addToCart: validation failed: "+err.Error())
 		h.HandleValidationError(c, err)
 		return
 	}

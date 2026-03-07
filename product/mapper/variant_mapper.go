@@ -55,4 +55,5 @@ type VariantBasicInfoRow struct {
 	CategoryID  uint
 	BaseSKU     string
 	SellerID    uint
+	Price       float64
 }

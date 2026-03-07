@@ -139,8 +139,15 @@ test-local:
 
 # Run all tests with summary (failed tests shown at end)
 test-all:
-	@echo "🧪 Running all integration tests..."
+	@echo "🧪 Running all integration tests (use 'make test-pretty' for a formatted test report)..."
 	@go test ./test/integration/... -v 2>&1 | tee /tmp/test_output.txt; \
+
+# Install gotestsum if not present and run tests with pretty format
+test-pretty:
+	@echo "🔍 Checking for gotestsum..."
+	@which gotestsum >/dev/null || (echo "📦 Installing gotestsum..." && go install gotest.tools/gotestsum@latest)
+	@echo "🧪 Running tests with gotestsum for a formatted summary..."
+	@$$(go env GOPATH)/bin/gotestsum --format pkgname -- -v -timeout=15m ./test/integration/...
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=========================================="; \

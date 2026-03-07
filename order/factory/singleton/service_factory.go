@@ -5,7 +5,9 @@ import (
 
 	inventoryFactory "ecommerce-be/inventory/factory/singleton"
 	"ecommerce-be/order/service"
+	productFactory "ecommerce-be/product/factory/singleton"
 	promotionFactory "ecommerce-be/promotion/factory/singleton"
+	userFactory "ecommerce-be/user/factory/singleton"
 )
 
 // ServiceFactory manages all service singleton instances
@@ -30,12 +32,14 @@ func (f *ServiceFactory) initialize() {
 		// Get external service dependencies
 		promotionSvc := promotionFactory.GetInstance().GetPromotionService()
 		inventorySvc := inventoryFactory.GetInstance().GetInventoryQueryService()
+		variantQuerySvc := productFactory.GetInstance().GetVariantQueryService()
+		userSvc := userFactory.GetInstance().GetUserService()
 
 		// Get repositories
 		cartRepo := f.repoFactory.GetCartRepository()
 
 		// Initialize services
-		f.cartService = service.NewCartService(cartRepo, promotionSvc, inventorySvc)
+		f.cartService = service.NewCartService(cartRepo, promotionSvc, inventorySvc, variantQuerySvc, userSvc)
 	})
 }
 
