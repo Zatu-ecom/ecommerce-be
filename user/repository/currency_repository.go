@@ -15,8 +15,16 @@ import (
 // CurrencyRepository defines the interface for currency-related database operations
 type CurrencyRepository interface {
 	// Query methods
-	FindAll(ctx context.Context, filter model.CurrencyQueryParams, includeInactive bool) ([]entity.Currency, error)
-	CountAll(ctx context.Context, filter model.CurrencyQueryParams, includeInactive bool) (int64, error)
+	FindAll(
+		ctx context.Context,
+		filter model.CurrencyQueryParams,
+		includeInactive bool,
+	) ([]entity.Currency, error)
+	CountAll(
+		ctx context.Context,
+		filter model.CurrencyQueryParams,
+		includeInactive bool,
+	) (int64, error)
 	FindByID(ctx context.Context, id uint) (*entity.Currency, error)
 	FindByIDWithCountries(ctx context.Context, id uint) (*entity.Currency, error)
 	FindByCode(ctx context.Context, code string) (*entity.Currency, error)
@@ -110,7 +118,10 @@ func (r *CurrencyRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity
 }
 
 // FindByIDWithCountries finds a currency by ID with preloaded countries
-func (r *CurrencyRepositoryImpl) FindByIDWithCountries(ctx context.Context, id uint) (*entity.Currency, error) {
+func (r *CurrencyRepositoryImpl) FindByIDWithCountries(
+	ctx context.Context,
+	id uint,
+) (*entity.Currency, error) {
 	var currency entity.Currency
 	result := db.DB(ctx).
 		Preload("Countries", "is_active = ?", true).
@@ -127,7 +138,10 @@ func (r *CurrencyRepositoryImpl) FindByIDWithCountries(ctx context.Context, id u
 }
 
 // FindByCode finds a currency by its ISO code
-func (r *CurrencyRepositoryImpl) FindByCode(ctx context.Context, code string) (*entity.Currency, error) {
+func (r *CurrencyRepositoryImpl) FindByCode(
+	ctx context.Context,
+	code string,
+) (*entity.Currency, error) {
 	var currency entity.Currency
 	result := db.DB(ctx).Where("code = ?", code).First(&currency)
 

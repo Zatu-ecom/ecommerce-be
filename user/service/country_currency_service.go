@@ -13,12 +13,27 @@ import (
 // CountryCurrencyService defines the interface for country-currency business logic
 type CountryCurrencyService interface {
 	// Query methods
-	GetCurrenciesByCountryID(ctx context.Context, countryID uint) (*model.CountryCurrencyListResponse, error)
+	GetCurrenciesByCountryID(
+		ctx context.Context,
+		countryID uint,
+	) (*model.CountryCurrencyListResponse, error)
 
 	// Mutation methods
-	AddCurrencyToCountry(ctx context.Context, countryID uint, req model.CountryCurrencyCreateRequest) (*model.CountryCurrencySimpleResponse, error)
-	BulkAddCurrenciesToCountry(ctx context.Context, countryID uint, req model.CountryCurrencyBulkRequest) ([]model.CountryCurrencySimpleResponse, error)
-	UpdateCountryCurrency(ctx context.Context, countryID, currencyID uint, req model.CountryCurrencyUpdateRequest) (*model.CountryCurrencySimpleResponse, error)
+	AddCurrencyToCountry(
+		ctx context.Context,
+		countryID uint,
+		req model.CountryCurrencyCreateRequest,
+	) (*model.CountryCurrencySimpleResponse, error)
+	BulkAddCurrenciesToCountry(
+		ctx context.Context,
+		countryID uint,
+		req model.CountryCurrencyBulkRequest,
+	) ([]model.CountryCurrencySimpleResponse, error)
+	UpdateCountryCurrency(
+		ctx context.Context,
+		countryID, currencyID uint,
+		req model.CountryCurrencyUpdateRequest,
+	) (*model.CountryCurrencySimpleResponse, error)
 	RemoveCurrencyFromCountry(ctx context.Context, countryID, currencyID uint) error
 }
 
@@ -129,7 +144,11 @@ func (s *CountryCurrencyServiceImpl) BulkAddCurrenciesToCountry(
 		}
 
 		// Check if mapping already exists
-		existing, err := s.countryCurrencyRepo.FindByCountryAndCurrency(ctx, countryID, item.CurrencyID)
+		existing, err := s.countryCurrencyRepo.FindByCountryAndCurrency(
+			ctx,
+			countryID,
+			item.CurrencyID,
+		)
 		if err != nil {
 			return nil, err
 		}

@@ -355,7 +355,6 @@ func (s *UserServiceImpl) GetPreferredCurrency(
 	userID uint,
 	sellerID uint,
 ) (*model.CurrencyResponse, error) {
-
 	cacheKey := fmt.Sprintf("user_currency:%d:%d", userID, sellerID)
 
 	// 1. Check Cache First

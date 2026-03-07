@@ -34,7 +34,10 @@ func (r *PromotionRepositoryImpl) Create(ctx context.Context, promotion *entity.
 }
 
 // FindByID finds a promotion by ID
-func (r *PromotionRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.Promotion, error) {
+func (r *PromotionRepositoryImpl) FindByID(
+	ctx context.Context,
+	id uint,
+) (*entity.Promotion, error) {
 	var promotion entity.Promotion
 	result := db.DB(ctx).Where("id = ?", id).First(&promotion)
 	if result.Error != nil {
@@ -47,7 +50,11 @@ func (r *PromotionRepositoryImpl) FindByID(ctx context.Context, id uint) (*entit
 }
 
 // FindBySlug finds a promotion by slug and seller ID
-func (r *PromotionRepositoryImpl) FindBySlug(ctx context.Context, slug string, sellerID uint) (*entity.Promotion, error) {
+func (r *PromotionRepositoryImpl) FindBySlug(
+	ctx context.Context,
+	slug string,
+	sellerID uint,
+) (*entity.Promotion, error) {
 	var promotion entity.Promotion
 	result := db.DB(ctx).Where("slug = ? AND seller_id = ?", slug, sellerID).First(&promotion)
 	if result.Error != nil {
@@ -73,7 +80,10 @@ func (r *PromotionRepositoryImpl) Exists(ctx context.Context, id uint) error {
 }
 
 // FindActiveBySellerID returns all active promotions for a seller where current time is within date range
-func (r *PromotionRepositoryImpl) FindActiveBySellerID(ctx context.Context, sellerID uint) ([]*entity.Promotion, error) {
+func (r *PromotionRepositoryImpl) FindActiveBySellerID(
+	ctx context.Context,
+	sellerID uint,
+) ([]*entity.Promotion, error) {
 	var promotions []*entity.Promotion
 	now := time.Now()
 

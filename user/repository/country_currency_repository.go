@@ -14,7 +14,10 @@ import (
 type CountryCurrencyRepository interface {
 	// Query methods
 	FindByCountryID(ctx context.Context, countryID uint) ([]entity.CountryCurrency, error)
-	FindByCountryAndCurrency(ctx context.Context, countryID, currencyID uint) (*entity.CountryCurrency, error)
+	FindByCountryAndCurrency(
+		ctx context.Context,
+		countryID, currencyID uint,
+	) (*entity.CountryCurrency, error)
 
 	// Mutation methods
 	Create(ctx context.Context, mapping *entity.CountryCurrency) error
@@ -42,7 +45,6 @@ func (r *CountryCurrencyRepositoryImpl) FindByCountryID(
 		Preload("Currency").
 		Order("is_primary DESC, id ASC").
 		Find(&mappings).Error
-
 	if err != nil {
 		return nil, err
 	}
