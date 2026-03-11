@@ -19,11 +19,11 @@ import (
 //   - targetWishlistId: uint (required) - ID of the destination wishlist
 //
 // Business Rules:
-// 	- User can only move items from their own wishlists
-// 	- User can only move items to their own wishlists
-// 	- Cannot move item to the same wishlist (returns 400)
-// 	- Cannot move item if same variant already exists in target wishlist (returns 409)
-// 	- Item must exist and belong to the source wishlist
+//   - User can only move items from their own wishlists
+//   - User can only move items to their own wishlists
+//   - Cannot move item to the same wishlist (returns 400)
+//   - Cannot move item if same variant already exists in target wishlist (returns 409)
+//   - Item must exist and belong to the source wishlist
 func TestMoveWishlistItem(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

@@ -7,11 +7,17 @@ const (
 	PROMOTION_ALL_PRODUCTS_REMOVED_MSG = "All products removed from promotion successfully"
 	PROMOTION_PRODUCTS_RETRIEVED_MSG   = "Promotion products retrieved successfully"
 
-	PROMOTION_VARIANTS_ADDED_MSG       = "Variants added to promotion successfully"
-	PROMOTION_VARIANTS_REMOVED_MSG     = "Variants removed from promotion successfully"
-	PROMOTION_ALL_VARIANTS_REMOVED_MSG = "All variants removed from promotion successfully"
-	PROMOTION_VARIANTS_RETRIEVED_MSG   = "Promotion variants retrieved successfully"
+	PROMOTION_CREATED_MSG        = "Promotion created successfully"
+	PROMOTION_RETRIEVED_MSG      = "Promotion retrieved successfully"
+	PROMOTIONS_LISTED_MSG        = "Promotions retrieved successfully"
+	PROMOTION_UPDATED_MSG        = "Promotion updated successfully"
+	PROMOTION_STATUS_UPDATED_MSG = "Promotion status updated successfully"
+	PROMOTION_DELETED_MSG        = "Promotion deleted successfully"
 
+	PROMOTION_VARIANTS_ADDED_MSG         = "Variants added to promotion successfully"
+	PROMOTION_VARIANTS_REMOVED_MSG       = "Variants removed from promotion successfully"
+	PROMOTION_ALL_VARIANTS_REMOVED_MSG   = "All variants removed from promotion successfully"
+	PROMOTION_VARIANTS_RETRIEVED_MSG     = "Promotion variants retrieved successfully"
 	PROMOTION_CATEGORIES_ADDED_MSG       = "Categories added to promotion successfully"
 	PROMOTION_CATEGORIES_REMOVED_MSG     = "Categories removed from promotion successfully"
 	PROMOTION_ALL_CATEGORIES_REMOVED_MSG = "All categories removed from promotion successfully"
@@ -30,11 +36,17 @@ const (
 	FAILED_TO_REMOVE_ALL_PROMOTION_PRODUCTS_MSG = "Failed to remove all products from promotion"
 	FAILED_TO_GET_PROMOTION_PRODUCTS_MSG        = "Failed to get promotion products"
 
-	FAILED_TO_ADD_PROMOTION_VARIANTS_MSG        = "Failed to add variants to promotion"
-	FAILED_TO_REMOVE_PROMOTION_VARIANTS_MSG     = "Failed to remove variants from promotion"
-	FAILED_TO_REMOVE_ALL_PROMOTION_VARIANTS_MSG = "Failed to remove all variants from promotion"
-	FAILED_TO_GET_PROMOTION_VARIANTS_MSG        = "Failed to get promotion variants"
+	FAILED_TO_CREATE_PROMOTION_MSG        = "Failed to create promotion"
+	FAILED_TO_GET_PROMOTION_MSG           = "Failed to retrieve promotion"
+	FAILED_TO_LIST_PROMOTIONS_MSG         = "Failed to list promotions"
+	FAILED_TO_UPDATE_PROMOTION_MSG        = "Failed to update promotion"
+	FAILED_TO_UPDATE_PROMOTION_STATUS_MSG = "Failed to update promotion status"
+	FAILED_TO_DELETE_PROMOTION_MSG        = "Failed to delete promotion"
 
+	FAILED_TO_ADD_PROMOTION_VARIANTS_MSG          = "Failed to add variants to promotion"
+	FAILED_TO_REMOVE_PROMOTION_VARIANTS_MSG       = "Failed to remove variants from promotion"
+	FAILED_TO_REMOVE_ALL_PROMOTION_VARIANTS_MSG   = "Failed to remove all variants from promotion"
+	FAILED_TO_GET_PROMOTION_VARIANTS_MSG          = "Failed to get promotion variants"
 	FAILED_TO_ADD_PROMOTION_CATEGORIES_MSG        = "Failed to add categories to promotion"
 	FAILED_TO_REMOVE_PROMOTION_CATEGORIES_MSG     = "Failed to remove categories from promotion"
 	FAILED_TO_REMOVE_ALL_PROMOTION_CATEGORIES_MSG = "Failed to remove all categories from promotion"
@@ -50,6 +62,8 @@ const (
 
 // Promotion field names
 const (
+	PROMOTION_FIELD             = "promotion"
+	PROMOTIONS_FIELD            = "promotions"
 	PROMOTION_PRODUCTS_FIELD    = "products"
 	PROMOTION_VARIANTS_FIELD    = "variants"
 	PROMOTION_CATEGORIES_FIELD  = "categories"

@@ -109,7 +109,7 @@ type RoleResponse struct {
 
 // ListUsersResponse represents paginated list of users
 type ListUsersResponse struct {
-	Users      []UserListResponse       `json:"users"`
+	Users      []UserListResponse        `json:"users"`
 	Pagination common.PaginationResponse `json:"pagination"`
 }
 

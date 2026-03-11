@@ -316,9 +316,23 @@ func (s *PromotionServiceImpl) validateGeneralConditions(
 		return "Promotion has ended"
 	}
 
+	// Fast-path filter: reject clearly exhausted promotions in memory.
+	// Actual atomic enforcement happens at redemption time (order module).
 	if promotion.UsageLimitTotal != nil &&
 		promotion.CurrentUsageCount >= *promotion.UsageLimitTotal {
 		return "Promotion usage limit reached"
+	}
+
+	// Per-customer usage limit check
+	if promotion.UsageLimitPerCustomer != nil && cart.CustomerID != nil && *cart.CustomerID > 0 {
+		userUsageCount, err := s.promotionRepo.CountUsageByUser(ctx, promotion.ID, *cart.CustomerID)
+		if err != nil {
+			log.ErrorWithContext(ctx, "Failed to check per-customer usage", err)
+			return "Unable to verify customer usage limit"
+		}
+		if userUsageCount >= *promotion.UsageLimitPerCustomer {
+			return "Customer usage limit reached for this promotion"
+		}
 	}
 
 	if !s.isCustomerEligible(promotion, cart) {
@@ -477,19 +491,13 @@ func (s *PromotionServiceImpl) isCustomerEligible(
 	case entity.EligibleEveryone:
 		return true
 	case entity.EligibleNewCustomers:
-		// New customer = no completed orders (first-time buyer)
-		return !cart.IsFirstOrder
+		// New customer = first-time buyer (IsFirstOrder == true)
+		return cart.IsFirstOrder
 	case entity.EligibleSpecificSegment:
 		if promotion.CustomerSegmentID == nil {
 			return false
 		}
-		// Check if customer belongs to the segment
-		// Todo: Add segment support
-		// for _, segmentID := range cart.CustomerSegmentIDs {
-		// 	if segmentID == *promotion.CustomerSegmentID {
-		// 		return true
-		// 	}
-		// }
+		// DEFERRED: Customer segment matching — see PROMOTION_DEFERRED.md
 		return false
 	default:
 		return false

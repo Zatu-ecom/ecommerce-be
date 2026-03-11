@@ -10,16 +10,16 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	categoryService         service.CategoryService
-	attributeService        service.AttributeDefinitionService
-	productService          service.ProductService
-	productQueryService     service.ProductQueryService
-	variantService          service.VariantService
-	variantQueryService     service.VariantQueryService
-	variantBulkService      service.VariantBulkService
-	productAttributeService service.ProductAttributeService
-	productOptionService    service.ProductOptionService
-	optionValueService      service.ProductOptionValueService
+	categoryService          service.CategoryService
+	attributeService         service.AttributeDefinitionService
+	productService           service.ProductService
+	productQueryService      service.ProductQueryService
+	variantService           service.VariantService
+	variantQueryService      service.VariantQueryService
+	variantBulkService       service.VariantBulkService
+	productAttributeService  service.ProductAttributeService
+	productOptionService     service.ProductOptionService
+	optionValueService       service.ProductOptionValueService
 	validatorService         service.ProductValidatorService
 	wishlistService          service.WishlistService
 	wishlistItemService      service.WishlistItemService

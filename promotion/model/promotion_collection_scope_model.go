@@ -40,7 +40,7 @@ func (p *GetPromotionCollectionsQueryParams) ToRequest() GetPromotionCollections
 	req := GetPromotionCollectionsRequest{
 		GetPromotionScopeRequest: p.GetPromotionScopeRequest,
 	}
-	
+
 	if p.CollectionIDs != nil {
 		req.CollectionIDs = helper.ParseCommaSeparatedPtr[uint](p.CollectionIDs)
 	}

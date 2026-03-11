@@ -407,7 +407,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 
 		w := bulkUpdateOptionValues(5, 8, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		
+
 		// Verify response structure
 		data, ok := response["data"].(map[string]interface{})
 		assert.True(t, ok, "Response should have data field")
@@ -432,7 +432,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 
 		w := bulkUpdateOptionValues(1, 1, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		
+
 		// Verify response structure
 		data, ok := response["data"].(map[string]interface{})
 		assert.True(t, ok, "Response should have data field")

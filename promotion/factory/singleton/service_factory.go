@@ -16,6 +16,7 @@ type ServiceFactory struct {
 	promotionVariantService    service.PromotionVariantScopeService
 	promotionCategoryService   service.PromotionCategoryScopeService
 	promotionCollectionService service.PromotionCollectionScopeService
+	promotionCronService       service.PromotionCronService
 
 	once sync.Once
 }
@@ -55,6 +56,8 @@ func (f *ServiceFactory) initialize() {
 			f.promotionCollectionService,
 			collectionProductService,
 		)
+
+		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
 	})
 }
 
@@ -81,4 +84,9 @@ func (f *ServiceFactory) GetPromotionCollectionScopeService() service.PromotionC
 func (f *ServiceFactory) GetPromotionService() service.PromotionService {
 	f.initialize()
 	return f.promotionService
+}
+
+func (f *ServiceFactory) GetPromotionCronService() service.PromotionCronService {
+	f.initialize()
+	return f.promotionCronService
 }

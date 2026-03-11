@@ -21,10 +21,10 @@ import (
 // Authentication: Required (Customer Auth only)
 //
 // Business Rules:
-// 	- User can only delete their own wishlists
-// 	- Cannot delete the default wishlist
-// 	- Deleting a wishlist removes all its items
-// 	- Returns 200 OK on successful deletion
+//   - User can only delete their own wishlists
+//   - Cannot delete the default wishlist
+//   - Deleting a wishlist removes all its items
+//   - Returns 200 OK on successful deletion
 func TestDeleteWishlist(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

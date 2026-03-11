@@ -10,7 +10,7 @@ import (
 // Works with any struct type containing pointers, strings, ints, bools, etc.
 func RequireAtLeastOneField(s interface{}) error {
 	v := reflect.ValueOf(s)
-	
+
 	// Handle pointer to struct
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -18,27 +18,27 @@ func RequireAtLeastOneField(s interface{}) error {
 		}
 		v = v.Elem()
 	}
-	
+
 	// Ensure it's a struct
 	if v.Kind() != reflect.Struct {
 		return commonError.ErrInvalidRequestStruct
 	}
-	
+
 	// Check each field
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		
+
 		// Skip unexported fields
 		if !field.CanInterface() {
 			continue
 		}
-		
+
 		// Check if field is non-zero
 		if !isZeroValue(field) {
 			return nil // Found at least one non-zero field
 		}
 	}
-	
+
 	return commonError.ErrNoFieldsProvided
 }
 
@@ -71,7 +71,7 @@ func isZeroValue(v reflect.Value) bool {
 // Specifically for update requests where all fields are pointers
 func RequireAtLeastOneNonNilPointer(s interface{}) error {
 	v := reflect.ValueOf(s)
-	
+
 	// Handle pointer to struct
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -79,27 +79,27 @@ func RequireAtLeastOneNonNilPointer(s interface{}) error {
 		}
 		v = v.Elem()
 	}
-	
+
 	// Ensure it's a struct
 	if v.Kind() != reflect.Struct {
 		return commonError.ErrInvalidRequestStruct
 	}
-	
+
 	// Check each pointer field
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		
+
 		// Skip unexported fields
 		if !field.CanInterface() {
 			continue
 		}
-		
+
 		// Check if field is a pointer and non-nil
 		if field.Kind() == reflect.Ptr && !field.IsNil() {
 			return nil
 		}
 	}
-	
+
 	return commonError.ErrNoFieldsProvided
 }
 
@@ -107,7 +107,7 @@ func RequireAtLeastOneNonNilPointer(s interface{}) error {
 // Example: RequireAtLeastOneWithTag(req, "updateable", "true")
 func RequireAtLeastOneWithTag(s interface{}, tagKey, tagValue string) error {
 	v := reflect.ValueOf(s)
-	
+
 	// Handle pointer to struct
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -115,39 +115,39 @@ func RequireAtLeastOneWithTag(s interface{}, tagKey, tagValue string) error {
 		}
 		v = v.Elem()
 	}
-	
+
 	// Ensure it's a struct
 	if v.Kind() != reflect.Struct {
 		return commonError.ErrInvalidRequestStruct
 	}
-	
+
 	t := v.Type()
 	hasTaggedField := false
-	
+
 	// Check each field
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		fieldType := t.Field(i)
-		
+
 		// Skip unexported fields
 		if !field.CanInterface() {
 			continue
 		}
-		
+
 		// Check if field has the specified tag
 		if tag := fieldType.Tag.Get(tagKey); tag == tagValue {
 			hasTaggedField = true
-			
+
 			// Check if this tagged field is non-zero
 			if !isZeroValue(field) {
 				return nil
 			}
 		}
 	}
-	
+
 	if !hasTaggedField {
 		return commonError.ErrInvalidRequestStruct.WithMessage("no fields with specified tag found")
 	}
-	
+
 	return commonError.ErrNoFieldsProvided
 }

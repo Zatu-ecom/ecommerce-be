@@ -19,8 +19,8 @@ import (
 // Authentication: Required (Customer Auth only)
 //
 // Response includes:
-// 	- Wishlist details (id, name, isDefault, itemCount, timestamps)
-// 	- Paginated products with full details
+//   - Wishlist details (id, name, isDefault, itemCount, timestamps)
+//   - Paginated products with full details
 func TestGetWishlistByID(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

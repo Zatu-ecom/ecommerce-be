@@ -46,7 +46,7 @@ func (p *GetPromotionCategoriesQueryParams) ToRequest() GetPromotionCategoriesRe
 	req := GetPromotionCategoriesRequest{
 		GetPromotionScopeRequest: p.GetPromotionScopeRequest,
 	}
-	
+
 	if p.CategoryIDs != nil {
 		req.CategoryIDs = helper.ParseCommaSeparatedPtr[uint](p.CategoryIDs)
 	}

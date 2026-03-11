@@ -18,14 +18,14 @@ import (
 // Authentication: Required (Customer Auth only)
 //
 // Request Body:
-// 	- name: *string (optional, min=1, max=100) - New wishlist name
-// 	- isDefault: *bool (optional) - Set as default wishlist
+//   - name: *string (optional, min=1, max=100) - New wishlist name
+//   - isDefault: *bool (optional) - Set as default wishlist
 //
 // Business Rules:
-// 	- User can only update their own wishlists
-// 	- Wishlist name must be unique per user
-// 	- Setting isDefault=true clears default from other wishlists
-// 	- Cannot set isDefault=false (must set another as default)
+//   - User can only update their own wishlists
+//   - Wishlist name must be unique per user
+//   - Setting isDefault=true clears default from other wishlists
+//   - Cannot set isDefault=false (must set another as default)
 func TestUpdateWishlist(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

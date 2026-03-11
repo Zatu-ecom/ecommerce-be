@@ -21,8 +21,8 @@ type SellerSettingsBase struct {
 type SellerSettingsCreateRequest struct {
 	BusinessCountryID            uint  `json:"businessCountryId"            binding:"required"`
 	BaseCurrencyID               uint  `json:"baseCurrencyId"               binding:"required"`
-	SettlementCurrencyID         *uint `json:"settlementCurrencyId"`                           // Optional, defaults to BaseCurrencyID
-	DisplayPricesInBuyerCurrency *bool `json:"displayPricesInBuyerCurrency"`                   // Optional, defaults to false
+	SettlementCurrencyID         *uint `json:"settlementCurrencyId"`         // Optional, defaults to BaseCurrencyID
+	DisplayPricesInBuyerCurrency *bool `json:"displayPricesInBuyerCurrency"` // Optional, defaults to false
 }
 
 // SellerSettingsUpdateRequest - Seller updates their settings (all fields optional)
@@ -39,14 +39,14 @@ type SellerSettingsUpdateRequest struct {
 
 // SellerSettingsResponse - Seller settings response
 type SellerSettingsResponse struct {
-	ID                           uint             `json:"id"`
-	SellerID                     uint             `json:"sellerId"`
-	BusinessCountryID            uint             `json:"businessCountryId"`
-	BaseCurrencyID               uint             `json:"baseCurrencyId"`
-	SettlementCurrencyID         uint             `json:"settlementCurrencyId"`
-	DisplayPricesInBuyerCurrency bool             `json:"displayPricesInBuyerCurrency"`
-	CreatedAt                    string           `json:"createdAt"`
-	UpdatedAt                    string           `json:"updatedAt"`
+	ID                           uint   `json:"id"`
+	SellerID                     uint   `json:"sellerId"`
+	BusinessCountryID            uint   `json:"businessCountryId"`
+	BaseCurrencyID               uint   `json:"baseCurrencyId"`
+	SettlementCurrencyID         uint   `json:"settlementCurrencyId"`
+	DisplayPricesInBuyerCurrency bool   `json:"displayPricesInBuyerCurrency"`
+	CreatedAt                    string `json:"createdAt"`
+	UpdatedAt                    string `json:"updatedAt"`
 }
 
 // SellerSettingsDetailResponse - Seller settings with expanded country/currency info

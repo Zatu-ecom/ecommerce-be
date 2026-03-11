@@ -43,8 +43,8 @@ const (
 // SELLER PROFILE ERROR CODES
 // ========================================
 const (
-	SELLER_PROFILE_NOT_FOUND_CODE   = "SELLER_PROFILE_NOT_FOUND"
-	SELLER_PROFILE_EXISTS_CODE      = "SELLER_PROFILE_EXISTS"
+	SELLER_PROFILE_NOT_FOUND_CODE     = "SELLER_PROFILE_NOT_FOUND"
+	SELLER_PROFILE_EXISTS_CODE        = "SELLER_PROFILE_EXISTS"
 	SELLER_PROFILE_UPDATE_FAILED_CODE = "SELLER_PROFILE_UPDATE_FAILED"
 )
 
@@ -52,7 +52,7 @@ const (
 // SELLER PROFILE ERROR MESSAGES
 // ========================================
 const (
-	SELLER_PROFILE_NOT_FOUND_MSG   = "Seller profile not found"
-	SELLER_PROFILE_EXISTS_MSG      = "Seller profile already exists"
+	SELLER_PROFILE_NOT_FOUND_MSG     = "Seller profile not found"
+	SELLER_PROFILE_EXISTS_MSG        = "Seller profile already exists"
 	SELLER_PROFILE_UPDATE_FAILED_MSG = "Failed to update seller profile"
 )

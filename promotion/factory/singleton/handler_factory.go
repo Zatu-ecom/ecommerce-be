@@ -10,6 +10,7 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
+	promotionHandler           *handler.PromotionHandler
 	promotionProductHandler    *handler.PromotionProductScopeHandler
 	promotionVariantHandler    *handler.PromotionVariantScopeHandler
 	promotionCategoryHandler   *handler.PromotionCategoryScopeHandler
@@ -35,6 +36,7 @@ func (f *HandlerFactory) initialize() {
 		promotionCollectionService := f.serviceFactory.GetPromotionCollectionScopeService()
 
 		// Initialize handlers
+		f.promotionHandler = handler.NewPromotionHandler(f.serviceFactory.GetPromotionService())
 		f.promotionProductHandler = handler.NewPromotionProductScopeHandler(promotionProductService)
 		f.promotionVariantHandler = handler.NewPromotionVariantScopeHandler(promotionVariantService)
 		f.promotionCategoryHandler = handler.NewPromotionCategoryScopeHandler(
@@ -44,6 +46,11 @@ func (f *HandlerFactory) initialize() {
 			promotionCollectionService,
 		)
 	})
+}
+
+func (f *HandlerFactory) GetPromotionHandler() *handler.PromotionHandler {
+	f.initialize()
+	return f.promotionHandler
 }
 
 func (f *HandlerFactory) GetPromotionProductScopeHandler() *handler.PromotionProductScopeHandler {

@@ -10,15 +10,15 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	userService               service.UserService
-	addressService            service.AddressService
-	userQueryService          service.UserQueryService
-	countryService            service.CountryService
-	currencyService           service.CurrencyService
-	countryCurrencyService    service.CountryCurrencyService
-	sellerSettingsService     service.SellerSettingsService
-	sellerService             service.SellerService
-	sellerProfileService      service.SellerProfileService
+	userService            service.UserService
+	addressService         service.AddressService
+	userQueryService       service.UserQueryService
+	countryService         service.CountryService
+	currencyService        service.CurrencyService
+	countryCurrencyService service.CountryCurrencyService
+	sellerSettingsService  service.SellerSettingsService
+	sellerService          service.SellerService
+	sellerProfileService   service.SellerProfileService
 
 	once sync.Once
 }

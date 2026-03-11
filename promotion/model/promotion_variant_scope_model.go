@@ -41,7 +41,7 @@ func (p *GetPromotionVariantsQueryParams) ToRequest() GetPromotionVariantsReques
 	req := GetPromotionVariantsRequest{
 		GetPromotionScopeRequest: p.GetPromotionScopeRequest,
 	}
-	
+
 	if p.VariantIDs != nil {
 		req.VariantIDs = helper.ParseCommaSeparatedPtr[uint](p.VariantIDs)
 	}

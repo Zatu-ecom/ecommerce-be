@@ -45,15 +45,15 @@ const (
 // USER SUCCESS MESSAGES
 // ========================================
 const (
-	SUCCESS_MSG            = "Success"
-	REGISTER_SUCCESS_MSG   = "User registered successfully"
-	LOGIN_SUCCESS_MSG      = "Login successful"
-	LOGOUT_SUCCESS_MSG     = "Logged out successfully"
-	PROFILE_RETRIEVED_MSG  = "Profile retrieved successfully"
-	PROFILE_UPDATED_MSG    = "Profile updated successfully"
-	PASSWORD_CHANGED_MSG   = "Password changed successfully"
-	TOKEN_REFRESHED_MSG    = "Token refreshed successfully"
-	USERS_RETRIEVED_MSG    = "Users retrieved successfully"
+	SUCCESS_MSG           = "Success"
+	REGISTER_SUCCESS_MSG  = "User registered successfully"
+	LOGIN_SUCCESS_MSG     = "Login successful"
+	LOGOUT_SUCCESS_MSG    = "Logged out successfully"
+	PROFILE_RETRIEVED_MSG = "Profile retrieved successfully"
+	PROFILE_UPDATED_MSG   = "Profile updated successfully"
+	PASSWORD_CHANGED_MSG  = "Password changed successfully"
+	TOKEN_REFRESHED_MSG   = "Token refreshed successfully"
+	USERS_RETRIEVED_MSG   = "Users retrieved successfully"
 )
 
 // ========================================

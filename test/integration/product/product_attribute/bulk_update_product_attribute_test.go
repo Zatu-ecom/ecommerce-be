@@ -283,8 +283,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		productID := 5
-		attr1 := createAttribute(productID, 5, "128", 0)        // Storage (doesn't exist on Product 5)
-		attr2 := createAttribute(productID, 6, "8", 0)          // RAM (doesn't exist on Product 5)
+		attr1 := createAttribute(productID, 5, "128", 0) // Storage (doesn't exist on Product 5)
+		attr2 := createAttribute(productID, 6, "8", 0)   // RAM (doesn't exist on Product 5)
 		attrID1 := int(attr1["id"].(float64))
 		attrID2 := int(attr2["id"].(float64))
 

@@ -20,9 +20,9 @@ const (
 
 // Wishlist Item success messages
 const (
-	WISHLIST_ITEM_ADDED_MSG        = "Item added to wishlist successfully"
-	WISHLIST_ITEM_REMOVED_MSG      = "Item removed from wishlist successfully"
-	WISHLIST_ITEM_MOVED_MSG        = "Item moved to another wishlist successfully"
+	WISHLIST_ITEM_ADDED_MSG         = "Item added to wishlist successfully"
+	WISHLIST_ITEM_REMOVED_MSG       = "Item removed from wishlist successfully"
+	WISHLIST_ITEM_MOVED_MSG         = "Item moved to another wishlist successfully"
 	WISHLIST_ITEM_ADDED_TO_CART_MSG = "Item added to cart successfully"
 )
 

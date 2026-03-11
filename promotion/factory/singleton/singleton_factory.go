@@ -45,6 +45,10 @@ func ResetInstance() {
 // Handler Getters (Delegates)
 // ===============================
 
+func (f *SingletonFactory) GetPromotionHandler() *handler.PromotionHandler {
+	return f.handlerFactory.GetPromotionHandler()
+}
+
 func (f *SingletonFactory) GetPromotionProductScopeHandler() *handler.PromotionProductScopeHandler {
 	return f.handlerFactory.GetPromotionProductScopeHandler()
 }
@@ -63,4 +67,8 @@ func (f *SingletonFactory) GetPromotionCollectionScopeHandler() *handler.Promoti
 
 func (f *SingletonFactory) GetPromotionService() service.PromotionService {
 	return f.serviceFactory.GetPromotionService()
+}
+
+func (f *SingletonFactory) GetPromotionCronService() service.PromotionCronService {
+	return f.serviceFactory.GetPromotionCronService()
 }

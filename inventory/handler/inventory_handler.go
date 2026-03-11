@@ -202,7 +202,7 @@ func (h *InventoryHandler) GetInventories(c *gin.Context) {
 		h.HandleError(c, commonErr.ErrSellerDataMissing, constants.SELLER_DATA_MISSING_CODE)
 		return
 	}
-    
+
 	filter := params.ToFilter()
 
 	inventories, err := h.inventoryQueryService.GetInventories(c, &sellerID, filter)

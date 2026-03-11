@@ -54,8 +54,8 @@ type CountryCurrencySimpleResponse struct {
 
 // CountryCurrencyListResponse - List of currencies for a country
 type CountryCurrencyListResponse struct {
-	CountryID  uint                            `json:"countryId"`
-	Currencies []CurrencyWithPrimaryResponse   `json:"currencies"`
+	CountryID  uint                          `json:"countryId"`
+	Currencies []CurrencyWithPrimaryResponse `json:"currencies"`
 }
 
 // CurrencyWithPrimaryResponse - Currency with isPrimary flag

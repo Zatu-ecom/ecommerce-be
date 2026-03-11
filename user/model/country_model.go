@@ -7,13 +7,13 @@ package model
 // CountryBase contains common fields used in create/update/response
 // Changes here will reflect in all country-related models
 type CountryBase struct {
-	Code       string `json:"code"                 binding:"required,len=2"`     // ISO 3166-1 alpha-2
-	CodeAlpha3 string `json:"codeAlpha3,omitempty" binding:"omitempty,len=3"`    // ISO 3166-1 alpha-3
+	Code       string `json:"code"                 binding:"required,len=2"`         // ISO 3166-1 alpha-2
+	CodeAlpha3 string `json:"codeAlpha3,omitempty" binding:"omitempty,len=3"`        // ISO 3166-1 alpha-3
 	Name       string `json:"name"                 binding:"required,min=2,max=100"` // Country name
-	NativeName string `json:"nativeName,omitempty" binding:"omitempty,max=100"`  // Native name
-	PhoneCode  string `json:"phoneCode,omitempty"  binding:"omitempty,max=10"`   // Phone code
-	Region     string `json:"region,omitempty"     binding:"omitempty,max=50"`   // Region/Continent
-	FlagEmoji  string `json:"flagEmoji,omitempty"  binding:"omitempty,max=10"`   // Flag emoji
+	NativeName string `json:"nativeName,omitempty" binding:"omitempty,max=100"`      // Native name
+	PhoneCode  string `json:"phoneCode,omitempty"  binding:"omitempty,max=10"`       // Phone code
+	Region     string `json:"region,omitempty"     binding:"omitempty,max=50"`       // Region/Continent
+	FlagEmoji  string `json:"flagEmoji,omitempty"  binding:"omitempty,max=10"`       // Flag emoji
 }
 
 // ========================================
@@ -45,7 +45,7 @@ type CountryUpdateRequest struct {
 // CountryResponse - Basic country response (used in lists)
 // Embeds CountryBase for inheritance - changes in base reflect here
 type CountryResponse struct {
-	ID       uint `json:"id"`
+	ID uint `json:"id"`
 	CountryBase
 	IsActive bool `json:"isActive"`
 }

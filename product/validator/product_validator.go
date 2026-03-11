@@ -22,12 +22,12 @@ func ValidateProductExistsAndOwnership(product *entity.Product, sellerID *uint) 
 	if product == nil {
 		return prodErrors.ErrProductNotFound
 	}
-	
+
 	if sellerID != nil {
 		// Reuse existing validation logic
 		return ValidateProductBelongsToSeller(product, *sellerID)
 	}
-	
+
 	return nil
 }
 

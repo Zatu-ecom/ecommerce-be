@@ -1,6 +1,7 @@
 package model
 
 import (
+	"ecommerce-be/common"
 	"ecommerce-be/promotion/entity"
 )
 
@@ -75,4 +76,10 @@ type PromotionResponse struct {
 	Products    []PromotionProductResponse    `json:"products,omitempty"`
 	Categories  []PromotionCategoryResponse   `json:"categories,omitempty"`
 	Collections []PromotionCollectionResponse `json:"collections,omitempty"`
+}
+
+// ListPromotionsResponse represents the paginated response for listing promotions
+type ListPromotionsResponse struct {
+	Promotions []*PromotionResponse   `json:"promotions"`
+	Pagination common.PaginationResponse `json:"pagination"`
 }

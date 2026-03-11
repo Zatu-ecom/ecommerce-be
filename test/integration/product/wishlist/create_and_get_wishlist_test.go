@@ -14,14 +14,14 @@ import (
 // TestCreateAndGetWishlist tests the Create Wishlist (POST) and Get All Wishlists (GET) APIs
 //
 // These are tested together to verify:
-// 	1. Flow testing - create wishlist, then verify it appears in list
-// 	2. Data consistency - created wishlist is correctly returned in GET response
-// 	3. Default wishlist logic - first wishlist becomes default, subsequent don't
-// 	4. ItemCount verification - new wishlists start with itemCount = 0
+//  1. Flow testing - create wishlist, then verify it appears in list
+//  2. Data consistency - created wishlist is correctly returned in GET response
+//  3. Default wishlist logic - first wishlist becomes default, subsequent don't
+//  4. ItemCount verification - new wishlists start with itemCount = 0
 //
 // Endpoints:
-// 	- POST /api/product/wishlist - Create Wishlist
-// 	- GET /api/product/wishlist - Get All Wishlists
+//   - POST /api/product/wishlist - Create Wishlist
+//   - GET /api/product/wishlist - Get All Wishlists
 //
 // Authentication: Required (Customer Auth only)
 func TestCreateAndGetWishlist(t *testing.T) {

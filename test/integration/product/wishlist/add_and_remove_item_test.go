@@ -22,10 +22,10 @@ import (
 // Authentication: Required (Customer Auth only)
 //
 // Business Rules:
-// 	- User can only add/remove items from their own wishlists
-// 	- Cannot add same variant twice to the same wishlist
-// 	- Removing item requires valid item ID that belongs to the wishlist
-// 	- Max items per wishlist is enforced (configurable, default 100)
+//   - User can only add/remove items from their own wishlists
+//   - Cannot add same variant twice to the same wishlist
+//   - Removing item requires valid item ID that belongs to the wishlist
+//   - Max items per wishlist is enforced (configurable, default 100)
 func TestAddAndRemoveWishlistItem(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)

@@ -11,6 +11,7 @@ import (
 
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/config"
+	"ecommerce-be/common/cron"
 	"ecommerce-be/common/db"
 	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
@@ -50,6 +51,9 @@ func main() {
 	/* Connect Redis */
 	cache.ConnectRedis(cfg)
 
+	/* Initialize Cron Scheduler */
+	cron.Init()
+
 	/* Initialize Gin Router */
 	gin.SetMode(cfg.Server.Mode)
 
@@ -67,6 +71,7 @@ func main() {
 
 	/* Start background workers (must be before router.Run which blocks) */
 	go scheduler.StartRedisWorkerPool()
+	cron.Start()
 
 	/* Start Server with Graceful Shutdown */
 	srv := &http.Server{
@@ -113,6 +118,9 @@ func gracefulShutdown(srv *http.Server) {
 	// Close Redis connections
 	logger.Info("Closing Redis connections...")
 	cache.CloseRedis()
+
+	// Stop Cron Scheduler
+	cron.Stop()
 
 	logger.Info("Server shutdown complete")
 }

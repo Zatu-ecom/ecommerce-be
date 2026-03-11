@@ -8,22 +8,34 @@ import (
 
 // Promotion error codes
 const (
-	PROMOTION_NOT_FOUND_CODE                = "PROMOTION_NOT_FOUND"
-	PROMOTION_SLUG_EXISTS_CODE              = "PROMOTION_SLUG_EXISTS"
-	INVALID_DISCOUNT_CONFIG_CODE            = "INVALID_DISCOUNT_CONFIG"
-	INVALID_DATE_RANGE_CODE                 = "INVALID_DATE_RANGE"
-	INVALID_ELIGIBILITY_CODE                = "INVALID_ELIGIBILITY"
-	UNAUTHORIZED_PROMOTION_ACCESS_CODE      = "UNAUTHORIZED_PROMOTION_ACCESS"
+	PROMOTION_NOT_FOUND_CODE            = "PROMOTION_NOT_FOUND"
+	PROMOTION_SLUG_EXISTS_CODE          = "PROMOTION_SLUG_EXISTS"
+	INVALID_DISCOUNT_CONFIG_CODE        = "INVALID_DISCOUNT_CONFIG"
+	INVALID_DATE_RANGE_CODE             = "INVALID_DATE_RANGE"
+	INVALID_ELIGIBILITY_CODE            = "INVALID_ELIGIBILITY"
+	UNAUTHORIZED_PROMOTION_ACCESS_CODE  = "UNAUTHORIZED_PROMOTION_ACCESS"
+	INVALID_STATUS_TRANSITION_CODE      = "INVALID_STATUS_TRANSITION"
+	CANNOT_DELETE_ACTIVE_PROMOTION_CODE = "CANNOT_DELETE_ACTIVE_PROMOTION"
+	CANNOT_EDIT_ACTIVE_PROMOTION_CODE   = "CANNOT_EDIT_ACTIVE_PROMOTION"
+	CANNOT_EDIT_TERMINAL_PROMOTION_CODE = "CANNOT_EDIT_TERMINAL_PROMOTION"
+	PROMOTION_UPDATE_FAILED_CODE        = "PROMOTION_UPDATE_FAILED"
+	PROMOTION_DELETE_FAILED_CODE        = "PROMOTION_DELETE_FAILED"
 )
 
 // Promotion error messages
 const (
-	PROMOTION_NOT_FOUND_MSG                = "Promotion not found"
-	PROMOTION_SLUG_EXISTS_MSG              = "Promotion with this slug already exists"
-	INVALID_DISCOUNT_CONFIG_MSG            = "Invalid discount configuration"
-	INVALID_DATE_RANGE_MSG                 = "Invalid date range"
-	INVALID_ELIGIBILITY_MSG                = "Invalid eligibility configuration"
-	UNAUTHORIZED_PROMOTION_ACCESS_MSG      = "Unauthorized promotion access"
+	PROMOTION_NOT_FOUND_MSG            = "Promotion not found"
+	PROMOTION_SLUG_EXISTS_MSG          = "Promotion with this slug already exists"
+	INVALID_DISCOUNT_CONFIG_MSG        = "Invalid discount configuration"
+	INVALID_DATE_RANGE_MSG             = "Invalid date range"
+	INVALID_ELIGIBILITY_MSG            = "Invalid eligibility configuration"
+	UNAUTHORIZED_PROMOTION_ACCESS_MSG  = "Unauthorized promotion access"
+	INVALID_STATUS_TRANSITION_MSG      = "Invalid promotion status transition"
+	CANNOT_DELETE_ACTIVE_PROMOTION_MSG = "Cannot delete an active promotion. Please deactivate it first."
+	CANNOT_EDIT_ACTIVE_PROMOTION_MSG   = "Cannot edit critical fields of an active promotion. Pause or end it first."
+	CANNOT_EDIT_TERMINAL_PROMOTION_MSG = "Cannot edit a promotion that has ended or been cancelled."
+	PROMOTION_UPDATE_FAILED_MSG        = "Failed to update promotion"
+	PROMOTION_DELETE_FAILED_MSG         = "Failed to delete promotion"
 )
 
 var (
@@ -67,5 +79,47 @@ var (
 		Code:       UNAUTHORIZED_PROMOTION_ACCESS_CODE,
 		Message:    UNAUTHORIZED_PROMOTION_ACCESS_MSG,
 		StatusCode: http.StatusForbidden,
+	}
+
+	// ErrInvalidStatusTransition is returned when a promotion status transition is invalid
+	ErrInvalidStatusTransition = &commonError.AppError{
+		Code:       INVALID_STATUS_TRANSITION_CODE,
+		Message:    INVALID_STATUS_TRANSITION_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrCannotDeleteActivePromotion is returned when attempting to delete an active promotion
+	ErrCannotDeleteActivePromotion = &commonError.AppError{
+		Code:       CANNOT_DELETE_ACTIVE_PROMOTION_CODE,
+		Message:    CANNOT_DELETE_ACTIVE_PROMOTION_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrCannotEditActivePromotion is returned when attempting to edit critical fields of an active promotion
+	ErrCannotEditActivePromotion = &commonError.AppError{
+		Code:       CANNOT_EDIT_ACTIVE_PROMOTION_CODE,
+		Message:    CANNOT_EDIT_ACTIVE_PROMOTION_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrCannotEditTerminalPromotion is returned when attempting to edit a promotion that has ended or been cancelled
+	ErrCannotEditTerminalPromotion = &commonError.AppError{
+		Code:       CANNOT_EDIT_TERMINAL_PROMOTION_CODE,
+		Message:    CANNOT_EDIT_TERMINAL_PROMOTION_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrPromotionUpdateFailed is returned when a promotion update fails
+	ErrPromotionUpdateFailed = &commonError.AppError{
+		Code:       PROMOTION_UPDATE_FAILED_CODE,
+		Message:    PROMOTION_UPDATE_FAILED_MSG,
+		StatusCode: http.StatusInternalServerError,
+	}
+
+	// ErrPromotionDeleteFailed is returned when a promotion delete fails
+	ErrPromotionDeleteFailed = &commonError.AppError{
+		Code:       PROMOTION_DELETE_FAILED_CODE,
+		Message:    PROMOTION_DELETE_FAILED_MSG,
+		StatusCode: http.StatusInternalServerError,
 	}
 )

@@ -617,7 +617,7 @@ func TestGetProductFilters(t *testing.T) {
 
 		// Verify error message doesn't expose internal details
 		assert.NotEqual(t, http.StatusOK, w.Code, "Should return error")
-		
+
 		// Error response should not contain sensitive information
 		// like database structure, file paths, or stack traces
 		bodyStr := w.Body.String()

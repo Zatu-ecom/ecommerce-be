@@ -10,15 +10,15 @@ import (
 // Note: DB is fetched dynamically via db.GetDB() to support test scenarios
 // where database connections change between test runs
 type RepositoryFactory struct {
-	categoryRepo           repository.CategoryRepository
-	attributeRepo          repository.AttributeDefinitionRepository
-	productRepo            repository.ProductRepository
-	variantRepo            repository.VariantRepository
-	optionRepo             repository.ProductOptionRepository
-	productAttrRepo        repository.ProductAttributeRepository
-	wishlistRepo           repository.WishlistRepository
-	wishlistItemRepo       repository.WishlistItemRepository
-	collectionProductRepo  repository.CollectionProductRepository
+	categoryRepo          repository.CategoryRepository
+	attributeRepo         repository.AttributeDefinitionRepository
+	productRepo           repository.ProductRepository
+	variantRepo           repository.VariantRepository
+	optionRepo            repository.ProductOptionRepository
+	productAttrRepo       repository.ProductAttributeRepository
+	wishlistRepo          repository.WishlistRepository
+	wishlistItemRepo      repository.WishlistItemRepository
+	collectionProductRepo repository.CollectionProductRepository
 
 	once sync.Once
 }
