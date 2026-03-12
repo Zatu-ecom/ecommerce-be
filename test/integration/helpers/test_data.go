@@ -36,3 +36,9 @@ const (
 	Customer3Password = "customer123"
 	Customer3UserID   = 7 // Sarah Williams's user ID from seed data (has seller_id = 4)
 )
+
+// Float64Ptr is a helper that returns a pointer to the given float64 block.
+func Float64Ptr(f float64) *float64 { return &f }
+
+// Int64Ptr is a helper that returns a pointer to the given int64 block.
+func Int64Ptr(i int64) *int64 { return &i }

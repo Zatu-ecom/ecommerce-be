@@ -73,10 +73,10 @@ func (s *BundleStrategy) CalculateDiscount(
 	// Track matched cart items for the bundle
 	type matchedItem struct {
 		cartItem model.CartItem
-		quantity int
+		required int
 	}
 	var matched []matchedItem
-	var bundleTotalCents int64
+	completeSets := -1
 
 	for _, bundleItem := range config.BundleItems {
 		found := false
@@ -86,12 +86,14 @@ func (s *BundleStrategy) CalculateDiscount(
 					(cartItem.VariantID != nil && *cartItem.VariantID == *bundleItem.VariantID) {
 					if cartItem.Quantity >= bundleItem.Quantity {
 						found = true
-						effectivePrice := effectivePrices[cartItem.ItemID]
-						bundleTotalCents += effectivePrice * int64(bundleItem.Quantity)
-						matched = append(
-							matched,
-							matchedItem{cartItem: cartItem, quantity: bundleItem.Quantity},
-						)
+						setsForItem := cartItem.Quantity / bundleItem.Quantity
+						if completeSets == -1 || setsForItem < completeSets {
+							completeSets = setsForItem
+						}
+						matched = append(matched, matchedItem{
+							cartItem: cartItem,
+							required: bundleItem.Quantity,
+						})
 						break
 					}
 				}
@@ -102,15 +104,26 @@ func (s *BundleStrategy) CalculateDiscount(
 			return result, nil
 		}
 	}
+	if completeSets <= 0 {
+		result.Reason = "No complete bundle sets found"
+		return result, nil
+	}
+
+	var bundleTotalCents int64
+	for _, m := range matched {
+		effectivePrice := effectivePrices[m.cartItem.ItemID]
+		usedQty := m.required * completeSets
+		bundleTotalCents += effectivePrice * int64(usedQty)
+	}
 
 	var totalDiscount int64
 	switch config.BundleDiscountType {
 	case "fixed_price":
-		totalDiscount = bundleTotalCents - *config.BundlePriceCents
+		totalDiscount = bundleTotalCents - (*config.BundlePriceCents * int64(completeSets))
 	case "percentage":
 		totalDiscount = int64(float64(bundleTotalCents) * (*config.BundleDiscountValue) / 100)
 	case "fixed_amount":
-		totalDiscount = int64(*config.BundleDiscountValue)
+		totalDiscount = int64(*config.BundleDiscountValue) * int64(completeSets)
 	}
 
 	if totalDiscount > bundleTotalCents {
@@ -127,7 +140,8 @@ func (s *BundleStrategy) CalculateDiscount(
 
 	for i, m := range matched {
 		effectivePrice := effectivePrices[m.cartItem.ItemID]
-		itemTotal := effectivePrice * int64(m.quantity)
+		usedQty := m.required * completeSets
+		itemTotal := effectivePrice * int64(usedQty)
 		var itemDiscount int64
 
 		if i == len(matched)-1 {
@@ -148,7 +162,9 @@ func (s *BundleStrategy) CalculateDiscount(
 				PromotionName: promotion.Name,
 				DiscountCents: itemDiscount,
 				OriginalCents: effectivePrice,
-				FinalCents:    effectivePrice - (itemDiscount / int64(m.quantity)),
+				// Discount is distributed over the full cart line quantity so downstream
+				// summary/stacking logic uses a consistent effective unit price.
+				FinalCents: effectivePrice - (itemDiscount / int64(m.cartItem.Quantity)),
 			})
 		}
 	}
