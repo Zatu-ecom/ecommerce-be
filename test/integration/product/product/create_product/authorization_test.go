@@ -9,7 +9,7 @@ import (
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // TestCreateProductAuthorization tests authentication and authorization scenarios

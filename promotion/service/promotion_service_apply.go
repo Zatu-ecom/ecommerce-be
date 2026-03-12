@@ -192,7 +192,10 @@ func (s *PromotionServiceImpl) applyBestCandidates(
 			*c.promotion.CanStackWithOtherPromotions
 
 		if (alreadyAppliedCount+len(applied)) > 0 && !canStack {
-			skipped = append(skipped, skippedResult(c.promotion, "Cannot stack with other promotions"))
+			skipped = append(
+				skipped,
+				skippedResult(c.promotion, "Cannot stack with other promotions"),
+			)
 			continue
 		}
 
