@@ -91,7 +91,9 @@ t.Run("Error - Non-existent product returns not found", func(t *testing.T) {
 
 #### 5. **Use Descriptive Test Names**
 
-Format: `Test[FunctionName]` for top-level, then `t.Run("[Status] - [Scenario]")` for subtests
+Format options:
+- `Test[FunctionName]` for top-level with `t.Run("[Status] - [Scenario]")` subtests
+- OR suite-based naming for scenario-heavy files: `Test[Feature]` entrypoint + `TestScenarioX_[Behavior]` methods
 
 Examples:
 
@@ -116,6 +118,86 @@ func TestCreateVariant(t *testing.T) {
 - `Success - [scenario description]` for successful operations
 - `Error - [error condition]` for error cases
 - `Admin [action]` / `Seller [action]` / `Customer [action]` for role-based tests
+- `TestScenarioX_[Behavior]` for long scenario sequences where execution intent should be explicit
+
+#### 5A. **Preferred Integration File Design (Bundle-Style for Scenario-Dense Modules)**
+
+For modules with many related business scenarios (like promotion strategies), prefer a suite-based file design:
+
+- Define a test suite struct that owns shared integration dependencies
+- Use `SetupSuite` for container/migration/seed/server/client bootstrapping
+- Use `SetupTest` for per-test cleanup/reset
+- Keep `TearDownSuite` for container cleanup
+- Use helper methods in the same file for repetitive setup/build/assert logic
+- Keep constants near the top for promotion types/status/eligibility strings
+- Write one scenario per method with clear Given/When/Then intent in doc comments
+
+Example shape:
+
+```go
+type FeatureTestSuite struct {
+    suite.Suite
+    container *setup.TestContainer
+    server    http.Handler
+    client    *helpers.APIClient
+}
+
+func (s *FeatureTestSuite) SetupSuite() {
+    s.container = setup.SetupTestContainers(s.T())
+    s.container.RunAllMigrations(s.T())
+    s.container.RunAllSeeds(s.T())
+    s.server = setup.SetupTestServer(s.T(), s.container.DB, s.container.RedisClient)
+    s.client = helpers.NewAPIClient(s.server)
+}
+
+func (s *FeatureTestSuite) SetupTest() {
+    s.cleanupFeatureData()
+}
+
+func (s *FeatureTestSuite) TearDownSuite() {
+    s.container.Cleanup(s.T())
+}
+
+func TestFeature(t *testing.T) {
+    suite.Run(t, new(FeatureTestSuite))
+}
+
+// TestScenario1_BasicBehavior validates baseline expected flow.
+func (s *FeatureTestSuite) TestScenario1_BasicBehavior() {
+    // Arrange + Act + Assert
+}
+```
+
+Use this pattern to improve readability and maintenance for large integration files. For smaller/simple files, regular `TestXxx + t.Run` remains valid.
+
+#### 5B. **Extract Request and URL Builders (Maintainability / SOLID in Tests)**
+
+To keep test code easy to evolve, avoid repeating inline request bodies and endpoint strings across scenarios.
+
+- Create separate helper methods/functions for request model creation
+- Create separate helper methods/functions for endpoint URL construction
+- Reuse these builders across scenarios instead of copy-pasting maps/strings
+- Keep test methods focused on scenario intent (Arrange/Act/Assert), not payload assembly details
+- When request schema changes, update one builder location and keep all scenarios aligned
+
+Example:
+
+```go
+func buildCreateVariantRequest(sku string, price float64) map[string]interface{} {
+    return map[string]interface{}{
+        "sku":   sku,
+        "price": price,
+        "options": []map[string]interface{}{
+            {"optionName": "Size", "value": "XL"},
+            {"optionName": "Color", "value": "Black"},
+        },
+    }
+}
+
+func buildCreateVariantURL(productID int) string {
+    return fmt.Sprintf("/api/product/%d/variant", productID)
+}
+```
 
 #### 6. **Document Test Intent with Comments**
 
@@ -227,41 +309,48 @@ func TestCreateCategory(t *testing.T) {
 #### Pattern 1: REST API Integration Tests with TestContainers
 
 ```go
-func TestCreateProduct(t *testing.T) {
-    // Setup: Start PostgreSQL and Redis containers
-    containers := setup.SetupTestContainers(t)
-    defer containers.Cleanup(t)
+type ProductIntegrationSuite struct {
+    suite.Suite
+    container *setup.TestContainer
+    server    http.Handler
+    client    *helpers.APIClient
+}
 
-    // Setup: Run migrations and seeds
-    containers.RunAllMigrations(t)
-    containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+func (s *ProductIntegrationSuite) SetupSuite() {
+    s.container = setup.SetupTestContainers(s.T())
+    s.container.RunAllMigrations(s.T())
+    s.container.RunSeeds(s.T(), "migrations/seeds/001_seed_user_data.sql")
+    s.server = setup.SetupTestServer(s.T(), s.container.DB, s.container.RedisClient)
+    s.client = helpers.NewAPIClient(s.server)
+}
 
-    // Setup: Initialize server with real dependencies
-    server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
-    client := helpers.NewAPIClient(server)
+func (s *ProductIntegrationSuite) TearDownSuite() {
+    s.container.Cleanup(s.T())
+}
 
-    t.Run("Success - Create product with valid data", func(t *testing.T) {
-        // Given: Authenticate as seller
-        sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-        client.SetToken(sellerToken)
+func TestProductIntegration(t *testing.T) {
+    suite.Run(t, new(ProductIntegrationSuite))
+}
 
-        // When: Create product
-        requestBody := map[string]interface{}{
-            "name":        "Premium Laptop",
-            "description": "High-performance laptop",
-            "price":       1299.99,
-        }
-        w := client.Post(t, "/api/products", requestBody)
+func (s *ProductIntegrationSuite) TestScenario1_CreateProductSuccess() {
+    // Given: Authenticate as seller
+    sellerToken := helpers.Login(s.T(), s.client, helpers.SellerEmail, helpers.SellerPassword)
+    s.client.SetToken(sellerToken)
 
-        // Then: Validate response
-        response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
-        product := helpers.GetResponseData(t, response, "product")
+    // When: Create product
+    requestBody := map[string]interface{}{
+        "name":        "Premium Laptop",
+        "description": "High-performance laptop",
+        "price":       1299.99,
+    }
+    w := s.client.Post(s.T(), "/api/products", requestBody)
 
-        // Then: Validate all important fields
-        assert.NotNil(t, product["id"], "Product should have ID")
-        assert.Equal(t, "Premium Laptop", product["name"], "Name should match")
-        assert.Equal(t, 1299.99, product["price"], "Price should match")
-    })
+    // Then: Validate response
+    response := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+    product := helpers.GetResponseData(s.T(), response, "product")
+    assert.NotNil(s.T(), product["id"], "Product should have ID")
+    assert.Equal(s.T(), "Premium Laptop", product["name"], "Name should match")
+    assert.Equal(s.T(), 1299.99, product["price"], "Price should match")
 }
 ```
 

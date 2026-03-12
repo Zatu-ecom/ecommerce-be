@@ -23,8 +23,6 @@ go.work.sum
 
 .vscode/*
 
-.github/*
-
 .idea/*
 
 .cursor/*
