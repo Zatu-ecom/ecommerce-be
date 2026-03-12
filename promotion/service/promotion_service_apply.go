@@ -18,29 +18,23 @@ type promotionCandidate struct {
 	result    *model.PromotionValidationResult
 }
 
-// ApplyPromotionsToCart applies all active promotions for the given seller to the cart.
+// ApplyPromotionsToCart applies active seller promotions to a cart using priority + stacking rules.
 //
-// Flow:
-//  1. Fetches all active promotions for the seller from the database (sorted by priority DESC).
-//  2. Filters out promotions that fail general validation (status, date range, usage limits,
-//     customer eligibility, minimum purchase/quantity, and scope matching).
-//  3. Groups the remaining valid promotions by priority level.
-//  4. For each priority group (highest priority first):
-//     a. Evaluates every promotion in the group by running its strategy-specific
-//     CalculateDiscount logic against the cart's current effective prices.
-//     b. Sorts evaluated candidates by total discount descending (best discount first).
-//     c. Applies candidates respecting stacking rules:
-//     - If a promotion has CanStackWithOtherPromotions=true, it is applied and the
-//     effective prices are updated so the next promotion calculates on the discounted price.
-//     - If a promotion has CanStackWithOtherPromotions=false and no other promotion
-//     has been applied yet, it is applied and no further promotions are processed.
-//     - If a promotion has CanStackWithOtherPromotions=false but other promotions
-//     are already applied, it is skipped.
-//  5. Builds and returns an AppliedPromotionSummary containing:
-//     - Per-item discount breakdown (which promotions affected each item and by how much).
-//     - List of applied promotions with their discount details.
-//     - List of skipped promotions with reasons for skipping.
-//     - Totals: original subtotal, final subtotal, total discount, and shipping discount.
+// Core behavior:
+// 1. Load active promotions and filter out invalid ones (date/status/usage/customer/scope conditions).
+// 2. Group remaining promotions by priority (higher priority groups are processed first).
+// 3. For each group, apply promotions sequentially via applyPriorityGroupSequentially:
+//   - Re-evaluate all remaining promotions against the latest effective prices.
+//   - Pick the current best discount candidate (greedy).
+//   - Apply it immediately and update effective prices.
+//   - Continue while stackable; stop when a non-stackable promotion is applied.
+//
+// 4. Carry forward effective prices from one priority group to the next.
+// 5. If any applied promotion is non-stackable, stop processing further groups.
+//
+// Result:
+// Returns AppliedPromotionSummary with applied/skipped promotions, per-item discount details,
+// and final totals derived from the final effective prices.
 func (s *PromotionServiceImpl) ApplyPromotionsToCart(
 	ctx context.Context,
 	cart *model.CartValidationRequest,
@@ -62,16 +56,19 @@ func (s *PromotionServiceImpl) ApplyPromotionsToCart(
 	appliedCount := 0
 
 	for _, group := range priorityGroups {
-		candidates, skipped := s.evaluateCandidates(ctx, group, cart, effectivePrices)
-		skippedResults = append(skippedResults, skipped...)
-
-		applied, skipped := s.applyBestCandidates(candidates, effectivePrices, appliedCount)
+		applied, skipped := s.applyPriorityGroupSequentially(
+			ctx,
+			group,
+			cart,
+			effectivePrices,
+			appliedCount,
+		)
 		appliedResults = append(appliedResults, applied...)
 		skippedResults = append(skippedResults, skipped...)
 		appliedCount += len(applied)
 
-		// If a non-stackable promotion was applied, stop processing further groups
-		if s.hasNonStackable(applied, candidates) {
+		// If a non-stackable promotion was applied, stop processing further groups.
+		if s.hasAppliedNonStackable(applied) {
 			break
 		}
 	}
@@ -79,7 +76,86 @@ func (s *PromotionServiceImpl) ApplyPromotionsToCart(
 	return s.buildPromotionSummary(cart, effectivePrices, appliedResults, skippedResults), nil
 }
 
-// initEffectivePrices builds the initial price map from cart items (O(n) where n = items)
+// applyPriorityGroupSequentially evaluates and applies promotions one-by-one in a priority group.
+// Stackable promotions are re-evaluated on updated effective prices after each application.
+func (s *PromotionServiceImpl) applyPriorityGroupSequentially(
+	ctx context.Context,
+	group []*entity.Promotion,
+	cart *model.CartValidationRequest,
+	effectivePrices map[string]int64,
+	alreadyAppliedCount int,
+) (applied []model.PromotionValidationResult, skipped []model.PromotionValidationResult) {
+	remaining := append([]*entity.Promotion(nil), group...)
+
+	for len(remaining) > 0 {
+		candidates, stepSkipped := s.evaluateCandidates(ctx, remaining, cart, effectivePrices)
+		skipped = append(skipped, stepSkipped...)
+
+		// Remove promotions that were skipped in this step from remaining so they are reported once.
+		if len(stepSkipped) > 0 {
+			skippedIDs := make(map[uint]struct{}, len(stepSkipped))
+			for _, s := range stepSkipped {
+				if s.Promotion != nil {
+					skippedIDs[s.Promotion.ID] = struct{}{}
+				}
+			}
+
+			filtered := remaining[:0]
+			for _, promo := range remaining {
+				if _, wasSkipped := skippedIDs[promo.ID]; !wasSkipped {
+					filtered = append(filtered, promo)
+				}
+			}
+			remaining = filtered
+		}
+
+		if len(candidates) == 0 {
+			break
+		}
+
+		best := candidates[0]
+		canStack := best.promotion.CanStackWithOtherPromotions != nil &&
+			*best.promotion.CanStackWithOtherPromotions
+
+		// Non-stackable promotions cannot apply after any previous application.
+		if (alreadyAppliedCount+len(applied)) > 0 && !canStack {
+			skipped = append(
+				skipped,
+				skippedResult(best.promotion, "Cannot stack with other promotions"),
+			)
+			remaining = removePromotionByID(remaining, best.promotion.ID)
+			continue
+		}
+
+		// Apply selected candidate and update effective prices immediately.
+		for _, d := range best.result.ItemDiscounts {
+			if d.FinalCents >= 0 {
+				effectivePrices[d.ItemID] = d.FinalCents
+			}
+		}
+		applied = append(applied, *best.result)
+		remaining = removePromotionByID(remaining, best.promotion.ID)
+
+		// A non-stackable promotion ends evaluation for this and subsequent groups.
+		if !canStack {
+			break
+		}
+	}
+
+	return applied, skipped
+}
+
+func removePromotionByID(promotions []*entity.Promotion, id uint) []*entity.Promotion {
+	filtered := promotions[:0]
+	for _, promo := range promotions {
+		if promo.ID != id {
+			filtered = append(filtered, promo)
+		}
+	}
+	return filtered
+}
+
+// initEffectivePrices builds the initial effective unit-price map from cart items.
 func (s *PromotionServiceImpl) initEffectivePrices(
 	cart *model.CartValidationRequest,
 ) map[string]int64 {
@@ -90,7 +166,8 @@ func (s *PromotionServiceImpl) initEffectivePrices(
 	return prices
 }
 
-// filterValidPromotions validates general conditions and splits into valid vs skipped (O(p) where p = promotions)
+// filterValidPromotions validates general conditions and splits promotions into valid vs skipped.
+// Runtime is linear in number of promotions plus any repository/service checks inside validations.
 func (s *PromotionServiceImpl) filterValidPromotions(
 	ctx context.Context,
 	promotions []*entity.Promotion,
@@ -110,7 +187,7 @@ func (s *PromotionServiceImpl) filterValidPromotions(
 	return valid, skipped
 }
 
-// groupByPriority groups pre-sorted promotions by priority in a single pass (O(p))
+// groupByPriority groups pre-sorted promotions by priority in a single pass.
 func (s *PromotionServiceImpl) groupByPriority(
 	promotions []*entity.Promotion,
 ) [][]*entity.Promotion {
@@ -135,7 +212,8 @@ func (s *PromotionServiceImpl) groupByPriority(
 	return groups
 }
 
-// evaluateCandidates calculates discounts for a priority group and returns sorted candidates (O(g × n))
+// evaluateCandidates calculates strategy discounts for a group and returns candidates sorted by
+// total discount descending. Runtime is O(g * strategyCost + g log g), where g is group size.
 func (s *PromotionServiceImpl) evaluateCandidates(
 	ctx context.Context,
 	group []*entity.Promotion,
@@ -181,55 +259,17 @@ func (s *PromotionServiceImpl) evaluateCandidates(
 	return candidates, skipped
 }
 
-// applyBestCandidates applies candidates respecting stacking rules and updates effective prices (O(c × n))
-func (s *PromotionServiceImpl) applyBestCandidates(
-	candidates []promotionCandidate,
-	effectivePrices map[string]int64,
-	alreadyAppliedCount int,
-) (applied []model.PromotionValidationResult, skipped []model.PromotionValidationResult) {
-	for _, c := range candidates {
-		canStack := c.promotion.CanStackWithOtherPromotions != nil &&
-			*c.promotion.CanStackWithOtherPromotions
-
-		if (alreadyAppliedCount+len(applied)) > 0 && !canStack {
-			skipped = append(
-				skipped,
-				skippedResult(c.promotion, "Cannot stack with other promotions"),
-			)
+// hasAppliedNonStackable checks whether any applied promotion is non-stackable.
+func (s *PromotionServiceImpl) hasAppliedNonStackable(
+	applied []model.PromotionValidationResult,
+) bool {
+	for _, a := range applied {
+		if a.Promotion == nil {
 			continue
 		}
-
-		// Update effective prices with this promotion's discounts
-		for _, d := range c.result.ItemDiscounts {
-			if d.FinalCents >= 0 {
-				effectivePrices[d.ItemID] = d.FinalCents
-			}
-		}
-
-		applied = append(applied, *c.result)
-
-		if !canStack {
-			break
-		}
-	}
-
-	return applied, skipped
-}
-
-// hasNonStackable checks if any applied candidate was non-stackable (signals to stop further groups)
-func (s *PromotionServiceImpl) hasNonStackable(
-	applied []model.PromotionValidationResult,
-	candidates []promotionCandidate,
-) bool {
-	for _, c := range candidates {
-		for _, a := range applied {
-			if a.Promotion != nil && a.Promotion.ID == c.promotion.ID {
-				canStack := c.promotion.CanStackWithOtherPromotions != nil &&
-					*c.promotion.CanStackWithOtherPromotions
-				if !canStack {
-					return true
-				}
-			}
+		if a.Promotion.CanStackWithOtherPromotions == nil ||
+			!*a.Promotion.CanStackWithOtherPromotions {
+			return true
 		}
 	}
 	return false

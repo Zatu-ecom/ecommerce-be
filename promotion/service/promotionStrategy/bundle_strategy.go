@@ -12,6 +12,11 @@ import (
 // BundleStrategy implements PromotionStrategy for bundle promotion type
 type BundleStrategy struct{}
 
+type matchedBundleItem struct {
+	cartItem model.CartItem
+	required int
+}
+
 // NewBundleStrategy creates a new BundleStrategy
 func NewBundleStrategy() PromotionStrategy {
 	return &BundleStrategy{}
@@ -63,68 +68,20 @@ func (s *BundleStrategy) CalculateDiscount(
 		IsValid: false,
 	}
 
-	configJSON, _ := json.Marshal(promotion.DiscountConfig)
-	var config model.BundleConfig
-	if err := json.Unmarshal(configJSON, &config); err != nil {
+	config, ok := s.parseBundleConfig(promotion.DiscountConfig)
+	if !ok {
 		result.Reason = "Invalid promotion configuration"
 		return result, nil
 	}
 
-	// Track matched cart items for the bundle
-	type matchedItem struct {
-		cartItem model.CartItem
-		required int
-	}
-	var matched []matchedItem
-	completeSets := -1
-
-	for _, bundleItem := range config.BundleItems {
-		found := false
-		for _, cartItem := range cart.Items {
-			if cartItem.ProductID == bundleItem.ProductID {
-				if bundleItem.VariantID == nil ||
-					(cartItem.VariantID != nil && *cartItem.VariantID == *bundleItem.VariantID) {
-					if cartItem.Quantity >= bundleItem.Quantity {
-						found = true
-						setsForItem := cartItem.Quantity / bundleItem.Quantity
-						if completeSets == -1 || setsForItem < completeSets {
-							completeSets = setsForItem
-						}
-						matched = append(matched, matchedItem{
-							cartItem: cartItem,
-							required: bundleItem.Quantity,
-						})
-						break
-					}
-				}
-			}
-		}
-		if !found {
-			result.Reason = "Cart does not contain all required bundle items"
-			return result, nil
-		}
-	}
-	if completeSets <= 0 {
-		result.Reason = "No complete bundle sets found"
+	matchedItems, completeSets, reason := s.matchBundleItems(config, cart)
+	if reason != "" {
+		result.Reason = reason
 		return result, nil
 	}
 
-	var bundleTotalCents int64
-	for _, m := range matched {
-		effectivePrice := effectivePrices[m.cartItem.ItemID]
-		usedQty := m.required * completeSets
-		bundleTotalCents += effectivePrice * int64(usedQty)
-	}
-
-	var totalDiscount int64
-	switch config.BundleDiscountType {
-	case "fixed_price":
-		totalDiscount = bundleTotalCents - (*config.BundlePriceCents * int64(completeSets))
-	case "percentage":
-		totalDiscount = int64(float64(bundleTotalCents) * (*config.BundleDiscountValue) / 100)
-	case "fixed_amount":
-		totalDiscount = int64(*config.BundleDiscountValue) * int64(completeSets)
-	}
+	bundleTotalCents := s.calculateBundleTotalCents(matchedItems, completeSets, effectivePrices)
+	totalDiscount := s.calculateTotalDiscount(config, bundleTotalCents, completeSets)
 
 	if totalDiscount > bundleTotalCents {
 		totalDiscount = bundleTotalCents
@@ -134,43 +91,148 @@ func (s *BundleStrategy) CalculateDiscount(
 		return result, nil
 	}
 
-	// Distribute discount proportionally across bundle items
+	result.IsValid = true
+	result.DiscountCents = totalDiscount
+	result.ItemDiscounts = s.distributeDiscountAcrossItems(
+		promotion,
+		matchedItems,
+		completeSets,
+		bundleTotalCents,
+		totalDiscount,
+		effectivePrices,
+	)
+	return result, nil
+}
+
+func (s *BundleStrategy) parseBundleConfig(
+	discountConfig map[string]interface{},
+) (model.BundleConfig, bool) {
+	configJSON, _ := json.Marshal(discountConfig)
+
+	var config model.BundleConfig
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return model.BundleConfig{}, false
+	}
+
+	return config, true
+}
+
+func (s *BundleStrategy) matchBundleItems(
+	config model.BundleConfig,
+	cart *model.CartValidationRequest,
+) ([]matchedBundleItem, int, string) {
+	var matchedItems []matchedBundleItem
+	completeSets := -1
+
+	for _, bundleItem := range config.BundleItems {
+		found := false
+		for _, cartItem := range cart.Items {
+			if cartItem.ProductID != bundleItem.ProductID {
+				continue
+			}
+
+			variantMatch := bundleItem.VariantID == nil ||
+				(cartItem.VariantID != nil && *cartItem.VariantID == *bundleItem.VariantID)
+			if !variantMatch || cartItem.Quantity < bundleItem.Quantity {
+				continue
+			}
+
+			found = true
+			setsForItem := cartItem.Quantity / bundleItem.Quantity
+			if completeSets == -1 || setsForItem < completeSets {
+				completeSets = setsForItem
+			}
+			matchedItems = append(matchedItems, matchedBundleItem{
+				cartItem: cartItem,
+				required: bundleItem.Quantity,
+			})
+			break
+		}
+
+		if !found {
+			return nil, 0, "Cart does not contain all required bundle items"
+		}
+	}
+
+	if completeSets <= 0 {
+		return nil, 0, "No complete bundle sets found"
+	}
+
+	return matchedItems, completeSets, ""
+}
+
+func (s *BundleStrategy) calculateBundleTotalCents(
+	matchedItems []matchedBundleItem,
+	completeSets int,
+	effectivePrices map[string]int64,
+) int64 {
+	var bundleTotalCents int64
+	for _, item := range matchedItems {
+		effectivePrice := effectivePrices[item.cartItem.ItemID]
+		usedQty := item.required * completeSets
+		bundleTotalCents += effectivePrice * int64(usedQty)
+	}
+
+	return bundleTotalCents
+}
+
+func (s *BundleStrategy) calculateTotalDiscount(
+	config model.BundleConfig,
+	bundleTotalCents int64,
+	completeSets int,
+) int64 {
+	switch config.BundleDiscountType {
+	case "fixed_price":
+		return bundleTotalCents - (*config.BundlePriceCents * int64(completeSets))
+	case "percentage":
+		return int64(float64(bundleTotalCents) * (*config.BundleDiscountValue) / 100)
+	case "fixed_amount":
+		return int64(*config.BundleDiscountValue) * int64(completeSets)
+	default:
+		return 0
+	}
+}
+
+func (s *BundleStrategy) distributeDiscountAcrossItems(
+	promotion *entity.Promotion,
+	matchedItems []matchedBundleItem,
+	completeSets int,
+	bundleTotalCents int64,
+	totalDiscount int64,
+	effectivePrices map[string]int64,
+) []model.ItemDiscount {
 	var itemDiscounts []model.ItemDiscount
 	var distributed int64
 
-	for i, m := range matched {
-		effectivePrice := effectivePrices[m.cartItem.ItemID]
-		usedQty := m.required * completeSets
+	for i, item := range matchedItems {
+		effectivePrice := effectivePrices[item.cartItem.ItemID]
+		usedQty := item.required * completeSets
 		itemTotal := effectivePrice * int64(usedQty)
-		var itemDiscount int64
-
-		if i == len(matched)-1 {
+		itemDiscount := totalDiscount * itemTotal / bundleTotalCents
+		if i == len(matchedItems)-1 {
 			itemDiscount = totalDiscount - distributed
-		} else {
-			itemDiscount = totalDiscount * itemTotal / bundleTotalCents
 		}
 
 		if itemDiscount > itemTotal {
 			itemDiscount = itemTotal
 		}
-		if itemDiscount > 0 {
-			distributed += itemDiscount
-			itemDiscounts = append(itemDiscounts, model.ItemDiscount{
-				ItemID:        m.cartItem.ItemID,
-				ProductID:     m.cartItem.ProductID,
-				PromotionID:   promotion.ID,
-				PromotionName: promotion.Name,
-				DiscountCents: itemDiscount,
-				OriginalCents: effectivePrice,
-				// Discount is distributed over the full cart line quantity so downstream
-				// summary/stacking logic uses a consistent effective unit price.
-				FinalCents: effectivePrice - (itemDiscount / int64(m.cartItem.Quantity)),
-			})
+		if itemDiscount <= 0 {
+			continue
 		}
+
+		distributed += itemDiscount
+		itemDiscounts = append(itemDiscounts, model.ItemDiscount{
+			ItemID:        item.cartItem.ItemID,
+			ProductID:     item.cartItem.ProductID,
+			PromotionID:   promotion.ID,
+			PromotionName: promotion.Name,
+			DiscountCents: itemDiscount,
+			OriginalCents: effectivePrice,
+			// Discount is distributed over the full cart line quantity so downstream
+			// summary/stacking logic uses a consistent effective unit price.
+			FinalCents: effectivePrice - (itemDiscount / int64(item.cartItem.Quantity)),
+		})
 	}
 
-	result.IsValid = true
-	result.DiscountCents = totalDiscount
-	result.ItemDiscounts = itemDiscounts
-	return result, nil
+	return itemDiscounts
 }
