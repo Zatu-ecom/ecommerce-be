@@ -17,6 +17,23 @@ func NewPercentageStrategy() PromotionStrategy {
 	return &PercentageStrategy{}
 }
 
+// DescribeConfig returns the supported percentage discount fields and setup guidance.
+func (s *PercentageStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypePercentage,
+		Name:          "Percentage Discount",
+		Description:   "Reduces eligible item prices by a percentage.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{Name: "percentage", Type: "float64", Required: true, Description: "Discount percentage between 0.01 and 100."},
+			{Name: "max_discount_cents", Type: "int64", Required: false, Description: "Optional cap on the total percentage discount."},
+		},
+		BestPractices: []string{
+			"Use a max discount cap for high-value catalogs.",
+			"Disable stacking unless combined discounts are an explicit business decision.",
+		},
+	}
+}
+
 // ValidateConfig validates the percentage discount configuration
 func (s *PercentageStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

@@ -17,6 +17,33 @@ func NewFreeShippingStrategy() PromotionStrategy {
 	return &FreeShippingStrategy{}
 }
 
+// DescribeConfig returns the supported free-shipping fields and setup guidance.
+func (s *FreeShippingStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypeFreeShipping,
+		Name:          "Free Shipping",
+		Description:   "Waives shipping charges for eligible carts.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{
+				Name:        "min_order_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Optional minimum subtotal required to unlock free shipping.",
+			},
+			{
+				Name:        "max_shipping_discount_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Optional cap on the shipping discount.",
+			},
+		},
+		BestPractices: []string{
+			"Use a minimum subtotal to protect margin on low-value orders.",
+			"Keep stacking disabled unless free shipping is intended to combine with deep item discounts.",
+		},
+	}
+}
+
 // ValidateConfig validates the free shipping configuration
 func (s *FreeShippingStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

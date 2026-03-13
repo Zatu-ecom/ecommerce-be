@@ -17,6 +17,34 @@ func NewTieredStrategy() PromotionStrategy {
 	return &TieredStrategy{}
 }
 
+// DescribeConfig returns the supported tiered fields and setup guidance.
+func (s *TieredStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypeTiered,
+		Name:          "Tiered Discount",
+		Description:   "Applies a discount tier based on quantity or spend thresholds.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{
+				Name:          "tier_type",
+				Type:          "string",
+				Required:      true,
+				Description:   "How tiers are evaluated.",
+				AllowedValues: []string{"quantity", "spend"},
+			},
+			{
+				Name:        "tiers",
+				Type:        "[]TierConfig",
+				Required:    true,
+				Description: "Ordered tier definitions describing thresholds and discount values.",
+			},
+		},
+		BestPractices: []string{
+			"Ensure tiers are ordered from strongest threshold to weakest to avoid ambiguity.",
+			"Use spend tiers when cart mix varies heavily and quantity tiers when unit count is the real incentive.",
+		},
+	}
+}
+
 // ValidateConfig validates the tiered configuration
 func (s *TieredStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

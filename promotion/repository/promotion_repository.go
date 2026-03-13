@@ -109,7 +109,7 @@ func (r *PromotionRepositoryImpl) FindActiveBySellerID(
 		Where("seller_id = ? AND status = ?", sellerID, entity.StatusActive).
 		Where("starts_at <= ?", now).
 		Where("ends_at IS NULL OR ends_at >= ?", now).
-		Order("priority DESC").
+		Order("priority ASC").
 		Find(&promotions).Error
 	if err != nil {
 		return nil, err

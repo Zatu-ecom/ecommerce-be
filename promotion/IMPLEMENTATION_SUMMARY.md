@@ -69,7 +69,7 @@ Successfully implemented the create promotion service with all required componen
 Each promotion type has specific required fields validated:
 - **percentage_discount**: `percentage` (1-100), optional `max_discount_cents`
 - **fixed_amount**: `amount_cents`
-- **buy_x_get_y**: `buy_quantity`, `get_quantity`, `get_discount_type`, `get_discount_value`
+- **buy_x_get_y**: `buy_quantity`, `get_quantity`, `max_sets`, `is_same_reward`, `scope_type`, `get_product_id`
 - **free_shipping**: Optional fields only
 - **bundle**: `bundle_items`, `bundle_discount_type`
 - **tiered**: `tier_type`, `tiers`

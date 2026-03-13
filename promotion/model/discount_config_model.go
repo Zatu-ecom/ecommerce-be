@@ -11,12 +11,26 @@ type FixedAmountConfig struct {
 	AmountCents int64 `json:"amount_cents" binding:"required,min=1"`
 }
 
-// BuyXGetYConfig represents the configuration for buy_x_get_y promotion type
-// Example: Buy 2 Get 1 Free (same product only)
+// BuyXGetYScopeType defines how same-reward Buy X Get Y should match items.
+type BuyXGetYScopeType string
+
+const (
+	BuyXGetYScopeSameVariant  BuyXGetYScopeType = "same_variant"
+	BuyXGetYScopeSameProduct  BuyXGetYScopeType = "same_product"
+	BuyXGetYScopeSameCategory BuyXGetYScopeType = "same_category"
+)
+
+// BuyXGetYConfig represents the configuration for buy_x_get_y promotion type.
+// Defaults:
+//   - is_same_reward: true
+//   - scope_type: same_product (when is_same_reward = true)
 type BuyXGetYConfig struct {
-	BuyQuantity int  `json:"buy_quantity"       binding:"required,min=1"`  // Number of items to buy
-	GetQuantity int  `json:"get_quantity"       binding:"required,min=1"`  // Number of items to get free
-	MaxSets     *int `json:"max_sets,omitempty" binding:"omitempty,min=1"` // Optional: limit number of sets per customer
+	BuyQuantity  int               `json:"buy_quantity"                  binding:"required,min=1"` // Number of items to buy
+	GetQuantity  int               `json:"get_quantity"                  binding:"required,min=1"` // Number of items to get free
+	MaxSets      *int              `json:"max_sets,omitempty"            binding:"omitempty,min=1"` // Optional: limit number of sets per customer
+	IsSameReward *bool             `json:"is_same_reward,omitempty"`                              // True => reward comes from the same target pool (defaults to true)
+	ScopeType    BuyXGetYScopeType `json:"scope_type,omitempty"          binding:"omitempty,oneof=same_variant same_product same_category"`
+	GetProductID *uint             `json:"get_product_id,omitempty"      binding:"omitempty"`
 }
 
 // FreeShippingConfig represents the configuration for free_shipping promotion type

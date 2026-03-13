@@ -311,7 +311,10 @@ func (s *PromotionServiceImpl) buildPromotionSummary(
 	for i, item := range cart.Items {
 		originalSubtotal += item.TotalCents
 		finalPrice := effectivePrices[item.ItemID]
-		itemTotalDiscount := (item.PriceCents - finalPrice) * int64(item.Quantity)
+		var itemTotalDiscount int64
+		for _, promo := range itemPromotionsMap[item.ItemID] {
+			itemTotalDiscount += promo.DiscountCents
+		}
 
 		items[i] = model.CartItemSummary{
 			ItemID:             item.ItemID,

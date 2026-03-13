@@ -27,11 +27,12 @@ type FixedAmountConfig struct {
 }
 
 type BuyXGetYConfig struct {
-    BuyQuantity      int     `json:"buy_quantity" binding:"required,min=1"`
-    GetQuantity      int     `json:"get_quantity" binding:"required,min=1"`
-    GetDiscountType  string  `json:"get_discount_type" binding:"required,oneof=free percentage fixed_amount"`
-    GetDiscountValue float64 `json:"get_discount_value" binding:"required,min=0"`
-    // ... more fields
+    BuyQuantity  int    `json:"buy_quantity" binding:"required,min=1"`
+    GetQuantity  int    `json:"get_quantity" binding:"required,min=1"`
+    MaxSets      *int   `json:"max_sets,omitempty" binding:"omitempty,min=1"`
+    IsSameReward bool   `json:"is_same_reward"`
+    ScopeType    string `json:"scope_type,omitempty"`
+    GetProductID *uint  `json:"get_product_id,omitempty"`
 }
 
 // + BundleConfig, TieredConfig, FlashSaleConfig, FreeShippingConfig

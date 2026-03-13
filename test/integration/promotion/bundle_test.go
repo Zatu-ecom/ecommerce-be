@@ -460,7 +460,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario2A_DifferentPriorityStack
 		model.PercentageDiscountConfig{Percentage: 20},
 		promotionCreateOptions{
 			canStack: boolPtr(true),
-			priority: intPtr(100),
+			priority: intPtr(10),
 		},
 	)
 
@@ -470,7 +470,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario2A_DifferentPriorityStack
 		model.PercentageDiscountConfig{Percentage: 10},
 		promotionCreateOptions{
 			canStack: boolPtr(true),
-			priority: intPtr(10),
+			priority: intPtr(100),
 		},
 	)
 
@@ -495,7 +495,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario3_HigherPriorityNonStacka
 		promoTypePercentage,
 		model.PercentageDiscountConfig{Percentage: 5},
 		promotionCreateOptions{
-			priority: intPtr(100),
+			priority: intPtr(10),
 		},
 	)
 
@@ -510,7 +510,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario3_HigherPriorityNonStacka
 		},
 		promotionCreateOptions{
 			canStack: boolPtr(true),
-			priority: intPtr(10),
+			priority: intPtr(100),
 		},
 	)
 
@@ -534,7 +534,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario3A_DifferentPriorityBothN
 		promoTypePercentage,
 		model.PercentageDiscountConfig{Percentage: 5},
 		promotionCreateOptions{
-			priority: intPtr(100),
+			priority: intPtr(10),
 		},
 	)
 
@@ -543,7 +543,7 @@ func (s *BundlePromotionTestSuite) TestStackingScenario3A_DifferentPriorityBothN
 		promoTypePercentage,
 		model.PercentageDiscountConfig{Percentage: 20},
 		promotionCreateOptions{
-			priority: intPtr(10),
+			priority: intPtr(100),
 		},
 	)
 

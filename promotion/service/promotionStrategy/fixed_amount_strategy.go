@@ -17,6 +17,22 @@ func NewFixedAmountStrategy() PromotionStrategy {
 	return &FixedAmountStrategy{}
 }
 
+// DescribeConfig returns the supported fixed-amount discount fields and setup guidance.
+func (s *FixedAmountStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypeFixedAmount,
+		Name:          "Fixed Amount Discount",
+		Description:   "Applies a fixed cart-level discount distributed across eligible items.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{Name: "amount_cents", Type: "int64", Required: true, Description: "Fixed discount amount in smallest currency unit."},
+		},
+		BestPractices: []string{
+			"Keep the amount below the typical cart subtotal to avoid zeroing most carts.",
+			"Disable stacking unless combined discounts are intentionally allowed.",
+		},
+	}
+}
+
 // ValidateConfig validates the fixed amount configuration
 func (s *FixedAmountStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

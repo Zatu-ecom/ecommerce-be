@@ -22,6 +22,46 @@ func NewBundleStrategy() PromotionStrategy {
 	return &BundleStrategy{}
 }
 
+// DescribeConfig returns the supported bundle fields and setup guidance.
+func (s *BundleStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypeBundle,
+		Name:          "Bundle",
+		Description:   "Applies a bundle-specific discount when the required items are present together.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{
+				Name:        "bundle_items",
+				Type:        "[]BundleItemConfig",
+				Required:    true,
+				Description: "Required products or variants and their quantities.",
+			},
+			{
+				Name:          "bundle_discount_type",
+				Type:          "string",
+				Required:      true,
+				Description:   "Bundle discount calculation mode.",
+				AllowedValues: []string{"percentage", "fixed_amount", "fixed_price"},
+			},
+			{
+				Name:        "bundle_discount_value",
+				Type:        "float64",
+				Required:    false,
+				Description: "Required for percentage and fixed_amount bundles.",
+			},
+			{
+				Name:        "bundle_price_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Required for fixed_price bundles.",
+			},
+		},
+		BestPractices: []string{
+			"Use exact variants for high-value bundles so unintended substitutions do not qualify.",
+			"Prefer non-stackable bundles unless layered discounts are intentional.",
+		},
+	}
+}
+
 // ValidateConfig validates the bundle configuration
 func (s *BundleStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

@@ -145,7 +145,7 @@ return strategy.ValidateCart(ctx, promotion, cart)
 | Percentage | `PercentageDiscountConfig` | 0.01 ≤ percentage ≤ 100 |
 | Fixed Amount | `FixedAmountConfig` | amount_cents > 0 |
 | Free Shipping | `FreeShippingConfig` | Optional min_order_cents |
-| Buy X Get Y | `BuyXGetYConfig` | buy_quantity, get_quantity > 0 |
+| Buy X Get Y | `BuyXGetYConfig` | buy_quantity, get_quantity > 0; same reward requires scope_type; cross reward requires get_product_id |
 | Bundle | `BundleConfig` | bundle_items not empty |
 | Tiered | `TieredConfig` | tiers not empty, valid tier_type |
 | Flash Sale | `FlashSaleConfig` | discount_value > 0, stock limits |

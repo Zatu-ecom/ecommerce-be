@@ -17,6 +17,52 @@ func NewFlashSaleStrategy() PromotionStrategy {
 	return &FlashSaleStrategy{}
 }
 
+// DescribeConfig returns the supported flash-sale fields and setup guidance.
+func (s *FlashSaleStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
+	return model.PromotionStrategyDescriptor{
+		PromotionType: entity.PromoTypeFlashSale,
+		Name:          "Flash Sale",
+		Description:   "Applies a temporary high-urgency discount, optionally with stock limits.",
+		Fields: []model.PromotionConfigFieldDescriptor{
+			{
+				Name:          "discount_type",
+				Type:          "string",
+				Required:      true,
+				Description:   "Flash sale discount mode.",
+				AllowedValues: []string{"percentage", "fixed_amount"},
+			},
+			{
+				Name:        "discount_value",
+				Type:        "float64",
+				Required:    true,
+				Description: "Discount amount or percentage depending on discount_type.",
+			},
+			{
+				Name:        "max_discount_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Optional discount cap.",
+			},
+			{
+				Name:        "stock_limit",
+				Type:        "int",
+				Required:    false,
+				Description: "Optional total stock allotment for the flash sale.",
+			},
+			{
+				Name:        "sold_count",
+				Type:        "int",
+				Required:    false,
+				Description: "Current sold count used when validating stock limits.",
+			},
+		},
+		BestPractices: []string{
+			"Use a stock limit for scarce inventory or time-boxed campaigns.",
+			"Keep flash sales non-stackable unless the combined discount is explicitly planned.",
+		},
+	}
+}
+
 // ValidateConfig validates the flash sale configuration
 func (s *FlashSaleStrategy) ValidateConfig(config map[string]interface{}) error {
 	configJSON, err := json.Marshal(config)

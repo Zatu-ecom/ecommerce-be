@@ -60,34 +60,32 @@ Flat amount off the item or order total.
 
 ### 3. Buy X Get Y (`buy_x_get_y`)
 
-Buy a certain quantity and get items free or at a discount.
+Buy a certain quantity and get items free.
 
 **`discount_config` shape:**
 ```json
 {
   "buy_quantity": 2,
   "get_quantity": 1,
-  "get_discount_type": "free",
-  "get_discount_value": 0,
   "max_sets": 3,
-  "get_product_ids": [10, 20],
-  "same_product_only": false
+  "is_same_reward": true,
+  "scope_type": "same_product",
+  "get_product_id": null
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `buy_quantity` | `int` | ✅ | Items customer must buy |
-| `get_quantity` | `int` | ✅ | Items customer gets |
-| `get_discount_type` | `string` | ✅ | `"free"` or `"percentage"` or `"fixed_amount"` |
-| `get_discount_value` | `float64` | ✅ | 0 for free, or % / fixed value |
+| `get_quantity` | `int` | ✅ | Items customer gets free |
 | `max_sets` | `int` | ❌ | Max times offer can apply per order |
-| `get_product_ids` | `[]uint` | ❌ | Specific products for "get" items (null = same product) |
-| `same_product_only` | `bool` | ❌ | Whether "get" must be same product as "buy" |
+| `is_same_reward` | `bool` | ❌ | `true` means reward comes from the same pool; defaults to `true` |
+| `scope_type` | `string` | Conditionally | Required when `is_same_reward=true`; one of `same_variant`, `same_product`, `same_category` |
+| `get_product_id` | `uint` | Conditionally | Required when `is_same_reward=false`; the specific reward product |
 
 **Examples**:
-- *"Buy 2, Get 1 Free"* → `buy: 2, get: 1, type: free`
-- *"Buy 3, Get 1 at 50% off"* → `buy: 3, get: 1, type: percentage, value: 50`
+- *"Buy 2, Get 1 Free from the same product"* → `is_same_reward: true, scope_type: same_product`
+- *"Buy 1 phone, Get 1 headphones Free"* → `is_same_reward: false, get_product_id: 4`
 
 ---
 
