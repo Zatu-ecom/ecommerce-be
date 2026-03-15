@@ -53,15 +53,23 @@ type PromotionService interface {
 		ctx context.Context,
 		cart *model.CartValidationRequest,
 	) (*model.AppliedPromotionSummary, error)
+
+	// ApplyPromotionsToCartV2 is the enhanced version of ApplyPromotionsToCart that uses the V2
+	// strategy pipeline, updating a shared AppliedPromotionSummary in-place.
+	ApplyPromotionsToCartV2(
+		ctx context.Context,
+		cart *model.CartValidationRequest,
+	) (*model.AppliedPromotionSummary, error)
 }
 
 // PromotionServiceImpl implements the PromotionService interface
 type PromotionServiceImpl struct {
-	promotionRepo            repository.PromotionRepository
-	productScopeService      PromotionProductScopeService
-	categoryScopeService     PromotionCategoryScopeService
-	collectionScopeService   PromotionCollectionScopeService
-	collectionProductService productService.CollectionProductService
+	promotionRepo                           repository.PromotionRepository
+	productScopeService                     PromotionProductScopeService
+	categoryScopeService                    PromotionCategoryScopeService
+	collectionScopeService                  PromotionCollectionScopeService
+	collectionProductService                productService.CollectionProductService
+	promotionScopeEligibilityServiceFactory *PromotionScopeEligibilityServiceFactory
 }
 
 // NewPromotionService creates a new instance of PromotionService
@@ -71,12 +79,14 @@ func NewPromotionService(
 	categoryScopeService PromotionCategoryScopeService,
 	collectionScopeService PromotionCollectionScopeService,
 	collectionProductService productService.CollectionProductService,
+	promotionScopeEligibilityServiceFactory *PromotionScopeEligibilityServiceFactory,
 ) PromotionService {
 	return &PromotionServiceImpl{
-		promotionRepo:            promotionRepo,
-		productScopeService:      productScopeService,
-		categoryScopeService:     categoryScopeService,
-		collectionScopeService:   collectionScopeService,
-		collectionProductService: collectionProductService,
+		promotionRepo:                           promotionRepo,
+		productScopeService:                     productScopeService,
+		categoryScopeService:                    categoryScopeService,
+		collectionScopeService:                  collectionScopeService,
+		collectionProductService:                collectionProductService,
+		promotionScopeEligibilityServiceFactory: promotionScopeEligibilityServiceFactory,
 	}
 }

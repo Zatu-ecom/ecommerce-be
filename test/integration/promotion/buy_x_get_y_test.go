@@ -159,9 +159,9 @@ func (s *BuyXGetYPromotionTestSuite) TestBuyTwoGetOneFreeSameProduct() {
 	require.Equal(s.T(), int64(99900), phoneLine.TotalDiscountCents, "one unit should be free")
 	require.Equal(
 		s.T(),
-		int64(66600),
+		int64(199800),
 		phoneLine.FinalPriceCents,
-		"effective line price should be reduced for later stacking",
+		"effective line total should be reduced for later stacking",
 	)
 	require.Len(s.T(), phoneLine.AppliedPromotions, 1, "line should show one applied BxGy detail")
 	require.Equal(
@@ -430,9 +430,9 @@ func (s *BuyXGetYPromotionTestSuite) TestStackableBuyXGetYThenPercentageUsesRedu
 	phoneLine := findItemSummaryByID(s.T(), summary, "phone-line")
 	require.Equal(
 		s.T(),
-		int64(59940),
+		int64(179820),
 		phoneLine.FinalPriceCents,
-		"later promotions should see the reduced effective price",
+		"later promotions should see the reduced effective line total",
 	)
 	require.Equal(
 		s.T(),
@@ -796,7 +796,7 @@ func (s *BuyXGetYPromotionTestSuite) applyPromotions(
 	cart *model.CartValidationRequest,
 ) *model.AppliedPromotionSummary {
 	promotionService := singleton.GetInstance().GetPromotionService()
-	summary, err := promotionService.ApplyPromotionsToCart(context.Background(), cart)
+	summary, err := promotionService.ApplyPromotionsToCartV2(context.Background(), cart)
 	s.Require().NoError(err, "applying promotions should not return an unexpected error")
 	return summary
 }

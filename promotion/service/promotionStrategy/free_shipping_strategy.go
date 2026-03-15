@@ -40,6 +40,7 @@ func (s *FreeShippingStrategy) DescribeConfig() model.PromotionStrategyDescripto
 		BestPractices: []string{
 			"Use a minimum subtotal to protect margin on low-value orders.",
 			"Keep stacking disabled unless free shipping is intended to combine with deep item discounts.",
+			"Scope (appliesTo) is not applied to this promotion type: free shipping is always a cart-wide benefit regardless of which products are in scope.",
 		},
 	}
 }
@@ -93,4 +94,47 @@ func (s *FreeShippingStrategy) CalculateDiscount(
 	result.IsValid = true
 	result.ShippingDiscount = shippingDiscount
 	return result, nil
+}
+
+// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
+// return error if promotion cannot be applied.
+//
+// Free shipping discounts the shipping charge only — no per-item discounts are applied.
+// The min-order check uses summary.FinalSubtotal (effective subtotal after prior promotions)
+// rather than the original cart subtotal, which is the correct behaviour when stacking.
+// eligibleItems is intentionally ignored: the shipping discount is cart-wide, not item-scoped.
+func (s *FreeShippingStrategy) CalculateDiscountV2(
+	ctx context.Context,
+	promotion *entity.Promotion,
+	cart *model.CartValidationRequest,
+	summary *model.AppliedPromotionSummary,
+	eligibleItems []string,
+) error {
+	configJSON, _ := json.Marshal(promotion.DiscountConfig)
+	var config model.FreeShippingConfig
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"Invalid free_shipping promotion configuration",
+		)
+	}
+
+	if config.MinOrderCents != nil && summary.FinalSubtotal < *config.MinOrderCents {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"Minimum order amount not met for free shipping",
+		)
+	}
+
+	shippingDiscount := cart.ShippingCents
+	if config.MaxShippingDiscountCents != nil && shippingDiscount > *config.MaxShippingDiscountCents {
+		shippingDiscount = *config.MaxShippingDiscountCents
+	}
+
+	if shippingDiscount <= 0 {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"No shipping discount applicable",
+		)
+	}
+
+	ApplyDiscountToSummary(summary, promotion, nil, 0, shippingDiscount)
+	return nil
 }

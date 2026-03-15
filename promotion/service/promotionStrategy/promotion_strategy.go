@@ -24,4 +24,14 @@ type PromotionStrategy interface {
 		cart *model.CartValidationRequest,
 		effectivePrices map[string]int64,
 	) (*model.PromotionValidationResult, error)
+
+	// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
+	// return error if promotion cannot be applied
+	CalculateDiscountV2(
+		ctx context.Context,
+		promotion *entity.Promotion,
+		cart *model.CartValidationRequest,
+		summary *model.AppliedPromotionSummary,
+		eligibleItems []string,
+	) error
 }

@@ -72,3 +72,21 @@ func (f *SingletonFactory) GetPromotionService() service.PromotionService {
 func (f *SingletonFactory) GetPromotionCronService() service.PromotionCronService {
 	return f.serviceFactory.GetPromotionCronService()
 }
+
+// =============================== Service Getters (Delegates) ===================================
+
+func (f *SingletonFactory) GetPromotionProductScopeService() *service.PromotionProductScopeServiceImpl {
+	return f.serviceFactory.GetPromotionProductScopeService()
+}
+
+func (f *SingletonFactory) GetPromotionVariantScopeService() *service.PromotionVariantScopeServiceImpl {
+	return f.serviceFactory.GetPromotionVariantScopeService()
+}
+
+func (f *SingletonFactory) GetPromotionCategoryScopeService() *service.PromotionCategoryScopeServiceImpl {
+	return f.serviceFactory.GetPromotionCategoryScopeService()
+}
+
+func (f *SingletonFactory) GetPromotionCollectionScopeService() *service.PromotionCollectionScopeServiceImpl {
+	return f.serviceFactory.GetPromotionCollectionScopeService()
+}

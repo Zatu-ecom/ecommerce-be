@@ -206,3 +206,12 @@ func GenerateSlug(name string) string {
 
 	return slug
 }
+
+// ToSet converts a slice to a set
+func ToSet[T comparable](slice []T) map[T]bool {
+	set := make(map[T]bool)
+	for _, v := range slice {
+		set[v] = true
+	}
+	return set
+}

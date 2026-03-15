@@ -221,6 +221,70 @@ func (s *BuyXGetYStrategy) CalculateDiscount(
 	), nil
 }
 
+// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
+// return error if promotion cannot be applied.
+//
+// Instead of duplicating the complex grouping/allocation logic, this method derives
+// an effectivePrices map and eligible []CartItem from the summary, then delegates to
+// the existing V1 helpers (calculateSameRewardDiscount / calculateCrossRewardDiscount).
+func (s *BuyXGetYStrategy) CalculateDiscountV2(
+	ctx context.Context,
+	promotion *entity.Promotion,
+	cart *model.CartValidationRequest,
+	summary *model.AppliedPromotionSummary,
+	eligibleItems []string,
+) error {
+	config, err := parseBuyXGetYConfig(promotion.DiscountConfig)
+	if err != nil {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid buy_x_get_y promotion configuration")
+	}
+
+	// Derive per-unit effective prices from summary for ALL items (buy + reward).
+	effectivePrices := make(map[string]int64, len(summary.Items))
+	for _, item := range summary.Items {
+		if item.Quantity > 0 {
+			effectivePrices[item.ItemID] = item.FinalPriceCents / int64(item.Quantity)
+		}
+	}
+
+	// Derive eligible CartItems from the passed eligibleItems set.
+	eligibleItemsSet := helper.ToSet(eligibleItems)
+	eligibleCartItems := make([]model.CartItem, 0, len(eligibleItems))
+	for _, item := range cart.Items {
+		if eligibleItemsSet[item.ItemID] {
+			eligibleCartItems = append(eligibleCartItems, item)
+		}
+	}
+	if len(eligibleCartItems) == 0 {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Cart items do not match promotion scope")
+	}
+
+	// Dispatch to existing V1 logic which returns a fully computed result.
+	var v1Result *model.PromotionValidationResult
+	if isSameRewardMode(config) {
+		v1Result = s.calculateSameRewardDiscount(promotion, cart, eligibleCartItems, effectivePrices, config)
+	} else {
+		v1Result = s.calculateCrossRewardDiscount(promotion, cart, eligibleCartItems, effectivePrices, config)
+	}
+
+	if !v1Result.IsValid {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(v1Result.Reason)
+	}
+
+	// Convert V1 ItemDiscounts into ItemDiscountDetail for the shared summary updater.
+	itemDiscounts := make([]ItemDiscountDetail, 0, len(v1Result.ItemDiscounts))
+	for _, d := range v1Result.ItemDiscounts {
+		itemDiscounts = append(itemDiscounts, ItemDiscountDetail{
+			ItemID:        d.ItemID,
+			DiscountCents: d.DiscountCents,
+			FreeQuantity:  d.FreeQuantity,
+		})
+	}
+
+	ApplyDiscountToSummary(summary, promotion, itemDiscounts, v1Result.DiscountCents, 0)
+	return nil
+}
+
 // calculateSameRewardDiscount handles:
 // - same_variant
 // - same_product

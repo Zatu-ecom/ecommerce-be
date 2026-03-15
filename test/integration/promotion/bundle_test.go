@@ -780,7 +780,7 @@ func (s *BundlePromotionTestSuite) applyPromotions(
 	cart *model.CartValidationRequest,
 ) *model.AppliedPromotionSummary {
 	promotionService := singleton.GetInstance().GetPromotionService()
-	summary, err := promotionService.ApplyPromotionsToCart(context.Background(), cart)
+	summary, err := promotionService.ApplyPromotionsToCartV2(context.Background(), cart)
 	s.Require().NoError(err)
 	return summary
 }

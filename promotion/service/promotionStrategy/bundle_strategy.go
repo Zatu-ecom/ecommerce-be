@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"ecommerce-be/common/helper"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/model"
@@ -142,6 +143,166 @@ func (s *BundleStrategy) CalculateDiscount(
 		effectivePrices,
 	)
 	return result, nil
+}
+
+// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
+// return error if promotion cannot be applied
+func (s *BundleStrategy) CalculateDiscountV2(
+	ctx context.Context,
+	promotion *entity.Promotion,
+	cart *model.CartValidationRequest,
+	summary *model.AppliedPromotionSummary,
+	eligibleItems []string,
+) error {
+	config, ok := s.parseBundleConfig(promotion.DiscountConfig)
+	if !ok {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid bundle promotion configuration")
+	}
+
+	eligibleItemsSet := helper.ToSet(eligibleItems)
+
+	matchedItems, completeSets, reason := s.matchBundleItemsV2(config, cart, summary, eligibleItemsSet)
+	if reason != "" {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(reason)
+	}
+
+	bundleTotalCents := s.calculateBundleTotalCentsV2(matchedItems, completeSets)
+	totalDiscount := s.calculateTotalDiscount(config, bundleTotalCents, completeSets)
+
+	if totalDiscount > bundleTotalCents {
+		totalDiscount = bundleTotalCents
+	}
+	if totalDiscount <= 0 {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage("No discount applicable for bundle")
+	}
+
+	// Distribute proportionally across matched items; last item gets remainder
+	// to prevent integer truncation from losing cents.
+	itemDiscounts := make([]ItemDiscountDetail, 0, len(matchedItems))
+	var distributed int64
+
+	for i, item := range matchedItems {
+		usedQty := item.required * completeSets
+		// Per-unit effective price derived from the current line total so stacked
+		// promotions reduce the base for subsequent promotions.
+		perUnitEffective := item.summaryItem.FinalPriceCents / int64(item.summaryItem.Quantity)
+		itemLineTotal := perUnitEffective * int64(usedQty)
+
+		var itemDiscount int64
+		if i == len(matchedItems)-1 {
+			itemDiscount = totalDiscount - distributed
+		} else {
+			itemDiscount = totalDiscount * itemLineTotal / bundleTotalCents
+		}
+
+		if itemDiscount > itemLineTotal {
+			itemDiscount = itemLineTotal
+		}
+		if itemDiscount <= 0 {
+			continue
+		}
+
+		distributed += itemDiscount
+		itemDiscounts = append(itemDiscounts, ItemDiscountDetail{
+			ItemID:        item.summaryItem.ItemID,
+			DiscountCents: itemDiscount,
+		})
+	}
+
+	if distributed == 0 {
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage("No discount applicable for bundle")
+	}
+
+	ApplyDiscountToSummary(summary, promotion, itemDiscounts, distributed, 0)
+	return nil
+}
+
+// matchedBundleItemV2 pairs a cart item (for product/variant matching) with its
+// corresponding CartItemSummary (for current effective price) and the required qty.
+type matchedBundleItemV2 struct {
+	cartItem    model.CartItem
+	summaryItem *model.CartItemSummary
+	required    int
+}
+
+// matchBundleItemsV2 mirrors matchBundleItems but filters by eligibleItemsSet and
+// resolves the live CartItemSummary for each match so V2 uses current FinalPriceCents.
+func (s *BundleStrategy) matchBundleItemsV2(
+	config model.BundleConfig,
+	cart *model.CartValidationRequest,
+	summary *model.AppliedPromotionSummary,
+	eligibleItemsSet map[string]bool,
+) ([]matchedBundleItemV2, int, string) {
+	// Build a lookup from ItemID -> index in summary.Items for O(1) access
+	summaryIndexByID := make(map[string]int, len(summary.Items))
+	for i, item := range summary.Items {
+		summaryIndexByID[item.ItemID] = i
+	}
+
+	var matchedItems []matchedBundleItemV2
+	completeSets := -1
+
+	for _, bundleItem := range config.BundleItems {
+		found := false
+		for _, cartItem := range cart.Items {
+			if !eligibleItemsSet[cartItem.ItemID] {
+				continue
+			}
+			if cartItem.ProductID != bundleItem.ProductID {
+				continue
+			}
+
+			variantMatch := bundleItem.VariantID == nil ||
+				(cartItem.VariantID != nil && *cartItem.VariantID == *bundleItem.VariantID)
+			if !variantMatch || cartItem.Quantity < bundleItem.Quantity {
+				continue
+			}
+
+			summaryIdx, ok := summaryIndexByID[cartItem.ItemID]
+			if !ok {
+				continue
+			}
+
+			found = true
+			setsForItem := cartItem.Quantity / bundleItem.Quantity
+			if completeSets == -1 || setsForItem < completeSets {
+				completeSets = setsForItem
+			}
+			matchedItems = append(matchedItems, matchedBundleItemV2{
+				cartItem:    cartItem,
+				summaryItem: &summary.Items[summaryIdx],
+				required:    bundleItem.Quantity,
+			})
+			break
+		}
+
+		if !found {
+			return nil, 0, "Cart does not contain all required bundle items"
+		}
+	}
+
+	if completeSets <= 0 {
+		return nil, 0, "No complete bundle sets found"
+	}
+
+	return matchedItems, completeSets, ""
+}
+
+// calculateBundleTotalCentsV2 sums the effective line value for the units participating
+// in complete bundle sets. Effective per-unit price is derived from the current
+// FinalPriceCents (line total) so any previously applied stacked promotions are
+// reflected in the bundle base value.
+func (s *BundleStrategy) calculateBundleTotalCentsV2(
+	matchedItems []matchedBundleItemV2,
+	completeSets int,
+) int64 {
+	var bundleTotalCents int64
+	for _, item := range matchedItems {
+		usedQty := item.required * completeSets
+		perUnitEffective := item.summaryItem.FinalPriceCents / int64(item.summaryItem.Quantity)
+		bundleTotalCents += perUnitEffective * int64(usedQty)
+	}
+	return bundleTotalCents
 }
 
 func (s *BundleStrategy) parseBundleConfig(
