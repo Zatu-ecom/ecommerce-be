@@ -10,7 +10,28 @@ import (
 	"ecommerce-be/promotion/model"
 )
 
-// FixedAmountStrategy implements PromotionStrategy for fixed_amount promotion type
+// FixedAmountStrategy implements PromotionStrategy for fixed_amount promotion type.
+//
+// Business Logic:
+//   A single flat discount (amount_cents) is subtracted from the total of all eligible
+//   items in the cart. The discount is distributed proportionally across eligible items
+//   based on each item's share of the eligible subtotal. If the discount exceeds the
+//   eligible subtotal it is clamped so the total never goes negative.
+//
+// Config Fields:
+//   - amount_cents  (required) : flat discount in smallest currency unit
+//   - min_order_cents (optional) : minimum eligible subtotal before the discount applies
+//
+// Example:
+//   Config: { "amount_cents": 30000 }     (i.e. $300 off)
+//   Cart:
+//     Item A  $900 x1  (line total = 90000)    75% of eligible subtotal
+//     Item B  $300 x1  (line total = 30000)    25% of eligible subtotal
+//   Eligible subtotal = 120000
+//   Total discount    = 30000 (capped to eligible subtotal if larger)
+//   Item A discount   = 30000 * 90000 / 120000 = 22500
+//   Item B discount   = 30000 - 22500          =  7500  (last item gets remainder)
+//   Final subtotal    = 120000 - 30000         = 90000
 type FixedAmountStrategy struct{}
 
 // NewFixedAmountStrategy creates a new FixedAmountStrategy

@@ -796,7 +796,7 @@ func (s *BuyXGetYPromotionTestSuite) applyPromotions(
 	cart *model.CartValidationRequest,
 ) *model.AppliedPromotionSummary {
 	promotionService := singleton.GetInstance().GetPromotionService()
-	summary, err := promotionService.ApplyPromotionsToCartV2(context.Background(), cart)
+	summary, err := promotionService.ApplyPromotionsToCart(context.Background(), cart)
 	s.Require().NoError(err, "applying promotions should not return an unexpected error")
 	return summary
 }

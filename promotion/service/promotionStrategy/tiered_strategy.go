@@ -11,7 +11,48 @@ import (
 	"ecommerce-be/promotion/model"
 )
 
-// TieredStrategy implements PromotionStrategy for tiered promotion type
+// TieredStrategy implements PromotionStrategy for tiered promotion type.
+//
+// Business Logic:
+//   Applies a discount tier based on the total quantity or spend of eligible items.
+//   Only items in the eligibleItems set (determined by scope/appliesTo) contribute to
+//   the check value AND receive the resulting discount. Items outside the scope are
+//   completely excluded from both threshold evaluation and discount distribution.
+//
+//   tier_type controls what is measured:
+//     - "quantity" : sums the Quantity of all eligible items
+//     - "spend"    : sums the FinalPriceCents (line total after earlier promos) of eligible items
+//
+//   The first tier whose [min, max] range contains the check value is selected.
+//   Within the selected tier, discount_type determines the calculation:
+//     - "percentage"   : totalDiscount = eligibleSubtotal * discount_value / 100
+//     - "fixed_amount" : totalDiscount = discount_value (flat, regardless of item count)
+//
+//   The total discount is clamped to the eligible subtotal, then distributed
+//   proportionally across eligible items (last item gets the rounding remainder).
+//
+// Config Fields:
+//   - tier_type (required) : "quantity" | "spend"
+//   - tiers     (required) : ordered array of TierConfig:
+//       - min            (required) : inclusive lower bound
+//       - max            (optional) : inclusive upper bound (omit for open-ended top tier)
+//       - discount_type  (required) : "percentage" | "fixed_amount"
+//       - discount_value (required) : amount or percentage for the tier
+//
+// Example (quantity tiers):
+//   Config: { tier_type: "quantity", tiers: [
+//     { min: 10, discount_type: "percentage", discount_value: 20 },
+//     { min: 5,  max: 9, discount_type: "percentage", discount_value: 10 },
+//   ]}
+//   Cart (all eligible):
+//     Item A  $200 x4  (line total = 80000)
+//     Item B  $100 x3  (line total = 30000)
+//   Total quantity = 7  =>  matches tier [5,9] => 10% discount
+//   Eligible subtotal = 110000
+//   Total discount    = 11000
+//   Item A discount   = 11000 * 80000 / 110000 = 8000
+//   Item B discount   = 11000 - 8000           = 3000
+//   Final subtotal    = 110000 - 11000         = 99000
 type TieredStrategy struct{}
 
 // NewTieredStrategy creates a new TieredStrategy

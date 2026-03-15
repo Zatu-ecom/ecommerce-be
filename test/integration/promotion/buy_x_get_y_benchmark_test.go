@@ -40,23 +40,24 @@ func BenchmarkBuyXGetYStrategySameRewardLargeQuantity(b *testing.B) {
 		})
 	}
 
-	effectivePrices := benchmarkEffectivePrices(cartItems)
 	cart := benchmarkCart(cartItems)
+	eligibleItems := benchmarkEligibleItems(cartItems)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := strategy.CalculateDiscount(
+		summary := benchmarkSummary(cart)
+		if err := strategy.CalculateDiscount(
 			context.Background(),
 			promotion,
 			cart,
-			effectivePrices,
-		)
-		if err != nil {
+			summary,
+			eligibleItems,
+		); err != nil {
 			b.Fatalf("unexpected benchmark error: %v", err)
 		}
-		if result == nil || !result.IsValid {
-			b.Fatalf("expected valid same-reward benchmark result")
+		if summary.TotalDiscountCents == 0 {
+			b.Fatalf("expected non-zero discount in same-reward benchmark result")
 		}
 	}
 }
@@ -99,33 +100,56 @@ func BenchmarkBuyXGetYStrategyCrossRewardLargeQuantity(b *testing.B) {
 		TotalCents: 1999 * 300,
 	})
 
-	effectivePrices := benchmarkEffectivePrices(cartItems)
 	cart := benchmarkCart(cartItems)
+	eligibleItems := benchmarkEligibleItems(cartItems)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := strategy.CalculateDiscount(
+		summary := benchmarkSummary(cart)
+		if err := strategy.CalculateDiscount(
 			context.Background(),
 			promotion,
 			cart,
-			effectivePrices,
-		)
-		if err != nil {
+			summary,
+			eligibleItems,
+		); err != nil {
 			b.Fatalf("unexpected benchmark error: %v", err)
 		}
-		if result == nil || !result.IsValid {
-			b.Fatalf("expected valid cross-reward benchmark result")
+		if summary.TotalDiscountCents == 0 {
+			b.Fatalf("expected non-zero discount in cross-reward benchmark result")
 		}
 	}
 }
 
-func benchmarkEffectivePrices(items []model.CartItem) map[string]int64 {
-	effective := make(map[string]int64, len(items))
-	for _, item := range items {
-		effective[item.ItemID] = item.PriceCents
+func benchmarkEligibleItems(items []model.CartItem) []string {
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ItemID
 	}
-	return effective
+	return ids
+}
+
+func benchmarkSummary(cart *model.CartValidationRequest) *model.AppliedPromotionSummary {
+	summaryItems := make([]model.CartItemSummary, len(cart.Items))
+	for i, item := range cart.Items {
+		summaryItems[i] = model.CartItemSummary{
+			ItemID:             item.ItemID,
+			ProductID:          item.ProductID,
+			VariantID:          item.VariantID,
+			Quantity:           item.Quantity,
+			OriginalPriceCents: item.PriceCents,
+			FinalPriceCents:    item.TotalCents,
+			AppliedPromotions:  []model.ItemPromotionDetail{},
+		}
+	}
+	return &model.AppliedPromotionSummary{
+		Items:             summaryItems,
+		AppliedPromotions: []model.PromotionValidationResult{},
+		SkippedPromotions: []model.PromotionValidationResult{},
+		OriginalSubtotal:  cart.SubtotalCents,
+		FinalSubtotal:     cart.SubtotalCents,
+	}
 }
 
 func benchmarkCart(items []model.CartItem) *model.CartValidationRequest {

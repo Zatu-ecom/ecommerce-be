@@ -19,8 +19,9 @@ const (
 	promoTypeBundle     = "bundle"
 	promoTypePercentage = "percentage_discount"
 
-	bundleDiscountTypePercentage = "percentage"
-	bundleDiscountTypeFixedPrice = "fixed_price"
+	bundleDiscountTypePercentage  = "percentage"
+	bundleDiscountTypeFixedAmount = "fixed_amount"
+	bundleDiscountTypeFixedPrice  = "fixed_price"
 
 	appliesAllProducts = "all_products"
 
@@ -141,6 +142,122 @@ func (s *BundlePromotionTestSuite) TestScenario2_ExactBundleMatchFixedPrice() {
 		),
 	)
 	assertPromotionSummary(s.T(), summary, 179800, 29800, 150000)
+}
+
+// TestScenario2A_FixedPriceMultipleSets validates that the fixed-price discount scales
+// correctly with the number of complete bundle sets. Each additional set should reduce
+// the subtotal by exactly one bundle_price_cents.
+func (s *BundlePromotionTestSuite) TestScenario2A_FixedPriceMultipleSets() {
+	s.createBundlePromotion(
+		"Phone + Headphones Fixed Price 100k",
+		bundleDiscountTypeFixedPrice,
+		nil,
+		helpers.Int64Ptr(100000),
+		[]model.BundleItemConfig{
+			bundleItem(1, 1, 1),
+			bundleItem(4, 19, 1),
+		},
+	)
+
+	summary := s.applyPromotions(
+		buildCartRequest(
+			helpers.Seller2UserID,
+			helpers.CustomerUserID,
+			cartItem("1", 1, 1, 99900, 2),
+			cartItem("2", 4, 19, 39999, 2),
+		),
+	)
+	// subtotal: (99900*2) + (39999*2) = 279798
+	// completeSets: 2
+	// discount: 279798 - (100000 * 2) = 79798
+	// final: 200000
+	assertPromotionSummary(s.T(), summary, 279798, 79798, 200000)
+}
+
+// TestScenario2B_FixedPriceBundlePriceExceedsItemsNoDiscount validates the edge case
+// where the configured bundle_price_cents is higher than the actual item total.
+// No discount should apply since the "discount" would be negative.
+func (s *BundlePromotionTestSuite) TestScenario2B_FixedPriceBundlePriceExceedsItemsNoDiscount() {
+	s.createBundlePromotion(
+		"Overpriced Fixed Price Bundle",
+		bundleDiscountTypeFixedPrice,
+		nil,
+		helpers.Int64Ptr(200000), // higher than the 139899 item total
+		[]model.BundleItemConfig{
+			bundleItem(1, 1, 1),
+			bundleItem(4, 19, 1),
+		},
+	)
+
+	summary := s.applyPromotions(
+		buildCartRequest(
+			helpers.Seller2UserID,
+			helpers.CustomerUserID,
+			cartItem("1", 1, 1, 99900, 1),
+			cartItem("2", 4, 19, 39999, 1),
+		),
+	)
+	// bundleTotalCents: 99900 + 39999 = 139899
+	// discount: 139899 - 200000 = -60101 → clamped to 0, no promotion applied
+	assertPromotionSummary(s.T(), summary, 139899, 0, 139899)
+}
+
+// TestScenario2C_FixedAmountSingleSet validates the fixed_amount bundle discount type
+// for a single complete set. A flat amount is deducted from the bundle regardless of
+// how individual item prices are split.
+func (s *BundlePromotionTestSuite) TestScenario2C_FixedAmountSingleSet() {
+	s.createBundlePromotion(
+		"Phone + Headphones Fixed Amount 200 Off",
+		bundleDiscountTypeFixedAmount,
+		helpers.Float64Ptr(20000),
+		nil,
+		[]model.BundleItemConfig{
+			bundleItem(1, 1, 1),
+			bundleItem(4, 19, 1),
+		},
+	)
+
+	summary := s.applyPromotions(
+		buildCartRequest(
+			helpers.Seller2UserID,
+			helpers.CustomerUserID,
+			cartItem("1", 1, 1, 99900, 1),
+			cartItem("2", 4, 19, 39999, 1),
+		),
+	)
+	// subtotal: 99900 + 39999 = 139899
+	// discount: 20000 * 1 set = 20000
+	// final: 119899
+	assertPromotionSummary(s.T(), summary, 139899, 20000, 119899)
+}
+
+// TestScenario2D_FixedAmountMultipleSets validates that the fixed_amount discount
+// multiplies with the number of complete bundle sets found in the cart.
+func (s *BundlePromotionTestSuite) TestScenario2D_FixedAmountMultipleSets() {
+	s.createBundlePromotion(
+		"Phone + Headphones Fixed Amount 200 Off",
+		bundleDiscountTypeFixedAmount,
+		helpers.Float64Ptr(20000),
+		nil,
+		[]model.BundleItemConfig{
+			bundleItem(1, 1, 1),
+			bundleItem(4, 19, 1),
+		},
+	)
+
+	summary := s.applyPromotions(
+		buildCartRequest(
+			helpers.Seller2UserID,
+			helpers.CustomerUserID,
+			cartItem("1", 1, 1, 99900, 2),
+			cartItem("2", 4, 19, 39999, 2),
+		),
+	)
+	// subtotal: (99900*2) + (39999*2) = 279798
+	// completeSets: 2
+	// discount: 20000 * 2 sets = 40000
+	// final: 239798
+	assertPromotionSummary(s.T(), summary, 279798, 40000, 239798)
 }
 
 // TestScenario3_BundleItemsPlusOutsideItems validates bundle-target isolation:
@@ -707,7 +824,7 @@ func buildBundlePayload(
 		"promotionType": promoTypeBundle,
 		"discountConfig": model.BundleConfig{
 			BundleItems:         bundleItems,
-			BundleDiscountType:  discountType,
+			BundleDiscountType:  model.DiscountType(discountType),
 			BundleDiscountValue: discountValue,
 			BundlePriceCents:    bundlePrice,
 		},
@@ -780,7 +897,7 @@ func (s *BundlePromotionTestSuite) applyPromotions(
 	cart *model.CartValidationRequest,
 ) *model.AppliedPromotionSummary {
 	promotionService := singleton.GetInstance().GetPromotionService()
-	summary, err := promotionService.ApplyPromotionsToCartV2(context.Background(), cart)
+	summary, err := promotionService.ApplyPromotionsToCart(context.Background(), cart)
 	s.Require().NoError(err)
 	return summary
 }

@@ -9,7 +9,30 @@ import (
 	"ecommerce-be/promotion/model"
 )
 
-// FreeShippingStrategy implements PromotionStrategy for free_shipping promotion type
+// FreeShippingStrategy implements PromotionStrategy for free_shipping promotion type.
+//
+// Business Logic:
+//   Waives the cart's shipping charge (cart.ShippingCents). This is the only strategy
+//   that operates on shipping rather than item prices — no per-item discounts are
+//   produced. The eligibleItems (scope) parameter is intentionally ignored because
+//   shipping is a cart-wide cost, not per-item.
+//
+//   When stacking, the min-order check uses summary.FinalSubtotal (the effective
+//   subtotal after all earlier promotions) so that a preceding deep discount can
+//   legitimately push the subtotal below the free-shipping threshold.
+//
+// Config Fields:
+//   - min_order_cents           (optional) : minimum subtotal to unlock free shipping
+//   - max_shipping_discount_cents (optional) : cap on how much shipping to waive
+//
+// Example:
+//   Config: { "min_order_cents": 50000, "max_shipping_discount_cents": 5000 }
+//   Cart:
+//     Item A $600 x1  (line total = 60000)
+//     Shipping = 8000
+//   FinalSubtotal (after earlier promos) = 60000  >=  50000 threshold  => qualifies
+//   Shipping discount = min(8000, 5000) = 5000
+//   No item discounts, but ShippingDiscount on the summary = 5000
 type FreeShippingStrategy struct{}
 
 // NewFreeShippingStrategy creates a new FreeShippingStrategy

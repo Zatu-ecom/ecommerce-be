@@ -12,7 +12,45 @@ import (
 	"ecommerce-be/promotion/model"
 )
 
-// BuyXGetYStrategy implements PromotionStrategy for buy_x_get_y promotion type
+// BuyXGetYStrategy implements PromotionStrategy for buy_x_get_y promotion type.
+//
+// Business Logic:
+//   The customer buys buy_quantity units and gets get_quantity units free. Complete sets
+//   are computed as total_eligible_qty / (buy_quantity + get_quantity). An optional
+//   max_sets cap limits how many sets can apply per order.
+//
+//   Two modes are supported:
+//
+//   1. Same-reward (is_same_reward=true, default):
+//      Reward items come from the same pool as qualifying items. Items are grouped by
+//      scope_type (same_variant | same_product | same_category). Within each group the
+//      highest-priced units are reserved as "paid" and the cheapest remaining units
+//      become free. This ensures the customer always pays the higher prices.
+//
+//   2. Cross-product reward (is_same_reward=false):
+//      Buy items come from the promotion scope, reward items come from get_product_id.
+//      The reward product must already be in the cart; the strategy does not auto-add it.
+//      Cheapest reward units are made free first.
+//
+// Config Fields:
+//   - buy_quantity   (required) : units the customer must buy
+//   - get_quantity   (required) : units that become free
+//   - max_sets       (optional) : cap on complete sets per order
+//   - is_same_reward (optional, default true)
+//   - scope_type     (required when is_same_reward=true) : "same_variant" | "same_product" | "same_category"
+//   - get_product_id (required when is_same_reward=false) : specific reward product
+//
+// Example (same-reward, scope_type=same_product, buy 2 get 1):
+//   Config: { buy_quantity: 2, get_quantity: 1, is_same_reward: true, scope_type: "same_product" }
+//   Cart:
+//     Item A  product 1, variant X   $1000 x1
+//     Item B  product 1, variant Y   $800  x1
+//     Item C  product 1, variant Z   $600  x1
+//   All three belong to the same product-1 group  =>  totalQty = 3
+//   Complete sets = 3 / (2+1) = 1
+//   Paid  (2 highest): Item A ($1000) + Item B ($800) = $1800  (customer pays these)
+//   Free  (1 cheapest): Item C ($600) = $600           (discount)
+//   Total discount = 60000,  Final subtotal = 240000 - 60000 = 180000
 type BuyXGetYStrategy struct{}
 
 type bxgyGroupLine struct {

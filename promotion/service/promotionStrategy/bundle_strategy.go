@@ -10,7 +10,42 @@ import (
 	"ecommerce-be/promotion/model"
 )
 
-// BundleStrategy implements PromotionStrategy for bundle promotion type
+// BundleStrategy implements PromotionStrategy for bundle promotion type.
+//
+// Business Logic:
+//   Requires all configured bundle_items (product + optional variant, with min quantities)
+//   to be present in the cart. The number of "complete sets" is the minimum across all
+//   bundle items of (cart qty / required qty). The discount applies only to the units
+//   that form complete sets, not the entire cart line.
+//
+//   Three discount modes are supported via bundle_discount_type:
+//     - "percentage"    : takes bundle_discount_value % off the bundle subtotal
+//     - "fixed_amount"  : subtracts bundle_discount_value per complete set
+//     - "fixed_price"   : sets the bundle to bundle_price_cents per complete set;
+//                         discount = bundleSubtotal - (bundlePriceCents * completeSets)
+//
+//   The computed discount is distributed proportionally across the matched items
+//   based on each item's share of the bundle subtotal. When promotions are stacked,
+//   effective prices from FinalPriceCents (post-earlier-discount) are used.
+//
+// Config Fields:
+//   - bundle_items          (required) : array of { product_id, variant_id?, quantity }
+//   - bundle_discount_type  (required) : "percentage" | "fixed_amount" | "fixed_price"
+//   - bundle_discount_value (required for percentage/fixed_amount)
+//   - bundle_price_cents    (required for fixed_price)
+//
+// Example (fixed_price):
+//   Config: { bundle_items: [{product_id:1, qty:1}, {product_id:2, qty:1}],
+//             bundle_discount_type: "fixed_price", bundle_price_cents: 80000 }
+//   Cart:
+//     Item A  product 1  $600 x1  (line total = 60000)
+//     Item B  product 2  $400 x1  (line total = 40000)
+//   Complete sets = 1
+//   Bundle subtotal = 100000
+//   Discount = 100000 - 80000 = 20000
+//   Item A discount = 20000 * 60000 / 100000 = 12000
+//   Item B discount = 20000 - 12000          =  8000
+//   Final subtotal  = 100000 - 20000         = 80000
 type BundleStrategy struct{}
 
 type matchedBundleItem struct {
