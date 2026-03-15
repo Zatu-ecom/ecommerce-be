@@ -6,6 +6,7 @@ import (
 	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	productService "ecommerce-be/product/service"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
@@ -22,13 +23,18 @@ type PromotionCollectionScopeService interface {
 }
 
 type PromotionCollectionScopeServiceImpl struct {
-	repo repository.PromotionCollectionScopeRepository
+	repo                     repository.PromotionCollectionScopeRepository
+	collectionProductService productService.CollectionProductService
 }
 
-func NewPromotionCollectionScopeService(
+func NewPromotionCollectionScopeServiceImpl(
 	repo repository.PromotionCollectionScopeRepository,
-) PromotionCollectionScopeService {
-	return &PromotionCollectionScopeServiceImpl{repo: repo}
+	collectionProductService productService.CollectionProductService,
+) *PromotionCollectionScopeServiceImpl {
+	return &PromotionCollectionScopeServiceImpl{
+		repo:                     repo,
+		collectionProductService: collectionProductService,
+	}
 }
 
 func (s *PromotionCollectionScopeServiceImpl) AddCollections(
@@ -106,4 +112,52 @@ func (s *PromotionCollectionScopeServiceImpl) GetCollections(
 	}
 
 	return response, nil
+}
+
+func (s *PromotionCollectionScopeServiceImpl) IsCartEligible(
+	ctx context.Context,
+	promotionID uint,
+	cart *model.CartValidationRequest,
+) (bool, []string) {
+	// Step 1: Get collections for this promotion
+	collResp, err := s.GetCollections(
+		ctx,
+		model.GetPromotionCollectionsRequest{
+			GetPromotionScopeRequest: model.GetPromotionScopeRequest{
+				BasePromotionScopeRequest: model.BasePromotionScopeRequest{
+					PromotionID: promotionID,
+				},
+			},
+		},
+	)
+	if err != nil || collResp == nil || len(collResp.Collections) == 0 {
+		return false, nil
+	}
+
+	// Step 2: Extract collection IDs
+	collectionIDs := make([]uint, len(collResp.Collections))
+	for i, c := range collResp.Collections {
+		collectionIDs[i] = c.CollectionID
+	}
+
+	// Step 3: Get product IDs belonging to those collections (via product service)
+	productIDs, err := s.collectionProductService.GetProductIDsByCollectionIDs(ctx, collectionIDs)
+	if err != nil || len(productIDs) == 0 {
+		return false, nil
+	}
+
+	// Step 4: Check if any cart item matches
+	eligibleProducts := make(map[uint]bool, len(productIDs))
+	for _, pid := range productIDs {
+		eligibleProducts[pid] = true
+	}
+
+	eligibleLineItems := []string{}
+
+	for _, item := range cart.Items {
+		if eligibleProducts[item.ProductID] {
+			eligibleLineItems = append(eligibleLineItems, item.ItemID)
+		}
+	}
+	return len(eligibleLineItems) > 0, eligibleLineItems
 }

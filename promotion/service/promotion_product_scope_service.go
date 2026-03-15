@@ -25,9 +25,9 @@ type PromotionProductScopeServiceImpl struct {
 	repo repository.PromotionProductScopeRepository
 }
 
-func NewPromotionProductScopeService(
+func NewPromotionProductScopeServiceImpl(
 	repo repository.PromotionProductScopeRepository,
-) PromotionProductScopeService {
+) *PromotionProductScopeServiceImpl {
 	return &PromotionProductScopeServiceImpl{repo: repo}
 }
 
@@ -108,4 +108,45 @@ func (s *PromotionProductScopeServiceImpl) GetProducts(
 	}
 
 	return response, nil
+}
+
+func (s *PromotionProductScopeServiceImpl) IsCartEligible(
+	ctx context.Context,
+	promotionID uint,
+	cart *model.CartValidationRequest,
+) (bool, []string) {
+	// Collect product IDs from cart items
+	cartProductIDs := make([]uint, len(cart.Items))
+	for i, item := range cart.Items {
+		cartProductIDs[i] = item.ProductID
+	}
+
+	// Call GetProducts with cart product IDs as filter
+	// If any results come back, those cart products exist in the promotion scope
+	resp, err := s.GetProducts(ctx, model.GetPromotionProductsRequest{
+		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
+			BasePromotionScopeRequest: model.BasePromotionScopeRequest{
+				PromotionID: promotionID,
+			},
+		},
+		ProductIDs: cartProductIDs,
+	})
+	if err != nil || resp == nil {
+		return false, nil
+	}
+
+	eligibleProductIDs := make(map[uint]bool)
+	for _, product := range resp.Products {
+		eligibleProductIDs[product.ProductID] = true
+	}
+
+	eligibleLineItems := []string{}
+
+	for _, item := range cart.Items {
+		if eligibleProductIDs[item.ProductID] {
+			eligibleLineItems = append(eligibleLineItems, item.ItemID)
+		}
+	}
+
+	return len(resp.Products) > 0, eligibleLineItems
 }

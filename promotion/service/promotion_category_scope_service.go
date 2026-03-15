@@ -25,9 +25,9 @@ type PromotionCategoryScopeServiceImpl struct {
 	repo repository.PromotionCategoryScopeRepository
 }
 
-func NewPromotionCategoryScopeService(
+func NewPromotionCategoryScopeServiceImpl(
 	repo repository.PromotionCategoryScopeRepository,
-) PromotionCategoryScopeService {
+) *PromotionCategoryScopeServiceImpl {
 	return &PromotionCategoryScopeServiceImpl{repo: repo}
 }
 
@@ -113,4 +113,42 @@ func (s *PromotionCategoryScopeServiceImpl) GetCategories(
 	}
 
 	return response, nil
+}
+
+func (s *PromotionCategoryScopeServiceImpl) IsCartEligible(
+	ctx context.Context,
+	promotionID uint,
+	cart *model.CartValidationRequest,
+) (bool, []string) {
+	// Collect unique category IDs from cart items
+	cartCategoryIDs := make([]uint, len(cart.Items))
+	for i, item := range cart.Items {
+		cartCategoryIDs[i] = item.CategoryID
+	}
+
+	// Call GetCategories with cart category IDs as filter
+	resp, err := s.GetCategories(ctx, model.GetPromotionCategoriesRequest{
+		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
+			BasePromotionScopeRequest: model.BasePromotionScopeRequest{PromotionID: promotionID},
+		},
+		CategoryIDs: cartCategoryIDs,
+	})
+	if err != nil || resp == nil {
+		return false, nil
+	}
+
+	eligibleCategoryIDs := make(map[uint]bool)
+	for _, category := range resp.Categories {
+		eligibleCategoryIDs[category.CategoryID] = true
+	}
+
+	eligibleLineItems := []string{}
+
+	for _, item := range cart.Items {
+		if eligibleCategoryIDs[item.CategoryID] {
+			eligibleLineItems = append(eligibleLineItems, item.ItemID)
+		}
+	}
+
+	return len(resp.Categories) > 0, eligibleLineItems
 }

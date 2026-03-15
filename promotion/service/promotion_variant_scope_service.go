@@ -25,9 +25,9 @@ type PromotionVariantScopeServiceImpl struct {
 	repo repository.PromotionProductVariantScopeRepository
 }
 
-func NewPromotionVariantScopeService(
+func NewPromotionVariantScopeServiceImpl(
 	repo repository.PromotionProductVariantScopeRepository,
-) PromotionVariantScopeService {
+) *PromotionVariantScopeServiceImpl {
 	return &PromotionVariantScopeServiceImpl{repo: repo}
 }
 
@@ -106,4 +106,43 @@ func (s *PromotionVariantScopeServiceImpl) GetVariants(
 	}
 
 	return response, nil
+}
+
+func (s *PromotionVariantScopeServiceImpl) IsCartEligible(
+	ctx context.Context,
+	promotionID uint,
+	cart *model.CartValidationRequest,
+) (bool, []string) {
+	cartVariantIDs := make([]uint, len(cart.Items))
+	for i, item := range cart.Items {
+		if item.VariantID != nil {
+			cartVariantIDs[i] = *item.VariantID
+		}
+	}
+
+	resp, err := s.GetVariants(ctx, model.GetPromotionVariantsRequest{
+		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
+			BasePromotionScopeRequest: model.BasePromotionScopeRequest{
+				PromotionID: promotionID,
+			},
+		},
+		VariantIDs: cartVariantIDs,
+	})
+	if err != nil || resp == nil {
+		return false, nil
+	}
+
+	eligibleVariantIDs := make(map[uint]bool, len(resp.Variants))
+	for _, variant := range resp.Variants {
+		eligibleVariantIDs[variant.VariantID] = true
+	}
+
+	eligibleLineItems := make([]string, 0, len(cart.Items))
+	for _, item := range cart.Items {
+		if item.VariantID != nil && eligibleVariantIDs[*item.VariantID] {
+			eligibleLineItems = append(eligibleLineItems, item.ItemID)
+		}
+	}
+
+	return len(resp.Variants) > 0, eligibleLineItems
 }

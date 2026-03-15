@@ -12,10 +12,10 @@ type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
 	promotionService           service.PromotionService
-	promotionProductService    service.PromotionProductScopeService
-	promotionVariantService    service.PromotionVariantScopeService
-	promotionCategoryService   service.PromotionCategoryScopeService
-	promotionCollectionService service.PromotionCollectionScopeService
+	promotionProductService    *service.PromotionProductScopeServiceImpl
+	promotionVariantService    *service.PromotionVariantScopeServiceImpl
+	promotionCategoryService   *service.PromotionCategoryScopeServiceImpl
+	promotionCollectionService *service.PromotionCollectionScopeServiceImpl
 	promotionCronService       service.PromotionCronService
 
 	once sync.Once
@@ -38,16 +38,31 @@ func (f *ServiceFactory) initialize() {
 		promotionCollectionRepo := f.repoFactory.GetPromotionCollectionScopeRepository()
 
 		// Initialize services
-		f.promotionProductService = service.NewPromotionProductScopeService(promotionProductRepo)
-		f.promotionVariantService = service.NewPromotionVariantScopeService(promotionVariantRepo)
-		f.promotionCategoryService = service.NewPromotionCategoryScopeService(promotionCategoryRepo)
-		f.promotionCollectionService = service.NewPromotionCollectionScopeService(
-			promotionCollectionRepo,
+		f.promotionProductService = service.NewPromotionProductScopeServiceImpl(
+			promotionProductRepo,
+		)
+		f.promotionVariantService = service.NewPromotionVariantScopeServiceImpl(
+			promotionVariantRepo,
+		)
+		f.promotionCategoryService = service.NewPromotionCategoryScopeServiceImpl(
+			promotionCategoryRepo,
 		)
 
 		// Initialize promotion service with all dependencies
 		promotionRepo := f.repoFactory.GetPromotionRepository()
 		collectionProductService := productSingleton.GetInstance().GetCollectionProductService()
+
+		f.promotionCollectionService = service.NewPromotionCollectionScopeServiceImpl(
+			promotionCollectionRepo,
+			collectionProductService,
+		)
+
+		promotionScopeEligibilityServiceFactory := service.NewPromotionScopeEligibilityServiceFactory(
+			f.promotionProductService,
+			f.promotionCategoryService,
+			f.promotionCollectionService,
+			f.promotionVariantService,
+		)
 
 		f.promotionService = service.NewPromotionService(
 			promotionRepo,
@@ -55,28 +70,29 @@ func (f *ServiceFactory) initialize() {
 			f.promotionCategoryService,
 			f.promotionCollectionService,
 			collectionProductService,
+			promotionScopeEligibilityServiceFactory,
 		)
 
 		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
 	})
 }
 
-func (f *ServiceFactory) GetPromotionProductScopeService() service.PromotionProductScopeService {
+func (f *ServiceFactory) GetPromotionProductScopeService() *service.PromotionProductScopeServiceImpl {
 	f.initialize()
 	return f.promotionProductService
 }
 
-func (f *ServiceFactory) GetPromotionVariantScopeService() service.PromotionVariantScopeService {
+func (f *ServiceFactory) GetPromotionVariantScopeService() *service.PromotionVariantScopeServiceImpl {
 	f.initialize()
 	return f.promotionVariantService
 }
 
-func (f *ServiceFactory) GetPromotionCategoryScopeService() service.PromotionCategoryScopeService {
+func (f *ServiceFactory) GetPromotionCategoryScopeService() *service.PromotionCategoryScopeServiceImpl {
 	f.initialize()
 	return f.promotionCategoryService
 }
 
-func (f *ServiceFactory) GetPromotionCollectionScopeService() service.PromotionCollectionScopeService {
+func (f *ServiceFactory) GetPromotionCollectionScopeService() *service.PromotionCollectionScopeServiceImpl {
 	f.initialize()
 	return f.promotionCollectionService
 }

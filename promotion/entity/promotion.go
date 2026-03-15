@@ -30,6 +30,7 @@ const (
 	ScopeSpecificProducts    ScopeType = "specific_products"
 	ScopeSpecificCategories  ScopeType = "specific_categories"
 	ScopeSpecificCollections ScopeType = "specific_collections"
+	ScopeSpecficVariant      ScopeType = "specific_variant"
 )
 
 type EligibilityType string

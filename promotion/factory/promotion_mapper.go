@@ -122,7 +122,10 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 }
 
 // ApplyUpdatePromotionRequest applies non-nil fields from UpdatePromotionRequest to an existing Promotion entity
-func ApplyUpdatePromotionRequest(existing *entity.Promotion, req model.UpdatePromotionRequest) *entity.Promotion {
+func ApplyUpdatePromotionRequest(
+	existing *entity.Promotion,
+	req model.UpdatePromotionRequest,
+) *entity.Promotion {
 	if req.Name != nil {
 		existing.Name = *req.Name
 	}
