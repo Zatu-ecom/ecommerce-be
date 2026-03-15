@@ -61,11 +61,6 @@ type Promotion struct {
 	// Scope
 	AppliesTo ScopeType `json:"appliesTo" gorm:"column:applies_to;size:50;not null;default:specific_products"`
 
-	// Conditions
-	MinPurchaseAmountCents *int64 `json:"minPurchaseAmountCents" gorm:"column:min_purchase_amount_cents;default:0"`
-	MinQuantity            *int   `json:"minQuantity"            gorm:"column:min_quantity;default:1"`
-	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents" gorm:"column:max_discount_amount_cents"`
-
 	// Customer Eligibility
 	EligibleFor       EligibilityType `json:"eligibleFor"       gorm:"column:eligible_for;size:50;default:everyone"`
 	CustomerSegmentID *uint           `json:"customerSegmentId" gorm:"column:customer_segment_id;index"`

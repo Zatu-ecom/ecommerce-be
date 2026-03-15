@@ -15,19 +15,9 @@ type PromotionStrategy interface {
 	// DescribeConfig returns the supported config fields and setup guidance for the promotion type.
 	DescribeConfig() model.PromotionStrategyDescriptor
 
-	// CalculateDiscount calculates per-item discounts for the promotion
-	// effectivePrices maps ItemID -> current effective price per unit (after previous promotions)
-	// This allows stacking: second promotion applies on the discounted price from the first
+	// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+	// returns an error if the promotion cannot be applied.
 	CalculateDiscount(
-		ctx context.Context,
-		promotion *entity.Promotion,
-		cart *model.CartValidationRequest,
-		effectivePrices map[string]int64,
-	) (*model.PromotionValidationResult, error)
-
-	// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-	// return error if promotion cannot be applied
-	CalculateDiscountV2(
 		ctx context.Context,
 		promotion *entity.Promotion,
 		cart *model.CartValidationRequest,

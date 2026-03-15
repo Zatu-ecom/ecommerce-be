@@ -62,48 +62,14 @@ func (s *FreeShippingStrategy) ValidateConfig(config map[string]interface{}) err
 	return nil
 }
 
-// CalculateDiscount calculates shipping discount (no per-item discounts)
-func (s *FreeShippingStrategy) CalculateDiscount(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) (*model.PromotionValidationResult, error) {
-	result := &model.PromotionValidationResult{
-		IsValid: false,
-	}
-
-	configJSON, _ := json.Marshal(promotion.DiscountConfig)
-	var config model.FreeShippingConfig
-	if err := json.Unmarshal(configJSON, &config); err != nil {
-		result.Reason = "Invalid promotion configuration"
-		return result, nil
-	}
-
-	if config.MinOrderCents != nil && cart.SubtotalCents < *config.MinOrderCents {
-		result.Reason = "Minimum order amount not met for free shipping"
-		return result, nil
-	}
-
-	shippingDiscount := cart.ShippingCents
-	if config.MaxShippingDiscountCents != nil &&
-		shippingDiscount > *config.MaxShippingDiscountCents {
-		shippingDiscount = *config.MaxShippingDiscountCents
-	}
-
-	result.IsValid = true
-	result.ShippingDiscount = shippingDiscount
-	return result, nil
-}
-
-// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-// return error if promotion cannot be applied.
+// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+// returns an error if the promotion cannot be applied.
 //
 // Free shipping discounts the shipping charge only — no per-item discounts are applied.
 // The min-order check uses summary.FinalSubtotal (effective subtotal after prior promotions)
 // rather than the original cart subtotal, which is the correct behaviour when stacking.
 // eligibleItems is intentionally ignored: the shipping discount is cart-wide, not item-scoped.
-func (s *FreeShippingStrategy) CalculateDiscountV2(
+func (s *FreeShippingStrategy) CalculateDiscount(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
@@ -125,7 +91,8 @@ func (s *FreeShippingStrategy) CalculateDiscountV2(
 	}
 
 	shippingDiscount := cart.ShippingCents
-	if config.MaxShippingDiscountCents != nil && shippingDiscount > *config.MaxShippingDiscountCents {
+	if config.MaxShippingDiscountCents != nil &&
+		shippingDiscount > *config.MaxShippingDiscountCents {
 		shippingDiscount = *config.MaxShippingDiscountCents
 	}
 

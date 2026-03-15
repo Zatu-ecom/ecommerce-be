@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sort"
+	"strconv"
 	"time"
 
 	"ecommerce-be/common/log"
@@ -12,25 +13,28 @@ import (
 	"ecommerce-be/promotion/service/promotionStrategy"
 )
 
-// promotionCandidate holds a promotion and its calculated discount result
-type promotionCandidate struct {
+type PromoResult struct {
 	promotion *entity.Promotion
-	result    *model.PromotionValidationResult
+	result    model.AppliedPromotionSummary
 }
 
 // ApplyPromotionsToCart applies active seller promotions to a cart using priority + stacking rules.
 //
 // Core behavior:
-// 1. Load active promotions and filter out invalid ones (date/status/usage/customer/scope conditions).
-// 2. Group remaining promotions by priority (higher priority groups are processed first).
-// 3. For each group, apply promotions sequentially via applyPriorityGroupSequentially:
-//   - Re-evaluate all remaining promotions against the latest effective prices.
-//   - Pick the current best discount candidate (greedy).
-//   - Apply it immediately and update effective prices.
-//   - Continue while stackable; stop when a non-stackable promotion is applied.
 //
-// 4. Carry forward effective prices from one priority group to the next.
-// 5. If any applied promotion is non-stackable, stop processing further groups.
+//  1. Load active promotions and filter out invalid ones (date/status/usage/customer/scope conditions).
+//
+//  2. Group remaining promotions by priority (higher priority groups are processed first).
+//
+//  3. For each group, apply promotions sequentially via applyPriorityGroupSequentially:
+//     - Re-evaluate all remaining promotions against the latest effective prices.
+//     - Pick the current best discount candidate (greedy).
+//     - Apply it immediately and update effective prices.
+//     - Continue while stackable; stop when a non-stackable promotion is applied.
+//
+//  4. Carry forward effective prices from one priority group to the next.
+//
+//  5. If any applied promotion is non-stackable, stop processing further groups.
 //
 // Result:
 // Returns AppliedPromotionSummary with applied/skipped promotions, per-item discount details,
@@ -40,130 +44,118 @@ func (s *PromotionServiceImpl) ApplyPromotionsToCart(
 	cart *model.CartValidationRequest,
 ) (*model.AppliedPromotionSummary, error) {
 	log.InfoWithContext(ctx, "Applying promotions to cart")
-
-	effectivePrices := s.initEffectivePrices(cart)
-
 	allPromotions, err := s.promotionRepo.FindActiveBySellerID(ctx, cart.SellerID)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to fetch active promotions", err)
 		return nil, err
 	}
 
-	validPromotions, skippedResults := s.filterValidPromotions(ctx, allPromotions, cart)
+	result := constructAppliedPromotionSummaryFromCartRequest(cart)
+	err = s.applyPromotionBasedOnPriority(ctx, result, allPromotions, cart)
+
+	return result, err
+}
+
+func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
+	ctx context.Context,
+	summary *model.AppliedPromotionSummary,
+	promotions []*entity.Promotion,
+	cart *model.CartValidationRequest,
+) error {
+	validPromotions, skippedResults := s.filterValidPromotions(ctx, promotions, cart)
 	priorityGroups := s.groupByPriority(validPromotions)
+	promoIdVslineItems := make(map[uint][]string)
 
-	var appliedResults []model.PromotionValidationResult
-	appliedCount := 0
+	summary.SkippedPromotions = append(summary.SkippedPromotions, skippedResults...)
 
+	// Now we will create a copy of the summary as in first time we find best promotion,
+	// we will update the summary in-place and next time when we want to check eligibility of next promotion,
+	// we want to check based on updated summary instead of original cart request
 	for _, group := range priorityGroups {
-		applied, skipped := s.applyPriorityGroupSequentially(
-			ctx,
-			group,
-			cart,
-			effectivePrices,
-			appliedCount,
-		)
-		appliedResults = append(appliedResults, applied...)
-		skippedResults = append(skippedResults, skipped...)
-		appliedCount += len(applied)
+		// For each priority group, we will find the best promotion
+		sortedResults := s.findBestPromotionForCart(ctx, summary, group, cart, promoIdVslineItems)
 
-		// If a non-stackable promotion was applied, stop processing further groups.
-		if s.hasAppliedNonStackable(applied) {
-			break
+		// Now all promotions in this priority group will be applied sequentially
+		for _, promoResult := range sortedResults {
+			promo := promoResult.promotion
+
+			eligibleLineItems := promoIdVslineItems[promo.ID]
+			promotionStrategy := promotionStrategy.GetPromotionStrategy(promo.PromotionType)
+
+			if err := promotionStrategy.CalculateDiscount(ctx, promo, cart, summary, eligibleLineItems); err != nil {
+				handlePromotionCalculationError(ctx, summary, promo, err)
+				continue
+			}
+
+			if !*promo.CanStackWithOtherPromotions && len(summary.AppliedPromotions) > 0 {
+				log.InfoWithContext(
+					ctx,
+					"Non-stackable promotion "+promo.Name+" cannot be applied as another promotion is already applied",
+				)
+				summary.SkippedPromotions = append(
+					summary.SkippedPromotions,
+					model.PromotionValidationResult{
+						Promotion: factory.PromotionEntityToResponse(promo),
+						IsValid:   false,
+						Reason:    "Non-stackable promotion cannot be applied as another promotion is already applied",
+					},
+				)
+
+				return nil
+			}
+
 		}
 	}
 
-	return s.buildPromotionSummary(cart, effectivePrices, appliedResults, skippedResults), nil
+	return nil
 }
 
-// applyPriorityGroupSequentially evaluates and applies promotions one-by-one in a priority group.
-// Stackable promotions are re-evaluated on updated effective prices after each application.
-func (s *PromotionServiceImpl) applyPriorityGroupSequentially(
+func (s *PromotionServiceImpl) findBestPromotionForCart(
 	ctx context.Context,
-	group []*entity.Promotion,
+	summary *model.AppliedPromotionSummary,
+	promotions []*entity.Promotion,
 	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-	alreadyAppliedCount int,
-) (applied []model.PromotionValidationResult, skipped []model.PromotionValidationResult) {
-	remaining := append([]*entity.Promotion(nil), group...)
+	promoIdVslineItems map[uint][]string,
+) []PromoResult {
+	promoResults := make([]PromoResult, 0, len(promotions))
+	for _, promo := range promotions {
+		var eligibleLineItems []string
 
-	for len(remaining) > 0 {
-		candidates, stepSkipped := s.evaluateCandidates(ctx, remaining, cart, effectivePrices)
-		skipped = append(skipped, stepSkipped...)
+		scopeService := s.promotionScopeEligibilityServiceFactory.
+			GetPromotionScopeEligibilityService(promo.AppliesTo)
 
-		// Remove promotions that were skipped in this step from remaining so they are reported once.
-		if len(stepSkipped) > 0 {
-			skippedIDs := make(map[uint]struct{}, len(stepSkipped))
-			for _, s := range stepSkipped {
-				if s.Promotion != nil {
-					skippedIDs[s.Promotion.ID] = struct{}{}
-				}
+		if scopeService != nil {
+			_, eligibleLineItems = scopeService.IsCartEligible(ctx, promo.ID, cart)
+		} else {
+			eligibleLineItems = make([]string, len(cart.Items))
+			for i, item := range cart.Items {
+				eligibleLineItems[i] = item.ItemID
 			}
-
-			filtered := remaining[:0]
-			for _, promo := range remaining {
-				if _, wasSkipped := skippedIDs[promo.ID]; !wasSkipped {
-					filtered = append(filtered, promo)
-				}
-			}
-			remaining = filtered
 		}
 
-		if len(candidates) == 0 {
-			break
-		}
+		promoIdVslineItems[promo.ID] = eligibleLineItems
 
-		best := candidates[0]
-		canStack := best.promotion.CanStackWithOtherPromotions != nil &&
-			*best.promotion.CanStackWithOtherPromotions
+		summaryCopy := deepCopySummary(summary)
+		promotionStrategy := promotionStrategy.GetPromotionStrategy(promo.PromotionType)
 
-		// Non-stackable promotions cannot apply after any previous application.
-		if (alreadyAppliedCount+len(applied)) > 0 && !canStack {
-			skipped = append(
-				skipped,
-				skippedResult(best.promotion, "Cannot stack with other promotions"),
-			)
-			remaining = removePromotionByID(remaining, best.promotion.ID)
+		if err := promotionStrategy.CalculateDiscount(ctx, promo, cart, summaryCopy, eligibleLineItems); err != nil {
+			handlePromotionCalculationError(ctx, summary, promo, err)
 			continue
 		}
-
-		// Apply selected candidate and update effective prices immediately.
-		for _, d := range best.result.ItemDiscounts {
-			if d.FinalCents >= 0 {
-				effectivePrices[d.ItemID] = d.FinalCents
-			}
-		}
-		applied = append(applied, *best.result)
-		remaining = removePromotionByID(remaining, best.promotion.ID)
-
-		// A non-stackable promotion ends evaluation for this and subsequent groups.
-		if !canStack {
-			break
-		}
+		promoResults = append(promoResults, PromoResult{
+			promotion: promo,
+			result:    *summaryCopy,
+		})
 	}
 
-	return applied, skipped
-}
+	// Sort by total discount descending so best discount is applied first
+	sort.Slice(promoResults, func(a, b int) bool {
+		totalA := promoResults[a].result.TotalDiscountCents + promoResults[a].result.ShippingDiscount
+		totalB := promoResults[b].result.TotalDiscountCents + promoResults[b].result.ShippingDiscount
+		return totalA > totalB
+	})
 
-func removePromotionByID(promotions []*entity.Promotion, id uint) []*entity.Promotion {
-	filtered := promotions[:0]
-	for _, promo := range promotions {
-		if promo.ID != id {
-			filtered = append(filtered, promo)
-		}
-	}
-	return filtered
-}
-
-// initEffectivePrices builds the initial effective unit-price map from cart items.
-func (s *PromotionServiceImpl) initEffectivePrices(
-	cart *model.CartValidationRequest,
-) map[string]int64 {
-	prices := make(map[string]int64, len(cart.Items))
-	for _, item := range cart.Items {
-		prices[item.ItemID] = item.PriceCents
-	}
-	return prices
+	return promoResults
 }
 
 // filterValidPromotions validates general conditions and splits promotions into valid vs skipped.
@@ -185,163 +177,6 @@ func (s *PromotionServiceImpl) filterValidPromotions(
 	}
 
 	return valid, skipped
-}
-
-// groupByPriority groups pre-sorted promotions by priority in a single pass.
-func (s *PromotionServiceImpl) groupByPriority(
-	promotions []*entity.Promotion,
-) [][]*entity.Promotion {
-	if len(promotions) == 0 {
-		return nil
-	}
-
-	var groups [][]*entity.Promotion
-	var currentGroup []*entity.Promotion
-	currentPriority := promotions[0].Priority
-
-	for _, promo := range promotions {
-		if promo.Priority != currentPriority {
-			groups = append(groups, currentGroup)
-			currentGroup = nil
-			currentPriority = promo.Priority
-		}
-		currentGroup = append(currentGroup, promo)
-	}
-	groups = append(groups, currentGroup)
-
-	return groups
-}
-
-// evaluateCandidates calculates strategy discounts for a group and returns candidates sorted by
-// total discount descending. Runtime is O(g * strategyCost + g log g), where g is group size.
-func (s *PromotionServiceImpl) evaluateCandidates(
-	ctx context.Context,
-	group []*entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) ([]promotionCandidate, []model.PromotionValidationResult) {
-	var candidates []promotionCandidate
-	var skipped []model.PromotionValidationResult
-
-	for _, promo := range group {
-		strategy := promotionStrategy.GetPromotionStrategy(promo.PromotionType)
-		if strategy == nil {
-			skipped = append(skipped, skippedResult(promo, "Unsupported promotion type"))
-			continue
-		}
-
-		result, err := strategy.CalculateDiscount(ctx, promo, cart, effectivePrices)
-		if err != nil || result == nil || !result.IsValid {
-			reason := "Promotion not applicable"
-			if result != nil && result.Reason != "" {
-				reason = result.Reason
-			}
-			skipped = append(skipped, skippedResult(promo, reason))
-			continue
-		}
-
-		// Attach full promotion response (same as get-promotion API)
-		result.Promotion = factory.PromotionEntityToResponse(promo)
-
-		candidates = append(candidates, promotionCandidate{
-			promotion: promo,
-			result:    result,
-		})
-	}
-
-	// Sort by total discount descending so best discount is applied first
-	sort.Slice(candidates, func(a, b int) bool {
-		totalA := candidates[a].result.DiscountCents + candidates[a].result.ShippingDiscount
-		totalB := candidates[b].result.DiscountCents + candidates[b].result.ShippingDiscount
-		return totalA > totalB
-	})
-
-	return candidates, skipped
-}
-
-// hasAppliedNonStackable checks whether any applied promotion is non-stackable.
-func (s *PromotionServiceImpl) hasAppliedNonStackable(
-	applied []model.PromotionValidationResult,
-) bool {
-	for _, a := range applied {
-		if a.Promotion == nil {
-			continue
-		}
-		if a.Promotion.CanStackWithOtherPromotions == nil ||
-			!*a.Promotion.CanStackWithOtherPromotions {
-			return true
-		}
-	}
-	return false
-}
-
-// buildPromotionSummary builds the final summary with per-item breakdown
-func (s *PromotionServiceImpl) buildPromotionSummary(
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-	appliedResults []model.PromotionValidationResult,
-	skippedResults []model.PromotionValidationResult,
-) *model.AppliedPromotionSummary {
-	var totalDiscount int64
-	var shippingDiscount int64
-	var originalSubtotal int64
-
-	// Collect all item discounts per item, converting internal ItemDiscount → response ItemPromotionDetail
-	itemPromotionsMap := make(map[string][]model.ItemPromotionDetail)
-	for _, result := range appliedResults {
-		totalDiscount += result.DiscountCents
-		shippingDiscount += result.ShippingDiscount
-		for _, id := range result.ItemDiscounts {
-			itemPromotionsMap[id.ItemID] = append(
-				itemPromotionsMap[id.ItemID],
-				model.ItemPromotionDetail{
-					PromotionID:   id.PromotionID,
-					PromotionName: id.PromotionName,
-					DiscountCents: id.DiscountCents,
-					OriginalCents: id.OriginalCents,
-					FinalCents:    id.FinalCents,
-					FreeQuantity:  id.FreeQuantity,
-				},
-			)
-		}
-	}
-
-	// Build per-item summaries
-	items := make([]model.CartItemSummary, len(cart.Items))
-	for i, item := range cart.Items {
-		originalSubtotal += item.TotalCents
-		finalPrice := effectivePrices[item.ItemID]
-		var itemTotalDiscount int64
-		for _, promo := range itemPromotionsMap[item.ItemID] {
-			itemTotalDiscount += promo.DiscountCents
-		}
-
-		items[i] = model.CartItemSummary{
-			ItemID:             item.ItemID,
-			ProductID:          item.ProductID,
-			VariantID:          item.VariantID,
-			Quantity:           item.Quantity,
-			OriginalPriceCents: item.PriceCents,
-			FinalPriceCents:    finalPrice,
-			TotalDiscountCents: itemTotalDiscount,
-			AppliedPromotions:  itemPromotionsMap[item.ItemID],
-		}
-	}
-
-	finalSubtotal := originalSubtotal - totalDiscount
-	if finalSubtotal < 0 {
-		finalSubtotal = 0
-	}
-
-	return &model.AppliedPromotionSummary{
-		Items:              items,
-		AppliedPromotions:  appliedResults,
-		SkippedPromotions:  skippedResults,
-		TotalDiscountCents: totalDiscount,
-		ShippingDiscount:   shippingDiscount,
-		OriginalSubtotal:   originalSubtotal,
-		FinalSubtotal:      finalSubtotal,
-	}
 }
 
 // validateGeneralConditions checks all general promotion conditions before strategy-specific logic
@@ -385,147 +220,7 @@ func (s *PromotionServiceImpl) validateGeneralConditions(
 		return "Customer is not eligible for this promotion"
 	}
 
-	if promotion.MinPurchaseAmountCents != nil &&
-		cart.SubtotalCents < *promotion.MinPurchaseAmountCents {
-		return "Minimum purchase amount not met"
-	}
-
-	if promotion.MinQuantity != nil {
-		totalQuantity := 0
-		for _, item := range cart.Items {
-			totalQuantity += item.Quantity
-		}
-		if totalQuantity < *promotion.MinQuantity {
-			return "Minimum quantity not met"
-		}
-	}
-
-	if !s.isCartEligibleForScope(ctx, promotion, cart) {
-		return "Cart items do not match promotion scope"
-	}
-
 	return ""
-}
-
-// isCartEligibleForScope checks if cart items match the promotion scope (AppliesTo)
-func (s *PromotionServiceImpl) isCartEligibleForScope(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-) bool {
-	switch promotion.AppliesTo {
-	case entity.ScopeAllProducts:
-		return true
-	case entity.ScopeSpecificProducts:
-		return s.isCartEligibleForProductScope(ctx, promotion.ID, cart)
-	case entity.ScopeSpecificCategories:
-		return s.isCartEligibleForCategoryScope(ctx, promotion.ID, cart)
-	case entity.ScopeSpecificCollections:
-		return s.isCartEligibleForCollectionScope(ctx, promotion.ID, cart)
-	default:
-		return false
-	}
-}
-
-// isCartEligibleForProductScope checks if any cart item is in the promotion's product scope
-func (s *PromotionServiceImpl) isCartEligibleForProductScope(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) bool {
-	// Collect product IDs from cart items
-	cartProductIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		cartProductIDs[i] = item.ProductID
-	}
-
-	// Call GetProducts with cart product IDs as filter
-	// If any results come back, those cart products exist in the promotion scope
-	resp, err := s.productScopeService.GetProducts(ctx, model.GetPromotionProductsRequest{
-		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
-			BasePromotionScopeRequest: model.BasePromotionScopeRequest{PromotionID: promotionID},
-		},
-		ProductIDs: cartProductIDs,
-	})
-	if err != nil || resp == nil {
-		return false
-	}
-
-	return len(resp.Products) > 0
-}
-
-// isCartEligibleForCategoryScope checks if any cart item's category is in the promotion's category scope
-func (s *PromotionServiceImpl) isCartEligibleForCategoryScope(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) bool {
-	// Collect unique category IDs from cart items
-	cartCategoryIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		cartCategoryIDs[i] = item.CategoryID
-	}
-
-	// Call GetCategories with cart category IDs as filter
-	resp, err := s.categoryScopeService.GetCategories(ctx, model.GetPromotionCategoriesRequest{
-		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
-			BasePromotionScopeRequest: model.BasePromotionScopeRequest{PromotionID: promotionID},
-		},
-		CategoryIDs: cartCategoryIDs,
-	})
-	if err != nil || resp == nil {
-		return false
-	}
-
-	return len(resp.Categories) > 0
-}
-
-// isCartEligibleForCollectionScope checks if any cart item's product belongs to the promotion's collection scope
-// Flow: promotion → collection IDs → product IDs (via product service) → match cart items
-func (s *PromotionServiceImpl) isCartEligibleForCollectionScope(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) bool {
-	// Step 1: Get collections for this promotion
-	collResp, err := s.collectionScopeService.GetCollections(
-		ctx,
-		model.GetPromotionCollectionsRequest{
-			GetPromotionScopeRequest: model.GetPromotionScopeRequest{
-				BasePromotionScopeRequest: model.BasePromotionScopeRequest{
-					PromotionID: promotionID,
-				},
-			},
-		},
-	)
-	if err != nil || collResp == nil || len(collResp.Collections) == 0 {
-		return false
-	}
-
-	// Step 2: Extract collection IDs
-	collectionIDs := make([]uint, len(collResp.Collections))
-	for i, c := range collResp.Collections {
-		collectionIDs[i] = c.CollectionID
-	}
-
-	// Step 3: Get product IDs belonging to those collections (via product service)
-	productIDs, err := s.collectionProductService.GetProductIDsByCollectionIDs(ctx, collectionIDs)
-	if err != nil || len(productIDs) == 0 {
-		return false
-	}
-
-	// Step 4: Check if any cart item matches
-	eligibleProducts := make(map[uint]bool, len(productIDs))
-	for _, pid := range productIDs {
-		eligibleProducts[pid] = true
-	}
-
-	for _, item := range cart.Items {
-		if eligibleProducts[item.ProductID] {
-			return true
-		}
-	}
-	return false
 }
 
 // isCustomerEligible checks if customer is eligible for the promotion
@@ -550,11 +245,116 @@ func (s *PromotionServiceImpl) isCustomerEligible(
 	}
 }
 
+// groupByPriority groups pre-sorted promotions by priority in a single pass.
+func (s *PromotionServiceImpl) groupByPriority(
+	promotions []*entity.Promotion,
+) [][]*entity.Promotion {
+	if len(promotions) == 0 {
+		return nil
+	}
+
+	var groups [][]*entity.Promotion
+	var currentGroup []*entity.Promotion
+	currentPriority := promotions[0].Priority
+
+	for _, promo := range promotions {
+		if promo.Priority != currentPriority {
+			groups = append(groups, currentGroup)
+			currentGroup = nil
+			currentPriority = promo.Priority
+		}
+		currentGroup = append(currentGroup, promo)
+	}
+	groups = append(groups, currentGroup)
+
+	return groups
+}
+
+func handlePromotionCalculationError(
+	ctx context.Context,
+	summary *model.AppliedPromotionSummary,
+	promo *entity.Promotion,
+	err error,
+) {
+	log.ErrorWithContext(
+		ctx,
+		"Failed to calculate discount for promotion "+strconv.FormatUint(
+			uint64(promo.ID),
+			10,
+		),
+		err,
+	)
+	// because of error we are skipping this promotion but we are not returning error
+	// as we want to continue applying other promotions and not fail the entire flow
+	// because of one promotion failure
+	summary.SkippedPromotions = append(
+		summary.SkippedPromotions,
+		model.PromotionValidationResult{
+			Promotion: factory.PromotionEntityToResponse(promo),
+			IsValid:   false,
+			Reason:    err.Error(),
+		},
+	)
+}
+
+// deepCopySummary returns a fully independent copy of the summary so that
+// trial calls during ranking do not leak item-level mutations back to
+// the original summary.
+func deepCopySummary(src *model.AppliedPromotionSummary) *model.AppliedPromotionSummary {
+	dst := *src
+
+	dst.Items = make([]model.CartItemSummary, len(src.Items))
+	for i, item := range src.Items {
+		dst.Items[i] = item
+		dst.Items[i].AppliedPromotions = make(
+			[]model.ItemPromotionDetail,
+			len(item.AppliedPromotions),
+		)
+		copy(dst.Items[i].AppliedPromotions, item.AppliedPromotions)
+	}
+
+	dst.AppliedPromotions = make([]model.PromotionValidationResult, len(src.AppliedPromotions))
+	copy(dst.AppliedPromotions, src.AppliedPromotions)
+
+	dst.SkippedPromotions = make([]model.PromotionValidationResult, len(src.SkippedPromotions))
+	copy(dst.SkippedPromotions, src.SkippedPromotions)
+
+	return &dst
+}
+
 // skippedResult creates a PromotionValidationResult for a skipped promotion
 // with full promotion response details (same format as applied promotions).
 func skippedResult(promo *entity.Promotion, reason string) model.PromotionValidationResult {
 	return model.PromotionValidationResult{
 		Promotion: factory.PromotionEntityToResponse(promo),
 		Reason:    reason,
+	}
+}
+
+func constructAppliedPromotionSummaryFromCartRequest(
+	cart *model.CartValidationRequest,
+) *model.AppliedPromotionSummary {
+	items := make([]model.CartItemSummary, len(cart.Items))
+	for i, item := range cart.Items {
+		items[i] = model.CartItemSummary{
+			ItemID:             item.ItemID,
+			ProductID:          item.ProductID,
+			VariantID:          item.VariantID,
+			Quantity:           item.Quantity,
+			OriginalPriceCents: item.PriceCents,
+			FinalPriceCents:    item.TotalCents, // Initial final price is same as original; will be reduced as promotions are applied
+			TotalDiscountCents: 0,
+			AppliedPromotions:  []model.ItemPromotionDetail{}, // Initial total discount is 0; will be updated as promotions are applied
+		}
+	}
+
+	return &model.AppliedPromotionSummary{
+		Items:              items,
+		AppliedPromotions:  []model.PromotionValidationResult{},
+		SkippedPromotions:  []model.PromotionValidationResult{},
+		ShippingDiscount:   0,
+		OriginalSubtotal:   cart.SubtotalCents,
+		FinalSubtotal:      cart.SubtotalCents, // Initial final subtotal is same as original; will be reduced as promotions are applied
+		TotalDiscountCents: 0,                  // Initial final total is subtotal + shipping; will be reduced as promotions are applied
 	}
 }

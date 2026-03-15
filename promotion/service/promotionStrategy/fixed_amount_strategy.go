@@ -8,7 +8,6 @@ import (
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/model"
-	"ecommerce-be/promotion/repository"
 )
 
 // FixedAmountStrategy implements PromotionStrategy for fixed_amount promotion type
@@ -76,104 +75,9 @@ func (s *FixedAmountStrategy) ValidateConfig(config map[string]interface{}) erro
 	return nil
 }
 
-// CalculateDiscount calculates per-item fixed amount discount (distributed proportionally)
+// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+// returns an error if the promotion cannot be applied.
 func (s *FixedAmountStrategy) CalculateDiscount(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) (*model.PromotionValidationResult, error) {
-	result := &model.PromotionValidationResult{
-		IsValid: false,
-	}
-
-	configJSON, _ := json.Marshal(promotion.DiscountConfig)
-	var config model.FixedAmountConfig
-	if err := json.Unmarshal(configJSON, &config); err != nil {
-		result.Reason = "Invalid promotion configuration"
-		return result, nil
-	}
-
-	eligibleItems, err := s.getEligibleItems(ctx, promotion, cart)
-	if err != nil {
-		return nil, err
-	}
-	if len(eligibleItems) == 0 {
-		result.Reason = "Cart items do not match promotion scope"
-		return result, nil
-	}
-
-	// Calculate total effective value over eligible items only.
-	var totalEffective int64
-	for _, item := range eligibleItems {
-		totalEffective += effectivePrices[item.ItemID] * int64(item.Quantity)
-	}
-
-	if totalEffective <= 0 {
-		result.Reason = "No eligible items"
-		return result, nil
-	}
-
-	if config.MinOrderCents != nil && totalEffective < *config.MinOrderCents {
-		result.Reason = "Minimum order amount not met"
-		return result, nil
-	}
-
-	discountCents := config.AmountCents
-	if discountCents > totalEffective {
-		discountCents = totalEffective
-	}
-	if promotion.MaxDiscountAmountCents != nil &&
-		discountCents > *promotion.MaxDiscountAmountCents {
-		discountCents = *promotion.MaxDiscountAmountCents
-	}
-
-	// Distribute discount proportionally across eligible items only.
-	var itemDiscounts []model.ItemDiscount
-	var distributed int64
-
-	for i, item := range eligibleItems {
-		effectivePrice := effectivePrices[item.ItemID]
-		if effectivePrice <= 0 {
-			continue
-		}
-
-		itemTotal := effectivePrice * int64(item.Quantity)
-		var itemDiscount int64
-
-		if i == len(cart.Items)-1 {
-			// Last item gets remainder to avoid rounding issues
-			itemDiscount = discountCents - distributed
-		} else {
-			itemDiscount = discountCents * itemTotal / totalEffective
-		}
-
-		if itemDiscount > itemTotal {
-			itemDiscount = itemTotal
-		}
-		if itemDiscount > 0 {
-			distributed += itemDiscount
-			itemDiscounts = append(itemDiscounts, model.ItemDiscount{
-				ItemID:        item.ItemID,
-				ProductID:     item.ProductID,
-				PromotionID:   promotion.ID,
-				PromotionName: promotion.Name,
-				DiscountCents: itemDiscount,
-				OriginalCents: effectivePrice,
-				FinalCents:    effectivePrice - (itemDiscount / int64(item.Quantity)),
-			})
-		}
-	}
-
-	result.IsValid = true
-	result.DiscountCents = discountCents
-	result.ItemDiscounts = itemDiscounts
-	return result, nil
-}
-
-// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-// return error if promotion cannot be applied
-func (s *FixedAmountStrategy) CalculateDiscountV2(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
@@ -256,104 +160,4 @@ func (s *FixedAmountStrategy) CalculateDiscountV2(
 
 	ApplyDiscountToSummary(summary, promotion, itemDiscounts, distributed, 0)
 	return nil
-}
-
-// getEligibleItems returns the cart lines that are eligible for this promotion
-// based on its AppliesTo scope. Only these items participate in the fixed
-// amount discount calculation.
-func (s *FixedAmountStrategy) getEligibleItems(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	switch promotion.AppliesTo {
-	case entity.ScopeAllProducts:
-		// All cart items are eligible; return a shallow copy for safety.
-		return append([]model.CartItem(nil), cart.Items...), nil
-	case entity.ScopeSpecificProducts:
-		return s.filterProductScopedItems(ctx, promotion.ID, cart)
-	case entity.ScopeSpecificCategories:
-		return s.filterCategoryScopedItems(ctx, promotion.ID, cart)
-	case entity.ScopeSpecificCollections:
-		// Collection-scoped fixed-amount is not wired yet; keep behavior explicit.
-		return nil, nil
-	default:
-		return nil, nil
-	}
-}
-
-// filterProductScopedItems returns only the cart lines whose product IDs are
-// linked to the promotion through the product scope table.
-func (s *FixedAmountStrategy) filterProductScopedItems(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	productIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		productIDs[i] = item.ProductID
-	}
-
-	repo := repository.NewPromotionProductScopeRepository()
-	linkedProducts, _, err := repo.GetPromotionProducts(
-		ctx,
-		promotionID,
-		productIDs,
-		0,
-		len(productIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedProducts := make(map[uint]struct{}, len(linkedProducts))
-	for _, product := range linkedProducts {
-		allowedProducts[product.ProductID] = struct{}{}
-	}
-
-	filtered := make([]model.CartItem, 0, len(cart.Items))
-	for _, item := range cart.Items {
-		if _, ok := allowedProducts[item.ProductID]; ok {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered, nil
-}
-
-// filterCategoryScopedItems returns only the cart lines whose category IDs are
-// linked to the promotion through the category scope table.
-func (s *FixedAmountStrategy) filterCategoryScopedItems(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	categoryIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		categoryIDs[i] = item.CategoryID
-	}
-
-	repo := repository.NewPromotionCategoryScopeRepository()
-	linkedCategories, _, err := repo.GetPromotionCategories(
-		ctx,
-		promotionID,
-		categoryIDs,
-		0,
-		len(categoryIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedCategories := make(map[uint]struct{}, len(linkedCategories))
-	for _, category := range linkedCategories {
-		allowedCategories[category.CategoryID] = struct{}{}
-	}
-
-	filtered := make([]model.CartItem, 0, len(cart.Items))
-	for _, item := range cart.Items {
-		if _, ok := allowedCategories[item.CategoryID]; ok {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered, nil
 }

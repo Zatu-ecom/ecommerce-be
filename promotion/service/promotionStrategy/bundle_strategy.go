@@ -37,11 +37,15 @@ func (s *BundleStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
 				Description: "Required products or variants and their quantities.",
 			},
 			{
-				Name:          "bundle_discount_type",
-				Type:          "string",
-				Required:      true,
-				Description:   "Bundle discount calculation mode.",
-				AllowedValues: []string{"percentage", "fixed_amount", "fixed_price"},
+				Name:        "bundle_discount_type",
+				Type:        "string",
+				Required:    true,
+				Description: "Bundle discount calculation mode.",
+				AllowedValues: []string{
+					string(model.DiscountTypePercentage),
+					string(model.DiscountTypeFixedAmount),
+					string(model.DiscountTypeFixedPrice),
+				},
 			},
 			{
 				Name:        "bundle_discount_value",
@@ -81,7 +85,7 @@ func (s *BundleStrategy) ValidateConfig(config map[string]interface{}) error {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("bundle_items cannot be empty")
 	}
 
-	if bundleConfig.BundleDiscountType == "fixed_price" {
+	if bundleConfig.BundleDiscountType == model.DiscountTypeFixedPrice {
 		if bundleConfig.BundlePriceCents == nil {
 			return promoErrors.ErrInvalidDiscountConfig.WithMessage(
 				"bundle_price_cents required for fixed_price type",
@@ -98,56 +102,9 @@ func (s *BundleStrategy) ValidateConfig(config map[string]interface{}) error {
 	return nil
 }
 
-// CalculateDiscount calculates per-item bundle discount
+// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+// returns an error if the promotion cannot be applied.
 func (s *BundleStrategy) CalculateDiscount(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) (*model.PromotionValidationResult, error) {
-	result := &model.PromotionValidationResult{
-		IsValid: false,
-	}
-
-	config, ok := s.parseBundleConfig(promotion.DiscountConfig)
-	if !ok {
-		result.Reason = "Invalid promotion configuration"
-		return result, nil
-	}
-
-	matchedItems, completeSets, reason := s.matchBundleItems(config, cart)
-	if reason != "" {
-		result.Reason = reason
-		return result, nil
-	}
-
-	bundleTotalCents := s.calculateBundleTotalCents(matchedItems, completeSets, effectivePrices)
-	totalDiscount := s.calculateTotalDiscount(config, bundleTotalCents, completeSets)
-
-	if totalDiscount > bundleTotalCents {
-		totalDiscount = bundleTotalCents
-	}
-	if totalDiscount <= 0 {
-		result.Reason = "No discount applicable for bundle"
-		return result, nil
-	}
-
-	result.IsValid = true
-	result.DiscountCents = totalDiscount
-	result.ItemDiscounts = s.distributeDiscountAcrossItems(
-		promotion,
-		matchedItems,
-		completeSets,
-		bundleTotalCents,
-		totalDiscount,
-		effectivePrices,
-	)
-	return result, nil
-}
-
-// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-// return error if promotion cannot be applied
-func (s *BundleStrategy) CalculateDiscountV2(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
@@ -156,12 +113,19 @@ func (s *BundleStrategy) CalculateDiscountV2(
 ) error {
 	config, ok := s.parseBundleConfig(promotion.DiscountConfig)
 	if !ok {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid bundle promotion configuration")
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"Invalid bundle promotion configuration",
+		)
 	}
 
 	eligibleItemsSet := helper.ToSet(eligibleItems)
 
-	matchedItems, completeSets, reason := s.matchBundleItemsV2(config, cart, summary, eligibleItemsSet)
+	matchedItems, completeSets, reason := s.matchBundleItemsV2(
+		config,
+		cart,
+		summary,
+		eligibleItemsSet,
+	)
 	if reason != "" {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage(reason)
 	}
@@ -382,12 +346,12 @@ func (s *BundleStrategy) calculateTotalDiscount(
 	bundleTotalCents int64,
 	completeSets int,
 ) int64 {
-	switch config.BundleDiscountType {
-	case "fixed_price":
+	switch model.DiscountType(config.BundleDiscountType) {
+	case model.DiscountTypeFixedPrice:
 		return bundleTotalCents - (*config.BundlePriceCents * int64(completeSets))
-	case "percentage":
+	case model.DiscountTypePercentage:
 		return int64(float64(bundleTotalCents) * (*config.BundleDiscountValue) / 100)
-	case "fixed_amount":
+	case model.DiscountTypeFixedAmount:
 		return int64(*config.BundleDiscountValue) * int64(completeSets)
 	default:
 		return 0

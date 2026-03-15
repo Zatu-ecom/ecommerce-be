@@ -31,18 +31,18 @@ func (s *PercentageStrategy) DescribeConfig() model.PromotionStrategyDescriptor 
 				Required:    true,
 				Description: "Discount percentage between 0.01 and 100.",
 			},
-		{
-			Name:        "max_discount_cents",
-			Type:        "int64",
-			Required:    false,
-			Description: "Optional cap on the total percentage discount.",
-		},
-		{
-			Name:        "min_order_cents",
-			Type:        "int64",
-			Required:    false,
-			Description: "Optional minimum eligible cart total required to apply the discount.",
-		},
+			{
+				Name:        "max_discount_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Optional cap on the total percentage discount.",
+			},
+			{
+				Name:        "min_order_cents",
+				Type:        "int64",
+				Required:    false,
+				Description: "Optional minimum eligible cart total required to apply the discount.",
+			},
 		},
 		BestPractices: []string{
 			"Use a max discount cap for high-value catalogs.",
@@ -80,73 +80,9 @@ func (s *PercentageStrategy) ValidateConfig(config map[string]interface{}) error
 	return nil
 }
 
-// CalculateDiscount calculates per-item percentage discount
+// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+// returns an error if the promotion cannot be applied.
 func (s *PercentageStrategy) CalculateDiscount(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) (*model.PromotionValidationResult, error) {
-	result := &model.PromotionValidationResult{
-		IsValid: false,
-	}
-
-	configJSON, _ := json.Marshal(promotion.DiscountConfig)
-	var config model.PercentageDiscountConfig
-	if err := json.Unmarshal(configJSON, &config); err != nil {
-		result.Reason = "Invalid promotion configuration"
-		return result, nil
-	}
-
-	var totalDiscount int64
-	var itemDiscounts []model.ItemDiscount
-
-	for _, item := range cart.Items {
-		effectivePrice := effectivePrices[item.ItemID]
-		if effectivePrice <= 0 {
-			continue
-		}
-
-		itemTotal := effectivePrice * int64(item.Quantity)
-		itemDiscount := int64(float64(itemTotal) * config.Percentage / 100)
-
-		if itemDiscount > 0 {
-			totalDiscount += itemDiscount
-			itemDiscounts = append(itemDiscounts, model.ItemDiscount{
-				ItemID:        item.ItemID,
-				ProductID:     item.ProductID,
-				PromotionID:   promotion.ID,
-				PromotionName: promotion.Name,
-				DiscountCents: itemDiscount,
-				OriginalCents: effectivePrice,
-				FinalCents:    effectivePrice - (itemDiscount / int64(item.Quantity)),
-			})
-		}
-	}
-
-	if totalDiscount == 0 {
-		result.Reason = "No discount applicable"
-		return result, nil
-	}
-
-	// Apply max discount caps
-	if config.MaxDiscountCents != nil && totalDiscount > *config.MaxDiscountCents {
-		totalDiscount = *config.MaxDiscountCents
-	}
-	if promotion.MaxDiscountAmountCents != nil &&
-		totalDiscount > *promotion.MaxDiscountAmountCents {
-		totalDiscount = *promotion.MaxDiscountAmountCents
-	}
-
-	result.IsValid = true
-	result.DiscountCents = totalDiscount
-	result.ItemDiscounts = itemDiscounts
-	return result, nil
-}
-
-// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-// return error if promotion cannot be applied
-func (s *PercentageStrategy) CalculateDiscountV2(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
@@ -216,9 +152,6 @@ func (s *PercentageStrategy) CalculateDiscountV2(
 	effectiveCap := totalDiscount
 	if config.MaxDiscountCents != nil && effectiveCap > *config.MaxDiscountCents {
 		effectiveCap = *config.MaxDiscountCents
-	}
-	if promotion.MaxDiscountAmountCents != nil && effectiveCap > *promotion.MaxDiscountAmountCents {
-		effectiveCap = *promotion.MaxDiscountAmountCents
 	}
 
 	if effectiveCap < totalDiscount {

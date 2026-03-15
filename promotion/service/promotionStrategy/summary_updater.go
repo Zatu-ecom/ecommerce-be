@@ -16,7 +16,7 @@ type ItemDiscountDetail struct {
 
 // ApplyDiscountToSummary merges a strategy's computed discounts into the shared
 // AppliedPromotionSummary in-place. It is designed to be called by every strategy's
-// CalculateDiscountV2 so that the book-keeping logic is not duplicated.
+// CalculateDiscount so that the book-keeping logic is not duplicated.
 //
 // FinalPriceCents on CartItemSummary is a line total (PriceCents * Quantity), and
 // ItemDiscountDetail.DiscountCents is likewise a line-level amount, so no per-unit

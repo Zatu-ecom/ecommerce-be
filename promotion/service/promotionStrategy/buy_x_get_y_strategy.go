@@ -10,7 +10,6 @@ import (
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/model"
-	"ecommerce-be/promotion/repository"
 )
 
 // BuyXGetYStrategy implements PromotionStrategy for buy_x_get_y promotion type
@@ -168,66 +167,13 @@ func isSameRewardMode(config model.BuyXGetYConfig) bool {
 	return config.IsSameReward != nil && *config.IsSameReward
 }
 
-// CalculateDiscount is the main entry point used by the promotion engine.
-// It parses config, filters cart items by promotion scope, then dispatches to either:
-// - same-reward calculation
-// - cross-product reward calculation
-func (s *BuyXGetYStrategy) CalculateDiscount(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-	effectivePrices map[string]int64,
-) (*model.PromotionValidationResult, error) {
-	result := &model.PromotionValidationResult{
-		IsValid: false,
-	}
-
-	config, err := parseBuyXGetYConfig(promotion.DiscountConfig)
-	if err != nil {
-		result.Reason = "Invalid promotion configuration"
-		return result, nil
-	}
-
-	if promotion.AppliesTo == entity.ScopeSpecificCollections {
-		result.Reason = "Collection-scoped buy X get Y is not implemented yet"
-		return result, nil
-	}
-
-	eligibleItems, err := s.getEligibleItems(ctx, promotion, cart)
-	if err != nil {
-		return nil, err
-	}
-	if len(eligibleItems) == 0 {
-		result.Reason = "Cart items do not match promotion scope"
-		return result, nil
-	}
-
-	if isSameRewardMode(config) {
-		return s.calculateSameRewardDiscount(
-			promotion,
-			cart,
-			eligibleItems,
-			effectivePrices,
-			config,
-		), nil
-	}
-
-	return s.calculateCrossRewardDiscount(
-		promotion,
-		cart,
-		eligibleItems,
-		effectivePrices,
-		config,
-	), nil
-}
-
-// CalculateDiscountV2 is the enhanced version of CalculateDiscount that will update the summary in-place and
-// return error if promotion cannot be applied.
+// CalculateDiscount updates the passed AppliedPromotionSummary in-place and
+// returns an error if the promotion cannot be applied.
 //
 // Instead of duplicating the complex grouping/allocation logic, this method derives
 // an effectivePrices map and eligible []CartItem from the summary, then delegates to
-// the existing V1 helpers (calculateSameRewardDiscount / calculateCrossRewardDiscount).
-func (s *BuyXGetYStrategy) CalculateDiscountV2(
+// the existing helpers (calculateSameRewardDiscount / calculateCrossRewardDiscount).
+func (s *BuyXGetYStrategy) CalculateDiscount(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
@@ -236,7 +182,9 @@ func (s *BuyXGetYStrategy) CalculateDiscountV2(
 ) error {
 	config, err := parseBuyXGetYConfig(promotion.DiscountConfig)
 	if err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid buy_x_get_y promotion configuration")
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"Invalid buy_x_get_y promotion configuration",
+		)
 	}
 
 	// Derive per-unit effective prices from summary for ALL items (buy + reward).
@@ -256,13 +204,21 @@ func (s *BuyXGetYStrategy) CalculateDiscountV2(
 		}
 	}
 	if len(eligibleCartItems) == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Cart items do not match promotion scope")
+		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+			"Cart items do not match promotion scope",
+		)
 	}
 
 	// Dispatch to existing V1 logic which returns a fully computed result.
 	var v1Result *model.PromotionValidationResult
 	if isSameRewardMode(config) {
-		v1Result = s.calculateSameRewardDiscount(promotion, cart, eligibleCartItems, effectivePrices, config)
+		v1Result = s.calculateSameRewardDiscount(
+			promotion,
+			cart,
+			eligibleCartItems,
+			effectivePrices,
+			config,
+		)
 	} else {
 		v1Result = s.calculateCrossRewardDiscount(promotion, cart, eligibleCartItems, effectivePrices, config)
 	}
@@ -702,101 +658,6 @@ func buyXGetYGroupKey(item model.CartItem, scopeType model.BuyXGetYScopeType) st
 	default:
 		return ""
 	}
-}
-
-// getEligibleItems filters the cart down to the lines that are eligible for this promotion's
-// AppliesTo scope. The detailed Buy X Get Y logic runs only on the returned items.
-func (s *BuyXGetYStrategy) getEligibleItems(
-	ctx context.Context,
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	switch promotion.AppliesTo {
-	case entity.ScopeAllProducts:
-		return append([]model.CartItem(nil), cart.Items...), nil
-	case entity.ScopeSpecificProducts:
-		return s.filterProductScopedItems(ctx, promotion.ID, cart)
-	case entity.ScopeSpecificCategories:
-		return s.filterCategoryScopedItems(ctx, promotion.ID, cart)
-	default:
-		return nil, nil
-	}
-}
-
-// filterProductScopedItems returns only the cart lines whose product IDs are linked to the
-// promotion through the product scope table.
-func (s *BuyXGetYStrategy) filterProductScopedItems(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	productIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		productIDs[i] = item.ProductID
-	}
-
-	repo := repository.NewPromotionProductScopeRepository()
-	linkedProducts, _, err := repo.GetPromotionProducts(
-		ctx,
-		promotionID,
-		productIDs,
-		0,
-		len(productIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedProducts := make(map[uint]struct{}, len(linkedProducts))
-	for _, product := range linkedProducts {
-		allowedProducts[product.ProductID] = struct{}{}
-	}
-
-	filtered := make([]model.CartItem, 0, len(cart.Items))
-	for _, item := range cart.Items {
-		if _, ok := allowedProducts[item.ProductID]; ok {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered, nil
-}
-
-// filterCategoryScopedItems returns only the cart lines whose category IDs are linked to the
-// promotion through the category scope table.
-func (s *BuyXGetYStrategy) filterCategoryScopedItems(
-	ctx context.Context,
-	promotionID uint,
-	cart *model.CartValidationRequest,
-) ([]model.CartItem, error) {
-	categoryIDs := make([]uint, len(cart.Items))
-	for i, item := range cart.Items {
-		categoryIDs[i] = item.CategoryID
-	}
-
-	repo := repository.NewPromotionCategoryScopeRepository()
-	linkedCategories, _, err := repo.GetPromotionCategories(
-		ctx,
-		promotionID,
-		categoryIDs,
-		0,
-		len(categoryIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedCategories := make(map[uint]struct{}, len(linkedCategories))
-	for _, category := range linkedCategories {
-		allowedCategories[category.CategoryID] = struct{}{}
-	}
-
-	filtered := make([]model.CartItem, 0, len(cart.Items))
-	for _, item := range cart.Items {
-		if _, ok := allowedCategories[item.CategoryID]; ok {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered, nil
 }
 
 // parseBuyXGetYConfig normalizes defaults before unmarshalling:

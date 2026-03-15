@@ -18,9 +18,6 @@ func PromotionRequestToEntity(req model.CreatePromotionRequest, sellerID uint) *
 		PromotionType:               req.PromotionType,
 		DiscountConfig:              entity.DiscountConfig(req.DiscountConfig),
 		AppliesTo:                   req.AppliesTo,
-		MinPurchaseAmountCents:      req.MinPurchaseAmountCents,
-		MinQuantity:                 req.MinQuantity,
-		MaxDiscountAmountCents:      req.MaxDiscountAmountCents,
 		EligibleFor:                 req.EligibleFor,
 		CustomerSegmentID:           req.CustomerSegmentID,
 		UsageLimitTotal:             req.UsageLimitTotal,
@@ -83,9 +80,6 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 		PromotionType:               promotion.PromotionType,
 		DiscountConfig:              map[string]interface{}(promotion.DiscountConfig),
 		AppliesTo:                   promotion.AppliesTo,
-		MinPurchaseAmountCents:      promotion.MinPurchaseAmountCents,
-		MinQuantity:                 promotion.MinQuantity,
-		MaxDiscountAmountCents:      promotion.MaxDiscountAmountCents,
 		EligibleFor:                 promotion.EligibleFor,
 		CustomerSegmentID:           promotion.CustomerSegmentID,
 		UsageLimitTotal:             promotion.UsageLimitTotal,
@@ -146,15 +140,6 @@ func ApplyUpdatePromotionRequest(
 	}
 	if req.AppliesTo != nil {
 		existing.AppliesTo = *req.AppliesTo
-	}
-	if req.MinPurchaseAmountCents != nil {
-		existing.MinPurchaseAmountCents = req.MinPurchaseAmountCents
-	}
-	if req.MinQuantity != nil {
-		existing.MinQuantity = req.MinQuantity
-	}
-	if req.MaxDiscountAmountCents != nil {
-		existing.MaxDiscountAmountCents = req.MaxDiscountAmountCents
 	}
 	if req.EligibleFor != nil {
 		existing.EligibleFor = *req.EligibleFor

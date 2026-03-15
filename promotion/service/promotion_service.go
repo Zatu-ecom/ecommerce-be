@@ -53,13 +53,6 @@ type PromotionService interface {
 		ctx context.Context,
 		cart *model.CartValidationRequest,
 	) (*model.AppliedPromotionSummary, error)
-
-	// ApplyPromotionsToCartV2 is the enhanced version of ApplyPromotionsToCart that uses the V2
-	// strategy pipeline, updating a shared AppliedPromotionSummary in-place.
-	ApplyPromotionsToCartV2(
-		ctx context.Context,
-		cart *model.CartValidationRequest,
-	) (*model.AppliedPromotionSummary, error)
 }
 
 // PromotionServiceImpl implements the PromotionService interface
