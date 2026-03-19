@@ -138,7 +138,7 @@ func benchmarkSummary(cart *model.CartValidationRequest) *model.AppliedPromotion
 			ProductID:          item.ProductID,
 			VariantID:          item.VariantID,
 			Quantity:           item.Quantity,
-			OriginalPriceCents: item.PriceCents,
+			OriginalUnitPriceCents: item.PriceCents,
 			FinalPriceCents:    item.TotalCents,
 			AppliedPromotions:  []model.ItemPromotionDetail{},
 		}

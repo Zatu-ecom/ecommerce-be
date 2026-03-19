@@ -74,12 +74,12 @@ type AppliedPromotionSummary struct {
 
 // CartItemSummary represents the final state of a cart item after all promotions applied
 type CartItemSummary struct {
-	ItemID             string                `json:"itemId"`
-	ProductID          uint                  `json:"productId"`
-	VariantID          *uint                 `json:"variantId,omitempty"`
-	Quantity           int                   `json:"quantity"`
-	OriginalPriceCents int64                 `json:"originalPriceCents"` // Original unit price
-	FinalPriceCents    int64                 `json:"finalPriceCents"`    // Final unit price after all discounts
-	TotalDiscountCents int64                 `json:"totalDiscountCents"` // Sum of all discounts on this item
-	AppliedPromotions  []ItemPromotionDetail `json:"appliedPromotions"`  // All promotions applied to this item
+	ItemID                 string                `json:"itemId"`
+	ProductID              uint                  `json:"productId"`
+	VariantID              *uint                 `json:"variantId,omitempty"`
+	Quantity               int                   `json:"quantity"`
+	OriginalUnitPriceCents int64                 `json:"originalUnitPriceCents"` // Original unit price
+	FinalPriceCents        int64                 `json:"finalPriceCents"`        // Final unit price after all discounts
+	TotalDiscountCents     int64                 `json:"totalDiscountCents"`     // Sum of all discounts on this item
+	AppliedPromotions      []ItemPromotionDetail `json:"appliedPromotions"`      // All promotions applied to this item
 }

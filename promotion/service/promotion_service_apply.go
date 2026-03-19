@@ -11,6 +11,7 @@ import (
 	"ecommerce-be/promotion/factory"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/service/promotionStrategy"
+	promotionConstant "ecommerce-be/promotion/utils/constant"
 )
 
 type PromoResult struct {
@@ -50,7 +51,7 @@ func (s *PromotionServiceImpl) ApplyPromotionsToCart(
 		return nil, err
 	}
 
-	result := constructAppliedPromotionSummaryFromCartRequest(cart)
+	result := factory.ConstructAppliedPromotionSummaryFromCartRequest(cart)
 	err = s.applyPromotionBasedOnPriority(ctx, result, allPromotions, cart)
 
 	return result, err
@@ -97,7 +98,7 @@ func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
 					model.PromotionValidationResult{
 						Promotion: factory.PromotionEntityToResponse(promo),
 						IsValid:   false,
-						Reason:    "Non-stackable promotion cannot be applied as another promotion is already applied",
+						Reason:    promotionConstant.VALIDATION_NON_STACKABLE_ALREADY_APPLIED_MSG,
 					},
 				)
 
@@ -186,22 +187,22 @@ func (s *PromotionServiceImpl) validateGeneralConditions(
 	cart *model.CartValidationRequest,
 ) string {
 	if promotion.Status != entity.StatusActive {
-		return "Promotion is not active"
+		return promotionConstant.VALIDATION_PROMOTION_NOT_ACTIVE_MSG
 	}
 
 	now := time.Now()
 	if promotion.StartsAt != nil && now.Before(*promotion.StartsAt) {
-		return "Promotion has not started yet"
+		return promotionConstant.VALIDATION_PROMOTION_NOT_STARTED_MSG
 	}
 	if promotion.EndsAt != nil && now.After(*promotion.EndsAt) {
-		return "Promotion has ended"
+		return promotionConstant.VALIDATION_PROMOTION_ENDED_MSG
 	}
 
 	// Fast-path filter: reject clearly exhausted promotions in memory.
 	// Actual atomic enforcement happens at redemption time (order module).
 	if promotion.UsageLimitTotal != nil &&
 		promotion.CurrentUsageCount >= *promotion.UsageLimitTotal {
-		return "Promotion usage limit reached"
+		return promotionConstant.VALIDATION_PROMOTION_USAGE_LIMIT_REACHED_MSG
 	}
 
 	// Per-customer usage limit check
@@ -209,15 +210,15 @@ func (s *PromotionServiceImpl) validateGeneralConditions(
 		userUsageCount, err := s.promotionRepo.CountUsageByUser(ctx, promotion.ID, *cart.CustomerID)
 		if err != nil {
 			log.ErrorWithContext(ctx, "Failed to check per-customer usage", err)
-			return "Unable to verify customer usage limit"
+			return promotionConstant.VALIDATION_UNABLE_TO_VERIFY_CUSTOMER_USAGE_MSG
 		}
 		if userUsageCount >= *promotion.UsageLimitPerCustomer {
-			return "Customer usage limit reached for this promotion"
+			return promotionConstant.VALIDATION_CUSTOMER_USAGE_LIMIT_REACHED_MSG
 		}
 	}
 
 	if !s.isCustomerEligible(promotion, cart) {
-		return "Customer is not eligible for this promotion"
+		return promotionConstant.VALIDATION_CUSTOMER_NOT_ELIGIBLE_MSG
 	}
 
 	return ""
@@ -300,7 +301,9 @@ func handlePromotionCalculationError(
 // deepCopySummary returns a fully independent copy of the summary so that
 // trial calls during ranking do not leak item-level mutations back to
 // the original summary.
-func deepCopySummary(src *model.AppliedPromotionSummary) *model.AppliedPromotionSummary {
+func deepCopySummary(
+	src *model.AppliedPromotionSummary,
+) *model.AppliedPromotionSummary {
 	dst := *src
 
 	dst.Items = make([]model.CartItemSummary, len(src.Items))
@@ -328,33 +331,5 @@ func skippedResult(promo *entity.Promotion, reason string) model.PromotionValida
 	return model.PromotionValidationResult{
 		Promotion: factory.PromotionEntityToResponse(promo),
 		Reason:    reason,
-	}
-}
-
-func constructAppliedPromotionSummaryFromCartRequest(
-	cart *model.CartValidationRequest,
-) *model.AppliedPromotionSummary {
-	items := make([]model.CartItemSummary, len(cart.Items))
-	for i, item := range cart.Items {
-		items[i] = model.CartItemSummary{
-			ItemID:             item.ItemID,
-			ProductID:          item.ProductID,
-			VariantID:          item.VariantID,
-			Quantity:           item.Quantity,
-			OriginalPriceCents: item.PriceCents,
-			FinalPriceCents:    item.TotalCents, // Initial final price is same as original; will be reduced as promotions are applied
-			TotalDiscountCents: 0,
-			AppliedPromotions:  []model.ItemPromotionDetail{}, // Initial total discount is 0; will be updated as promotions are applied
-		}
-	}
-
-	return &model.AppliedPromotionSummary{
-		Items:              items,
-		AppliedPromotions:  []model.PromotionValidationResult{},
-		SkippedPromotions:  []model.PromotionValidationResult{},
-		ShippingDiscount:   0,
-		OriginalSubtotal:   cart.SubtotalCents,
-		FinalSubtotal:      cart.SubtotalCents, // Initial final subtotal is same as original; will be reduced as promotions are applied
-		TotalDiscountCents: 0,                  // Initial final total is subtotal + shipping; will be reduced as promotions are applied
 	}
 }

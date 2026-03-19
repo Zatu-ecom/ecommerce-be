@@ -60,6 +60,18 @@ const (
 	INVALID_PROMOTION_ID_MSG = "Invalid promotion ID"
 )
 
+// Promotion validation reasons (used when filtering/skipping promotions)
+const (
+	VALIDATION_PROMOTION_NOT_ACTIVE_MSG            = "Promotion is not active"
+	VALIDATION_PROMOTION_NOT_STARTED_MSG           = "Promotion has not started yet"
+	VALIDATION_PROMOTION_ENDED_MSG                 = "Promotion has ended"
+	VALIDATION_PROMOTION_USAGE_LIMIT_REACHED_MSG   = "Promotion usage limit reached"
+	VALIDATION_UNABLE_TO_VERIFY_CUSTOMER_USAGE_MSG = "Unable to verify customer usage limit"
+	VALIDATION_CUSTOMER_USAGE_LIMIT_REACHED_MSG    = "Customer usage limit reached for this promotion"
+	VALIDATION_CUSTOMER_NOT_ELIGIBLE_MSG           = "Customer is not eligible for this promotion"
+	VALIDATION_NON_STACKABLE_ALREADY_APPLIED_MSG   = "Non-stackable promotion cannot be applied as another promotion is already applied"
+)
+
 // Promotion field names
 const (
 	PROMOTION_FIELD             = "promotion"

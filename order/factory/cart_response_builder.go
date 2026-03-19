@@ -126,7 +126,7 @@ func buildCartItemResponse(
 	appliedPromos := make([]model.ItemAppliedPromotionInfo, 0)
 
 	if exists {
-		unitPrice = summaryItem.OriginalPriceCents
+		unitPrice = summaryItem.OriginalUnitPriceCents
 		lineTotal = unitPrice * int64(item.Quantity)
 		discountedLineTotal = summaryItem.FinalPriceCents * int64(item.Quantity)
 		totalItemDiscount = summaryItem.TotalDiscountCents

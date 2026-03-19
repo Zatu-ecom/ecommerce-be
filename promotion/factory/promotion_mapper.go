@@ -202,3 +202,32 @@ func ApplyUpdatePromotionRequest(
 
 	return existing
 }
+
+// ConstructAppliedPromotionSummaryFromCartRequest creates an AppliedPromotionSummary from a CartValidationRequest
+func ConstructAppliedPromotionSummaryFromCartRequest(
+	cart *model.CartValidationRequest,
+) *model.AppliedPromotionSummary {
+	items := make([]model.CartItemSummary, len(cart.Items))
+	for i, item := range cart.Items {
+		items[i] = model.CartItemSummary{
+			ItemID:                 item.ItemID,
+			ProductID:              item.ProductID,
+			VariantID:              item.VariantID,
+			Quantity:               item.Quantity,
+			OriginalUnitPriceCents: item.PriceCents,
+			FinalPriceCents:        item.TotalCents, // Initial final price is same as original; will be reduced as promotions are applied
+			TotalDiscountCents:     0,
+			AppliedPromotions:      []model.ItemPromotionDetail{}, // Initial total discount is 0; will be updated as promotions are applied
+		}
+	}
+
+	return &model.AppliedPromotionSummary{
+		Items:              items,
+		AppliedPromotions:  []model.PromotionValidationResult{},
+		SkippedPromotions:  []model.PromotionValidationResult{},
+		ShippingDiscount:   0,
+		OriginalSubtotal:   cart.SubtotalCents,
+		FinalSubtotal:      cart.SubtotalCents, // Initial final subtotal is same as original; will be reduced as promotions are applied
+		TotalDiscountCents: 0,                  // Initial final total is subtotal + shipping; will be reduced as promotions are applied
+	}
+}
