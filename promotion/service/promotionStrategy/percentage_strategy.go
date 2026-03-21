@@ -14,12 +14,13 @@ import (
 // PercentageStrategy implements PromotionStrategy for percentage_discount promotion type.
 //
 // Business Logic:
-//   Reduces every eligible item's current line total (FinalPriceCents) by the configured
-//   percentage. Each item's discount is computed independently and the results are summed.
-//   If max_discount_cents is set and the raw total exceeds it, the capped amount is
-//   redistributed proportionally across items so no individual item is over-discounted.
-//   When promotions are stacked, FinalPriceCents already reflects earlier discounts, so
-//   the percentage is applied to the reduced price — not the original.
+//
+//	Reduces every eligible item's current line total (FinalPriceCents) by the configured
+//	percentage. Each item's discount is computed independently and the results are summed.
+//	If max_discount_cents is set and the raw total exceeds it, the capped amount is
+//	redistributed proportionally across items so no individual item is over-discounted.
+//	When promotions are stacked, FinalPriceCents already reflects earlier discounts, so
+//	the percentage is applied to the reduced price — not the original.
 //
 // Config Fields:
 //   - percentage        (required) : 0.01 – 100
@@ -27,16 +28,17 @@ import (
 //   - min_order_cents    (optional) : minimum eligible subtotal to qualify
 //
 // Example:
-//   Config: { "percentage": 20, "max_discount_cents": 15000 }
-//   Cart:
-//     Item A  $500 x1  (line total = 50000)
-//     Item B  $300 x1  (line total = 30000)
-//   Eligible subtotal = 80000
-//   Raw discount: Item A = 10000, Item B = 6000   => total = 16000
-//   Capped to 15000 => redistribute proportionally:
-//     Item A capped = 15000 * 10000 / 16000 = 9375
-//     Item B capped = 15000 - 9375          = 5625
-//   Final subtotal = 80000 - 15000 = 65000
+//
+//	Config: { "percentage": 20, "max_discount_cents": 15000 }
+//	Cart:
+//	  Item A  $500 x1  (line total = 50000)
+//	  Item B  $300 x1  (line total = 30000)
+//	Eligible subtotal = 80000
+//	Raw discount: Item A = 10000, Item B = 6000   => total = 16000
+//	Capped to 15000 => redistribute proportionally:
+//	  Item A capped = 15000 * 10000 / 16000 = 9375
+//	  Item B capped = 15000 - 9375          = 5625
+//	Final subtotal = 80000 - 15000 = 65000
 type PercentageStrategy struct{}
 
 // NewPercentageStrategy creates a new PercentageStrategy

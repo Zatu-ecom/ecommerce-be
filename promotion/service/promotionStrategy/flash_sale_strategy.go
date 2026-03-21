@@ -14,20 +14,21 @@ import (
 // FlashSaleStrategy implements PromotionStrategy for flash_sale promotion type.
 //
 // Business Logic:
-//   Applies a temporary high-urgency discount with optional stock limits. Unlike
-//   FixedAmountStrategy (which distributes one flat amount across the cart), the flash
-//   sale's fixed_amount mode applies discount_value to EACH eligible item independently,
-//   clamped to that item's FinalPriceCents. The percentage mode works per-item as well,
-//   computing discount_value% of each item's current line total.
 //
-//   Before any discount calculation:
-//     1. Stock check: if stock_limit is set and sold_count >= stock_limit, the promotion
-//        is rejected immediately (the actual atomic decrement happens at order time).
-//     2. Min-order check: if min_order_cents is set, the sum of FinalPriceCents of all
-//        eligible items must meet or exceed it.
+//	Applies a temporary high-urgency discount with optional stock limits. Unlike
+//	FixedAmountStrategy (which distributes one flat amount across the cart), the flash
+//	sale's fixed_amount mode applies discount_value to EACH eligible item independently,
+//	clamped to that item's FinalPriceCents. The percentage mode works per-item as well,
+//	computing discount_value% of each item's current line total.
 //
-//   After per-item discounts are computed, if max_discount_cents is set and the raw total
-//   exceeds it, the capped amount is redistributed proportionally across items.
+//	Before any discount calculation:
+//	  1. Stock check: if stock_limit is set and sold_count >= stock_limit, the promotion
+//	     is rejected immediately (the actual atomic decrement happens at order time).
+//	  2. Min-order check: if min_order_cents is set, the sum of FinalPriceCents of all
+//	     eligible items must meet or exceed it.
+//
+//	After per-item discounts are computed, if max_discount_cents is set and the raw total
+//	exceeds it, the capped amount is redistributed proportionally across items.
 //
 // Config Fields:
 //   - discount_type      (required) : "percentage" | "fixed_amount"
@@ -38,22 +39,24 @@ import (
 //   - sold_count         (optional) : current sold count for stock-limit validation
 //
 // Example (percentage, 30% off, max cap 20000):
-//   Config: { discount_type: "percentage", discount_value: 30, max_discount_cents: 20000 }
-//   Cart:
-//     Item A  $500 x1  (line total = 50000)
-//     Item B  $300 x1  (line total = 30000)
-//   Per-item: Item A = 15000, Item B = 9000  => raw total = 24000
-//   Capped to 20000 => redistribute:
-//     Item A capped = 20000 * 15000 / 24000 = 12500
-//     Item B capped = 20000 - 12500         =  7500
-//   Final subtotal = 80000 - 20000 = 60000
+//
+//	Config: { discount_type: "percentage", discount_value: 30, max_discount_cents: 20000 }
+//	Cart:
+//	  Item A  $500 x1  (line total = 50000)
+//	  Item B  $300 x1  (line total = 30000)
+//	Per-item: Item A = 15000, Item B = 9000  => raw total = 24000
+//	Capped to 20000 => redistribute:
+//	  Item A capped = 20000 * 15000 / 24000 = 12500
+//	  Item B capped = 20000 - 12500         =  7500
+//	Final subtotal = 80000 - 20000 = 60000
 //
 // Example (fixed_amount, $200 off per item):
-//   Config: { discount_type: "fixed_amount", discount_value: 20000 }
-//   Cart:
-//     Item A  $500 x1  (line total = 50000)  => discount = 20000
-//     Item B  $150 x1  (line total = 15000)  => discount = 15000 (clamped to item price)
-//   Total discount = 35000,  Final subtotal = 65000 - 35000 = 30000
+//
+//	Config: { discount_type: "fixed_amount", discount_value: 20000 }
+//	Cart:
+//	  Item A  $500 x1  (line total = 50000)  => discount = 20000
+//	  Item B  $150 x1  (line total = 15000)  => discount = 15000 (clamped to item price)
+//	Total discount = 35000,  Final subtotal = 65000 - 35000 = 30000
 type FlashSaleStrategy struct{}
 
 // NewFlashSaleStrategy creates a new FlashSaleStrategy
@@ -169,10 +172,10 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 			soldCount = *config.SoldCount
 		}
 		if soldCount >= *config.StockLimit {
-		return &model.SkippedPromotionReason{
-			Reason: "Flash sale stock limit reached",
-		}, nil
-	}
+			return &model.SkippedPromotionReason{
+				Reason: "Flash sale stock limit reached",
+			}, nil
+		}
 	}
 
 	eligibleItemsSet := helper.ToSet(eligibleItems)

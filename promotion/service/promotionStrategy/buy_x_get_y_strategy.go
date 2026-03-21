@@ -16,22 +16,23 @@ import (
 // BuyXGetYStrategy implements PromotionStrategy for buy_x_get_y promotion type.
 //
 // Business Logic:
-//   The customer buys buy_quantity units and gets get_quantity units free. Complete sets
-//   are computed as total_eligible_qty / (buy_quantity + get_quantity). An optional
-//   max_sets cap limits how many sets can apply per order.
 //
-//   Two modes are supported:
+//	The customer buys buy_quantity units and gets get_quantity units free. Complete sets
+//	are computed as total_eligible_qty / (buy_quantity + get_quantity). An optional
+//	max_sets cap limits how many sets can apply per order.
 //
-//   1. Same-reward (is_same_reward=true, default):
-//      Reward items come from the same pool as qualifying items. Items are grouped by
-//      scope_type (same_variant | same_product | same_category). Within each group the
-//      highest-priced units are reserved as "paid" and the cheapest remaining units
-//      become free. This ensures the customer always pays the higher prices.
+//	Two modes are supported:
 //
-//   2. Cross-product reward (is_same_reward=false):
-//      Buy items come from the promotion scope, reward items come from get_product_id.
-//      The reward product must already be in the cart; the strategy does not auto-add it.
-//      Cheapest reward units are made free first.
+//	1. Same-reward (is_same_reward=true, default):
+//	   Reward items come from the same pool as qualifying items. Items are grouped by
+//	   scope_type (same_variant | same_product | same_category). Within each group the
+//	   highest-priced units are reserved as "paid" and the cheapest remaining units
+//	   become free. This ensures the customer always pays the higher prices.
+//
+//	2. Cross-product reward (is_same_reward=false):
+//	   Buy items come from the promotion scope, reward items come from get_product_id.
+//	   The reward product must already be in the cart; the strategy does not auto-add it.
+//	   Cheapest reward units are made free first.
 //
 // Config Fields:
 //   - buy_quantity   (required) : units the customer must buy
@@ -42,16 +43,17 @@ import (
 //   - get_product_id (required when is_same_reward=false) : specific reward product
 //
 // Example (same-reward, scope_type=same_product, buy 2 get 1):
-//   Config: { buy_quantity: 2, get_quantity: 1, is_same_reward: true, scope_type: "same_product" }
-//   Cart:
-//     Item A  product 1, variant X   $1000 x1
-//     Item B  product 1, variant Y   $800  x1
-//     Item C  product 1, variant Z   $600  x1
-//   All three belong to the same product-1 group  =>  totalQty = 3
-//   Complete sets = 3 / (2+1) = 1
-//   Paid  (2 highest): Item A ($1000) + Item B ($800) = $1800  (customer pays these)
-//   Free  (1 cheapest): Item C ($600) = $600           (discount)
-//   Total discount = 60000,  Final subtotal = 240000 - 60000 = 180000
+//
+//	Config: { buy_quantity: 2, get_quantity: 1, is_same_reward: true, scope_type: "same_product" }
+//	Cart:
+//	  Item A  product 1, variant X   $1000 x1
+//	  Item B  product 1, variant Y   $800  x1
+//	  Item C  product 1, variant Z   $600  x1
+//	All three belong to the same product-1 group  =>  totalQty = 3
+//	Complete sets = 3 / (2+1) = 1
+//	Paid  (2 highest): Item A ($1000) + Item B ($800) = $1800  (customer pays these)
+//	Free  (1 cheapest): Item C ($600) = $600           (discount)
+//	Total discount = 60000,  Final subtotal = 240000 - 60000 = 180000
 type BuyXGetYStrategy struct{}
 
 type bxgyGroupLine struct {
@@ -269,12 +271,14 @@ func (s *BuyXGetYStrategy) CalculateDiscount(
 
 	if reason != "" {
 		requirementStr := ""
-		if reason == "Not enough qualifying buy items for buy X get Y promotion" || reason == "Not enough items to qualify for buy X get Y promotion" {
+		switch reason {
+		case "Not enough qualifying buy items for buy X get Y promotion",
+			"Not enough items to qualify for buy X get Y promotion":
 			requirementStr = fmt.Sprintf("Add %d more item(s) to qualify", config.BuyQuantity)
-		} else if reason == "Reward item must be present in cart for buy X get Y promotion" {
+		case "Reward item must be present in cart for buy X get Y promotion":
 			requirementStr = "Add reward item to cart to qualify"
 		}
-		
+
 		return &model.SkippedPromotionReason{
 			Reason:      "NOT_MET",
 			Requirement: requirementStr,
