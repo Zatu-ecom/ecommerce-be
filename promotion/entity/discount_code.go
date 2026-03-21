@@ -82,5 +82,5 @@ type DiscountCode struct {
 	IsActive *bool `json:"isActive" gorm:"column:is_active;default:true;index"`
 
 	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 }

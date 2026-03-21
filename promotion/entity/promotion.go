@@ -1,8 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"time"
 
 	"ecommerce-be/common/db"
@@ -55,8 +53,8 @@ type Promotion struct {
 	Description *string `json:"description" gorm:"column:description;type:text"`
 
 	// Promotion Mechanics
-	PromotionType  PromotionType  `json:"promotionType"  gorm:"column:promotion_type;size:50;not null"`
-	DiscountConfig DiscountConfig `json:"discountConfig" gorm:"column:discount_config;type:jsonb;not null"`
+	PromotionType  PromotionType `json:"promotionType"  gorm:"column:promotion_type;size:50;not null"`
+	DiscountConfig db.JSONMap    `json:"discountConfig" gorm:"column:discount_config;type:jsonb;not null"`
 
 	// Scope
 	AppliesTo ScopeType `json:"appliesTo" gorm:"column:applies_to;size:50;not null;default:specific_products"`
@@ -93,9 +91,6 @@ type Promotion struct {
 	// Priority
 	Priority int `json:"priority" gorm:"column:priority;default:0"`
 
-	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
-
 	// Sale
 	SaleID *uint `json:"saleId" gorm:"column:sale_id;index"`
 
@@ -104,58 +99,6 @@ type Promotion struct {
 	Categories  []PromotionCategory   `json:"categories,omitempty"  gorm:"foreignKey:PromotionID"`
 	Collections []PromotionCollection `json:"collections,omitempty" gorm:"foreignKey:PromotionID"`
 	Usages      []PromotionUsage      `json:"usages,omitempty"      gorm:"foreignKey:PromotionID"`
-}
-
-// DiscountConfig holds the discount configuration in JSONB format
-type DiscountConfig map[string]interface{}
-
-// Scan implements sql.Scanner interface for reading from database
-func (dc *DiscountConfig) Scan(value interface{}) error {
-	if value == nil {
-		*dc = make(DiscountConfig)
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-
-	return json.Unmarshal(bytes, dc)
-}
-
-// Value implements driver.Valuer interface for writing to database
-func (dc DiscountConfig) Value() (driver.Value, error) {
-	if dc == nil {
-		return json.Marshal(make(map[string]interface{}))
-	}
-	return json.Marshal(dc)
-}
-
-// JSONMap represents a JSONB field
-type JSONMap map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (jm *JSONMap) Scan(value interface{}) error {
-	if value == nil {
-		*jm = make(JSONMap)
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-
-	return json.Unmarshal(bytes, jm)
-}
-
-// Value implements driver.Valuer interface
-func (jm JSONMap) Value() (driver.Value, error) {
-	if jm == nil {
-		return json.Marshal(make(map[string]interface{}))
-	}
-	return json.Marshal(jm)
 }
 
 // TableName specifies the table name

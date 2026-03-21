@@ -14,8 +14,8 @@ import (
 // Note: All prices are calculated at runtime - no prices stored in cart tables
 type Cart struct {
 	db.BaseEntity
-	UserID   uint                   `json:"userId"   gorm:"column:user_id;uniqueIndex;not null"`
-	Metadata map[string]interface{} `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	UserID   uint       `json:"userId"   gorm:"column:user_id;uniqueIndex;not null"`
+	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 }
 
 // ============================================================================

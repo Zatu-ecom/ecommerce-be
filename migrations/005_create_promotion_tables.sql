@@ -43,11 +43,6 @@ CREATE TABLE IF NOT EXISTS promotion (
     -- Scope
     applies_to VARCHAR(50) NOT NULL DEFAULT 'specific_products',
     
-    -- Conditions
-    min_purchase_amount_cents BIGINT DEFAULT 0,
-    min_quantity INT DEFAULT 1,
-    max_discount_amount_cents BIGINT,
-    
     -- Customer Eligibility
     eligible_for VARCHAR(50) DEFAULT 'everyone',
     customer_segment_id INTEGER REFERENCES customer_segment(id),
@@ -79,9 +74,6 @@ CREATE TABLE IF NOT EXISTS promotion (
     
     -- Priority
     priority INT DEFAULT 0,
-    
-    -- Metadata
-    metadata JSONB DEFAULT '{}',
     
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

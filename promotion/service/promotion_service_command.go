@@ -177,7 +177,7 @@ func (s *PromotionServiceImpl) validateUpdatedConfig(
 		}
 		newConfig := existing.DiscountConfig
 		if req.DiscountConfig != nil {
-			newConfig = entity.DiscountConfig(*req.DiscountConfig)
+			newConfig = db.JSONMap(*req.DiscountConfig)
 		}
 		strategy := promotionStrategy.GetPromotionStrategy(newType)
 		if strategy == nil {

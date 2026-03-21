@@ -1,10 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
-
 	"ecommerce-be/common/db"
 )
 
@@ -19,28 +15,7 @@ const (
 )
 
 // PaymentMethodMetadata represents additional payment method metadata
-type PaymentMethodMetadata map[string]any
-
-// Scan implements sql.Scanner interface
-func (d *PaymentMethodMetadata) Scan(value any) error {
-	if value == nil {
-		*d = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal PaymentMethodDetails value: %v", value)
-	}
-	return json.Unmarshal(bytes, d)
-}
-
-// Value implements driver.Valuer interface
-func (d PaymentMethodMetadata) Value() (driver.Value, error) {
-	if d == nil {
-		return nil, nil
-	}
-	return json.Marshal(d)
-}
+type PaymentMethodMetadata = db.JSONMap
 
 // PaymentMethod represents a saved payment method
 type PaymentMethod struct {

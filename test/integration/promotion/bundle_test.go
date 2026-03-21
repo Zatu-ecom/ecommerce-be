@@ -311,7 +311,8 @@ func (s *BundlePromotionTestSuite) TestScenario4_MissingBundleItemNoDiscount() {
 	assertPromotionSummary(s.T(), summary, 99900, 0, 99900)
 	s.Require().Empty(summary.AppliedPromotions)
 	s.Require().Len(summary.SkippedPromotions, 1)
-	s.Require().Equal("Add required bundle items to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().
+		Equal("Add required bundle items to qualify", summary.SkippedPromotions[0].Requirement)
 }
 
 // TestScenario5_MultipleCompleteBundlesInOneCart validates repeated bundle matching.
@@ -469,7 +470,8 @@ func (s *BundlePromotionTestSuite) TestScenario7_AllProductsScopeStillRequiresBu
 	assertPromotionSummary(s.T(), summary, 179800, 0, 179800)
 	s.Require().Empty(summary.AppliedPromotions)
 	s.Require().Len(summary.SkippedPromotions, 1)
-	s.Require().Equal("Add required bundle items to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().
+		Equal("Add required bundle items to qualify", summary.SkippedPromotions[0].Requirement)
 }
 
 // TestStackingScenario1_NonStackableBestDiscountWins validates stacking with same priority:

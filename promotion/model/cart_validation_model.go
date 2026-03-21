@@ -76,7 +76,7 @@ type CartItemSummary struct {
 	VariantID              *uint                 `json:"variantId,omitempty"`
 	Quantity               int                   `json:"quantity"`
 	OriginalUnitPriceCents int64                 `json:"originalUnitPriceCents"` // Original unit price
-	FinalPriceCents        int64                 `json:"finalPriceCents"`        // Final unit price after all discounts
+	FinalPriceCents        int64                 `json:"finalPriceCents"`        // Final price after all discounts and this is a total price (not unit price)
 	TotalDiscountCents     int64                 `json:"totalDiscountCents"`     // Sum of all discounts on this item
 	AppliedPromotions      []ItemPromotionDetail `json:"appliedPromotions"`      // All promotions applied to this item
 }

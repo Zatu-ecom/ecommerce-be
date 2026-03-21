@@ -1,10 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
-
 	"ecommerce-be/common/db"
 )
 
@@ -17,28 +13,7 @@ const (
 )
 
 // GatewayCredentials represents encrypted gateway credentials
-type GatewayCredentials map[string]any
-
-// Scan implements sql.Scanner interface
-func (c *GatewayCredentials) Scan(value any) error {
-	if value == nil {
-		*c = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal GatewayCredentials value: %v", value)
-	}
-	return json.Unmarshal(bytes, c)
-}
-
-// Value implements driver.Valuer interface
-func (c GatewayCredentials) Value() (driver.Value, error) {
-	if c == nil {
-		return nil, nil
-	}
-	return json.Marshal(c)
-}
+type GatewayCredentials = db.JSONMap
 
 // PaymentGatewayConfig represents seller's gateway configuration
 type PaymentGatewayConfig struct {

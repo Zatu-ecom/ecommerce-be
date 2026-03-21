@@ -1,10 +1,9 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
+
+	"ecommerce-be/common/db"
 )
 
 // WebhookStatus represents the processing status of a webhook
@@ -18,52 +17,10 @@ const (
 )
 
 // WebhookPayload represents the webhook payload
-type WebhookPayload map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (p *WebhookPayload) Scan(value interface{}) error {
-	if value == nil {
-		*p = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal WebhookPayload value: %v", value)
-	}
-	return json.Unmarshal(bytes, p)
-}
-
-// Value implements driver.Valuer interface
-func (p WebhookPayload) Value() (driver.Value, error) {
-	if p == nil {
-		return nil, nil
-	}
-	return json.Marshal(p)
-}
+type WebhookPayload = db.JSONMap
 
 // WebhookHeaders represents the webhook headers
-type WebhookHeaders map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (h *WebhookHeaders) Scan(value interface{}) error {
-	if value == nil {
-		*h = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal WebhookHeaders value: %v", value)
-	}
-	return json.Unmarshal(bytes, h)
-}
-
-// Value implements driver.Valuer interface
-func (h WebhookHeaders) Value() (driver.Value, error) {
-	if h == nil {
-		return nil, nil
-	}
-	return json.Marshal(h)
-}
+type WebhookHeaders = db.JSONMap
 
 // PaymentWebhookLog represents a webhook event log
 type PaymentWebhookLog struct {

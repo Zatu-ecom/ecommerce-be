@@ -137,7 +137,7 @@ func (s *CartServiceImpl) getOrCreateCart(
 			// Cart doesn't exist, create it
 			cart = &entity.Cart{
 				UserID:   userID,
-				Metadata: map[string]interface{}{},
+				Metadata: db.JSONMap{},
 			}
 			if err := s.cartRepo.CreateCart(ctx, cart); err != nil {
 				return nil, err
@@ -164,7 +164,11 @@ func (s *CartServiceImpl) validateInventory(
 		return err
 	}
 
-	if len(invRes.Items) == 0 || invRes.Items[0].TotalAvailable < quantity {
+	if len(invRes.Items) == 0 {
+		return orderError.ErrVariantNotFound
+	}
+
+	if invRes.Items[0].TotalAvailable < quantity {
 		available := 0
 		if len(invRes.Items) > 0 {
 			available = invRes.Items[0].TotalAvailable

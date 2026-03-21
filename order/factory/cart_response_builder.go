@@ -22,8 +22,8 @@ func BuildCartResponse(
 	variantMap map[uint]productModel.VariantDetailResponse,
 ) *model.CartResponse {
 	response := &model.CartResponse{
-		CartBase:       buildCartBase(cart, currencyMap),
-		Summary:        buildCartSummary(len(items), promo, currencyMap),
+		CartBase:            buildCartBase(cart, currencyMap),
+		Summary:             buildCartSummary(len(items), promo, currencyMap),
 		Items:               make([]model.CartItemWithPricingResponse, len(items)),
 		AppliedCoupons:      make([]model.AppliedCouponInfo, 0), // Not implemented yet
 		AvailablePromotions: buildAvailablePromotions(promo, currencyMap),
@@ -53,23 +53,26 @@ func buildAvailablePromotions(
 
 	available := make([]model.AvailablePromotionInfo, 0)
 	for _, skipped := range promo.SkippedPromotions {
-		if skipped.Requirement != "" {
-			info := model.AvailablePromotionInfo{
-				ID:               skipped.Promotion.ID,
-				Name:             skipped.Promotion.Name,
-				Type:             string(skipped.Promotion.PromotionType),
-				Requirement:      skipped.Requirement,
-				PotentialSavings: skipped.PotentialSavings,
-			}
-			if skipped.PotentialSavings > 0 {
-				info.PotentialSavingsFormatted = formatCurrencyWithSymbol(
-					skipped.PotentialSavings,
-					currencyMap.Symbol,
-					currencyMap.DecimalDigits,
-				)
-			}
-			available = append(available, info)
+		if skipped.Promotion == nil {
+			continue
 		}
+
+		info := model.AvailablePromotionInfo{
+			ID:               skipped.Promotion.ID,
+			Name:             skipped.Promotion.Name,
+			Type:             string(skipped.Promotion.PromotionType),
+			Reason:           skipped.Reason,
+			Requirement:      skipped.Requirement,
+			PotentialSavings: skipped.PotentialSavings,
+		}
+		if skipped.PotentialSavings > 0 {
+			info.PotentialSavingsFormatted = formatCurrencyWithSymbol(
+				skipped.PotentialSavings,
+				currencyMap.Symbol,
+				currencyMap.DecimalDigits,
+			)
+		}
+		available = append(available, info)
 	}
 	return available
 }
@@ -160,7 +163,7 @@ func buildCartItemResponse(
 	if exists {
 		unitPrice = summaryItem.OriginalUnitPriceCents
 		lineTotal = unitPrice * int64(item.Quantity)
-		discountedLineTotal = summaryItem.FinalPriceCents * int64(item.Quantity)
+		discountedLineTotal = summaryItem.FinalPriceCents
 		totalItemDiscount = summaryItem.TotalDiscountCents
 		appliedPromos = buildAppliedPromotionInfos(summaryItem, currencyMap)
 	}

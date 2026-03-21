@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/constants"
 	errs "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
 
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/service"
+	orderConstants "ecommerce-be/order/utils/constant"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,14 +45,14 @@ func (h *CartHandler) AddToCart(c *gin.Context) {
 	userID, exists := auth.GetUserIDFromContext(c)
 	if !exists {
 		log.ErrorWithContext(c, "addToCart: user ID missing from context", nil)
-		h.HandleError(c, errs.UnauthorizedError, "Authentication required")
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
 		return
 	}
 
 	sellerID, exists := auth.GetSellerIDFromContext(c)
 	if !exists {
 		log.ErrorWithContext(c, "addToCart: seller ID missing from context", nil)
-		h.HandleError(c, errs.UnauthorizedError, "Seller context required")
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
 		return
 	}
 
@@ -66,10 +68,10 @@ func (h *CartHandler) AddToCart(c *gin.Context) {
 	resp, err := h.cartService.AddToCart(c, userID, sellerID, req)
 	if err != nil {
 		log.ErrorWithContext(c, "addToCart: failed to add item", err)
-		h.HandleError(c, err, "Failed to add item to cart")
+		h.HandleError(c, err, orderConstants.FAILED_TO_ADD_ITEM_TO_CART_MSG)
 		return
 	}
 
 	// 4. Return success response (using CartResponse containing the full promotion summary)
-	h.Success(c, http.StatusCreated, "Item added to cart", resp)
+	h.Success(c, http.StatusCreated, orderConstants.ITEM_ADDED_TO_CART_MSG, resp)
 }

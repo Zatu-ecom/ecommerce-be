@@ -184,9 +184,10 @@ type AvailablePromotionInfo struct {
 	ID                        uint   `json:"id"`
 	Name                      string `json:"name"`
 	Type                      string `json:"type"`
-	Requirement               string `json:"requirement"`
-	PotentialSavings          int64  `json:"potentialSavings"`
-	PotentialSavingsFormatted string `json:"potentialSavingsFormatted"`
+	Reason                    string `json:"reason"`
+	Requirement               string `json:"requirement,omitempty"`
+	PotentialSavings          int64  `json:"potentialSavings,omitempty"`
+	PotentialSavingsFormatted string `json:"potentialSavingsFormatted,omitempty"`
 }
 
 // CartResponse represents the full cart response with pricing, promotions, and coupons

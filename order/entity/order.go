@@ -59,17 +59,17 @@ func (s OrderStatus) IsValid() bool {
 
 type Order struct {
 	db.BaseEntity
-	UserID        uint                   `json:"userId"        gorm:"column:user_id;not null;index"`
-	SellerID      *uint                  `json:"sellerId"      gorm:"column:seller_id;index"`
-	OrderNumber   string                 `json:"orderNumber"   gorm:"column:order_number;uniqueIndex"`
-	Status        OrderStatus            `json:"status"        gorm:"column:status;size:32;default:pending;index"`
-	SubtotalCents int64                  `json:"subtotalCents" gorm:"column:subtotal_cents;default:0"`
-	TaxCents      int64                  `json:"taxCents"      gorm:"column:tax_cents;default:0"`
-	ShippingCents int64                  `json:"shippingCents" gorm:"column:shipping_cents;default:0"`
-	DiscountCents int64                  `json:"discountCents" gorm:"column:discount_cents;default:0"`
-	TotalCents    int64                  `json:"totalCents"    gorm:"column:total_cents;default:0"`
-	PlacedAt      *time.Time             `json:"placedAt"      gorm:"column:placed_at"`
-	PaidAt        *time.Time             `json:"paidAt"        gorm:"column:paid_at"`
-	Metadata      map[string]interface{} `json:"metadata"      gorm:"column:metadata;type:jsonb;default:'{}'"`
-	TransactionID string                 `json:"transactionId" gorm:"column:transaction_id"`
+	UserID        uint       `json:"userId"        gorm:"column:user_id;not null;index"`
+	SellerID      *uint      `json:"sellerId"      gorm:"column:seller_id;index"`
+	OrderNumber   string     `json:"orderNumber"   gorm:"column:order_number;uniqueIndex"`
+	Status        OrderStatus `json:"status"        gorm:"column:status;size:32;default:pending;index"`
+	SubtotalCents int64      `json:"subtotalCents" gorm:"column:subtotal_cents;default:0"`
+	TaxCents      int64      `json:"taxCents"      gorm:"column:tax_cents;default:0"`
+	ShippingCents int64      `json:"shippingCents" gorm:"column:shipping_cents;default:0"`
+	DiscountCents int64      `json:"discountCents" gorm:"column:discount_cents;default:0"`
+	TotalCents    int64      `json:"totalCents"    gorm:"column:total_cents;default:0"`
+	PlacedAt      *time.Time `json:"placedAt"      gorm:"column:placed_at"`
+	PaidAt        *time.Time `json:"paidAt"        gorm:"column:paid_at"`
+	Metadata      db.JSONMap `json:"metadata"      gorm:"column:metadata;type:jsonb;default:'{}'"`
+	TransactionID string     `json:"transactionId" gorm:"column:transaction_id"`
 }

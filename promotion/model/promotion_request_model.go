@@ -56,9 +56,6 @@ type CreatePromotionRequest struct {
 	// Priority
 	Priority *int `json:"priority" binding:"omitempty"`
 
-	// Metadata
-	Metadata map[string]interface{} `json:"metadata" binding:"omitempty"`
-
 	// Sale
 	SaleID *uint `json:"saleId" binding:"omitempty"`
 }
@@ -99,8 +96,6 @@ type UpdatePromotionRequest struct {
 	BadgeColor       *string `json:"badgeColor"       binding:"omitempty,max=20"`
 
 	Priority *int `json:"priority" binding:"omitempty"`
-
-	Metadata *map[string]interface{} `json:"metadata" binding:"omitempty"`
 
 	SaleID *uint `json:"saleId" binding:"omitempty"`
 }

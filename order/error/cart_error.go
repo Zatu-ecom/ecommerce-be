@@ -10,7 +10,7 @@ import (
 // ErrVariantNotFound is returned when variant API fails to find a variant
 var ErrVariantNotFound = &commonError.AppError{
 	Code:       "VARIANT_NOT_FOUND",
-	Message:    "Unable to fetch pricing for a variant in cart.",
+	Message:    "Unable to fetch variant information",
 	StatusCode: http.StatusBadRequest,
 }
 

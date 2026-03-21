@@ -1,9 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"ecommerce-be/common/db"
@@ -40,28 +37,7 @@ const (
 )
 
 // RefundMetadata represents additional refund metadata
-type RefundMetadata map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (m *RefundMetadata) Scan(value interface{}) error {
-	if value == nil {
-		*m = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal RefundMetadata value: %v", value)
-	}
-	return json.Unmarshal(bytes, m)
-}
-
-// Value implements driver.Valuer interface
-func (m RefundMetadata) Value() (driver.Value, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return json.Marshal(m)
-}
+type RefundMetadata = db.JSONMap
 
 // PaymentRefund represents a refund transaction
 type PaymentRefund struct {

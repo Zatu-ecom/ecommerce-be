@@ -7,6 +7,7 @@ import (
 	errs "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
 	"ecommerce-be/order/entity"
+	orderConstants "ecommerce-be/order/utils/constant"
 
 	"gorm.io/gorm"
 )
@@ -36,10 +37,14 @@ func (r *CartRepositoryImpl) FindByUserID(ctx context.Context, userID uint) (*en
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return nil, errs.NewAppError(errs.INVALID_ID_CODE, "Cart not found", 404)
+			return nil, errs.NewAppError(
+				errs.INVALID_ID_CODE,
+				orderConstants.CART_NOT_FOUND_MSG,
+				404,
+			)
 		}
 		log.ErrorWithContext(ctx, "Failed to find cart by user ID", result.Error)
-		return nil, errs.NewAppError("DATABASE_ERROR", "Failed to fetch cart", 500)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
 	}
 
 	return &cart, nil
@@ -49,7 +54,7 @@ func (r *CartRepositoryImpl) FindByUserID(ctx context.Context, userID uint) (*en
 func (r *CartRepositoryImpl) CreateCart(ctx context.Context, cart *entity.Cart) error {
 	if err := db.DB(ctx).Create(cart).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to create cart", err)
-		return errs.NewAppError("DATABASE_ERROR", "Failed to insert record", 500)
+		return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
 	}
 	return nil
 }
@@ -69,7 +74,7 @@ func (r *CartRepositoryImpl) FindItemByVariantID(
 			return nil, nil // Return nil, nil when not found to indicate it's a new item addition
 		}
 		log.ErrorWithContext(ctx, "Failed to find cart item", result.Error)
-		return nil, errs.NewAppError("DATABASE_ERROR", "Failed to fetch cart item", 500)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_ITEM_MSG)
 	}
 
 	return &item, nil
@@ -86,7 +91,7 @@ func (r *CartRepositoryImpl) FindItemsByCartID(
 		Find(&items).Error
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to fetch cart items", err)
-		return nil, errs.NewAppError("DATABASE_ERROR", "Failed to fetch cart items", 500)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_ITEMS_MSG)
 	}
 
 	return items, nil
@@ -96,7 +101,7 @@ func (r *CartRepositoryImpl) FindItemsByCartID(
 func (r *CartRepositoryImpl) AddItem(ctx context.Context, item *entity.CartItem) error {
 	if err := db.DB(ctx).Create(item).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to add cart item", err)
-		return errs.NewAppError("DATABASE_ERROR", "Failed to insert record", 500)
+		return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
 	}
 	return nil
 }
@@ -105,7 +110,7 @@ func (r *CartRepositoryImpl) AddItem(ctx context.Context, item *entity.CartItem)
 func (r *CartRepositoryImpl) UpdateItem(ctx context.Context, item *entity.CartItem) error {
 	if err := db.DB(ctx).Save(item).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to update cart item", err)
-		return errs.NewAppError("DATABASE_ERROR", "Failed to update record", 500)
+		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
 	}
 	return nil
 }

@@ -1,9 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"ecommerce-be/common/db"
@@ -21,28 +18,7 @@ const (
 )
 
 // TransactionMetadata represents additional transaction metadata
-type TransactionMetadata map[string]any
-
-// Scan implements sql.Scanner interface
-func (m *TransactionMetadata) Scan(value any) error {
-	if value == nil {
-		*m = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal TransactionMetadata value: %v", value)
-	}
-	return json.Unmarshal(bytes, m)
-}
-
-// Value implements driver.Valuer interface
-func (m TransactionMetadata) Value() (driver.Value, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return json.Marshal(m)
-}
+type TransactionMetadata = db.JSONMap
 
 // PaymentTransaction represents a payment transaction
 type PaymentTransaction struct {

@@ -3,6 +3,7 @@ package factory
 import (
 	"time"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 )
@@ -16,7 +17,7 @@ func PromotionRequestToEntity(req model.CreatePromotionRequest, sellerID uint) *
 		Slug:                        req.Slug,
 		Description:                 req.Description,
 		PromotionType:               req.PromotionType,
-		DiscountConfig:              entity.DiscountConfig(req.DiscountConfig),
+		DiscountConfig:              db.JSONMap(req.DiscountConfig),
 		AppliesTo:                   req.AppliesTo,
 		EligibleFor:                 req.EligibleFor,
 		CustomerSegmentID:           req.CustomerSegmentID,
@@ -60,11 +61,6 @@ func PromotionRequestToEntity(req model.CreatePromotionRequest, sellerID uint) *
 		promotion.Priority = 0
 	}
 
-	// Set Metadata
-	if req.Metadata != nil {
-		promotion.Metadata = entity.JSONMap(req.Metadata)
-	}
-
 	return promotion
 }
 
@@ -94,7 +90,6 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 		BadgeText:                   promotion.BadgeText,
 		BadgeColor:                  promotion.BadgeColor,
 		Priority:                    promotion.Priority,
-		Metadata:                    map[string]interface{}(promotion.Metadata),
 		SaleID:                      promotion.SaleID,
 		CreatedAt:                   promotion.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:                   promotion.UpdatedAt.Format(time.RFC3339),
@@ -136,7 +131,7 @@ func ApplyUpdatePromotionRequest(
 		existing.PromotionType = *req.PromotionType
 	}
 	if req.DiscountConfig != nil {
-		existing.DiscountConfig = entity.DiscountConfig(*req.DiscountConfig)
+		existing.DiscountConfig = db.JSONMap(*req.DiscountConfig)
 	}
 	if req.AppliesTo != nil {
 		existing.AppliesTo = *req.AppliesTo
@@ -179,9 +174,6 @@ func ApplyUpdatePromotionRequest(
 	}
 	if req.Priority != nil {
 		existing.Priority = *req.Priority
-	}
-	if req.Metadata != nil {
-		existing.Metadata = entity.JSONMap(*req.Metadata)
 	}
 	if req.SaleID != nil {
 		existing.SaleID = req.SaleID

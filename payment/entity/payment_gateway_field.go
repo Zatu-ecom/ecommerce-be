@@ -1,10 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
-
 	"ecommerce-be/common/db"
 )
 
@@ -20,28 +16,7 @@ const (
 )
 
 // ValidationRules represents validation rules for a field
-type ValidationRules map[string]any
-
-// Scan implements sql.Scanner interface
-func (v *ValidationRules) Scan(value any) error {
-	if value == nil {
-		*v = nil
-		return nil
-	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal ValidationRules value: %v", value)
-	}
-	return json.Unmarshal(bytes, v)
-}
-
-// Value implements driver.Valuer interface
-func (v ValidationRules) Value() (driver.Value, error) {
-	if v == nil {
-		return nil, nil
-	}
-	return json.Marshal(v)
-}
+type ValidationRules = db.JSONMap
 
 // PaymentGatewayField represents a configuration field required by a gateway
 type PaymentGatewayField struct {
