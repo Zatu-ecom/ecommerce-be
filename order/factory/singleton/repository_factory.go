@@ -8,7 +8,8 @@ import (
 
 // RepositoryFactory manages all repository singleton instances
 type RepositoryFactory struct {
-	cartRepo repository.CartRepository
+	cartRepo  repository.CartRepository
+	orderRepo repository.OrderRepository
 
 	once sync.Once
 }
@@ -22,6 +23,7 @@ func NewRepositoryFactory() *RepositoryFactory {
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
 		f.cartRepo = repository.NewCartRepository()
+		f.orderRepo = repository.NewOrderRepository()
 	})
 }
 
@@ -29,4 +31,10 @@ func (f *RepositoryFactory) initialize() {
 func (f *RepositoryFactory) GetCartRepository() repository.CartRepository {
 	f.initialize()
 	return f.cartRepo
+}
+
+// GetOrderRepository returns the singleton order repository
+func (f *RepositoryFactory) GetOrderRepository() repository.OrderRepository {
+	f.initialize()
+	return f.orderRepo
 }

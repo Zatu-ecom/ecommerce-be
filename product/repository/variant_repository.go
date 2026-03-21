@@ -773,10 +773,24 @@ func (r *VariantRepositoryImpl) buildVariantFilterQuery(
 ) *gorm.DB {
 	query := db.DB(ctx).Model(&entity.ProductVariant{})
 
+	// Handle JOIN with product table if we need it for filtering by category or seller
+	needsProductJoin := sellerID != nil || strings.TrimSpace(filters.CategoryIDs) != ""
+
+	if needsProductJoin {
+		query = query.Joins("JOIN product ON product_variant.product_id = product.id")
+	}
+
 	// Apply seller filter (multi-tenancy)
 	if sellerID != nil {
-		query = query.Joins("JOIN product ON product_variant.product_id = product.id").
-			Where("product.seller_id = ?", *sellerID)
+		query = query.Where("product.seller_id = ?", *sellerID)
+	}
+
+	// Apply Category filter
+	if strings.TrimSpace(filters.CategoryIDs) != "" {
+		categoryIDs := helper.ParseCommaSeparated[uint](filters.CategoryIDs)
+		if len(categoryIDs) > 0 {
+			query = query.Where("product.category_id IN ?", categoryIDs)
+		}
 	}
 
 	// Apply ID and product filters
@@ -893,7 +907,8 @@ func (r *VariantRepositoryImpl) applySortingAndPagination(
 // fetchVariants executes the query and returns variants
 func (r *VariantRepositoryImpl) fetchVariants(query *gorm.DB) ([]entity.ProductVariant, error) {
 	var variants []entity.ProductVariant
-	if err := query.Find(&variants).Error; err != nil {
+	// Preload Product so CategoryID can be returned in the response mapping
+	if err := query.Preload("Product").Find(&variants).Error; err != nil {
 		return nil, err
 	}
 	return variants, nil

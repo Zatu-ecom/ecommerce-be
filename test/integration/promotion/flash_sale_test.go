@@ -290,6 +290,10 @@ func (s *FlashSalePromotionTestSuite) TestFlashSaleMinOrderNotMet() {
 	)
 	// 30000 < 50000 threshold; no discount
 	assertPromotionSummary(s.T(), summary, 30000, 0, 30000)
+	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add $200.00 more to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().Equal(int64(10000), summary.SkippedPromotions[0].PotentialSavings)
 }
 
 // ---------------------------------------------------------------------------

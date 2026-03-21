@@ -3,6 +3,7 @@ package promotionStrategy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"ecommerce-be/common/helper"
 	"ecommerce-be/promotion/entity"
@@ -153,11 +154,11 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	configJSON, _ := json.Marshal(promotion.DiscountConfig)
 	var config model.FlashSaleConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid flash_sale promotion configuration",
 		)
 	}
@@ -168,10 +169,10 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 			soldCount = *config.SoldCount
 		}
 		if soldCount >= *config.StockLimit {
-			return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-				"Flash sale stock limit reached",
-			)
-		}
+		return &model.SkippedPromotionReason{
+			Reason: "Flash sale stock limit reached",
+		}, nil
+	}
 	}
 
 	eligibleItemsSet := helper.ToSet(eligibleItems)
@@ -188,13 +189,25 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 	}
 
 	if totalEffective <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No eligible items for flash sale promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No eligible items for flash sale promotion",
+		}, nil
 	}
 
 	if config.MinOrderCents != nil && totalEffective < *config.MinOrderCents {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Minimum order amount not met")
+		shortfall := *config.MinOrderCents - totalEffective
+		requirementFormat := "Add $%.2f more to qualify"
+		var potentialSavings int64
+		if config.DiscountType == "percentage" {
+			potentialSavings = int64(float64(*config.MinOrderCents) * (config.DiscountValue / 100))
+		} else {
+			potentialSavings = int64(config.DiscountValue)
+		}
+		return &model.SkippedPromotionReason{
+			Reason:           "NOT_MET",
+			Requirement:      fmt.Sprintf(requirementFormat, float64(shortfall)/100.0),
+			PotentialSavings: potentialSavings,
+		}, nil
 	}
 
 	itemDiscounts := make([]ItemDiscountDetail, 0, len(eligibleSummaryItems))
@@ -227,9 +240,9 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 	}
 
 	if totalDiscount == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No discount applicable for flash sale promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No discount applicable for flash sale promotion",
+		}, nil
 	}
 
 	effectiveCap := totalDiscount
@@ -253,5 +266,5 @@ func (s *FlashSaleStrategy) CalculateDiscount(
 	}
 
 	ApplyDiscountToSummary(summary, promotion, itemDiscounts, totalDiscount, 0)
-	return nil
+	return nil, nil
 }

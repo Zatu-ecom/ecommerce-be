@@ -35,6 +35,7 @@ type CartService interface {
 
 type CartServiceImpl struct {
 	cartRepo        repository.CartRepository
+	orderRepo       repository.OrderRepository
 	promotionSvc    promotionService.PromotionService
 	inventorySvc    inventoryService.InventoryQueryService
 	variantQuerySvc productVariantService.VariantQueryService
@@ -43,6 +44,7 @@ type CartServiceImpl struct {
 
 func NewCartService(
 	cartRepo repository.CartRepository,
+	orderRepo repository.OrderRepository,
 	promotionSvc promotionService.PromotionService,
 	inventorySvc inventoryService.InventoryQueryService,
 	variantQuerySvc productVariantService.VariantQueryService,
@@ -50,6 +52,7 @@ func NewCartService(
 ) CartService {
 	return &CartServiceImpl{
 		cartRepo:        cartRepo,
+		orderRepo:       orderRepo,
 		promotionSvc:    promotionSvc,
 		inventorySvc:    inventorySvc,
 		variantQuerySvc: variantQuerySvc,
@@ -114,11 +117,20 @@ func (s *CartServiceImpl) AddToCart(
 		}
 
 		// 7. Map back to CartResponse
-		return factory.BuildCartResponse(cart, items, promoSummary, currencyMap, variantMap), nil
+		return factory.BuildCartResponse(
+			cart,
+			items,
+			promoSummary,
+			currencyMap,
+			variantMap,
+		), nil
 	})
 }
 
-func (s *CartServiceImpl) getOrCreateCart(ctx context.Context, userID uint) (*entity.Cart, error) {
+func (s *CartServiceImpl) getOrCreateCart(
+	ctx context.Context,
+	userID uint,
+) (*entity.Cart, error) {
 	cart, err := s.cartRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		if appErr, ok := err.(*errs.AppError); ok && appErr.Code == errs.INVALID_ID_CODE {
@@ -194,10 +206,17 @@ func (s *CartServiceImpl) buildPromotionRequest(
 	items []entity.CartItem,
 	variantMap map[uint]productModel.VariantDetailResponse,
 ) (*promotionModel.CartValidationRequest, error) {
+	hasPastOrders, err := s.orderRepo.HasPastOrders(ctx, userID)
+	if err != nil {
+		log.WarnWithContext(ctx, "Failed to check user order history: "+err.Error())
+		// Safest is to assume true so we don't accidentally give a first-order discount
+		hasPastOrders = true
+	}
+
 	promoReq := &promotionModel.CartValidationRequest{
 		SellerID:      sellerID,
 		CustomerID:    &userID, // Optional but good for segment targeting
-		IsFirstOrder:  false,   // TODO [MICROSERVICE]: Check user order history
+		IsFirstOrder:  !hasPastOrders,
 		Items:         make([]promotionModel.CartItem, len(items)),
 		SubtotalCents: 0,
 	}
@@ -220,7 +239,7 @@ func (s *CartServiceImpl) buildPromotionRequest(
 			ItemID:     strconv.Itoa(int(item.ID)),
 			VariantID:  &item.VariantID,
 			ProductID:  variant.ProductID,
-			CategoryID: 0, // ListVariants doesn't return CategoryID
+			CategoryID: variant.Product.CategoryID,
 			Quantity:   item.Quantity,
 			PriceCents: variantPriceCents,
 			TotalCents: lineTotal,

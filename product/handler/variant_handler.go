@@ -67,7 +67,13 @@ func (h *VariantHandler) GetVariantByID(c *gin.Context) {
 	}
 
 	// Call query service
-	variantResponse, err := h.variantQueryService.GetVariantByID(c, productID, variantID, sellerID, userIDPtr)
+	variantResponse, err := h.variantQueryService.GetVariantByID(
+		c,
+		productID,
+		variantID,
+		sellerID,
+		userIDPtr,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_RETRIEVE_VARIANT_MSG)
 		return
@@ -356,7 +362,13 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 	optionFilters := helper.ParseOptionsFromQuery(queryParams, defaultExcludes)
 
 	// Call variant query service (same service used for other variant queries)
-	response, err := h.variantQueryService.ListVariants(c, &request, sellerID, optionFilters, userIDPtr)
+	response, err := h.variantQueryService.ListVariants(
+		c,
+		&request,
+		sellerID,
+		optionFilters,
+		userIDPtr,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_LIST_VARIANTS_MSG)
 		return

@@ -157,6 +157,10 @@ func (s *FixedAmountPromotionTestSuite) TestFixedAmountMinOrderNotMet() {
 		),
 	)
 	assertPromotionSummary(s.T(), summary, 80000, 0, 80000)
+	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add $200.00 more to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().Equal(int64(10000), summary.SkippedPromotions[0].PotentialSavings)
 }
 
 // TestFixedAmountMinOrderMet validates that the discount applies once the
@@ -530,6 +534,11 @@ func (s *FixedAmountPromotionTestSuite) TestBothPromosMinOrderNotMetCartTooSmall
 	)
 	assertPromotionSummary(s.T(), summary, 30000, 0, 30000)
 	s.Require().Empty(summary.AppliedPromotions, "no promo should apply")
+	s.Require().Len(summary.SkippedPromotions, 2)
+	for _, skipped := range summary.SkippedPromotions {
+		s.Require().Contains(skipped.Requirement, "Add $")
+		s.Require().Contains(skipped.Requirement, "more to qualify")
+	}
 }
 
 // ---------------------------------------------------------------------------

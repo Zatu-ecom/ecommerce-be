@@ -37,9 +37,10 @@ func (f *ServiceFactory) initialize() {
 
 		// Get repositories
 		cartRepo := f.repoFactory.GetCartRepository()
+		orderRepo := f.repoFactory.GetOrderRepository()
 
 		// Initialize services
-		f.cartService = service.NewCartService(cartRepo, promotionSvc, inventorySvc, variantQuerySvc, userSvc)
+		f.cartService = service.NewCartService(cartRepo, orderRepo, promotionSvc, inventorySvc, variantQuerySvc, userSvc)
 	})
 }
 

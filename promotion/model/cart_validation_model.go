@@ -21,19 +21,6 @@ type CartValidationRequest struct {
 	IsFirstOrder  bool       `json:"isFirstOrder"` // True if this is customer's first order (set by order service)
 }
 
-// ItemDiscount is the internal struct produced by strategies during discount calculation.
-// It is NOT serialized in the API response — see ItemPromotionDetail for the response struct.
-type ItemDiscount struct {
-	ItemID        string
-	ProductID     uint
-	PromotionID   uint
-	PromotionName string
-	DiscountCents int64 // Discount amount for this item from this promotion
-	OriginalCents int64 // Item price before this promotion
-	FinalCents    int64 // Item price after this promotion
-	FreeQuantity  int   // For buy X get Y: number of free items
-}
-
 // ItemPromotionDetail is the response struct nested inside CartItemSummary.
 // It omits ItemID/ProductID since the parent CartItemSummary already has them.
 type ItemPromotionDetail struct {
@@ -56,16 +43,26 @@ type PromotionValidationResult struct {
 	DiscountCents    int64  `json:"discountCents"`    // Total discount from this promotion
 	ShippingDiscount int64  `json:"shippingDiscount"` // Shipping discount from this promotion
 	Reason           string `json:"reason,omitempty"`
+}
 
-	// Internal only — used during calculation, not serialized in API response
-	ItemDiscounts []ItemDiscount `json:"-"`
+// SkippedPromotionReason stores why a promotion wasn't applied along with user-actionable requirements
+type SkippedPromotionReason struct {
+	Reason           string `json:"reason"`
+	Requirement      string `json:"requirement,omitempty"`
+	PotentialSavings int64  `json:"potentialSavings,omitempty"`
+}
+
+// SkippedPromotionResult represents a skipped promotion sent in the API response
+type SkippedPromotionResult struct {
+	Promotion *PromotionResponse `json:"promotion,omitempty"`
+	SkippedPromotionReason
 }
 
 // AppliedPromotionSummary represents the final summary after applying all promotions
 type AppliedPromotionSummary struct {
 	Items              []CartItemSummary           `json:"items"`
 	AppliedPromotions  []PromotionValidationResult `json:"appliedPromotions"`
-	SkippedPromotions  []PromotionValidationResult `json:"skippedPromotions,omitempty"`
+	SkippedPromotions  []SkippedPromotionResult    `json:"skippedPromotions,omitempty"`
 	TotalDiscountCents int64                       `json:"totalDiscountCents"`
 	ShippingDiscount   int64                       `json:"shippingDiscount"`
 	OriginalSubtotal   int64                       `json:"originalSubtotal"`

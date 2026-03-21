@@ -224,7 +224,7 @@ func ConstructAppliedPromotionSummaryFromCartRequest(
 	return &model.AppliedPromotionSummary{
 		Items:              items,
 		AppliedPromotions:  []model.PromotionValidationResult{},
-		SkippedPromotions:  []model.PromotionValidationResult{},
+		SkippedPromotions:  []model.SkippedPromotionResult{},
 		ShippingDiscount:   0,
 		OriginalSubtotal:   cart.SubtotalCents,
 		FinalSubtotal:      cart.SubtotalCents, // Initial final subtotal is same as original; will be reduced as promotions are applied

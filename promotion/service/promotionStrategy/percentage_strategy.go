@@ -3,6 +3,7 @@ package promotionStrategy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"ecommerce-be/common/helper"
 	"ecommerce-be/promotion/entity"
@@ -113,13 +114,13 @@ func (s *PercentageStrategy) CalculateDiscount(
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	eligibleItemsSet := helper.ToSet(eligibleItems)
 
 	configJSON, _ := json.Marshal(promotion.DiscountConfig)
 	var config model.PercentageDiscountConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid percentage_discount promotion configuration",
 		)
 	}
@@ -138,13 +139,23 @@ func (s *PercentageStrategy) CalculateDiscount(
 	}
 
 	if totalEffective <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No eligible items for percentage discount promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No eligible items for percentage discount promotion",
+		}, nil
 	}
 
 	if config.MinOrderCents != nil && totalEffective < *config.MinOrderCents {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Minimum order amount not met")
+		shortfall := *config.MinOrderCents - totalEffective
+		requirementFormat := "Add $%.2f more to qualify"
+		potentialSavings := int64(float64(*config.MinOrderCents) * config.Percentage / 100)
+		if config.MaxDiscountCents != nil && potentialSavings > *config.MaxDiscountCents {
+			potentialSavings = *config.MaxDiscountCents
+		}
+		return &model.SkippedPromotionReason{
+			Reason:           "Minimum order amount not met",
+			Requirement:      fmt.Sprintf(requirementFormat, float64(shortfall)/100.0),
+			PotentialSavings: potentialSavings,
+		}, nil
 	}
 
 	// Compute per-item discount as a fraction of each item's current line total.
@@ -167,9 +178,9 @@ func (s *PercentageStrategy) CalculateDiscount(
 	}
 
 	if totalDiscount == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No discount applicable for percentage discount promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No discount applicable for percentage discount promotion",
+		}, nil
 	}
 
 	// Apply caps. If the total is capped, redistribute the reduction proportionally
@@ -196,5 +207,5 @@ func (s *PercentageStrategy) CalculateDiscount(
 	}
 
 	ApplyDiscountToSummary(summary, promotion, itemDiscounts, totalDiscount, 0)
-	return nil
+	return nil, nil
 }

@@ -23,5 +23,5 @@ type PromotionStrategy interface {
 		cart *model.CartValidationRequest,
 		summary *model.AppliedPromotionSummary,
 		eligibleItems []string,
-	) error
+	) (*model.SkippedPromotionReason, error)
 }

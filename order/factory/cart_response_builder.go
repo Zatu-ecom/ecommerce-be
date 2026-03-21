@@ -24,8 +24,9 @@ func BuildCartResponse(
 	response := &model.CartResponse{
 		CartBase:       buildCartBase(cart, currencyMap),
 		Summary:        buildCartSummary(len(items), promo, currencyMap),
-		Items:          make([]model.CartItemWithPricingResponse, len(items)),
-		AppliedCoupons: make([]model.AppliedCouponInfo, 0), // Not implemented yet
+		Items:               make([]model.CartItemWithPricingResponse, len(items)),
+		AppliedCoupons:      make([]model.AppliedCouponInfo, 0), // Not implemented yet
+		AvailablePromotions: buildAvailablePromotions(promo, currencyMap),
 	}
 
 	itemPromoMap := buildItemPromotionMap(promo)
@@ -40,6 +41,37 @@ func BuildCartResponse(
 
 	attachSavingsIfAny(&response.Summary)
 	return response
+}
+
+func buildAvailablePromotions(
+	promo *promotionModel.AppliedPromotionSummary,
+	currencyMap *userModel.CurrencyResponse,
+) []model.AvailablePromotionInfo {
+	if promo == nil || len(promo.SkippedPromotions) == 0 {
+		return nil
+	}
+
+	available := make([]model.AvailablePromotionInfo, 0)
+	for _, skipped := range promo.SkippedPromotions {
+		if skipped.Requirement != "" {
+			info := model.AvailablePromotionInfo{
+				ID:               skipped.Promotion.ID,
+				Name:             skipped.Promotion.Name,
+				Type:             string(skipped.Promotion.PromotionType),
+				Requirement:      skipped.Requirement,
+				PotentialSavings: skipped.PotentialSavings,
+			}
+			if skipped.PotentialSavings > 0 {
+				info.PotentialSavingsFormatted = formatCurrencyWithSymbol(
+					skipped.PotentialSavings,
+					currencyMap.Symbol,
+					currencyMap.DecimalDigits,
+				)
+			}
+			available = append(available, info)
+		}
+	}
+	return available
 }
 
 func buildCartBase(

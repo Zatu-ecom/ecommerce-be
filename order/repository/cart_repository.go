@@ -55,7 +55,10 @@ func (r *CartRepositoryImpl) CreateCart(ctx context.Context, cart *entity.Cart) 
 }
 
 // FindItemByVariantID finds a specific item in a cart by variant ID
-func (r *CartRepositoryImpl) FindItemByVariantID(ctx context.Context, cartID, variantID uint) (*entity.CartItem, error) {
+func (r *CartRepositoryImpl) FindItemByVariantID(
+	ctx context.Context,
+	cartID, variantID uint,
+) (*entity.CartItem, error) {
 	var item entity.CartItem
 	result := db.DB(ctx).
 		Where("cart_id = ? AND variant_id = ?", cartID, variantID).
@@ -73,12 +76,14 @@ func (r *CartRepositoryImpl) FindItemByVariantID(ctx context.Context, cartID, va
 }
 
 // FindItemsByCartID gets all items for a given cart
-func (r *CartRepositoryImpl) FindItemsByCartID(ctx context.Context, cartID uint) ([]entity.CartItem, error) {
+func (r *CartRepositoryImpl) FindItemsByCartID(
+	ctx context.Context,
+	cartID uint,
+) ([]entity.CartItem, error) {
 	var items []entity.CartItem
 	err := db.DB(ctx).
 		Where("cart_id = ?", cartID).
 		Find(&items).Error
-
 	if err != nil {
 		log.ErrorWithContext(ctx, "Failed to fetch cart items", err)
 		return nil, errs.NewAppError("DATABASE_ERROR", "Failed to fetch cart items", 500)

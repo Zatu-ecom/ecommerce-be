@@ -3,6 +3,7 @@ package promotionStrategy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
@@ -98,19 +99,29 @@ func (s *FreeShippingStrategy) CalculateDiscount(
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	configJSON, _ := json.Marshal(promotion.DiscountConfig)
 	var config model.FreeShippingConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid free_shipping promotion configuration",
 		)
 	}
+	if cart.ShippingCents == 0 {
+		return &model.SkippedPromotionReason{
+			Reason:      "NOT_APPLICABLE",
+			Requirement: "Shipping is already free",
+		}, nil
+	}
 
 	if config.MinOrderCents != nil && summary.FinalSubtotal < *config.MinOrderCents {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"Minimum order amount not met for free shipping",
-		)
+		shortfall := *config.MinOrderCents - summary.FinalSubtotal
+		requirementFormat := "Add $%.2f more to qualify"
+		return &model.SkippedPromotionReason{
+			Reason:           "Minimum order amount not met for free shipping",
+			Requirement:      fmt.Sprintf(requirementFormat, float64(shortfall)/100.0),
+			PotentialSavings: cart.ShippingCents,
+		}, nil
 	}
 
 	shippingDiscount := cart.ShippingCents
@@ -120,11 +131,11 @@ func (s *FreeShippingStrategy) CalculateDiscount(
 	}
 
 	if shippingDiscount <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No shipping discount applicable",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No shipping discount applicable",
+		}, nil
 	}
 
 	ApplyDiscountToSummary(summary, promotion, nil, 0, shippingDiscount)
-	return nil
+	return nil, nil
 }

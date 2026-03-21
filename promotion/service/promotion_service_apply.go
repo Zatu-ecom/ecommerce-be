@@ -67,7 +67,15 @@ func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
 	priorityGroups := s.groupByPriority(validPromotions)
 	promoIdVslineItems := make(map[uint][]string)
 
-	summary.SkippedPromotions = append(summary.SkippedPromotions, skippedResults...)
+	summary.SkippedPromotions = make([]model.SkippedPromotionResult, 0, len(skippedResults))
+	for _, res := range skippedResults {
+		summary.SkippedPromotions = append(summary.SkippedPromotions, model.SkippedPromotionResult{
+			Promotion: res.Promotion,
+			SkippedPromotionReason: model.SkippedPromotionReason{
+				Reason: res.Reason,
+			},
+		})
+	}
 
 	// Now we will create a copy of the summary as in first time we find best promotion,
 	// we will update the summary in-place and next time when we want to check eligibility of next promotion,
@@ -83,8 +91,19 @@ func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
 			eligibleLineItems := promoIdVslineItems[promo.ID]
 			promotionStrategy := promotionStrategy.GetPromotionStrategy(promo.PromotionType)
 
-			if err := promotionStrategy.CalculateDiscount(ctx, promo, cart, summary, eligibleLineItems); err != nil {
-				handlePromotionCalculationError(ctx, summary, promo, err)
+			reason, err := promotionStrategy.CalculateDiscount(
+				ctx,
+				promo,
+				cart,
+				summary,
+				eligibleLineItems,
+			)
+			if err != nil {
+				handlePromotionCalculationError(ctx, summary, promo, err, nil)
+				continue
+			}
+			if reason != nil {
+				handlePromotionCalculationError(ctx, summary, promo, nil, reason)
 				continue
 			}
 
@@ -95,10 +114,11 @@ func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
 				)
 				summary.SkippedPromotions = append(
 					summary.SkippedPromotions,
-					model.PromotionValidationResult{
+					model.SkippedPromotionResult{
 						Promotion: factory.PromotionEntityToResponse(promo),
-						IsValid:   false,
-						Reason:    promotionConstant.VALIDATION_NON_STACKABLE_ALREADY_APPLIED_MSG,
+						SkippedPromotionReason: model.SkippedPromotionReason{
+							Reason: promotionConstant.VALIDATION_NON_STACKABLE_ALREADY_APPLIED_MSG,
+						},
 					},
 				)
 
@@ -139,8 +159,19 @@ func (s *PromotionServiceImpl) findBestPromotionForCart(
 		summaryCopy := deepCopySummary(summary)
 		promotionStrategy := promotionStrategy.GetPromotionStrategy(promo.PromotionType)
 
-		if err := promotionStrategy.CalculateDiscount(ctx, promo, cart, summaryCopy, eligibleLineItems); err != nil {
-			handlePromotionCalculationError(ctx, summary, promo, err)
+		reason, err := promotionStrategy.CalculateDiscount(
+			ctx,
+			promo,
+			cart,
+			summaryCopy,
+			eligibleLineItems,
+		)
+		if err != nil {
+			handlePromotionCalculationError(ctx, summary, promo, err, nil)
+			continue
+		}
+		if reason != nil {
+			handlePromotionCalculationError(ctx, summary, promo, nil, reason)
 			continue
 		}
 		promoResults = append(promoResults, PromoResult{
@@ -276,26 +307,41 @@ func handlePromotionCalculationError(
 	summary *model.AppliedPromotionSummary,
 	promo *entity.Promotion,
 	err error,
+	reason *model.SkippedPromotionReason,
 ) {
-	log.ErrorWithContext(
-		ctx,
-		"Failed to calculate discount for promotion "+strconv.FormatUint(
-			uint64(promo.ID),
-			10,
-		),
-		err,
-	)
-	// because of error we are skipping this promotion but we are not returning error
-	// as we want to continue applying other promotions and not fail the entire flow
-	// because of one promotion failure
-	summary.SkippedPromotions = append(
-		summary.SkippedPromotions,
-		model.PromotionValidationResult{
-			Promotion: factory.PromotionEntityToResponse(promo),
-			IsValid:   false,
-			Reason:    err.Error(),
-		},
-	)
+	if reason != nil {
+		summary.SkippedPromotions = append(
+			summary.SkippedPromotions,
+			model.SkippedPromotionResult{
+				Promotion:              factory.PromotionEntityToResponse(promo),
+				SkippedPromotionReason: *reason,
+			},
+		)
+		return
+	}
+
+	if err != nil {
+		log.ErrorWithContext(
+			ctx,
+			"Failed to calculate discount for promotion "+strconv.FormatUint(
+				uint64(promo.ID),
+				10,
+			),
+			err,
+		)
+		// because of error we are skipping this promotion but we are not returning error
+		// as we want to continue applying other promotions and not fail the entire flow
+		// because of one promotion failure
+		summary.SkippedPromotions = append(
+			summary.SkippedPromotions,
+			model.SkippedPromotionResult{
+				Promotion: factory.PromotionEntityToResponse(promo),
+				SkippedPromotionReason: model.SkippedPromotionReason{
+					Reason: err.Error(),
+				},
+			},
+		)
+	}
 }
 
 // deepCopySummary returns a fully independent copy of the summary so that
@@ -319,7 +365,7 @@ func deepCopySummary(
 	dst.AppliedPromotions = make([]model.PromotionValidationResult, len(src.AppliedPromotions))
 	copy(dst.AppliedPromotions, src.AppliedPromotions)
 
-	dst.SkippedPromotions = make([]model.PromotionValidationResult, len(src.SkippedPromotions))
+	dst.SkippedPromotions = make([]model.SkippedPromotionResult, len(src.SkippedPromotions))
 	copy(dst.SkippedPromotions, src.SkippedPromotions)
 
 	return &dst

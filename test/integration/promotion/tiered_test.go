@@ -206,6 +206,9 @@ func (s *TieredPromotionTestSuite) TestTieredSpendBelowThreshold() {
 	)
 	assertPromotionSummary(s.T(), summary, 150000, 0, 150000)
 	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add $500.00 more to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().Equal(int64(20000), summary.SkippedPromotions[0].PotentialSavings)
 }
 
 func (s *TieredPromotionTestSuite) TestTieredSpendFirstTier() {

@@ -3,6 +3,7 @@ package promotionStrategy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"ecommerce-be/common/helper"
 	"ecommerce-be/promotion/entity"
@@ -104,13 +105,13 @@ func (s *FixedAmountStrategy) CalculateDiscount(
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	eligibleItemsSet := helper.ToSet(eligibleItems)
 
 	configJSON, _ := json.Marshal(promotion.DiscountConfig)
 	var config model.FixedAmountConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid fixed_amount promotion configuration",
 		)
 	}
@@ -129,13 +130,19 @@ func (s *FixedAmountStrategy) CalculateDiscount(
 	}
 
 	if totalEffective <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No eligible items for fixed amount promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No eligible items for fixed amount promotion",
+		}, nil
 	}
 
 	if config.MinOrderCents != nil && totalEffective < *config.MinOrderCents {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Minimum order amount not met")
+		shortfall := *config.MinOrderCents - totalEffective
+		requirementFormat := "Add $%.2f more to qualify"
+		return &model.SkippedPromotionReason{
+			Reason:           "Minimum order amount not met",
+			Requirement:      fmt.Sprintf(requirementFormat, float64(shortfall)/100.0),
+			PotentialSavings: config.AmountCents,
+		}, nil
 	}
 
 	discountCents := config.AmountCents
@@ -174,11 +181,11 @@ func (s *FixedAmountStrategy) CalculateDiscount(
 	}
 
 	if distributed == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No discount applicable for fixed amount promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No discount applicable for fixed amount promotion",
+		}, nil
 	}
 
 	ApplyDiscountToSummary(summary, promotion, itemDiscounts, distributed, 0)
-	return nil
+	return nil, nil
 }

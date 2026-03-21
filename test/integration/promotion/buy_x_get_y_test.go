@@ -201,6 +201,8 @@ func (s *BuyXGetYPromotionTestSuite) TestBuyTwoGetOneFreeSameVariant() {
 		summary.AppliedPromotions,
 		"different variants must not pool under same_variant scope",
 	)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add 2 more item(s) to qualify", summary.SkippedPromotions[0].Requirement)
 }
 
 // TestBuyTwoGetOneFreeSameProductAcrossVariants validates product-level pooling.
@@ -354,6 +356,8 @@ func (s *BuyXGetYPromotionTestSuite) TestRewardProductMissingDoesNotDiscount() {
 		summary.AppliedPromotions,
 		"missing reward product should produce no discount",
 	)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add reward item to cart to qualify", summary.SkippedPromotions[0].Requirement)
 }
 
 // TestBuyXGetYHonorsMaxSetsLimit validates max_sets at both summary and item level.

@@ -3,6 +3,7 @@ package promotionStrategy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 
@@ -208,19 +209,19 @@ func isSameRewardMode(config model.BuyXGetYConfig) bool {
 // CalculateDiscount updates the passed AppliedPromotionSummary in-place and
 // returns an error if the promotion cannot be applied.
 //
-// Instead of duplicating the complex grouping/allocation logic, this method derives
-// an effectivePrices map and eligible []CartItem from the summary, then delegates to
-// the existing helpers (calculateSameRewardDiscount / calculateCrossRewardDiscount).
+// It derives effective prices from the summary (so stacked promotions are
+// reflected), dispatches to the appropriate mode helper, and applies the
+// resulting ItemDiscountDetails via the shared ApplyDiscountToSummary.
 func (s *BuyXGetYStrategy) CalculateDiscount(
 	ctx context.Context,
 	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	config, err := parseBuyXGetYConfig(promotion.DiscountConfig)
 	if err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid buy_x_get_y promotion configuration",
 		)
 	}
@@ -242,41 +243,46 @@ func (s *BuyXGetYStrategy) CalculateDiscount(
 		}
 	}
 	if len(eligibleCartItems) == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"Cart items do not match promotion scope",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "Cart items do not match promotion scope",
+		}, nil
 	}
 
-	// Dispatch to existing V1 logic which returns a fully computed result.
-	var v1Result *model.PromotionValidationResult
+	var itemDiscounts []ItemDiscountDetail
+	var totalDiscountCents int64
+	var reason string
+
 	if isSameRewardMode(config) {
-		v1Result = s.calculateSameRewardDiscount(
-			promotion,
-			cart,
+		itemDiscounts, totalDiscountCents, reason = s.calculateSameRewardDiscount(
 			eligibleCartItems,
 			effectivePrices,
 			config,
 		)
 	} else {
-		v1Result = s.calculateCrossRewardDiscount(promotion, cart, eligibleCartItems, effectivePrices, config)
+		itemDiscounts, totalDiscountCents, reason = s.calculateCrossRewardDiscount(
+			cart,
+			eligibleCartItems,
+			effectivePrices,
+			config,
+		)
 	}
 
-	if !v1Result.IsValid {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(v1Result.Reason)
+	if reason != "" {
+		requirementStr := ""
+		if reason == "Not enough qualifying buy items for buy X get Y promotion" || reason == "Not enough items to qualify for buy X get Y promotion" {
+			requirementStr = fmt.Sprintf("Add %d more item(s) to qualify", config.BuyQuantity)
+		} else if reason == "Reward item must be present in cart for buy X get Y promotion" {
+			requirementStr = "Add reward item to cart to qualify"
+		}
+		
+		return &model.SkippedPromotionReason{
+			Reason:      "NOT_MET",
+			Requirement: requirementStr,
+		}, nil
 	}
 
-	// Convert V1 ItemDiscounts into ItemDiscountDetail for the shared summary updater.
-	itemDiscounts := make([]ItemDiscountDetail, 0, len(v1Result.ItemDiscounts))
-	for _, d := range v1Result.ItemDiscounts {
-		itemDiscounts = append(itemDiscounts, ItemDiscountDetail{
-			ItemID:        d.ItemID,
-			DiscountCents: d.DiscountCents,
-			FreeQuantity:  d.FreeQuantity,
-		})
-	}
-
-	ApplyDiscountToSummary(summary, promotion, itemDiscounts, v1Result.DiscountCents, 0)
-	return nil
+	ApplyDiscountToSummary(summary, promotion, itemDiscounts, totalDiscountCents, 0)
+	return nil, nil
 }
 
 // calculateSameRewardDiscount handles:
@@ -287,13 +293,10 @@ func (s *BuyXGetYStrategy) CalculateDiscount(
 // It groups eligible cart units, computes complete sets in each group, uses the highest-priced
 // units to satisfy the "buy" side, and gives the cheapest remaining units for free.
 func (s *BuyXGetYStrategy) calculateSameRewardDiscount(
-	promotion *entity.Promotion,
-	cart *model.CartValidationRequest,
 	eligibleItems []model.CartItem,
 	effectivePrices map[string]int64,
 	config model.BuyXGetYConfig,
-) *model.PromotionValidationResult {
-	result := &model.PromotionValidationResult{IsValid: false}
+) ([]ItemDiscountDetail, int64, string) {
 	groups := s.groupEligibleItems(eligibleItems, effectivePrices, config.ScopeType)
 
 	itemDiscountTotals := make(map[string]int64)
@@ -326,34 +329,21 @@ func (s *BuyXGetYStrategy) calculateSameRewardDiscount(
 	}
 
 	if totalDiscountCents == 0 {
-		result.Reason = "Not enough items to qualify for buy X get Y promotion"
-		return result
+		return nil, 0, "Not enough items to qualify for buy X get Y promotion"
 	}
 
-	result.IsValid = true
-	result.DiscountCents = totalDiscountCents
-	result.ItemDiscounts = buildBuyXGetYItemDiscounts(
-		promotion,
-		cart.Items,
-		effectivePrices,
-		itemDiscountTotals,
-		itemFreeQuantities,
-	)
-	return result
+	return buildItemDiscountDetails(itemDiscountTotals, itemFreeQuantities), totalDiscountCents, ""
 }
 
 // calculateCrossRewardDiscount handles the "buy this, get that product free" case.
 // The reward product must already exist in the cart; the strategy does not auto-add it.
 // Buy items come from the promotion scope, while reward items come from get_product_id.
 func (s *BuyXGetYStrategy) calculateCrossRewardDiscount(
-	promotion *entity.Promotion,
 	cart *model.CartValidationRequest,
 	eligibleItems []model.CartItem,
 	effectivePrices map[string]int64,
 	config model.BuyXGetYConfig,
-) *model.PromotionValidationResult {
-	result := &model.PromotionValidationResult{IsValid: false}
-
+) ([]ItemDiscountDetail, int64, string) {
 	buyUnitCount := countCrossRewardBuyUnits(eligibleItems, effectivePrices, *config.GetProductID)
 	rewardLines, rewardUnitCount := collectCrossRewardRewardLines(
 		cart.Items,
@@ -367,8 +357,7 @@ func (s *BuyXGetYStrategy) calculateCrossRewardDiscount(
 		config,
 	)
 	if completeSets == 0 {
-		result.Reason = reason
-		return result
+		return nil, 0, reason
 	}
 
 	sortCrossRewardLinesByPriceAsc(rewardLines)
@@ -379,16 +368,7 @@ func (s *BuyXGetYStrategy) calculateCrossRewardDiscount(
 		freeCount,
 	)
 
-	result.IsValid = true
-	result.DiscountCents = totalDiscountCents
-	result.ItemDiscounts = buildBuyXGetYItemDiscounts(
-		promotion,
-		cart.Items,
-		effectivePrices,
-		itemDiscountTotals,
-		itemFreeQuantities,
-	)
-	return result
+	return buildItemDiscountDetails(itemDiscountTotals, itemFreeQuantities), totalDiscountCents, ""
 }
 
 func countCrossRewardBuyUnits(
@@ -644,40 +624,24 @@ func mergeItemDiscountMaps(
 	*totalDiscountCents += group.totalDiscountCents
 }
 
-// buildBuyXGetYItemDiscounts converts the aggregated per-line discount totals into the
-// ItemDiscount format used by the promotion engine summary and stacking logic.
-func buildBuyXGetYItemDiscounts(
-	promotion *entity.Promotion,
-	cartItems []model.CartItem,
-	effectivePrices map[string]int64,
+// buildItemDiscountDetails converts the aggregated per-item discount totals and free
+// quantities into the ItemDiscountDetail format consumed by ApplyDiscountToSummary.
+func buildItemDiscountDetails(
 	itemDiscountTotals map[string]int64,
 	itemFreeQuantities map[string]int,
-) []model.ItemDiscount {
-	itemDiscounts := make([]model.ItemDiscount, 0, len(itemDiscountTotals))
-	for _, item := range cartItems {
-		itemDiscount := itemDiscountTotals[item.ItemID]
-		if itemDiscount <= 0 {
+) []ItemDiscountDetail {
+	details := make([]ItemDiscountDetail, 0, len(itemDiscountTotals))
+	for itemID, discountCents := range itemDiscountTotals {
+		if discountCents <= 0 {
 			continue
 		}
-
-		effectivePrice := effectivePrices[item.ItemID]
-		finalCents := effectivePrice - (itemDiscount / int64(item.Quantity))
-		if finalCents < 0 {
-			finalCents = 0
-		}
-
-		itemDiscounts = append(itemDiscounts, model.ItemDiscount{
-			ItemID:        item.ItemID,
-			ProductID:     item.ProductID,
-			PromotionID:   promotion.ID,
-			PromotionName: promotion.Name,
-			DiscountCents: itemDiscount,
-			OriginalCents: effectivePrice,
-			FinalCents:    finalCents,
-			FreeQuantity:  itemFreeQuantities[item.ItemID],
+		details = append(details, ItemDiscountDetail{
+			ItemID:        itemID,
+			DiscountCents: discountCents,
+			FreeQuantity:  itemFreeQuantities[itemID],
 		})
 	}
-	return itemDiscounts
+	return details
 }
 
 // buyXGetYGroupKey chooses the grouping key for same-reward mode.

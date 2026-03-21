@@ -172,6 +172,9 @@ func (s *FreeShippingPromotionTestSuite) TestFreeShippingMinOrderNotMet() {
 	)
 	s.Require().Equal(int64(0), summary.ShippingDiscount)
 	s.Require().Empty(summary.AppliedPromotions, "threshold not met, should not apply")
+	s.Require().Len(summary.SkippedPromotions, 1, "should have 1 skipped promotion")
+	s.Require().Equal("Add $200.00 more to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().Equal(int64(10000), summary.SkippedPromotions[0].PotentialSavings)
 }
 
 // TestFreeShippingMinOrderExactBoundary validates the boundary condition where the
@@ -206,6 +209,8 @@ func (s *FreeShippingPromotionTestSuite) TestFreeShippingZeroShipping() {
 	)
 	s.Require().Equal(int64(0), summary.ShippingDiscount)
 	s.Require().Empty(summary.AppliedPromotions, "no shipping to waive, should not apply")
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Shipping is already free", summary.SkippedPromotions[0].Requirement)
 }
 
 // ---------------------------------------------------------------------------
@@ -496,6 +501,13 @@ func (s *FreeShippingPromotionTestSuite) TestFreeShippingBothPromosFail() {
 	assertPromotionSummary(s.T(), summary, 30000, 0, 30000)
 	s.Require().Equal(int64(0), summary.ShippingDiscount)
 	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 2)
+	// One is free shipping (min 500), one is fixed amount (min 400).
+	// We just ensure both are skipped.
+	for _, skipped := range summary.SkippedPromotions {
+		s.Require().Contains(skipped.Requirement, "Add $")
+		s.Require().Contains(skipped.Requirement, "more to qualify")
+	}
 }
 
 // TestStackableItemDiscountMakesSubtotalBelowFreeShippingThreshold validates

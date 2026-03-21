@@ -188,6 +188,9 @@ func (s *PercentageDiscountPromotionTestSuite) TestPercentageMinOrderNotMet() {
 	)
 	assertPromotionSummary(s.T(), summary, 30000, 0, 30000)
 	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Equal("Add $200.00 more to qualify", summary.SkippedPromotions[0].Requirement)
+	s.Require().Equal(int64(5000), summary.SkippedPromotions[0].PotentialSavings)
 }
 
 func (s *PercentageDiscountPromotionTestSuite) TestPercentageMinOrderExactBoundary() {
@@ -430,6 +433,11 @@ func (s *PercentageDiscountPromotionTestSuite) TestBothPromosMinOrderNotMet() {
 	)
 	assertPromotionSummary(s.T(), summary, 30000, 0, 30000)
 	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 2)
+	for _, skipped := range summary.SkippedPromotions {
+		s.Require().Contains(skipped.Requirement, "Add $")
+		s.Require().Contains(skipped.Requirement, "more to qualify")
+	}
 }
 
 func (s *PercentageDiscountPromotionTestSuite) TestHigherPriorityNonStackableBlocksLower() {
@@ -541,6 +549,8 @@ func (s *PercentageDiscountPromotionTestSuite) TestPercentageNoEligibleItems() {
 	)
 	assertPromotionSummary(s.T(), summary, 80000, 0, 80000)
 	s.Require().Empty(summary.AppliedPromotions)
+	s.Require().Len(summary.SkippedPromotions, 1)
+	s.Require().Contains(summary.SkippedPromotions[0].Reason, "No eligible items")
 }
 
 func (s *PercentageDiscountPromotionTestSuite) TestPercentageExceeds100Rejected() {

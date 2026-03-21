@@ -47,7 +47,7 @@ func BenchmarkBuyXGetYStrategySameRewardLargeQuantity(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		summary := benchmarkSummary(cart)
-		if err := strategy.CalculateDiscount(
+		if _, err := strategy.CalculateDiscount(
 			context.Background(),
 			promotion,
 			cart,
@@ -107,7 +107,7 @@ func BenchmarkBuyXGetYStrategyCrossRewardLargeQuantity(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		summary := benchmarkSummary(cart)
-		if err := strategy.CalculateDiscount(
+		if _, err := strategy.CalculateDiscount(
 			context.Background(),
 			promotion,
 			cart,
@@ -146,7 +146,7 @@ func benchmarkSummary(cart *model.CartValidationRequest) *model.AppliedPromotion
 	return &model.AppliedPromotionSummary{
 		Items:             summaryItems,
 		AppliedPromotions: []model.PromotionValidationResult{},
-		SkippedPromotions: []model.PromotionValidationResult{},
+		SkippedPromotions: []model.SkippedPromotionResult{},
 		OriginalSubtotal:  cart.SubtotalCents,
 		FinalSubtotal:     cart.SubtotalCents,
 	}

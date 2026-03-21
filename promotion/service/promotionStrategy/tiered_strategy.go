@@ -194,13 +194,13 @@ func (s *TieredStrategy) CalculateDiscount(
 	cart *model.CartValidationRequest,
 	summary *model.AppliedPromotionSummary,
 	eligibleItems []string,
-) error {
+) (*model.SkippedPromotionReason, error) {
 	eligibleItemsSet := helper.ToSet(eligibleItems)
 
 	configJSON, _ := json.Marshal(promotion.DiscountConfig)
 	var config model.TieredConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
+		return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage(
 			"Invalid tiered promotion configuration",
 		)
 	}
@@ -224,9 +224,9 @@ func (s *TieredStrategy) CalculateDiscount(
 	}
 
 	if totalEffective <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No eligible items for tiered promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No eligible items for tiered promotion",
+		}, nil
 	}
 
 	// Determine the check value used for tier matching.
@@ -250,9 +250,44 @@ func (s *TieredStrategy) CalculateDiscount(
 	}
 
 	if applicableTier == nil {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"Does not meet minimum tier requirements",
-		)
+		// Calculate shortfall to the lowest tier
+		var lowestTier *model.TierConfig
+		for i := range config.Tiers {
+			if lowestTier == nil || config.Tiers[i].Min < lowestTier.Min {
+				lowestTier = &config.Tiers[i]
+			}
+		}
+
+		if lowestTier != nil {
+			shortfall := lowestTier.Min - checkValue
+			var reqString string
+			var potentialSavings int64
+			if config.TierType == model.TierTypeSpend {
+				reqString = fmt.Sprintf("Add $%.2f more to qualify", float64(shortfall)/100.0)
+				if lowestTier.DiscountType == model.DiscountTypePercentage {
+					potentialSavings = int64(float64(totalEffective+int64(shortfall)) * lowestTier.DiscountValue / 100)
+				} else {
+					potentialSavings = int64(lowestTier.DiscountValue)
+				}
+			} else {
+				reqString = fmt.Sprintf("Add %d more item(s) to qualify", shortfall)
+				if lowestTier.DiscountType == model.DiscountTypePercentage {
+					potentialSavings = int64(float64(totalEffective) * lowestTier.DiscountValue / 100)
+				} else {
+					potentialSavings = int64(lowestTier.DiscountValue)
+				}
+			}
+
+			return &model.SkippedPromotionReason{
+				Reason:           "Does not meet minimum tier requirements",
+				Requirement:      reqString,
+				PotentialSavings: potentialSavings,
+			}, nil
+		}
+
+		return &model.SkippedPromotionReason{
+			Reason: "Does not meet minimum tier requirements",
+		}, nil
 	}
 
 	// Compute total discount from the matched tier.
@@ -269,9 +304,9 @@ func (s *TieredStrategy) CalculateDiscount(
 	}
 
 	if totalDiscount <= 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No discount applicable for tiered promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No discount applicable for tiered promotion",
+		}, nil
 	}
 
 	// Distribute proportionally across eligible items; last item absorbs rounding remainder.
@@ -303,11 +338,11 @@ func (s *TieredStrategy) CalculateDiscount(
 	}
 
 	if distributed == 0 {
-		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
-			"No discount applicable for tiered promotion",
-		)
+		return &model.SkippedPromotionReason{
+			Reason: "No discount applicable for tiered promotion",
+		}, nil
 	}
 
 	ApplyDiscountToSummary(summary, promotion, itemDiscounts, distributed, 0)
-	return nil
+	return nil, nil
 }
