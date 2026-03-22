@@ -80,13 +80,7 @@ func (s *CartServiceImpl) AddToCart(
 			return nil, err
 		}
 
-		hasPositiveQty := false
-		for _, item := range req.Items {
-			if item.Quantity != nil && *item.Quantity > 0 {
-				hasPositiveQty = true
-				break
-			}
-		}
+		hasPositiveQty := hasPositiveQuantity(req.Items)
 
 		cart, err := s.getExistingOrCreateCart(txCtx, userID, hasPositiveQty)
 		if err != nil {
@@ -97,37 +91,15 @@ func (s *CartServiceImpl) AddToCart(
 			return s.buildEmptyCartResponse(userID, currencyMap), nil
 		}
 
-		existingItems := []entity.CartItem{}
-		if cart != nil {
-			existingItems, err = s.cartRepo.FindItemsByCartID(txCtx, cart.ID)
-			if err != nil {
-				return nil, err
-			}
+		existingItemByVariant, finalQuantityByVariant, err := s.loadCartMutationState(
+			txCtx,
+			cart,
+		)
+		if err != nil {
+			return nil, err
 		}
 
-		existingItemByVariant := make(map[uint]*entity.CartItem, len(existingItems))
-		finalQuantityByVariant := make(map[uint]int, len(existingItems))
-		for i := range existingItems {
-			item := &existingItems[i]
-			existingItemByVariant[item.VariantID] = item
-			finalQuantityByVariant[item.VariantID] = item.Quantity
-		}
-
-		variantsNeedingValidation := make(map[uint]struct{})
-		for _, item := range req.Items {
-			quantity := 0
-			if item.Quantity != nil {
-				quantity = *item.Quantity
-			}
-
-			if quantity == 0 {
-				finalQuantityByVariant[item.VariantID] = 0
-				continue
-			}
-
-			variantsNeedingValidation[item.VariantID] = struct{}{}
-			finalQuantityByVariant[item.VariantID] += quantity
-		}
+		variantsNeedingValidation := applyRequestedQuantities(req.Items, finalQuantityByVariant)
 
 		if err := s.validateInventoryForFinalQuantities(
 			txCtx,
@@ -138,29 +110,13 @@ func (s *CartServiceImpl) AddToCart(
 			return nil, err
 		}
 
-		for variantID, finalQty := range finalQuantityByVariant {
-			existingItem := existingItemByVariant[variantID]
-			switch {
-			case finalQty <= 0:
-				if existingItem != nil {
-					if err := s.cartRepo.DeleteItem(txCtx, existingItem.ID); err != nil {
-						return nil, err
-					}
-				}
-			case existingItem != nil:
-				existingItem.Quantity = finalQty
-				if err := s.cartRepo.UpdateItem(txCtx, existingItem); err != nil {
-					return nil, err
-				}
-			default:
-				if err := s.cartRepo.AddItem(txCtx, &entity.CartItem{
-					CartID:    cart.ID,
-					VariantID: variantID,
-					Quantity:  finalQty,
-				}); err != nil {
-					return nil, err
-				}
-			}
+		if err := s.applyFinalQuantitiesToCart(
+			txCtx,
+			cart.ID,
+			existingItemByVariant,
+			finalQuantityByVariant,
+		); err != nil {
+			return nil, err
 		}
 
 		items, err := s.cartRepo.FindItemsByCartID(txCtx, cart.ID)
@@ -175,7 +131,14 @@ func (s *CartServiceImpl) AddToCart(
 			return s.buildEmptyCartResponse(userID, currencyMap), nil
 		}
 
-		return s.buildCartResponseWithItems(txCtx, sellerID, userID, cart, items, currencyMap)
+		return s.buildCartResponseWithItems(
+			txCtx,
+			sellerID,
+			userID,
+			cart,
+			items,
+			currencyMap,
+		)
 	})
 }
 
@@ -236,6 +199,99 @@ func (s *CartServiceImpl) DeleteCart(
 		}
 		return s.buildEmptyCartResponse(userID, currencyMap), nil
 	})
+}
+
+func hasPositiveQuantity(items []model.AddCartItemDetail) bool {
+	for _, item := range items {
+		if item.Quantity != nil && *item.Quantity > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *CartServiceImpl) loadCartMutationState(
+	ctx context.Context,
+	cart *entity.Cart,
+) (
+	map[uint]*entity.CartItem,
+	map[uint]int,
+	error,
+) {
+	existingItems := []entity.CartItem{}
+	if cart != nil {
+		items, err := s.cartRepo.FindItemsByCartID(ctx, cart.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		existingItems = items
+	}
+
+	existingItemByVariant := make(map[uint]*entity.CartItem, len(existingItems))
+	finalQuantityByVariant := make(map[uint]int, len(existingItems))
+	for i := range existingItems {
+		item := &existingItems[i]
+		existingItemByVariant[item.VariantID] = item
+		finalQuantityByVariant[item.VariantID] = item.Quantity
+	}
+
+	return existingItemByVariant, finalQuantityByVariant, nil
+}
+
+func applyRequestedQuantities(
+	reqItems []model.AddCartItemDetail,
+	finalQuantityByVariant map[uint]int,
+) map[uint]struct{} {
+	variantsNeedingValidation := make(map[uint]struct{})
+	for _, item := range reqItems {
+		quantity := 0
+		if item.Quantity != nil {
+			quantity = *item.Quantity
+		}
+
+		if quantity == 0 {
+			finalQuantityByVariant[item.VariantID] = 0
+			continue
+		}
+
+		variantsNeedingValidation[item.VariantID] = struct{}{}
+		finalQuantityByVariant[item.VariantID] += quantity
+	}
+
+	return variantsNeedingValidation
+}
+
+func (s *CartServiceImpl) applyFinalQuantitiesToCart(
+	ctx context.Context,
+	cartID uint,
+	existingItemByVariant map[uint]*entity.CartItem,
+	finalQuantityByVariant map[uint]int,
+) error {
+	for variantID, finalQty := range finalQuantityByVariant {
+		existingItem := existingItemByVariant[variantID]
+		switch {
+		case finalQty <= 0:
+			if existingItem != nil {
+				if err := s.cartRepo.DeleteItem(ctx, existingItem.ID); err != nil {
+					return err
+				}
+			}
+		case existingItem != nil:
+			existingItem.Quantity = finalQty
+			if err := s.cartRepo.UpdateItem(ctx, existingItem); err != nil {
+				return err
+			}
+		default:
+			if err := s.cartRepo.AddItem(ctx, &entity.CartItem{
+				CartID:    cartID,
+				VariantID: variantID,
+				Quantity:  finalQty,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *CartServiceImpl) buildCartResponseWithItems(
