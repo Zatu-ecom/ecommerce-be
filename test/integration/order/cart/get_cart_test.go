@@ -18,7 +18,9 @@ func (s *CartTestSuite) TestGET001ReturnsEmptyCartWhenNoActiveCart() {
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 	data := resp["data"].(map[string]any)
 	items := data["items"].([]any)
+	appliedPromotions := data["appliedPromotions"].([]any)
 	assert.Len(s.T(), items, 0)
+	assert.Len(s.T(), appliedPromotions, 0)
 	assert.Equal(s.T(), float64(helpers.CustomerUserID), data["userId"])
 }
 
@@ -148,11 +150,18 @@ func (s *CartTestSuite) TestGET009PromotionSummaryIsAppliedOnGetCart() {
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 	data := resp["data"].(map[string]any)
 	summary := data["summary"].(map[string]any)
+	appliedPromotions := data["appliedPromotions"].([]any)
 
 	assert.Equal(s.T(), float64(179800), summary["subtotal"])
 	assert.Equal(s.T(), float64(29800), summary["promotionDiscount"])
 	assert.Equal(s.T(), float64(150000), summary["afterDiscount"])
 	assert.Equal(s.T(), float64(150000), summary["total"])
+	require.Len(s.T(), appliedPromotions, 1)
+	ap := appliedPromotions[0].(map[string]any)
+	assert.Equal(s.T(), float64(29800), ap["discount"])
+	assert.Equal(s.T(), float64(0), ap["shippingDiscount"])
+	assert.NotEmpty(s.T(), ap["name"])
+	assert.NotEmpty(s.T(), ap["type"])
 }
 
 func (s *CartTestSuite) TestGET010PromotionLineItemsContainAppliedPromotions() {
@@ -191,4 +200,49 @@ func (s *CartTestSuite) TestGET010PromotionLineItemsContainAppliedPromotions() {
 		totalApplied += len(applied)
 	}
 	assert.Greater(s.T(), totalApplied, 0)
+}
+
+func (s *CartTestSuite) TestGET011FreeShippingPromotionAppearsAtCartLevel() {
+	s.cleanupCartsForTestUsers()
+
+	_ = postPromotion(s.T(), s.sellerClient, map[string]any{
+		"name":          "GET Cart Free Shipping",
+		"promotionType": "free_shipping",
+		"discountConfig": map[string]any{
+			"min_order_cents":             1000,
+			"max_shipping_discount_cents": 5000,
+		},
+		"appliesTo":   appliesAllProducts,
+		"eligibleFor": eligibleEveryone,
+		"startsAt":    "2023-01-01T00:00:00Z",
+		"endsAt":      "2029-12-31T23:59:59Z",
+		"status":      promoStatusActive,
+	})
+
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(cartItem(uint(1), 1)),
+	)
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Get(s.T(), CartAPIEndpoint)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+	data := resp["data"].(map[string]any)
+	appliedPromotions := data["appliedPromotions"].([]any)
+	require.NotEmpty(s.T(), appliedPromotions)
+
+	foundFreeShipping := false
+	for _, raw := range appliedPromotions {
+		ap := raw.(map[string]any)
+		promoType, _ := ap["type"].(string)
+		if promoType != "free_shipping" {
+			continue
+		}
+		foundFreeShipping = true
+		assert.Equal(s.T(), float64(0), ap["discount"])
+		assert.Equal(s.T(), float64(5000), ap["shippingDiscount"])
+		assert.NotEmpty(s.T(), ap["shippingDiscountFormatted"])
+	}
+	assert.True(s.T(), foundFreeShipping)
 }

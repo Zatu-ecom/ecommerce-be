@@ -195,11 +195,23 @@ type AvailablePromotionInfo struct {
 	PotentialSavingsFormatted string `json:"potentialSavingsFormatted,omitempty"`
 }
 
+// AppliedPromotionInfo represents a promotion applied at cart level
+type AppliedPromotionInfo struct {
+	PromotionID               uint   `json:"promotionId"`
+	Name                      string `json:"name"`
+	Type                      string `json:"type"`
+	Discount                  int64  `json:"discount"`
+	DiscountFormatted         string `json:"discountFormatted"`
+	ShippingDiscount          int64  `json:"shippingDiscount"`
+	ShippingDiscountFormatted string `json:"shippingDiscountFormatted"`
+}
+
 // CartResponse represents the full cart response with pricing, promotions, and coupons
 // Used in Get Cart API
 type CartResponse struct {
 	CartBase                                          // Embed base fields
 	Items               []CartItemWithPricingResponse `json:"items"`
+	AppliedPromotions   []AppliedPromotionInfo        `json:"appliedPromotions"`
 	AppliedCoupons      []AppliedCouponInfo           `json:"appliedCoupons"`
 	Summary             CartSummary                   `json:"summary"`
 	AvailablePromotions []AvailablePromotionInfo      `json:"availablePromotions,omitempty"`

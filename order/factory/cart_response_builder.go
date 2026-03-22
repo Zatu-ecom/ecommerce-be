@@ -25,6 +25,7 @@ func BuildCartResponse(
 		CartBase:            buildCartBase(cart, currencyMap),
 		Summary:             buildCartSummary(len(items), promo, currencyMap),
 		Items:               make([]model.CartItemWithPricingResponse, len(items)),
+		AppliedPromotions:   buildAppliedPromotions(promo, currencyMap),
 		AppliedCoupons:      make([]model.AppliedCouponInfo, 0), // Not implemented yet
 		AvailablePromotions: buildAvailablePromotions(promo, currencyMap),
 	}
@@ -41,6 +42,46 @@ func BuildCartResponse(
 
 	attachSavingsIfAny(&response.Summary)
 	return response
+}
+
+func buildAppliedPromotions(
+	promo *promotionModel.AppliedPromotionSummary,
+	currencyMap *userModel.CurrencyResponse,
+) []model.AppliedPromotionInfo {
+	if promo == nil || len(promo.AppliedPromotions) == 0 {
+		return nil
+	}
+
+	applied := make([]model.AppliedPromotionInfo, 0, len(promo.AppliedPromotions))
+	for _, p := range promo.AppliedPromotions {
+		if p.Promotion == nil {
+			continue
+		}
+
+		info := model.AppliedPromotionInfo{
+			PromotionID:      p.Promotion.ID,
+			Name:             p.Promotion.Name,
+			Type:             string(p.Promotion.PromotionType),
+			Discount:         p.DiscountCents,
+			ShippingDiscount: p.ShippingDiscount,
+		}
+		if p.DiscountCents > 0 {
+			info.DiscountFormatted = formatCurrencyWithSymbol(
+				p.DiscountCents,
+				currencyMap.Symbol,
+				currencyMap.DecimalDigits,
+			)
+		}
+		if p.ShippingDiscount > 0 {
+			info.ShippingDiscountFormatted = formatCurrencyWithSymbol(
+				p.ShippingDiscount,
+				currencyMap.Symbol,
+				currencyMap.DecimalDigits,
+			)
+		}
+		applied = append(applied, info)
+	}
+	return applied
 }
 
 func buildAvailablePromotions(

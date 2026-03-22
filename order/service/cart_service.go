@@ -256,6 +256,7 @@ func (s *CartServiceImpl) buildCartResponseWithItems(
 		return nil, err
 	}
 
+	// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP/grpc call to User Service
 	log.InfoWithContext(ctx, "Calling Promotion Service for Cart validation")
 	promoSummary, err := s.promotionSvc.ApplyPromotionsToCart(ctx, promoReq)
 	if err != nil {
@@ -354,6 +355,7 @@ func (s *CartServiceImpl) buildEmptyCartResponse(
 			Metadata: map[string]any{},
 		},
 		Items:               []model.CartItemWithPricingResponse{},
+		AppliedPromotions:   []model.AppliedPromotionInfo{},
 		AppliedCoupons:      []model.AppliedCouponInfo{},
 		Summary:             model.CartSummary{},
 		AvailablePromotions: []model.AvailablePromotionInfo{},
@@ -379,6 +381,9 @@ func (s *CartServiceImpl) buildPromotionRequest(
 		IsFirstOrder:  !hasPastOrders,
 		Items:         make([]promotionModel.CartItem, len(items)),
 		SubtotalCents: 0,
+		// TODO [FULFILLMENT]: Replace metadata fallback with Fulfillment Service quote
+		// (shipping, handling, delivery method constraints) when service is ready.
+		ShippingCents: 5000,
 	}
 
 	for i, item := range items {
