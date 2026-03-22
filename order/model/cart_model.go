@@ -6,8 +6,13 @@ package model
 
 // AddCartItemRequest represents the request to add an item to cart
 type AddCartItemRequest struct {
-	VariantID uint `json:"variantId" binding:"required"`
-	Quantity  int  `json:"quantity"  binding:"required,gt=0,lte=99"`
+	Items []AddCartItemDetail `json:"items" binding:"required,min=1,dive"`
+}
+
+// AddCartItemDetail represents one cart line in batch add-to-cart requests.
+type AddCartItemDetail struct {
+	VariantID uint `json:"variantId" binding:"required,gt=0"`
+	Quantity  *int `json:"quantity"  binding:"required,gte=0,lte=99"`
 }
 
 // UpdateCartItemRequest represents the request to update cart item quantity
@@ -155,10 +160,10 @@ type CartSummaryBrief struct {
 // CartBase contains common cart fields
 // Embedded by CartBasicResponse and CartResponse
 type CartBase struct {
-	ID       uint                   `json:"id"`
-	UserID   uint                   `json:"userId"`
-	Currency CurrencyInfo           `json:"currency"`
-	Metadata map[string]interface{} `json:"metadata"`
+	ID       uint           `json:"id"`
+	UserID   uint           `json:"userId"`
+	Currency CurrencyInfo   `json:"currency"`
+	Metadata map[string]any `json:"metadata"`
 }
 
 // CartBasicResponse represents cart response without pricing calculations

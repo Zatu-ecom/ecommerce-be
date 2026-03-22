@@ -22,6 +22,7 @@ import (
 
 	productModel "ecommerce-be/product/model"
 	productVariantService "ecommerce-be/product/service"
+	userModel "ecommerce-be/user/model"
 	userService "ecommerce-be/user/service"
 )
 
@@ -30,6 +31,14 @@ type CartService interface {
 		ctx context.Context,
 		userID, sellerID uint,
 		req model.AddCartItemRequest,
+	) (*model.CartResponse, error)
+	GetUserCart(
+		ctx context.Context,
+		userID, sellerID uint,
+	) (*model.CartResponse, error)
+	DeleteCart(
+		ctx context.Context,
+		userID, sellerID, cartID uint,
 	) (*model.CartResponse, error)
 }
 
@@ -66,74 +75,214 @@ func (s *CartServiceImpl) AddToCart(
 	req model.AddCartItemRequest,
 ) (*model.CartResponse, error) {
 	return db.WithTransactionResult(ctx, func(txCtx context.Context) (*model.CartResponse, error) {
-		// 1. Get or create Cart
-		cart, err := s.getOrCreateCart(txCtx, userID)
-		if err != nil {
-			return nil, err
-		}
-
-		// 2. Fetch Preferred Currency
-		// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP/gRPC call to User Service
 		currencyMap, err := s.userSvc.GetPreferredCurrency(txCtx, userID, sellerID)
 		if err != nil {
 			return nil, err
 		}
 
-		// 3. Validate inventory locally
-		if err := s.validateInventory(txCtx, req.VariantID, req.Quantity, sellerID); err != nil {
+		hasPositiveQty := false
+		for _, item := range req.Items {
+			if item.Quantity != nil && *item.Quantity > 0 {
+				hasPositiveQty = true
+				break
+			}
+		}
+
+		cart, err := s.getExistingOrCreateCart(txCtx, userID, hasPositiveQty)
+		if err != nil {
 			return nil, err
 		}
 
-		// 3. Add or update item
-		if err := s.addOrUpdateCartItem(txCtx, cart.ID, req.VariantID, req.Quantity); err != nil {
+		if cart == nil && !hasPositiveQty {
+			return s.buildEmptyCartResponse(userID, currencyMap), nil
+		}
+
+		existingItems := []entity.CartItem{}
+		if cart != nil {
+			existingItems, err = s.cartRepo.FindItemsByCartID(txCtx, cart.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		existingItemByVariant := make(map[uint]*entity.CartItem, len(existingItems))
+		finalQuantityByVariant := make(map[uint]int, len(existingItems))
+		for i := range existingItems {
+			item := &existingItems[i]
+			existingItemByVariant[item.VariantID] = item
+			finalQuantityByVariant[item.VariantID] = item.Quantity
+		}
+
+		variantsNeedingValidation := make(map[uint]struct{})
+		for _, item := range req.Items {
+			quantity := 0
+			if item.Quantity != nil {
+				quantity = *item.Quantity
+			}
+
+			if quantity == 0 {
+				finalQuantityByVariant[item.VariantID] = 0
+				continue
+			}
+
+			variantsNeedingValidation[item.VariantID] = struct{}{}
+			finalQuantityByVariant[item.VariantID] += quantity
+		}
+
+		if err := s.validateInventoryForFinalQuantities(
+			txCtx,
+			sellerID,
+			variantsNeedingValidation,
+			finalQuantityByVariant,
+		); err != nil {
 			return nil, err
 		}
 
-		// 4. Fetch all items to calculate current state
+		for variantID, finalQty := range finalQuantityByVariant {
+			existingItem := existingItemByVariant[variantID]
+			switch {
+			case finalQty <= 0:
+				if existingItem != nil {
+					if err := s.cartRepo.DeleteItem(txCtx, existingItem.ID); err != nil {
+						return nil, err
+					}
+				}
+			case existingItem != nil:
+				existingItem.Quantity = finalQty
+				if err := s.cartRepo.UpdateItem(txCtx, existingItem); err != nil {
+					return nil, err
+				}
+			default:
+				if err := s.cartRepo.AddItem(txCtx, &entity.CartItem{
+					CartID:    cart.ID,
+					VariantID: variantID,
+					Quantity:  finalQty,
+				}); err != nil {
+					return nil, err
+				}
+			}
+		}
+
 		items, err := s.cartRepo.FindItemsByCartID(txCtx, cart.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		// 4.5 Fetch variant details via ListVariants
-		variantMap, err := s.fetchVariantMap(txCtx, items, sellerID)
-		if err != nil {
-			return nil, err
+		if len(items) == 0 {
+			if err := s.cartRepo.DeleteCart(txCtx, cart.ID); err != nil {
+				return nil, err
+			}
+			return s.buildEmptyCartResponse(userID, currencyMap), nil
 		}
 
-		// 5. Build Promotion Validation Request
-		promoReq, err := s.buildPromotionRequest(txCtx, sellerID, userID, items, variantMap)
-		if err != nil {
-			return nil, err
-		}
-
-		// 6. Apply Promotions
-		// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP call to Promotion Service
-		log.InfoWithContext(txCtx, "Calling Promotion Service for Cart validation")
-		promoSummary, err := s.promotionSvc.ApplyPromotionsToCart(txCtx, promoReq)
-		if err != nil {
-			log.ErrorWithContext(txCtx, "Failed to apply promotions", err)
-			return nil, orderError.ErrPromotionServiceUnavailable(err)
-		}
-
-		// 7. Map back to CartResponse
-		return factory.BuildCartResponse(
-			cart,
-			items,
-			promoSummary,
-			currencyMap,
-			variantMap,
-		), nil
+		return s.buildCartResponseWithItems(txCtx, sellerID, userID, cart, items, currencyMap)
 	})
 }
 
-func (s *CartServiceImpl) getOrCreateCart(
+func (s *CartServiceImpl) GetUserCart(
+	ctx context.Context,
+	userID, sellerID uint,
+) (*model.CartResponse, error) {
+	return db.WithTransactionResult(ctx, func(txCtx context.Context) (*model.CartResponse, error) {
+		currencyMap, err := s.userSvc.GetPreferredCurrency(txCtx, userID, sellerID)
+		if err != nil {
+			return nil, err
+		}
+
+		cart, err := s.getExistingOrCreateCart(txCtx, userID, false)
+		if err != nil {
+			return nil, err
+		}
+		if cart == nil {
+			return s.buildEmptyCartResponse(userID, currencyMap), nil
+		}
+
+		items, err := s.cartRepo.FindItemsByCartID(txCtx, cart.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(items) == 0 {
+			return s.buildEmptyCartResponse(userID, currencyMap), nil
+		}
+
+		return s.buildCartResponseWithItems(txCtx, sellerID, userID, cart, items, currencyMap)
+	})
+}
+
+func (s *CartServiceImpl) DeleteCart(
+	ctx context.Context,
+	userID, sellerID, cartID uint,
+) (*model.CartResponse, error) {
+	return db.WithTransactionResult(ctx, func(txCtx context.Context) (*model.CartResponse, error) {
+		currencyMap, err := s.userSvc.GetPreferredCurrency(txCtx, userID, sellerID)
+		if err != nil {
+			return nil, err
+		}
+
+		cart, err := s.cartRepo.FindByID(txCtx, cartID)
+		if err != nil {
+			return nil, err
+		}
+		if cart.UserID != userID {
+			return nil, errs.NewAppError(errs.INVALID_ID_CODE, "Cart not found", 404)
+		}
+
+		if err := s.cartRepo.DeleteItemsByCartID(txCtx, cart.ID); err != nil {
+			return nil, err
+		}
+		if err := s.cartRepo.DeleteCart(txCtx, cart.ID); err != nil {
+			return nil, err
+		}
+		return s.buildEmptyCartResponse(userID, currencyMap), nil
+	})
+}
+
+func (s *CartServiceImpl) buildCartResponseWithItems(
+	ctx context.Context,
+	sellerID, userID uint,
+	cart *entity.Cart,
+	items []entity.CartItem,
+	currencyMap *userModel.CurrencyResponse,
+) (*model.CartResponse, error) {
+	// Fetch variant details once for all cart items
+	variantMap, err := s.fetchVariantMap(ctx, items, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	promoReq, err := s.buildPromotionRequest(ctx, sellerID, userID, items, variantMap)
+	if err != nil {
+		return nil, err
+	}
+
+	log.InfoWithContext(ctx, "Calling Promotion Service for Cart validation")
+	promoSummary, err := s.promotionSvc.ApplyPromotionsToCart(ctx, promoReq)
+	if err != nil {
+		log.ErrorWithContext(ctx, "Failed to apply promotions", err)
+		return nil, orderError.ErrPromotionServiceUnavailable(err)
+	}
+
+	return factory.BuildCartResponse(
+		cart,
+		items,
+		promoSummary,
+		currencyMap,
+		variantMap,
+	), nil
+}
+
+func (s *CartServiceImpl) getExistingOrCreateCart(
 	ctx context.Context,
 	userID uint,
+	createIfMissing bool,
 ) (*entity.Cart, error) {
 	cart, err := s.cartRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		if appErr, ok := err.(*errs.AppError); ok && appErr.Code == errs.INVALID_ID_CODE {
+			if !createIfMissing {
+				return nil, nil
+			}
 			// Cart doesn't exist, create it
 			cart = &entity.Cart{
 				UserID:   userID,
@@ -149,59 +298,66 @@ func (s *CartServiceImpl) getOrCreateCart(
 	return cart, nil
 }
 
-func (s *CartServiceImpl) validateInventory(
+func (s *CartServiceImpl) validateInventoryForFinalQuantities(
 	ctx context.Context,
-	variantID uint,
-	quantity int,
 	sellerID uint,
+	variantsNeedingValidation map[uint]struct{},
+	finalQuantityByVariant map[uint]int,
 ) error {
-	invReq := inventoryModel.TotalAvailableQuantityRequest{
-		VariantIDs: []uint{variantID},
+	if len(variantsNeedingValidation) == 0 {
+		return nil
 	}
 
+	variantIDs := make([]uint, 0, len(variantsNeedingValidation))
+	for variantID := range variantsNeedingValidation {
+		variantIDs = append(variantIDs, variantID)
+	}
+
+	invReq := inventoryModel.TotalAvailableQuantityRequest{
+		VariantIDs: variantIDs,
+	}
 	invRes, err := s.inventorySvc.GetTotalAvailableQuantities(ctx, invReq, sellerID)
 	if err != nil {
 		return err
 	}
 
-	if len(invRes.Items) == 0 {
-		return orderError.ErrVariantNotFound
+	availableByVariant := make(map[uint]int, len(invRes.Items))
+	for _, item := range invRes.Items {
+		availableByVariant[item.VariantID] = item.TotalAvailable
 	}
 
-	if invRes.Items[0].TotalAvailable < quantity {
-		available := 0
-		if len(invRes.Items) > 0 {
-			available = invRes.Items[0].TotalAvailable
+	for variantID := range variantsNeedingValidation {
+		available, exists := availableByVariant[variantID]
+		if !exists {
+			return orderError.ErrVariantNotFound
 		}
-		return orderError.ErrInsufficientStock(available)
+		if finalQuantityByVariant[variantID] > available {
+			return orderError.ErrInsufficientStock(available)
+		}
 	}
 	return nil
 }
 
-func (s *CartServiceImpl) addOrUpdateCartItem(
-	ctx context.Context,
-	cartID uint,
-	variantID uint,
-	quantity int,
-) error {
-	existingItem, err := s.cartRepo.FindItemByVariantID(ctx, cartID, variantID)
-	if err != nil {
-		return err
+func (s *CartServiceImpl) buildEmptyCartResponse(
+	userID uint,
+	currencyMap *userModel.CurrencyResponse,
+) *model.CartResponse {
+	return &model.CartResponse{
+		CartBase: model.CartBase{
+			ID:     0,
+			UserID: userID,
+			Currency: model.CurrencyInfo{
+				Code:          currencyMap.Code,
+				Symbol:        currencyMap.Symbol,
+				DecimalDigits: currencyMap.DecimalDigits,
+			},
+			Metadata: map[string]any{},
+		},
+		Items:               []model.CartItemWithPricingResponse{},
+		AppliedCoupons:      []model.AppliedCouponInfo{},
+		Summary:             model.CartSummary{},
+		AvailablePromotions: []model.AvailablePromotionInfo{},
 	}
-
-	if existingItem != nil {
-		// Update quantity
-		existingItem.Quantity += quantity
-		return s.cartRepo.UpdateItem(ctx, existingItem)
-	}
-
-	// Add new item
-	newItem := &entity.CartItem{
-		CartID:    cartID,
-		VariantID: variantID,
-		Quantity:  quantity,
-	}
-	return s.cartRepo.AddItem(ctx, newItem)
 }
 
 func (s *CartServiceImpl) buildPromotionRequest(

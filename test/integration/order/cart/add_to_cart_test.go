@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 const msgItemAddedToCart = "Item added to cart"
@@ -26,9 +27,9 @@ const (
 	unitPriceCentsVariant5 = int64(79900)
 )
 
-// AddToCartTestSuite exercises POST /api/order/item (CustomerAuth + promotion pipeline).
+// CartTestSuite exercises POST /api/order/item (CustomerAuth + promotion pipeline).
 // Pattern: bundle_test.go (suite, seller/customer clients, createBundlePromotion, cleanupPromotions).
-type AddToCartTestSuite struct {
+type CartTestSuite struct {
 	suite.Suite
 	container *setup.TestContainer
 	server    http.Handler
@@ -37,7 +38,7 @@ type AddToCartTestSuite struct {
 	customerClient *helpers.APIClient
 }
 
-func (s *AddToCartTestSuite) SetupSuite() {
+func (s *CartTestSuite) SetupSuite() {
 	s.container = setup.SetupTestContainers(s.T())
 	s.container.RunAllMigrations(s.T())
 	s.container.RunAllSeeds(s.T())
@@ -67,26 +68,26 @@ func (s *AddToCartTestSuite) SetupSuite() {
 	s.customerClient.SetToken(customerToken)
 }
 
-func (s *AddToCartTestSuite) TearDownSuite() {
+func (s *CartTestSuite) TearDownSuite() {
 	if s.container != nil {
 		s.container.Cleanup(s.T())
 	}
 }
 
-func (s *AddToCartTestSuite) SetupTest() {
+func (s *CartTestSuite) SetupTest() {
 	s.cleanupPromotionsCart()
 }
 
-func TestAddToCartIntegration(t *testing.T) {
-	suite.Run(t, new(AddToCartTestSuite))
+func TestCartIntegration(t *testing.T) {
+	suite.Run(t, new(CartTestSuite))
 }
 
-func (s *AddToCartTestSuite) cleanupPromotionsCart() {
+func (s *CartTestSuite) cleanupPromotionsCart() {
 	s.cleanupPromotions()
 	s.cleanupCartsForTestUsers()
 }
 
-func (s *AddToCartTestSuite) cleanupPromotions() {
+func (s *CartTestSuite) cleanupPromotions() {
 	sellerIDs := []uint{helpers.SellerUserID, helpers.Seller2UserID, helpers.Seller4UserID}
 
 	var promoIDs []uint
@@ -127,7 +128,7 @@ func (s *AddToCartTestSuite) cleanupPromotions() {
 	)
 }
 
-func (s *AddToCartTestSuite) cleanupCartsForTestUsers() {
+func (s *CartTestSuite) cleanupCartsForTestUsers() {
 	uids := []uint{helpers.CustomerUserID, helpers.Customer2UserID, helpers.Seller2UserID}
 	var cartIDs []uint
 	_ = s.container.DB.Model(&orderEntity.Cart{}).
@@ -146,11 +147,8 @@ func (s *AddToCartTestSuite) cleanupCartsForTestUsers() {
 
 // --- Happy path ---
 
-func (s *AddToCartTestSuite) TestHP001AddFirstItem() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+func (s *CartTestSuite) TestHP001AddFirstItem() {
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	assert.Equal(s.T(), msgItemAddedToCart, resp["message"].(string))
 	data := resp["data"].(map[string]any)
@@ -162,16 +160,10 @@ func (s *AddToCartTestSuite) TestHP001AddFirstItem() {
 	s.assertSummaryBasics(data, 1, 1)
 }
 
-func (s *AddToCartTestSuite) TestHP002SameVariantAccumulates() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+func (s *CartTestSuite) TestHP002SameVariantAccumulates() {
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
-	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	items := data["items"].([]any)
@@ -181,17 +173,11 @@ func (s *AddToCartTestSuite) TestHP002SameVariantAccumulates() {
 	s.assertSummaryBasics(data, 2, 1)
 }
 
-func (s *AddToCartTestSuite) TestHP003TwoDifferentVariants() {
+func (s *CartTestSuite) TestHP003TwoDifferentVariants() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
-	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(5),
-		"quantity":  1,
-	})
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	items := data["items"].([]any)
@@ -202,12 +188,9 @@ func (s *AddToCartTestSuite) TestHP003TwoDifferentVariants() {
 	assert.Equal(s.T(), float64(2), summary["itemCount"])
 }
 
-func (s *AddToCartTestSuite) TestHP004QuantityMinBoundary() {
+func (s *CartTestSuite) TestHP004QuantityMinBoundary() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(2),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(2), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	items := data["items"].([]any)
@@ -217,48 +200,36 @@ func (s *AddToCartTestSuite) TestHP004QuantityMinBoundary() {
 	_ = resp
 }
 
-func (s *AddToCartTestSuite) TestHP005QuantityMaxBoundary() {
+func (s *CartTestSuite) TestHP005QuantityMaxBoundary() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(2),
-		"quantity":  50,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(2), 50)))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 }
 
 // --- Auth ---
 
-func (s *AddToCartTestSuite) TestNEG001NoAuth() {
+func (s *CartTestSuite) TestNEG001NoAuth() {
 	cl := helpers.NewAPIClient(s.server)
 	cl.SetToken("")
-	w := cl.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 1,
-		"quantity":  1,
-	})
+	w := cl.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(1, 1)))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
-func (s *AddToCartTestSuite) TestNEG002InvalidToken() {
+func (s *CartTestSuite) TestNEG002InvalidToken() {
 	cl := helpers.NewAPIClient(s.server)
 	cl.SetToken("not-a-valid-jwt")
-	w := cl.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 1,
-		"quantity":  1,
-	})
+	w := cl.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(1, 1)))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
 // --- Authorization: seller can use cart ---
 
-func (s *AddToCartTestSuite) TestNEGAuthz001SellerCanAddToCart() {
+func (s *CartTestSuite) TestNEGAuthz001SellerCanAddToCart() {
 	s.cleanupCartsForTestUsers()
 	sellerCl := helpers.NewAPIClient(s.server)
 	tok := helpers.Login(s.T(), sellerCl, helpers.Seller2Email, helpers.Seller2Password)
 	sellerCl.SetToken(tok)
-	w := sellerCl.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+	w := sellerCl.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	// Seller2 user id = 2
@@ -267,7 +238,7 @@ func (s *AddToCartTestSuite) TestNEGAuthz001SellerCanAddToCart() {
 
 // --- Validation ---
 
-func (s *AddToCartTestSuite) TestNEGValMissingVariantId() {
+func (s *CartTestSuite) TestNEGValMissingVariantId() {
 	s.customerClient.SetToken(
 		helpers.Login(s.T(), s.customerClient, helpers.CustomerEmail, helpers.CustomerPassword),
 	)
@@ -277,96 +248,91 @@ func (s *AddToCartTestSuite) TestNEGValMissingVariantId() {
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestNEGValMissingQuantity() {
+func (s *CartTestSuite) TestNEGValMissingQuantity() {
 	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
 		"variantId": 1,
 	})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestNEGValQuantityZero() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 1,
-		"quantity":  0,
-	})
+func (s *CartTestSuite) TestHP006QuantityZeroRemovesSingleItemAndDeletesCart() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 2)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 0)))
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items, ok := data["items"].([]any)
+	require.True(s.T(), ok)
+	assert.Len(s.T(), items, 0)
+
+	s.assertNoActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestNEGValQuantityOver99() {
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(1, 100)))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestNEGValQuantityOver99() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 1,
-		"quantity":  100,
-	})
+func (s *CartTestSuite) TestNEGValQuantityNegative() {
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(1, -1)))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestNEGValQuantityNegative() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 1,
-		"quantity":  -1,
-	})
-	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
-}
-
-func (s *AddToCartTestSuite) TestNEGValEmptyBody() {
+func (s *CartTestSuite) TestNEGValEmptyBody() {
 	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestNEGValMalformedJSON() {
+func (s *CartTestSuite) TestNEGValMalformedJSON() {
 	w := s.customerClient.PostRaw(s.T(), CartItemAPIEndpoint, []byte(`{`))
 	assert.True(s.T(), w.Code == http.StatusBadRequest || w.Code == http.StatusInternalServerError)
 }
 
-func (s *AddToCartTestSuite) TestNEGValVariantIdWrongType() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": "not-a-number",
-		"quantity":  1,
-	})
+func (s *CartTestSuite) TestNEGValVariantIdWrongType() {
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(cartItem("not-a-number", 1)),
+	)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
 // --- Business ---
 
-func (s *AddToCartTestSuite) TestNEGBizUnknownVariant() {
+func (s *CartTestSuite) TestNEGBizUnknownVariant() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(999999),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(cartItem(uint(999999), 1)),
+	)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	code, _ := resp["code"].(string)
 	assert.Equal(s.T(), "VARIANT_NOT_FOUND", code)
 }
 
-func (s *AddToCartTestSuite) TestNEGBizInsufficientStock() {
+func (s *CartTestSuite) TestNEGBizInsufficientStock() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(2),
-		"quantity":  80,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(2), 80)))
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	code, _ := resp["code"].(string)
 	assert.Equal(s.T(), "INSUFFICIENT_STOCK", code)
 }
 
-func (s *AddToCartTestSuite) TestNEGValQuantityAboveAllowedRange() {
+func (s *CartTestSuite) TestNEGValQuantityAboveAllowedRange() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  111,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 111)))
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	code, _ := resp["code"].(string)
 	assert.Equal(s.T(), "VALIDATION_ERROR", code)
 }
 
-func (s *AddToCartTestSuite) TestNEGBizCrossSellerVariant() {
+func (s *CartTestSuite) TestNEGBizCrossSellerVariant() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(9),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(9), 1)))
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	code, _ := resp["code"].(string)
 	assert.Equal(s.T(), "VARIANT_NOT_FOUND", code)
@@ -374,31 +340,26 @@ func (s *AddToCartTestSuite) TestNEGBizCrossSellerVariant() {
 
 // --- Edge ---
 
-func (s *AddToCartTestSuite) TestEDGEVariantIdZero() {
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": 0,
-		"quantity":  1,
-	})
+func (s *CartTestSuite) TestEDGEVariantIdZero() {
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(0, 1)))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
-func (s *AddToCartTestSuite) TestEDGEVariantIdVeryLarge() {
+func (s *CartTestSuite) TestEDGEVariantIdVeryLarge() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(999999999),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(cartItem(uint(999999999), 1)),
+	)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
 // --- Promotion ---
 
-func (s *AddToCartTestSuite) TestPROMO001NoPromotionConfigured() {
+func (s *CartTestSuite) TestPROMO001NoPromotionConfigured() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	summary := data["summary"].(map[string]any)
@@ -409,7 +370,7 @@ func (s *AddToCartTestSuite) TestPROMO001NoPromotionConfigured() {
 	assert.Len(s.T(), apps, 0)
 }
 
-func (s *AddToCartTestSuite) TestPROMO002BundleFixedPrice() {
+func (s *CartTestSuite) TestPROMO002BundleFixedPrice() {
 	createBundlePromotion(
 		s.T(),
 		s.sellerClient,
@@ -424,15 +385,9 @@ func (s *AddToCartTestSuite) TestPROMO002BundleFixedPrice() {
 	)
 
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  1,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
-	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(5),
-		"quantity":  1,
-	})
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	summary := data["summary"].(map[string]any)
@@ -443,17 +398,11 @@ func (s *AddToCartTestSuite) TestPROMO002BundleFixedPrice() {
 	assert.Equal(s.T(), float64(150000), summary["afterDiscount"])
 }
 
-func (s *AddToCartTestSuite) TestPROMO004MultipleLinesAggregate() {
+func (s *CartTestSuite) TestPROMO004MultipleLinesAggregate() {
 	s.cleanupCartsForTestUsers()
-	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(1),
-		"quantity":  2,
-	})
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 2)))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
-	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
-		"variantId": uint(5),
-		"quantity":  1,
-	})
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 	summary := data["summary"].(map[string]any)
@@ -462,9 +411,250 @@ func (s *AddToCartTestSuite) TestPROMO004MultipleLinesAggregate() {
 	_ = resp
 }
 
+// --- Quantity=0 remove flows ---
+
+func (s *CartTestSuite) TestQTY001RemoveOneLineKeepsCartWhenOtherItemsExist() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 2)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 0)))
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+
+	s.assertCartEnvelope(data, helpers.CustomerUserID)
+	items := data["items"].([]any)
+	require.Len(s.T(), items, 1)
+
+	item := items[0].(map[string]any)
+	s.assertCartItemPricing(item, 5, 1, unitPriceCentsVariant5, unitPriceCentsVariant5)
+	s.assertSummaryBasics(data, 1, 1)
+	s.assertHasActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestQTY002RemoveLastLineDeletesCart() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(2), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(2), 0)))
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+	assert.Len(s.T(), items, 0)
+
+	s.assertNoActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestQTY003QuantityZeroForMissingVariantIsNoOp() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 0)))
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+	require.Len(s.T(), items, 1)
+
+	item := items[0].(map[string]any)
+	s.assertCartItemPricing(item, 5, 1, unitPriceCentsVariant5, unitPriceCentsVariant5)
+	s.assertHasActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestQTY004QuantityZeroWithNoExistingCartReturnsEmptyCart() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 0)))
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items, ok := data["items"].([]any)
+	require.True(s.T(), ok)
+	assert.Len(s.T(), items, 0)
+	assert.Equal(s.T(), float64(0), data["id"])
+	assert.Equal(s.T(), float64(helpers.CustomerUserID), data["userId"])
+
+	s.assertNoActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestBATCH001AddMultipleVariantsInSingleRequest() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"items": []map[string]any{
+			{
+				"variantId": uint(1),
+				"quantity":  2,
+			},
+			{
+				"variantId": uint(5),
+				"quantity":  1,
+			},
+		},
+	})
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+	require.Len(s.T(), items, 2)
+	s.assertSummaryBasics(data, 3, 2)
+	s.assertHasActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestBATCH002MixedRemoveAndAddInSingleRequest() {
+	s.cleanupCartsForTestUsers()
+
+	// Initial cart state: variant 1 qty=2, variant 5 qty=1
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 2)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	// Remove variant 1 and add variant 2 in same API call.
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"items": []map[string]any{
+			{
+				"variantId": uint(1),
+				"quantity":  0,
+			},
+			{
+				"variantId": uint(2),
+				"quantity":  1,
+			},
+		},
+	})
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+	require.Len(s.T(), items, 2)
+	s.assertSummaryBasics(data, 2, 2)
+	s.assertHasActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestBATCH003AllZeroDeletesCart() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(1), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, cartItemsPayload(cartItem(uint(5), 1)))
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+
+	w = s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"items": []map[string]any{
+			{
+				"variantId": uint(1),
+				"quantity":  0,
+			},
+			{
+				"variantId": uint(5),
+				"quantity":  0,
+			},
+		},
+	})
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+	assert.Len(s.T(), items, 0)
+	s.assertNoActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestBATCH004SameVariantRepeatedInSingleRequestAccumulates() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(
+			cartItem(uint(1), 1),
+			cartItem(uint(1), 2),
+			cartItem(uint(1), 3),
+		),
+	)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+
+	require.Len(s.T(), items, 1)
+	item := items[0].(map[string]any)
+	s.assertCartItemPricing(item, 1, 6, unitPriceCentsVariant1, unitPriceCentsVariant1*6)
+	s.assertSummaryBasics(data, 6, 1)
+}
+
+func (s *CartTestSuite) TestBATCH005MixedZeroAndPositiveWithNoCartCreatesCartFromPositiveOnly() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(
+		s.T(),
+		CartItemAPIEndpoint,
+		cartItemsPayload(
+			cartItem(uint(1), 0), // no-op remove
+			cartItem(uint(5), 2), // should create cart and add
+		),
+	)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+	data := resp["data"].(map[string]any)
+	items := data["items"].([]any)
+
+	require.Len(s.T(), items, 1)
+	item := items[0].(map[string]any)
+	s.assertCartItemPricing(item, 5, 2, unitPriceCentsVariant5, unitPriceCentsVariant5*2)
+	s.assertSummaryBasics(data, 2, 1)
+	s.assertHasActiveCart(helpers.CustomerUserID)
+}
+
+func (s *CartTestSuite) TestNEGValBatchItemMissingVariantIdRejected() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"items": []map[string]any{
+			{"quantity": 1},
+		},
+	})
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+
+func (s *CartTestSuite) TestNEGValBatchItemMissingQuantityRejected() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"items": []map[string]any{
+			{"variantId": uint(1)},
+		},
+	})
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+
+func (s *CartTestSuite) TestNEGValLegacySinglePayloadRejected() {
+	s.cleanupCartsForTestUsers()
+
+	w := s.customerClient.Post(s.T(), CartItemAPIEndpoint, map[string]any{
+		"variantId": uint(1),
+		"quantity":  1,
+	})
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+
 // --- Assertions ---
 
-func (s *AddToCartTestSuite) assertCartEnvelope(data map[string]any, expectedUserID uint) {
+func cartItem(variantID any, quantity any) map[string]any {
+	return map[string]any{
+		"variantId": variantID,
+		"quantity":  quantity,
+	}
+}
+
+func cartItemsPayload(items ...map[string]any) map[string]any {
+	return map[string]any{
+		"items": items,
+	}
+}
+
+func (s *CartTestSuite) assertCartEnvelope(data map[string]any, expectedUserID uint) {
 	assert.NotNil(s.T(), data["id"])
 	assert.Equal(s.T(), float64(expectedUserID), data["userId"])
 	curr, ok := data["currency"].(map[string]any)
@@ -478,7 +668,7 @@ func (s *AddToCartTestSuite) assertCartEnvelope(data map[string]any, expectedUse
 	assert.NotNil(s.T(), meta)
 }
 
-func (s *AddToCartTestSuite) assertCartItemPricing(
+func (s *CartTestSuite) assertCartItemPricing(
 	item map[string]any,
 	expectedVariantID uint,
 	expectedQty int,
@@ -499,7 +689,7 @@ func (s *AddToCartTestSuite) assertCartItemPricing(
 	assert.NotEmpty(s.T(), p["name"])
 }
 
-func (s *AddToCartTestSuite) assertSummaryBasics(
+func (s *CartTestSuite) assertSummaryBasics(
 	data map[string]any,
 	expectedItemCount int,
 	expectedUnique int,
@@ -509,4 +699,54 @@ func (s *AddToCartTestSuite) assertSummaryBasics(
 	assert.Equal(s.T(), float64(expectedUnique), summary["uniqueItems"])
 	coupons, _ := data["appliedCoupons"].([]any)
 	assert.NotNil(s.T(), coupons)
+}
+
+func (s *CartTestSuite) assertNoActiveCart(userID uint) {
+	var cart orderEntity.Cart
+	err := s.container.DB.Where("user_id = ?", userID).First(&cart).Error
+	assert.ErrorIs(s.T(), err, gorm.ErrRecordNotFound)
+}
+
+func (s *CartTestSuite) assertHasActiveCart(userID uint) {
+	var cart orderEntity.Cart
+	err := s.container.DB.Where("user_id = ?", userID).First(&cart).Error
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), userID, cart.UserID)
+}
+
+func (s *CartTestSuite) assertNoCartItems(cartID uint) {
+	var count int64
+	err := s.container.DB.Model(&orderEntity.CartItem{}).
+		Where("cart_id = ?", cartID).
+		Count(&count).
+		Error
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), int64(0), count)
+}
+
+func (s *CartTestSuite) assertCartItemCount(cartID uint, expected int64) {
+	var count int64
+	err := s.container.DB.Model(&orderEntity.CartItem{}).
+		Where("cart_id = ?", cartID).
+		Count(&count).
+		Error
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), expected, count)
+}
+
+func (s *CartTestSuite) getActiveCartID(userID uint) uint {
+	var cart orderEntity.Cart
+	err := s.container.DB.Where("user_id = ?", userID).First(&cart).Error
+	require.NoError(s.T(), err)
+	return cart.ID
+}
+
+func (s *CartTestSuite) createCartOnly(userID uint) uint {
+	cart := &orderEntity.Cart{
+		UserID:   userID,
+		Metadata: map[string]any{},
+	}
+	err := s.container.DB.Create(cart).Error
+	require.NoError(s.T(), err)
+	return cart.ID
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
@@ -74,4 +75,63 @@ func (h *CartHandler) AddToCart(c *gin.Context) {
 
 	// 4. Return success response (using CartResponse containing the full promotion summary)
 	h.Success(c, http.StatusCreated, orderConstants.ITEM_ADDED_TO_CART_MSG, resp)
+}
+
+// GetUserCart API handler to fetch active user's cart
+func (h *CartHandler) GetUserCart(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "getUserCart: user ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "getUserCart: seller ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	resp, err := h.cartService.GetUserCart(c, userID, sellerID)
+	if err != nil {
+		log.ErrorWithContext(c, "getUserCart: failed to fetch cart", err)
+		h.HandleError(c, err, orderConstants.FAILED_TO_GET_CART_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, orderConstants.CART_FETCHED_MSG, resp)
+}
+
+// DeleteCart API handler to delete active cart by cart ID
+func (h *CartHandler) DeleteCart(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "deleteCart: user ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "deleteCart: seller ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	cartIDRaw := c.Param("cartId")
+	cartID64, err := strconv.ParseUint(cartIDRaw, 10, 64)
+	if err != nil || cartID64 == 0 {
+		h.HandleValidationError(c, errs.ErrInvalidID)
+		return
+	}
+
+	resp, err := h.cartService.DeleteCart(c, userID, sellerID, uint(cartID64))
+	if err != nil {
+		log.ErrorWithContext(c, "deleteCart: failed to delete cart", err)
+		h.HandleError(c, err, orderConstants.FAILED_TO_DELETE_CART_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, orderConstants.CART_DELETED_MSG, resp)
 }

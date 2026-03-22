@@ -15,13 +15,17 @@ import (
 type CartRepository interface {
 	// Cart operations
 	FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
+	FindByID(ctx context.Context, cartID uint) (*entity.Cart, error)
 	CreateCart(ctx context.Context, cart *entity.Cart) error
+	DeleteCart(ctx context.Context, cartID uint) error
 
 	// Cart item operations
 	FindItemByVariantID(ctx context.Context, cartID, variantID uint) (*entity.CartItem, error)
 	FindItemsByCartID(ctx context.Context, cartID uint) ([]entity.CartItem, error)
+	DeleteItemsByCartID(ctx context.Context, cartID uint) error
 	AddItem(ctx context.Context, item *entity.CartItem) error
 	UpdateItem(ctx context.Context, item *entity.CartItem) error
+	DeleteItem(ctx context.Context, itemID uint) error
 }
 
 type CartRepositoryImpl struct{}
@@ -55,6 +59,35 @@ func (r *CartRepositoryImpl) CreateCart(ctx context.Context, cart *entity.Cart) 
 	if err := db.DB(ctx).Create(cart).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to create cart", err)
 		return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+// FindByID finds a cart by ID. Returns not found error if none exists.
+func (r *CartRepositoryImpl) FindByID(ctx context.Context, cartID uint) (*entity.Cart, error) {
+	var cart entity.Cart
+	result := db.DB(ctx).Where("id = ?", cartID).First(&cart)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, errs.NewAppError(
+				errs.INVALID_ID_CODE,
+				orderConstants.CART_NOT_FOUND_MSG,
+				404,
+			)
+		}
+		log.ErrorWithContext(ctx, "Failed to find cart by cart ID", result.Error)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+
+	return &cart, nil
+}
+
+// DeleteCart deletes a cart by ID
+func (r *CartRepositoryImpl) DeleteCart(ctx context.Context, cartID uint) error {
+	if err := db.DB(ctx).Delete(&entity.Cart{}, cartID).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to delete cart", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
 	}
 	return nil
 }
@@ -97,6 +130,15 @@ func (r *CartRepositoryImpl) FindItemsByCartID(
 	return items, nil
 }
 
+// DeleteItemsByCartID deletes all cart items for a given cart
+func (r *CartRepositoryImpl) DeleteItemsByCartID(ctx context.Context, cartID uint) error {
+	if err := db.DB(ctx).Where("cart_id = ?", cartID).Delete(&entity.CartItem{}).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to delete cart items", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
 // AddItem adds a new item to the cart
 func (r *CartRepositoryImpl) AddItem(ctx context.Context, item *entity.CartItem) error {
 	if err := db.DB(ctx).Create(item).Error; err != nil {
@@ -111,6 +153,15 @@ func (r *CartRepositoryImpl) UpdateItem(ctx context.Context, item *entity.CartIt
 	if err := db.DB(ctx).Save(item).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to update cart item", err)
 		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+// DeleteItem deletes a cart item by ID
+func (r *CartRepositoryImpl) DeleteItem(ctx context.Context, itemID uint) error {
+	if err := db.DB(ctx).Delete(&entity.CartItem{}, itemID).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to delete cart item", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
 	}
 	return nil
 }
