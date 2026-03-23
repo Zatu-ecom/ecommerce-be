@@ -26,6 +26,8 @@ import (
 	userService "ecommerce-be/user/service"
 )
 
+// TODO: EDD and shipping cost calculation will be added in a future PR after fulfillment service is implemented.
+// For now, we are using a fixed shipping cost in the promotion engine to allow testing of shipping promotions.
 type CartService interface {
 	AddToCart(
 		ctx context.Context,
