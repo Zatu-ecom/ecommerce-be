@@ -106,7 +106,10 @@ func (s *OrderSuite) cleanupOrderDomainData() {
 
 	var cartIDs []uint
 	s.Require().NoError(
-		s.container.DB.Model(&orderEntity.Cart{}).Where("user_id IN ?", userIDs).Pluck("id", &cartIDs).Error,
+		s.container.DB.Model(&orderEntity.Cart{}).
+			Where("user_id IN ?", userIDs).
+			Pluck("id", &cartIDs).
+			Error,
 	)
 	if len(cartIDs) > 0 {
 		s.Require().NoError(

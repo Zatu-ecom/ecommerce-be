@@ -14,7 +14,8 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	cartService service.CartService
+	cartService  service.CartService
+	orderService service.OrderService
 
 	once sync.Once
 }
@@ -32,15 +33,28 @@ func (f *ServiceFactory) initialize() {
 		// Get external service dependencies
 		promotionSvc := promotionFactory.GetInstance().GetPromotionService()
 		inventorySvc := inventoryFactory.GetInstance().GetInventoryQueryService()
+		inventoryReservationSvc := inventoryFactory.GetInstance().GetInventoryReservationService()
 		variantQuerySvc := productFactory.GetInstance().GetVariantQueryService()
-		userSvc := userFactory.GetInstance().GetUserService()
+		userSingleton := userFactory.GetInstance()
+		userSvc := userSingleton.GetUserService()
+		addressSvc := userSingleton.GetAddressService()
+		userRepo := userSingleton.GetUserRepository()
 
 		// Get repositories
 		cartRepo := f.repoFactory.GetCartRepository()
 		orderRepo := f.repoFactory.GetOrderRepository()
+		orderHistoryRepo := f.repoFactory.GetOrderHistoryRepository()
 
 		// Initialize services
 		f.cartService = service.NewCartService(cartRepo, orderRepo, promotionSvc, inventorySvc, variantQuerySvc, userSvc)
+		f.orderService = service.NewOrderService(
+			f.cartService,
+			orderRepo,
+			orderHistoryRepo,
+			inventoryReservationSvc,
+			addressSvc,
+			userRepo,
+		)
 	})
 }
 
@@ -48,4 +62,10 @@ func (f *ServiceFactory) initialize() {
 func (f *ServiceFactory) GetCartService() service.CartService {
 	f.initialize()
 	return f.cartService
+}
+
+// GetOrderService returns the singleton order service
+func (f *ServiceFactory) GetOrderService() service.OrderService {
+	f.initialize()
+	return f.orderService
 }

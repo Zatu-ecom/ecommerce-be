@@ -15,11 +15,36 @@ func TestStatusTransitionUtilIsValidTransition(t *testing.T) {
 		to   entity.OrderStatus
 		want bool
 	}{
-		{"pending to confirmed", entity.ORDER_STATUS_PENDING, entity.ORDER_STATUS_CONFIRMED, true},
-		{"pending to failed", entity.ORDER_STATUS_PENDING, entity.ORDER_STATUS_FAILED, true},
-		{"pending to completed invalid", entity.ORDER_STATUS_PENDING, entity.ORDER_STATUS_COMPLETED, false},
-		{"terminal cancelled to confirmed invalid", entity.ORDER_STATUS_CANCELLED, entity.ORDER_STATUS_CONFIRMED, false},
-		{"completed to returned", entity.ORDER_STATUS_COMPLETED, entity.ORDER_STATUS_RETURNED, true},
+		{
+			"pending to confirmed",
+			entity.ORDER_STATUS_PENDING,
+			entity.ORDER_STATUS_CONFIRMED,
+			true,
+		},
+		{
+			"pending to failed",
+			entity.ORDER_STATUS_PENDING,
+			entity.ORDER_STATUS_FAILED,
+			true,
+		},
+		{
+			"pending to completed invalid",
+			entity.ORDER_STATUS_PENDING,
+			entity.ORDER_STATUS_COMPLETED,
+			false,
+		},
+		{
+			"terminal cancelled to confirmed invalid",
+			entity.ORDER_STATUS_CANCELLED,
+			entity.ORDER_STATUS_CONFIRMED,
+			false,
+		},
+		{
+			"completed to returned",
+			entity.ORDER_STATUS_COMPLETED,
+			entity.ORDER_STATUS_RETURNED,
+			true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -63,9 +88,14 @@ func TestStatusTransitionUtilRequiredFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := orderUtils.RequiredFieldsForTransition(tc.from, tc.to)
 			if !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("RequiredFieldsForTransition(%s,%s)=%v want=%v", tc.from, tc.to, got, tc.want)
+				t.Fatalf(
+					"RequiredFieldsForTransition(%s,%s)=%v want=%v",
+					tc.from,
+					tc.to,
+					got,
+					tc.want,
+				)
 			}
 		})
 	}
 }
-

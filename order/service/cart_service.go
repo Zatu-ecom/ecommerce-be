@@ -42,6 +42,10 @@ type CartService interface {
 		ctx context.Context,
 		userID, sellerID, cartID uint,
 	) (*model.CartResponse, error)
+	LockActiveCartForCheckout(ctx context.Context, userID uint) (*entity.Cart, error)
+	UnlockCheckoutCart(ctx context.Context, cartID uint) error
+	MarkCartConverted(ctx context.Context, cartID, orderID, userID uint) error
+	ReactivateCartByOrderID(ctx context.Context, orderID uint) error
 }
 
 type CartServiceImpl struct {
@@ -201,6 +205,105 @@ func (s *CartServiceImpl) DeleteCart(
 		}
 		return s.buildEmptyCartResponse(userID, currencyMap), nil
 	})
+}
+
+// LockActiveCartForCheckout transitions one active cart into checkout state.
+// Step 1: find current active cart for user.
+// Step 2: atomically transition status active -> checkout.
+// Step 3: if transition fails, surface checkout lock/state conflict.
+func (s *CartServiceImpl) LockActiveCartForCheckout(
+	ctx context.Context,
+	userID uint,
+) (*entity.Cart, error) {
+	cart, err := s.cartRepo.FindActiveCartByUserID(ctx, userID)
+	if err != nil {
+		if appErr, ok := err.(*errs.AppError); ok && appErr.Code == errs.INVALID_ID_CODE {
+			checkoutCart, checkoutErr := s.cartRepo.FindCheckoutCartByUserID(ctx, userID)
+			if checkoutErr != nil {
+				return nil, checkoutErr
+			}
+			if checkoutCart != nil {
+				return nil, orderError.ErrCartAlreadyInCheckout
+			}
+		}
+		return nil, err
+	}
+
+	locked, err := s.cartRepo.UpdateCartStatusIfCurrent(
+		ctx,
+		cart.ID,
+		entity.CART_STATUS_ACTIVE,
+		entity.CART_STATUS_CHECKOUT,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if locked {
+		cart.Status = entity.CART_STATUS_CHECKOUT
+		return cart, nil
+	}
+
+	latest, err := s.cartRepo.FindByID(ctx, cart.ID)
+	if err != nil {
+		return nil, err
+	}
+	if latest.Status == entity.CART_STATUS_CHECKOUT {
+		return nil, orderError.ErrCartAlreadyInCheckout
+	}
+	return nil, orderError.ErrCartNotActive
+}
+
+// UnlockCheckoutCart reverts a locked cart back to active for retry.
+// This is used as compensation when order creation fails after lock acquisition.
+func (s *CartServiceImpl) UnlockCheckoutCart(ctx context.Context, cartID uint) error {
+	_, err := s.cartRepo.UpdateCartStatusIfCurrent(
+		ctx,
+		cartID,
+		entity.CART_STATUS_CHECKOUT,
+		entity.CART_STATUS_ACTIVE,
+	)
+	return err
+}
+
+// MarkCartConverted finalizes checkout state after order commit data is ready.
+// Step 1: link cart -> order via order_id.
+// Step 2: transition checkout -> converted.
+func (s *CartServiceImpl) MarkCartConverted(
+	ctx context.Context,
+	cartID, orderID, userID uint,
+) error {
+	if err := s.cartRepo.SetCartOrderID(ctx, cartID, orderID); err != nil {
+		return err
+	}
+	converted, err := s.cartRepo.UpdateCartStatusIfCurrent(
+		ctx,
+		cartID,
+		entity.CART_STATUS_CHECKOUT,
+		entity.CART_STATUS_CONVERTED,
+	)
+	if err != nil {
+		return err
+	}
+	if !converted {
+		return orderError.ErrCartNotActive
+	}
+	return err
+}
+
+// ReactivateCartByOrderID reopens the cart associated with a failed/cancelled order.
+// The operation is idempotent: if no cart is linked, it succeeds with no-op.
+func (s *CartServiceImpl) ReactivateCartByOrderID(ctx context.Context, orderID uint) error {
+	converted, err := s.cartRepo.FindByOrderID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if converted == nil {
+		return nil
+	}
+	if err := s.cartRepo.UpdateCartStatus(ctx, converted.ID, entity.CART_STATUS_ACTIVE); err != nil {
+		return err
+	}
+	return s.cartRepo.ClearCartOrderID(ctx, converted.ID)
 }
 
 func hasPositiveQuantity(items []model.AddCartItemDetail) bool {

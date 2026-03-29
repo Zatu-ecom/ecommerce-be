@@ -32,9 +32,11 @@ func (s *OrderSuite) TestScenario1_2_OrderNumberFormat() {
 	data := resp["data"].(map[string]any)
 
 	orderNumber, _ := data["orderNumber"].(string)
-	s.Require().True(strings.HasPrefix(orderNumber, "ORD-"), "orderNumber must start with ORD-: %s", orderNumber)
+	s.Require().
+		True(strings.HasPrefix(orderNumber, "ORD-"), "orderNumber must start with ORD-: %s", orderNumber)
 	pattern := regexp.MustCompile(`^ORD-\d{13}-[0-9A-Z]+-[0-9A-Z]+$`)
-	s.Require().True(pattern.MatchString(orderNumber), "orderNumber format mismatch: %s", orderNumber)
+	s.Require().
+		True(pattern.MatchString(orderNumber), "orderNumber format mismatch: %s", orderNumber)
 }
 
 // ─── 1.3 Cart transitions to converted after successful order creation ──────
@@ -51,7 +53,12 @@ func (s *OrderSuite) TestScenario1_3_CartBecomesConverted() {
 	var cart orderEntity.Cart
 	s.Require().NoError(
 		s.container.DB.
-			Where("user_id = ? AND status = ? AND order_id = ?", helpers.CustomerUserID, orderEntity.CART_STATUS_CONVERTED, orderID).
+			Where(
+				"user_id = ? AND status = ? AND order_id = ?",
+				helpers.CustomerUserID,
+				orderEntity.CART_STATUS_CONVERTED,
+				orderID,
+			).
 			First(&cart).Error,
 		"expected a converted cart linked to the new order",
 	)
@@ -137,7 +144,7 @@ func (s *OrderSuite) TestScenario1_12_DefaultFulfillmentType() {
 
 func (s *OrderSuite) TestScenario1_14_NoActiveCart() {
 	w := s.customerClient.Post(s.T(), OrderAPIEndpoint, s.createOrderRequest())
-	helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 }
 
 // ─── 1.15 Active cart exists but is empty ───────────────────────────────────
@@ -257,4 +264,3 @@ func (s *OrderSuite) TestScenarioD1_OrderItemPriceIsSnapshot() {
 	// unitPriceCents is snapshotted; it must be > 0 and stable.
 	s.Require().Greater(item["unitPriceCents"].(float64), float64(0))
 }
-

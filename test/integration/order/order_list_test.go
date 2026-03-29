@@ -28,4 +28,3 @@ func (s *OrderSuite) TestScenario3_14_NoOrdersExist() {
 	orders := data["orders"].([]any)
 	s.Require().Len(orders, 0)
 }
-

@@ -19,6 +19,7 @@ type CreateOrderRequest struct {
 	ShippingAddressID uint                   `json:"shippingAddressId" binding:"required,gt=0"`
 	BillingAddressID  uint                   `json:"billingAddressId"  binding:"required,gt=0"`
 	FulfillmentType   entity.FulfillmentType `json:"fulfillmentType"`
+	Status            *entity.OrderStatus    `json:"status"`
 	Metadata          map[string]any         `json:"metadata"`
 }
 
@@ -142,22 +143,22 @@ type OrderPromotionResponse struct {
 }
 
 type OrderResponse struct {
-	ID                uint                   `json:"id"`
-	OrderNumber       string                 `json:"orderNumber"`
-	Status            entity.OrderStatus     `json:"status"`
-	SubtotalCents     int64                  `json:"subtotalCents"`
-	DiscountCents     int64                  `json:"discountCents"`
-	ShippingCents     int64                  `json:"shippingCents"`
-	TaxCents          int64                  `json:"taxCents"`
-	TotalCents        int64                  `json:"totalCents"`
-	FulfillmentType   entity.FulfillmentType `json:"fulfillmentType"`
-	PlacedAt          *time.Time             `json:"placedAt"`
-	PaidAt            *time.Time             `json:"paidAt"`
-	TransactionID     string                 `json:"transactionId"`
-	Metadata          map[string]any         `json:"metadata"`
-	Customer          *OrderCustomerResponse `json:"customer,omitempty"`
-	Items             []OrderItemResponse    `json:"items"`
-	Addresses         []OrderAddressResponse `json:"addresses"`
+	ID                uint                     `json:"id"`
+	OrderNumber       string                   `json:"orderNumber"`
+	Status            entity.OrderStatus       `json:"status"`
+	SubtotalCents     int64                    `json:"subtotalCents"`
+	DiscountCents     int64                    `json:"discountCents"`
+	ShippingCents     int64                    `json:"shippingCents"`
+	TaxCents          int64                    `json:"taxCents"`
+	TotalCents        int64                    `json:"totalCents"`
+	FulfillmentType   entity.FulfillmentType   `json:"fulfillmentType"`
+	PlacedAt          *time.Time               `json:"placedAt"`
+	PaidAt            *time.Time               `json:"paidAt"`
+	TransactionID     string                   `json:"transactionId"`
+	Metadata          map[string]any           `json:"metadata"`
+	Customer          *OrderCustomerResponse   `json:"customer,omitempty"`
+	Items             []OrderItemResponse      `json:"items"`
+	Addresses         []OrderAddressResponse   `json:"addresses"`
 	AppliedPromotions []OrderPromotionResponse `json:"appliedPromotions"`
 }
 
@@ -173,19 +174,19 @@ type OrderListResponse struct {
 	PlacedAt        *time.Time             `json:"placedAt"`
 	PaidAt          *time.Time             `json:"paidAt"`
 	CreatedAt       time.Time              `json:"createdAt"`
+	Customer        *OrderCustomerResponse `json:"customer,omitempty"`
 }
 
 type UpdateStatusResponse struct {
-	ID            uint               `json:"id"`
-	OrderNumber   string             `json:"orderNumber"`
+	ID             uint               `json:"id"`
+	OrderNumber    string             `json:"orderNumber"`
 	PreviousStatus entity.OrderStatus `json:"previousStatus"`
-	Status        entity.OrderStatus `json:"status"`
-	TransactionID *string            `json:"transactionId"`
-	UpdatedAt     time.Time          `json:"updatedAt"`
+	Status         entity.OrderStatus `json:"status"`
+	TransactionID  *string            `json:"transactionId"`
+	UpdatedAt      time.Time          `json:"updatedAt"`
 }
 
 type PaginatedOrdersResponse struct {
 	Orders     []OrderListResponse `json:"orders"`
 	Pagination PaginationResponse  `json:"pagination"`
 }
-

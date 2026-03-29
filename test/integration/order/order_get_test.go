@@ -53,7 +53,12 @@ func (s *OrderSuite) TestScenario2_4_CustomerCannotGetOtherUsersOrder() {
 
 	// customer2Client uses a different user account
 	customer2Client := helpers.NewAPIClient(s.server)
-	token := helpers.Login(s.T(), customer2Client, helpers.Customer2Email, helpers.Customer2Password)
+	token := helpers.Login(
+		s.T(),
+		customer2Client,
+		helpers.Customer2Email,
+		helpers.Customer2Password,
+	)
 	customer2Client.SetToken(token)
 
 	w := customer2Client.Get(s.T(), s.getOrderByIDURL(orderID))
@@ -102,5 +107,3 @@ func (s *OrderSuite) TestScenario2_8_GetOrderIncludesItemsAndAddresses() {
 	s.Require().True(ok, "addresses must be present")
 	s.Require().NotEmpty(addresses)
 }
-
-

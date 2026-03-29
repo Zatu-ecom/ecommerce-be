@@ -70,3 +70,7 @@ func (f *SingletonFactory) GetScheduleInventoryReservationHandler() *handler.Sch
 func (f *SingletonFactory) GetInventoryQueryService() service.InventoryQueryService {
 	return f.serviceFactory.GetInventoryQueryService()
 }
+
+func (f *SingletonFactory) GetInventoryReservationService() service.InventoryReservationService {
+	return f.serviceFactory.GetInventoryReservationService()
+}

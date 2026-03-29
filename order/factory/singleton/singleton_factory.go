@@ -66,10 +66,18 @@ func (f *SingletonFactory) GetCartService() service.CartService {
 	return f.serviceFactory.GetCartService()
 }
 
+func (f *SingletonFactory) GetOrderService() service.OrderService {
+	return f.serviceFactory.GetOrderService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================
 
 func (f *SingletonFactory) GetCartHandler() *handler.CartHandler {
 	return f.handlerFactory.GetCartHandler()
+}
+
+func (f *SingletonFactory) GetOrderHandler() *handler.OrderHandler {
+	return f.handlerFactory.GetOrderHandler()
 }

@@ -1,22 +1,27 @@
 package utils
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base32"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"time"
+
+	"ecommerce-be/common/config"
 )
 
 const (
 	orderNumberPrefix = "ORD"
 	randomCharset     = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	randomPartLength  = 6
+	randomPartLength  = 4
+	sellerHashLength  = 10
 )
 
 // GenerateOrderNumber generates a unique order number in format:
-// ORD-<epoch_ms>-<seller_b36>-<random>.
+// ORD-<epoch_ms>-<seller_hash>-<random>.
 func GenerateOrderNumber(sellerID uint) string {
 	epochMillis := time.Now().UTC().UnixMilli()
 	sellerPart := EncodeSellerID(sellerID)
@@ -25,24 +30,26 @@ func GenerateOrderNumber(sellerID uint) string {
 	return fmt.Sprintf("%s-%d-%s-%s", orderNumberPrefix, epochMillis, sellerPart, randomPart)
 }
 
-// EncodeSellerID encodes seller ID in base36 (uppercase).
+// EncodeSellerID returns a deterministic, non-reversible seller hash segment.
+// Hash length can be configured using ORDER_NUMBER_SELLER_HASH_LEN (default 10).
 func EncodeSellerID(sellerID uint) string {
-	return strings.ToUpper(strconv.FormatUint(uint64(sellerID), 36))
+	secret := resolveHashSecret()
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(fmt.Sprintf("%d", sellerID)))
+	sum := mac.Sum(nil)
+
+	encoded := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum)
+	encoded = strings.ToUpper(encoded)
+	if len(encoded) <= sellerHashLength {
+		return encoded
+	}
+	return encoded[:sellerHashLength]
 }
 
-// DecodeSellerID decodes an encoded base36 seller ID.
+// DecodeSellerID is not supported for hash-based encoding.
 func DecodeSellerID(encoded string) (uint, error) {
-	trimmed := strings.TrimSpace(encoded)
-	if trimmed == "" {
-		return 0, fmt.Errorf("encoded seller id is empty")
-	}
-
-	parsed, err := strconv.ParseUint(trimmed, 36, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid encoded seller id %q: %w", encoded, err)
-	}
-
-	return uint(parsed), nil
+	return 0, fmt.Errorf("seller hash is non-reversible")
 }
 
 func generateRandomAlphanumeric(n int) string {
@@ -65,4 +72,13 @@ func generateRandomAlphanumeric(n int) string {
 	}
 
 	return b.String()
+}
+
+func resolveHashSecret() string {
+	cfg := config.Get()
+	if cfg != nil && strings.TrimSpace(cfg.Auth.JWTSecret) != "" {
+		secret := strings.TrimSpace(cfg.Auth.JWTSecret)
+		return secret
+	}
+	return "order-number-default-secret"
 }

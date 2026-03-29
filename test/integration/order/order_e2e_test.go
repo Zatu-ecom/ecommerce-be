@@ -26,4 +26,3 @@ func (s *OrderSuite) TestScenarioE2E_1_FullHappyPath() {
 	data := resp["data"].(map[string]any)
 	s.Require().Equal("completed", data["status"])
 }
-

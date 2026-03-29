@@ -16,11 +16,19 @@ type CartRepository interface {
 	// Cart operations
 	FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
 	FindActiveCartByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
+	FindCheckoutCartByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
+	FindByOrderID(ctx context.Context, orderID uint) (*entity.Cart, error)
 	FindByID(ctx context.Context, cartID uint) (*entity.Cart, error)
 	CreateCart(ctx context.Context, cart *entity.Cart) error
 	CreateNewActiveCart(ctx context.Context, userID uint) (*entity.Cart, error)
 	UpdateCartStatus(ctx context.Context, cartID uint, status entity.CartStatus) error
+	UpdateCartStatusIfCurrent(
+		ctx context.Context,
+		cartID uint,
+		currentStatus, newStatus entity.CartStatus,
+	) (bool, error)
 	SetCartOrderID(ctx context.Context, cartID uint, orderID uint) error
+	ClearCartOrderID(ctx context.Context, cartID uint) error
 	DeleteCart(ctx context.Context, cartID uint) error
 
 	// Cart item operations
@@ -68,6 +76,44 @@ func (r *CartRepositoryImpl) FindActiveCartByUserID(
 	return &cart, nil
 }
 
+// FindCheckoutCartByUserID finds a user's currently locked checkout cart.
+// Returns nil,nil when no checkout cart exists.
+func (r *CartRepositoryImpl) FindCheckoutCartByUserID(
+	ctx context.Context,
+	userID uint,
+) (*entity.Cart, error) {
+	var cart entity.Cart
+	result := db.DB(ctx).
+		Where("user_id = ? AND status = ?", userID, entity.CART_STATUS_CHECKOUT).
+		First(&cart)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		log.ErrorWithContext(ctx, "Failed to find checkout cart by user ID", result.Error)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+	return &cart, nil
+}
+
+// FindByOrderID finds the converted cart linked to the order.
+// Returns nil,nil when no cart is linked (safe for idempotent compensation flows).
+func (r *CartRepositoryImpl) FindByOrderID(
+	ctx context.Context,
+	orderID uint,
+) (*entity.Cart, error) {
+	var cart entity.Cart
+	result := db.DB(ctx).Where("order_id = ?", orderID).First(&cart)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		log.ErrorWithContext(ctx, "Failed to find cart by order ID", result.Error)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+	return &cart, nil
+}
+
 // CreateCart creates a new cart for a user
 func (r *CartRepositoryImpl) CreateCart(ctx context.Context, cart *entity.Cart) error {
 	if err := db.DB(ctx).Create(cart).Error; err != nil {
@@ -111,6 +157,24 @@ func (r *CartRepositoryImpl) UpdateCartStatus(
 	return nil
 }
 
+// UpdateCartStatusIfCurrent updates status only if current status matches.
+// Returns true when exactly one row transitioned.
+func (r *CartRepositoryImpl) UpdateCartStatusIfCurrent(
+	ctx context.Context,
+	cartID uint,
+	currentStatus, newStatus entity.CartStatus,
+) (bool, error) {
+	result := db.DB(ctx).
+		Model(&entity.Cart{}).
+		Where("id = ? AND status = ?", cartID, currentStatus).
+		Update("status", newStatus)
+	if result.Error != nil {
+		log.ErrorWithContext(ctx, "Failed to transition cart status", result.Error)
+		return false, errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
+	}
+	return result.RowsAffected == 1, nil
+}
+
 // SetCartOrderID links cart to an order ID after successful conversion.
 func (r *CartRepositoryImpl) SetCartOrderID(
 	ctx context.Context,
@@ -123,6 +187,19 @@ func (r *CartRepositoryImpl) SetCartOrderID(
 		Update("order_id", orderID).
 		Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to set cart order ID", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+// ClearCartOrderID clears order linkage from a cart.
+func (r *CartRepositoryImpl) ClearCartOrderID(ctx context.Context, cartID uint) error {
+	if err := db.DB(ctx).
+		Model(&entity.Cart{}).
+		Where("id = ?", cartID).
+		Update("order_id", nil).
+		Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to clear cart order ID", err)
 		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
 	}
 	return nil

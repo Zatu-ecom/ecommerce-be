@@ -117,7 +117,8 @@ func (s *InventoryReservationServiceImpl) CreateReservation(
 			}
 
 			// Reserve inventory quantities immediately
-			if err = s.manageInventoryQuantity(txCtx, sellerId, entity.TXN_RESERVED, reservationEntities, inventories); err != nil {
+			if err = s.manageInventoryQuantity(txCtx, sellerId, entity.TXN_RESERVED,
+				reservationEntities, inventories); err != nil {
 				return nil, err
 			}
 

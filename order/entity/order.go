@@ -74,7 +74,7 @@ const (
 	// Buy Online, Pick Up In Store
 	BOPIS     FulfillmentType = "bopis"
 	// Direct Ship to CustomeR, for online order this is the default fulfillment type
-	DIRETSHIP FulfillmentType = "diretship"
+	DIRECTSHIP FulfillmentType = "directship"
 	// Delivery to Customer, this is for local delivery or third-party delivery service
 	DELIVERY  FulfillmentType = "delivery"
 	// Transfer to another store
@@ -84,7 +84,7 @@ const (
 func ValidFulfillmentTypes() []FulfillmentType {
 	return []FulfillmentType{
 		BOPIS,
-		DIRETSHIP,
+		DIRECTSHIP,
 		DELIVERY,
 		TRANSFER,
 	}
@@ -96,7 +96,7 @@ func (f FulfillmentType) String() string {
 
 func (f FulfillmentType) IsValid() bool {
 	switch f {
-	case BOPIS, DIRETSHIP, DELIVERY, TRANSFER:
+	case BOPIS, DIRECTSHIP, DELIVERY, TRANSFER:
 		return true
 	}
 	return false
@@ -121,7 +121,7 @@ type Order struct {
 	PaidAt          *time.Time      `json:"paidAt"          gorm:"column:paid_at"`
 	Metadata        db.JSONMap      `json:"metadata"        gorm:"column:metadata;type:jsonb;default:'{}'"`
 	TransactionID   string          `json:"transactionId"   gorm:"column:transaction_id"`
-	FulfillmentType FulfillmentType `json:"fulfillmentType" gorm:"column:fulfillment_type;size:32;default:'diretship'"`
+	FulfillmentType FulfillmentType `json:"fulfillmentType" gorm:"column:fulfillment_type;size:32;default:'directship'"`
 
 	// Associations for query preloading.
 	Items                  []OrderItem                 `json:"items,omitempty"                  gorm:"foreignKey:OrderID"`
