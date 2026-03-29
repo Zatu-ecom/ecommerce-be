@@ -68,6 +68,16 @@ type OrderServiceImpl struct {
 	userRepo            userRepository.UserRepository
 }
 
+// createOrderContext carries validated inputs and locked resources required to create an order.
+type createOrderContext struct {
+	fulfillmentType entity.FulfillmentType
+	orderStatus     entity.OrderStatus
+	cartSnapshot    *model.CartResponse
+	lockedCart      *entity.Cart
+	shippingAddress *userModel.AddressResponse
+	billingAddress  *userModel.AddressResponse
+}
+
 func NewOrderService(
 	cartSvc CartService,
 	orderRepo repository.OrderRepository,
@@ -99,23 +109,45 @@ func (s *OrderServiceImpl) CreateOrder(
 	userID, sellerID uint,
 	req model.CreateOrderRequest,
 ) (*model.OrderResponse, error) {
-	// Step 1a: normalize/validate fulfillment mode.
+	// Step 1-4: validate request + cart context and acquire checkout lock.
+	createCtx, err := s.prepareCreateOrder(ctx, userID, sellerID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	converted := false
+	defer func() {
+		if !converted {
+			_ = s.cartSvc.UnlockCheckoutCart(context.Background(), createCtx.lockedCart.ID)
+		}
+	}()
+
+	// Step 5: run full order conversion transaction (all-or-nothing).
+	resp, err := s.executeCreateOrderTransaction(ctx, userID, sellerID, req, createCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	converted = true
+	return resp, nil
+}
+
+// prepareCreateOrder validates request inputs and acquires a cart checkout lock.
+func (s *OrderServiceImpl) prepareCreateOrder(
+	ctx context.Context,
+	userID, sellerID uint,
+	req model.CreateOrderRequest,
+) (*createOrderContext, error) {
 	fulfillmentType, err := normalizeFulfillmentType(req.FulfillmentType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 1b: normalize/validate order status (default to pending if null).
-	orderStatus := entity.ORDER_STATUS_PENDING
-	if req.Status != nil {
-		normalizedStatus := normalizeOrderStatus(*req.Status)
-		if !normalizedStatus.IsValid() {
-			return nil, orderError.ErrInvalidOrderStatus
-		}
-		orderStatus = normalizedStatus
+	orderStatus, err := normalizeCreateOrderStatus(req.Status)
+	if err != nil {
+		return nil, err
 	}
 
-	// Step 2: read enriched cart snapshot (includes item and promotion details).
 	cartSnapshot, err := s.cartSvc.GetUserCart(ctx, userID, sellerID)
 	if err != nil {
 		return nil, err
@@ -124,13 +156,11 @@ func (s *OrderServiceImpl) CreateOrder(
 		return nil, orderError.ErrCartEmpty
 	}
 
-	// Step 3: lock active cart to prevent concurrent checkout/update races.
 	lockedCart, err := s.cartSvc.LockActiveCartForCheckout(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 4: validate and snapshot user addresses after lock acquisition.
 	shippingAddress, billingAddress, err := s.loadAndValidateAddresses(
 		ctx,
 		userID,
@@ -142,124 +172,175 @@ func (s *OrderServiceImpl) CreateOrder(
 		return nil, err
 	}
 
-	converted := false
-	defer func() {
-		if !converted {
-			_ = s.cartSvc.UnlockCheckoutCart(
-				context.Background(),
-				lockedCart.ID,
-			)
-		}
-	}()
+	return &createOrderContext{
+		fulfillmentType: fulfillmentType,
+		orderStatus:     orderStatus,
+		cartSnapshot:    cartSnapshot,
+		lockedCart:      lockedCart,
+		shippingAddress: shippingAddress,
+		billingAddress:  billingAddress,
+	}, nil
+}
 
-	// Step 5: run full order conversion transaction (all-or-nothing).
-	resp, err := db.WithTransactionResult(
+// executeCreateOrderTransaction persists order snapshots, handles reservation state,
+// converts the cart, and returns a hydrated order response.
+func (s *OrderServiceImpl) executeCreateOrderTransaction(
+	ctx context.Context,
+	userID, sellerID uint,
+	req model.CreateOrderRequest,
+	createCtx *createOrderContext,
+) (*model.OrderResponse, error) {
+	return db.WithTransactionResult(
 		ctx,
 		func(txCtx context.Context) (*model.OrderResponse, error) {
-			now := time.Now().UTC()
-			shippingCents := int64(0)
-			if cartSnapshot.Summary.Shipping != nil {
-				shippingCents = *cartSnapshot.Summary.Shipping
-			}
-			order := mapper.BuildOrderEntity(
-				userID,
-				sellerID,
-				fulfillmentType,
-				orderStatus,
-				req.Metadata,
-				cartSnapshot.Summary.Subtotal,
-				cartSnapshot.Summary.TotalDiscount,
-				shippingCents,
-				cartSnapshot.Summary.Tax,
-				cartSnapshot.Summary.Total,
-				now,
-			)
-			if err := s.orderRepo.CreateOrder(txCtx, order); err != nil {
-				return nil, err
-			}
-
-			orderItems := factory.BuildOrderItemsFromCartSnapshot(order.ID, cartSnapshot)
-			if err := s.orderRepo.CreateOrderItems(txCtx, orderItems); err != nil {
-				return nil, err
-			}
-
-			orderAddresses := factory.BuildOrderAddressesFromUserAddresses(
-				order.ID,
-				shippingAddress,
-				billingAddress,
-			)
-			if err := s.orderRepo.CreateOrderAddresses(txCtx, orderAddresses); err != nil {
-				return nil, err
-			}
-
-			orderPromotions := factory.BuildOrderAppliedPromotionsFromCartSnapshot(
-				order.ID,
-				cartSnapshot,
-			)
-			if err := s.orderRepo.CreateOrderAppliedPromotions(txCtx, orderPromotions); err != nil {
-				return nil, err
-			}
-
-			itemPromotions := factory.BuildOrderItemAppliedPromotionsFromCartSnapshot(
-				order.ID,
-				cartSnapshot,
-				orderItems,
-			)
-			if err := s.orderRepo.CreateOrderItemAppliedPromotions(txCtx, itemPromotions); err != nil {
-				return nil, err
-			}
-
-			if err := s.orderHistoryRepo.CreateHistoryEntry(
-				txCtx,
-				mapper.BuildOrderCreatedHistory(order.ID, userID, constants.CUSTOMER_ROLE_NAME, orderStatus.String()),
-			); err != nil {
-				return nil, err
-			}
-
-			if shouldReserveInventoryOnCreate(orderStatus) {
-				if _, err := s.inventoryReserveSvc.CreateReservation(txCtx, sellerID, inventoryModel.ReservationRequest{
-					ReferenceId:      order.ID,
-					ExpiresInMinutes: reservationExpiresInMinutes,
-					Items:            buildReservationItems(cartSnapshot.Items),
-				}); err != nil {
-					return nil, err
-				}
-
-				// If order is created as confirmed, update reservation status immediately.
-				if orderStatus == entity.ORDER_STATUS_CONFIRMED {
-					if err := s.inventoryReserveSvc.UpdateReservationStatus(
-						txCtx,
-						sellerID,
-						inventoryModel.UpdateReservationStatusRequest{
-							ReferenceId: order.ID,
-							Status:      inventoryEntity.ResConfirmed,
-						},
-					); err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			if err := s.cartSvc.MarkCartConverted(txCtx, lockedCart.ID, order.ID, userID); err != nil {
-				return nil, err
-			}
-
-			freshOrder, err := s.orderRepo.FindOrderByID(txCtx, order.ID)
+			order, err := s.persistOrderSnapshotGraph(txCtx, userID, sellerID, req, createCtx)
 			if err != nil {
 				return nil, err
 			}
-			if freshOrder == nil {
-				return nil, orderError.ErrOrderNotFound
+
+			if err := s.handleCreateOrderReservation(txCtx, sellerID, order.ID, createCtx); err != nil {
+				return nil, err
 			}
-			return factory.BuildOrderResponseFromEntity(freshOrder, nil), nil
+
+			if err := s.cartSvc.MarkCartConverted(txCtx, createCtx.lockedCart.ID, order.ID, userID); err != nil {
+				return nil, err
+			}
+
+			return s.loadCreateOrderResponse(txCtx, order.ID)
 		},
 	)
-	if err != nil {
+}
+
+// persistOrderSnapshotGraph writes root order row plus all immutable snapshot tables.
+func (s *OrderServiceImpl) persistOrderSnapshotGraph(
+	txCtx context.Context,
+	userID, sellerID uint,
+	req model.CreateOrderRequest,
+	createCtx *createOrderContext,
+) (*entity.Order, error) {
+	now := time.Now().UTC()
+	order := s.buildCreateOrderEntity(userID, sellerID, req, createCtx, now)
+	if err := s.orderRepo.CreateOrder(txCtx, order); err != nil {
 		return nil, err
 	}
 
-	converted = true
-	return resp, nil
+	orderItems := factory.BuildOrderItemsFromCartSnapshot(order.ID, createCtx.cartSnapshot)
+	if err := s.orderRepo.CreateOrderItems(txCtx, orderItems); err != nil {
+		return nil, err
+	}
+
+	orderAddresses := factory.BuildOrderAddressesFromUserAddresses(
+		order.ID,
+		createCtx.shippingAddress,
+		createCtx.billingAddress,
+	)
+	if err := s.orderRepo.CreateOrderAddresses(txCtx, orderAddresses); err != nil {
+		return nil, err
+	}
+
+	orderPromotions := factory.BuildOrderAppliedPromotionsFromCartSnapshot(
+		order.ID,
+		createCtx.cartSnapshot,
+	)
+	if err := s.orderRepo.CreateOrderAppliedPromotions(txCtx, orderPromotions); err != nil {
+		return nil, err
+	}
+
+	itemPromotions := factory.BuildOrderItemAppliedPromotionsFromCartSnapshot(
+		order.ID,
+		createCtx.cartSnapshot,
+		orderItems,
+	)
+	if err := s.orderRepo.CreateOrderItemAppliedPromotions(txCtx, itemPromotions); err != nil {
+		return nil, err
+	}
+
+	if err := s.orderHistoryRepo.CreateHistoryEntry(
+		txCtx,
+		mapper.BuildOrderCreatedHistory(
+			order.ID,
+			userID,
+			constants.CUSTOMER_ROLE_NAME,
+			createCtx.orderStatus.String(),
+		),
+	); err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
+// buildCreateOrderEntity maps request/cart snapshot totals into the persisted order row.
+func (s *OrderServiceImpl) buildCreateOrderEntity(
+	userID, sellerID uint,
+	req model.CreateOrderRequest,
+	createCtx *createOrderContext,
+	now time.Time,
+) *entity.Order {
+	shippingCents := int64(0)
+	if createCtx.cartSnapshot.Summary.Shipping != nil {
+		shippingCents = *createCtx.cartSnapshot.Summary.Shipping
+	}
+	return mapper.BuildOrderEntity(
+		userID,
+		sellerID,
+		createCtx.fulfillmentType,
+		createCtx.orderStatus,
+		req.Metadata,
+		createCtx.cartSnapshot.Summary.Subtotal,
+		createCtx.cartSnapshot.Summary.TotalDiscount,
+		shippingCents,
+		createCtx.cartSnapshot.Summary.Tax,
+		createCtx.cartSnapshot.Summary.Total,
+		now,
+	)
+}
+
+// handleCreateOrderReservation creates reservation for reservable statuses and confirms it immediately
+// when order is directly created as confirmed.
+func (s *OrderServiceImpl) handleCreateOrderReservation(
+	txCtx context.Context,
+	sellerID, orderID uint,
+	createCtx *createOrderContext,
+) error {
+	if !shouldReserveInventoryOnCreate(createCtx.orderStatus) {
+		return nil
+	}
+
+	if _, err := s.inventoryReserveSvc.CreateReservation(txCtx, sellerID, inventoryModel.ReservationRequest{
+		ReferenceId:      orderID,
+		ExpiresInMinutes: reservationExpiresInMinutes,
+		Items:            buildReservationItems(createCtx.cartSnapshot.Items),
+	}); err != nil {
+		return err
+	}
+
+	if createCtx.orderStatus == entity.ORDER_STATUS_CONFIRMED {
+		return s.inventoryReserveSvc.UpdateReservationStatus(
+			txCtx,
+			sellerID,
+			inventoryModel.UpdateReservationStatusRequest{
+				ReferenceId: orderID,
+				Status:      inventoryEntity.ResConfirmed,
+			},
+		)
+	}
+	return nil
+}
+
+// loadCreateOrderResponse reads order with associations and maps it to API response.
+func (s *OrderServiceImpl) loadCreateOrderResponse(
+	txCtx context.Context,
+	orderID uint,
+) (*model.OrderResponse, error) {
+	freshOrder, err := s.orderRepo.FindOrderByID(txCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if freshOrder == nil {
+		return nil, orderError.ErrOrderNotFound
+	}
+	return factory.BuildOrderResponseFromEntity(freshOrder, nil), nil
 }
 
 // GetOrderByID applies role-aware access and returns hydrated order details.
@@ -350,87 +431,15 @@ func (s *OrderServiceImpl) UpdateOrderStatus(
 	if err != nil {
 		return nil, err
 	}
-	if order == nil || order.SellerID == nil || *order.SellerID != sellerID {
-		return nil, orderError.ErrOrderNotFound
-	}
-
-	target := normalizeOrderStatus(req.Status)
-	if !target.IsValid() {
-		return nil, orderError.ErrInvalidOrderStatus
-	}
-	if !orderUtils.IsValidTransition(order.Status, target) {
-		return nil, orderError.ErrInvalidStatusTransition(order.Status.String(), target.String())
-	}
-
-	required := orderUtils.RequiredFieldsForTransition(order.Status, target)
-	for _, field := range required {
-		switch field {
-		case "transactionId":
-			if req.TransactionID == nil || strings.TrimSpace(*req.TransactionID) == "" {
-				return nil, orderError.ErrTransactionIDRequired
-			}
-		case "failureReason":
-			if req.FailureReason == nil || strings.TrimSpace(*req.FailureReason) == "" {
-				return nil, orderError.ErrFailureReasonRequired
-			}
-		}
+	target, err := s.validateUpdateOrderStatusInput(order, sellerID, req)
+	if err != nil {
+		return nil, err
 	}
 
 	prev := order.Status
 	now := time.Now().UTC()
 	err = db.WithTransaction(ctx, func(txCtx context.Context) error {
-		if err := s.orderRepo.UpdateOrderStatus(txCtx, order.ID, target); err != nil {
-			return err
-		}
-		if target == entity.ORDER_STATUS_CONFIRMED {
-			if err := s.orderRepo.UpdateOrderPaidAt(txCtx, order.ID, now); err != nil {
-				return err
-			}
-		}
-		if req.TransactionID != nil && strings.TrimSpace(*req.TransactionID) != "" {
-			if err := s.orderRepo.UpdateOrderTransactionID(
-				txCtx,
-				order.ID,
-				strings.TrimSpace(*req.TransactionID)); err != nil {
-				return err
-			}
-		}
-
-		resStatus := mapOrderStatusToReservationStatus(target)
-		if resStatus != "" {
-			if err := s.inventoryReserveSvc.UpdateReservationStatus(txCtx, sellerID,
-				inventoryModel.UpdateReservationStatusRequest{
-					ReferenceId: order.ID,
-					Status:      resStatus,
-				}); err != nil {
-				return err
-			}
-		}
-
-		if target == entity.ORDER_STATUS_FAILED {
-			if err := s.reactivateCartForOrder(txCtx, order.ID); err != nil {
-				return err
-			}
-		}
-
-		note := req.Note
-		if req.FailureReason != nil && target == entity.ORDER_STATUS_FAILED {
-			note = req.FailureReason
-		}
-		return s.orderHistoryRepo.CreateHistoryEntry(
-			txCtx,
-			mapper.BuildOrderTransitionHistory(
-				order.ID,
-				prev,
-				target,
-				sellerID,
-				constants.SELLER_ROLE_NAME,
-				req.TransactionID,
-				req.FailureReason,
-				note,
-				req.Metadata,
-			),
-		)
+		return s.applyUpdateOrderStatusTx(txCtx, order, sellerID, prev, target, now, req)
 	})
 	if err != nil {
 		return nil, err
@@ -446,6 +455,124 @@ func (s *OrderServiceImpl) UpdateOrderStatus(
 	}, nil
 }
 
+// validateUpdateOrderStatusInput verifies seller access, transition validity, and required fields.
+func (s *OrderServiceImpl) validateUpdateOrderStatusInput(
+	order *entity.Order,
+	sellerID uint,
+	req model.UpdateOrderStatusRequest,
+) (entity.OrderStatus, error) {
+	if order == nil || order.SellerID == nil || *order.SellerID != sellerID {
+		return "", orderError.ErrOrderNotFound
+	}
+
+	target := normalizeOrderStatus(req.Status)
+	if !target.IsValid() {
+		return "", orderError.ErrInvalidOrderStatus
+	}
+	if !orderUtils.IsValidTransition(order.Status, target) {
+		return "", orderError.ErrInvalidStatusTransition(order.Status.String(), target.String())
+	}
+
+	required := orderUtils.RequiredFieldsForTransition(order.Status, target)
+	for _, field := range required {
+		switch field {
+		case "transactionId":
+			if req.TransactionID == nil || strings.TrimSpace(*req.TransactionID) == "" {
+				return "", orderError.ErrTransactionIDRequired
+			}
+		case "failureReason":
+			if req.FailureReason == nil || strings.TrimSpace(*req.FailureReason) == "" {
+				return "", orderError.ErrFailureReasonRequired
+			}
+		}
+	}
+	return target, nil
+}
+
+// applyUpdateOrderStatusTx applies order status updates and all dependent side effects in one transaction.
+func (s *OrderServiceImpl) applyUpdateOrderStatusTx(
+	txCtx context.Context,
+	order *entity.Order,
+	sellerID uint,
+	prev, target entity.OrderStatus,
+	now time.Time,
+	req model.UpdateOrderStatusRequest,
+) error {
+	if err := s.orderRepo.UpdateOrderStatus(txCtx, order.ID, target); err != nil {
+		return err
+	}
+	if target == entity.ORDER_STATUS_CONFIRMED {
+		if err := s.orderRepo.UpdateOrderPaidAt(txCtx, order.ID, now); err != nil {
+			return err
+		}
+	}
+	if req.TransactionID != nil && strings.TrimSpace(*req.TransactionID) != "" {
+		if err := s.orderRepo.UpdateOrderTransactionID(
+			txCtx,
+			order.ID,
+			strings.TrimSpace(*req.TransactionID),
+		); err != nil {
+			return err
+		}
+	}
+	if err := s.updateReservationForOrderStatus(txCtx, sellerID, order.ID, target); err != nil {
+		return err
+	}
+	if target == entity.ORDER_STATUS_FAILED {
+		if err := s.reactivateCartForOrder(txCtx, order.ID); err != nil {
+			return err
+		}
+	}
+	return s.createSellerStatusHistoryEntry(txCtx, order.ID, sellerID, prev, target, req)
+}
+
+// updateReservationForOrderStatus maps order status transition to reservation side effects.
+func (s *OrderServiceImpl) updateReservationForOrderStatus(
+	txCtx context.Context,
+	sellerID, orderID uint,
+	target entity.OrderStatus,
+) error {
+	resStatus := mapOrderStatusToReservationStatus(target)
+	if resStatus == "" {
+		return nil
+	}
+	return s.inventoryReserveSvc.UpdateReservationStatus(
+		txCtx,
+		sellerID,
+		inventoryModel.UpdateReservationStatusRequest{
+			ReferenceId: orderID,
+			Status:      resStatus,
+		},
+	)
+}
+
+// createSellerStatusHistoryEntry appends order_history audit row for seller-driven transitions.
+func (s *OrderServiceImpl) createSellerStatusHistoryEntry(
+	txCtx context.Context,
+	orderID, sellerID uint,
+	prev, target entity.OrderStatus,
+	req model.UpdateOrderStatusRequest,
+) error {
+	note := req.Note
+	if req.FailureReason != nil && target == entity.ORDER_STATUS_FAILED {
+		note = req.FailureReason
+	}
+	return s.orderHistoryRepo.CreateHistoryEntry(
+		txCtx,
+		mapper.BuildOrderTransitionHistory(
+			orderID,
+			prev,
+			target,
+			sellerID,
+			constants.SELLER_ROLE_NAME,
+			req.TransactionID,
+			req.FailureReason,
+			note,
+			req.Metadata,
+		),
+	)
+}
+
 // CancelOrder performs customer-initiated cancellation with reservation release.
 func (s *OrderServiceImpl) CancelOrder(
 	ctx context.Context,
@@ -457,52 +584,14 @@ func (s *OrderServiceImpl) CancelOrder(
 	if err != nil {
 		return nil, err
 	}
-	if order == nil || order.UserID != userID {
-		return nil, orderError.ErrOrderNotFound
-	}
-	if order.Status != entity.ORDER_STATUS_PENDING &&
-		order.Status != entity.ORDER_STATUS_CONFIRMED {
-		return nil, orderError.ErrOrderNotCancellable
+	if err := s.validateCancelOrderInput(order, userID); err != nil {
+		return nil, err
 	}
 
 	prev := order.Status
 	now := time.Now().UTC()
 	err = db.WithTransaction(ctx, func(txCtx context.Context) error {
-		if err := s.orderRepo.UpdateOrderStatus(txCtx, order.ID, entity.ORDER_STATUS_CANCELLED); err != nil {
-			return err
-		}
-		orderSellerID := uint(0)
-		if order.SellerID != nil {
-			orderSellerID = *order.SellerID
-		}
-		if err := s.inventoryReserveSvc.UpdateReservationStatus(txCtx, orderSellerID,
-			inventoryModel.UpdateReservationStatusRequest{
-				ReferenceId: order.ID,
-				Status:      inventoryEntity.ResCancelled,
-			}); err != nil {
-			return err
-		}
-
-		if prev == entity.ORDER_STATUS_PENDING {
-			if err := s.reactivateCartForOrder(txCtx, order.ID); err != nil {
-				return err
-			}
-		}
-
-		return s.orderHistoryRepo.CreateHistoryEntry(
-			txCtx,
-			mapper.BuildOrderTransitionHistory(
-				order.ID,
-				prev,
-				entity.ORDER_STATUS_CANCELLED,
-				userID,
-				constants.CUSTOMER_ROLE_NAME,
-				nil,
-				nil,
-				req.Reason,
-				nil,
-			),
-		)
+		return s.applyCancelOrderTx(txCtx, order, userID, prev, req)
 	})
 	if err != nil {
 		return nil, err
@@ -515,6 +604,67 @@ func (s *OrderServiceImpl) CancelOrder(
 		Status:         entity.ORDER_STATUS_CANCELLED,
 		UpdatedAt:      now,
 	}, nil
+}
+
+// validateCancelOrderInput ensures customer ownership and cancellable state.
+func (s *OrderServiceImpl) validateCancelOrderInput(
+	order *entity.Order,
+	userID uint,
+) error {
+	if order == nil || order.UserID != userID {
+		return orderError.ErrOrderNotFound
+	}
+	if order.Status != entity.ORDER_STATUS_PENDING &&
+		order.Status != entity.ORDER_STATUS_CONFIRMED {
+		return orderError.ErrOrderNotCancellable
+	}
+	return nil
+}
+
+// applyCancelOrderTx applies cancellation updates, reservation release, and audit history.
+func (s *OrderServiceImpl) applyCancelOrderTx(
+	txCtx context.Context,
+	order *entity.Order,
+	userID uint,
+	prev entity.OrderStatus,
+	req model.CancelOrderRequest,
+) error {
+	if err := s.orderRepo.UpdateOrderStatus(txCtx, order.ID, entity.ORDER_STATUS_CANCELLED); err != nil {
+		return err
+	}
+
+	orderSellerID := uint(0)
+	if order.SellerID != nil {
+		orderSellerID = *order.SellerID
+	}
+	if err := s.inventoryReserveSvc.UpdateReservationStatus(txCtx, orderSellerID,
+		inventoryModel.UpdateReservationStatusRequest{
+			ReferenceId: order.ID,
+			Status:      inventoryEntity.ResCancelled,
+		}); err != nil {
+		return err
+	}
+
+	if prev == entity.ORDER_STATUS_PENDING {
+		if err := s.reactivateCartForOrder(txCtx, order.ID); err != nil {
+			return err
+		}
+	}
+
+	return s.orderHistoryRepo.CreateHistoryEntry(
+		txCtx,
+		mapper.BuildOrderTransitionHistory(
+			order.ID,
+			prev,
+			entity.ORDER_STATUS_CANCELLED,
+			userID,
+			constants.CUSTOMER_ROLE_NAME,
+			nil,
+			nil,
+			req.Reason,
+			nil,
+		),
+	)
 }
 
 func (s *OrderServiceImpl) loadAndValidateAddresses(
@@ -570,6 +720,18 @@ func normalizeFulfillmentType(v entity.FulfillmentType) (entity.FulfillmentType,
 
 func normalizeOrderStatus(status entity.OrderStatus) entity.OrderStatus {
 	return entity.OrderStatus(strings.ToLower(strings.TrimSpace(status.String())))
+}
+
+// normalizeCreateOrderStatus normalizes optional request status and defaults to pending.
+func normalizeCreateOrderStatus(status *entity.OrderStatus) (entity.OrderStatus, error) {
+	if status == nil {
+		return entity.ORDER_STATUS_PENDING, nil
+	}
+	normalized := normalizeOrderStatus(*status)
+	if !normalized.IsValid() {
+		return "", orderError.ErrInvalidOrderStatus
+	}
+	return normalized, nil
 }
 
 func shouldReserveInventoryOnCreate(status entity.OrderStatus) bool {

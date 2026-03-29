@@ -72,7 +72,7 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 
 	orderID, err := parseOrderIDParam(c)
 	if err != nil {
-		h.HandleValidationError(c, errs.ErrInvalidID) 
+		h.HandleValidationError(c, errs.ErrInvalidID)
 		return
 	}
 
