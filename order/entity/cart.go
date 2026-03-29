@@ -9,12 +9,22 @@ import (
 // ============================================================================
 
 // Cart represents a user's shopping cart
-// Workflow: Cart exists while active → Deleted after successful order creation
+// Workflow: Cart exists while active and transitions status through checkout/order conversion
 // Note: SellerID is derived from User.SellerID (each user belongs to one seller)
 // Note: All prices are calculated at runtime - no prices stored in cart tables
+type CartStatus string
+
+const (
+	CART_STATUS_ACTIVE    CartStatus = "active"
+	CART_STATUS_CHECKOUT  CartStatus = "checkout"
+	CART_STATUS_CONVERTED CartStatus = "converted"
+)
+
 type Cart struct {
 	db.BaseEntity
-	UserID   uint       `json:"userId"   gorm:"column:user_id;uniqueIndex;not null"`
+	UserID   uint       `json:"userId"   gorm:"column:user_id;not null;index"`
+	Status   CartStatus `json:"status"   gorm:"column:status;size:20;not null;default:'active'"`
+	OrderID  *uint      `json:"orderId"  gorm:"column:order_id;index"`
 	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 }
 

@@ -15,8 +15,12 @@ import (
 type CartRepository interface {
 	// Cart operations
 	FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
+	FindActiveCartByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
 	FindByID(ctx context.Context, cartID uint) (*entity.Cart, error)
 	CreateCart(ctx context.Context, cart *entity.Cart) error
+	CreateNewActiveCart(ctx context.Context, userID uint) (*entity.Cart, error)
+	UpdateCartStatus(ctx context.Context, cartID uint, status entity.CartStatus) error
+	SetCartOrderID(ctx context.Context, cartID uint, orderID uint) error
 	DeleteCart(ctx context.Context, cartID uint) error
 
 	// Cart item operations
@@ -36,8 +40,18 @@ func NewCartRepository() CartRepository {
 
 // FindByUserID finds the active cart for a user. Returns not found error if none exists.
 func (r *CartRepositoryImpl) FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error) {
+	return r.FindActiveCartByUserID(ctx, userID)
+}
+
+// FindActiveCartByUserID finds the active cart for a user. Returns not found error if none exists.
+func (r *CartRepositoryImpl) FindActiveCartByUserID(
+	ctx context.Context,
+	userID uint,
+) (*entity.Cart, error) {
 	var cart entity.Cart
-	result := db.DB(ctx).Where("user_id = ?", userID).First(&cart)
+	result := db.DB(ctx).
+		Where("user_id = ? AND status = ?", userID, entity.CART_STATUS_ACTIVE).
+		First(&cart)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
@@ -59,6 +73,57 @@ func (r *CartRepositoryImpl) CreateCart(ctx context.Context, cart *entity.Cart) 
 	if err := db.DB(ctx).Create(cart).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to create cart", err)
 		return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+// CreateNewActiveCart creates a new empty active cart for a user.
+func (r *CartRepositoryImpl) CreateNewActiveCart(
+	ctx context.Context,
+	userID uint,
+) (*entity.Cart, error) {
+	cart := &entity.Cart{
+		UserID:   userID,
+		Status:   entity.CART_STATUS_ACTIVE,
+		Metadata: db.JSONMap{},
+	}
+	if err := db.DB(ctx).Create(cart).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to create new active cart", err)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
+	}
+	return cart, nil
+}
+
+// UpdateCartStatus updates cart lifecycle status.
+func (r *CartRepositoryImpl) UpdateCartStatus(
+	ctx context.Context,
+	cartID uint,
+	status entity.CartStatus,
+) error {
+	if err := db.DB(ctx).
+		Model(&entity.Cart{}).
+		Where("id = ?", cartID).
+		Update("status", status).
+		Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to update cart status", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+// SetCartOrderID links cart to an order ID after successful conversion.
+func (r *CartRepositoryImpl) SetCartOrderID(
+	ctx context.Context,
+	cartID uint,
+	orderID uint,
+) error {
+	if err := db.DB(ctx).
+		Model(&entity.Cart{}).
+		Where("id = ?", cartID).
+		Update("order_id", orderID).
+		Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to set cart order ID", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_UPDATE_CART_RECORD_MSG)
 	}
 	return nil
 }

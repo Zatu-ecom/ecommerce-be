@@ -50,6 +50,14 @@ func (f *SingletonFactory) GetCartRepository() repository.CartRepository {
 	return f.repoFactory.GetCartRepository()
 }
 
+func (f *SingletonFactory) GetOrderRepository() repository.OrderRepository {
+	return f.repoFactory.GetOrderRepository()
+}
+
+func (f *SingletonFactory) GetOrderHistoryRepository() repository.OrderHistoryRepository {
+	return f.repoFactory.GetOrderHistoryRepository()
+}
+
 // ===============================
 // Service Getters (Delegates)
 // ===============================
