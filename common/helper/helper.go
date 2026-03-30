@@ -148,7 +148,12 @@ func JoinToCommaSeparated[T Primitive](values []T) string {
 // ============================================================================
 
 // StringPtr returns a pointer to a string
+// It's trims whitespace. If the resulting string is empty, it returns nil.
 func StringPtr(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
 	return &s
 }
 
