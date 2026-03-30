@@ -1,11 +1,10 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"time"
 
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/helper"
 
 	"gorm.io/gorm"
 )
@@ -25,30 +24,19 @@ const (
 type ScopeType string
 
 const (
-	ScopeAllProducts        ScopeType = "all_products"
-	ScopeSpecificProducts   ScopeType = "specific_products"
-	ScopeSpecificCategories ScopeType = "specific_categories"
+	ScopeAllProducts         ScopeType = "all_products"
+	ScopeSpecificProducts    ScopeType = "specific_products"
+	ScopeSpecificCategories  ScopeType = "specific_categories"
 	ScopeSpecificCollections ScopeType = "specific_collections"
+	ScopeSpecficVariant      ScopeType = "specific_variant"
 )
 
 type EligibilityType string
 
 const (
-	EligibleEveryone           EligibilityType = "everyone"
-	EligibleNewCustomers       EligibilityType = "new_customers"
-	EligibleReturningCustomers EligibilityType = "returning_customers"
-	EligibleSpecificSegment    EligibilityType = "specific_segment"
-)
-
-type PromotionStatus string
-
-const (
-	StatusDraft     PromotionStatus = "draft"
-	StatusScheduled PromotionStatus = "scheduled"
-	StatusActive    PromotionStatus = "active"
-	StatusPaused    PromotionStatus = "paused"
-	StatusEnded     PromotionStatus = "ended"
-	StatusCancelled PromotionStatus = "cancelled"
+	EligibleEveryone        EligibilityType = "everyone"
+	EligibleNewCustomers    EligibilityType = "new_customers"
+	EligibleSpecificSegment EligibilityType = "specific_segment"
 )
 
 // Promotion represents a seller-created sale or promotional offer
@@ -65,16 +53,11 @@ type Promotion struct {
 	Description *string `json:"description" gorm:"column:description;type:text"`
 
 	// Promotion Mechanics
-	PromotionType  PromotionType  `json:"promotionType"  gorm:"column:promotion_type;size:50;not null"`
-	DiscountConfig DiscountConfig `json:"discountConfig" gorm:"column:discount_config;type:jsonb;not null"`
+	PromotionType  PromotionType `json:"promotionType"  gorm:"column:promotion_type;size:50;not null"`
+	DiscountConfig db.JSONMap    `json:"discountConfig" gorm:"column:discount_config;type:jsonb;not null"`
 
 	// Scope
 	AppliesTo ScopeType `json:"appliesTo" gorm:"column:applies_to;size:50;not null;default:specific_products"`
-
-	// Conditions
-	MinPurchaseAmountCents *int64 `json:"minPurchaseAmountCents" gorm:"column:min_purchase_amount_cents;default:0"`
-	MinQuantity            *int   `json:"minQuantity"            gorm:"column:min_quantity;default:1"`
-	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents" gorm:"column:max_discount_amount_cents"`
 
 	// Customer Eligibility
 	EligibleFor       EligibilityType `json:"eligibleFor"       gorm:"column:eligible_for;size:50;default:everyone"`
@@ -94,7 +77,7 @@ type Promotion struct {
 	AutoEnd   *bool `json:"autoEnd"   gorm:"column:auto_end;default:true"`
 
 	// Status
-	Status PromotionStatus `json:"status" gorm:"column:status;size:50;default:draft;index"`
+	Status CampaignStatus `json:"status" gorm:"column:status;size:50;default:draft;index"`
 
 	// Stacking Rules
 	CanStackWithOtherPromotions *bool `json:"canStackWithOtherPromotions" gorm:"column:can_stack_with_other_promotions;default:false"`
@@ -108,66 +91,14 @@ type Promotion struct {
 	// Priority
 	Priority int `json:"priority" gorm:"column:priority;default:0"`
 
-	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	// Sale
+	SaleID *uint `json:"saleId" gorm:"column:sale_id;index"`
 
 	// Relationships
 	Products    []PromotionProduct    `json:"products,omitempty"    gorm:"foreignKey:PromotionID"`
 	Categories  []PromotionCategory   `json:"categories,omitempty"  gorm:"foreignKey:PromotionID"`
 	Collections []PromotionCollection `json:"collections,omitempty" gorm:"foreignKey:PromotionID"`
 	Usages      []PromotionUsage      `json:"usages,omitempty"      gorm:"foreignKey:PromotionID"`
-}
-
-// DiscountConfig holds the discount configuration in JSONB format
-type DiscountConfig map[string]interface{}
-
-// Scan implements sql.Scanner interface for reading from database
-func (dc *DiscountConfig) Scan(value interface{}) error {
-	if value == nil {
-		*dc = make(DiscountConfig)
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-
-	return json.Unmarshal(bytes, dc)
-}
-
-// Value implements driver.Valuer interface for writing to database
-func (dc DiscountConfig) Value() (driver.Value, error) {
-	if dc == nil {
-		return json.Marshal(make(map[string]interface{}))
-	}
-	return json.Marshal(dc)
-}
-
-// JSONMap represents a JSONB field
-type JSONMap map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (jm *JSONMap) Scan(value interface{}) error {
-	if value == nil {
-		*jm = make(JSONMap)
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-
-	return json.Unmarshal(bytes, jm)
-}
-
-// Value implements driver.Valuer interface
-func (jm JSONMap) Value() (driver.Value, error) {
-	if jm == nil {
-		return json.Marshal(make(map[string]interface{}))
-	}
-	return json.Marshal(jm)
 }
 
 // TableName specifies the table name
@@ -179,16 +110,8 @@ func (Promotion) TableName() string {
 func (p *Promotion) BeforeCreate(tx *gorm.DB) error {
 	// Generate slug if not provided
 	if p.Slug == nil || *p.Slug == "" {
-		// Simple slug generation (can be improved)
-		slug := generateSlug(p.Name)
+		slug := helper.GenerateSlug(p.Name)
 		p.Slug = &slug
 	}
 	return nil
-}
-
-// Helper function to generate slug (basic implementation)
-func generateSlug(name string) string {
-	// This is a simple implementation
-	// In production, use a proper slug generation library
-	return name
 }

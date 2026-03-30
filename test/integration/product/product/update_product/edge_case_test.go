@@ -22,8 +22,9 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -49,7 +50,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "   ",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: API accepts whitespace (200 OK)
@@ -73,7 +74,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Product & Co. <Premium> Edition™",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should accept (200 OK) or reject (400)
@@ -103,7 +104,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"brand": "العلامة التجارية",
 			"tags":  []string{"中文", "العربية", "emoji😀"},
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should accept unicode characters
@@ -135,7 +136,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"shortDescription": strings.Repeat("S", 500),  // max 500
 			"longDescription":  strings.Repeat("L", 5000), // max 5000
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should accept boundary values
@@ -159,7 +160,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Test'; DROP TABLE product; --",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should treat as literal string (200 OK)
@@ -200,7 +201,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"shortDescription": "<img src=x onerror=alert('XSS')>",
 			"tags":             []string{"<script>", "alert('xss')", "</script>"},
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should handle XSS payloads safely
@@ -242,7 +243,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"tags": tags,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should accept exactly 20 tags
@@ -272,7 +273,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"name":  "  Product Name  ",
 			"brand": "  BrandName  ",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should accept (spaces may be trimmed or preserved)
@@ -308,7 +309,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"shortDescription": "", // Empty = clear field
 			// brand NOT provided = null = keep existing value
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Validate response
@@ -366,7 +367,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		client2.SetToken(sellerToken)
 
 		// When: Both clients try to update simultaneously
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 
 		done := make(chan *int, 2)
 		go func() {
@@ -422,7 +423,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"id":        888,          // Attempt to change ID
 			"createdAt": "2020-01-01", // Attempt to change creation date
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should update only allowed fields
@@ -491,7 +492,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 			"name":             "Updated Product with Variants",
 			"shortDescription": "Updated description",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Product should be updated and variants remain intact

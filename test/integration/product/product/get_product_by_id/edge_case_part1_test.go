@@ -18,8 +18,9 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 	containers.RunSeeds(t, "test/integration/data/get_product_by_id_seed_data.sql")
 
 	// Setup test server
@@ -34,7 +35,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 	t.Run("EDGE-01: Product ID with Special Characters", func(t *testing.T) {
 		// Try to get product with XSS payload in ID
 		xssPayload := "101<script>alert('xss')</script>"
-		w := client.Get(t, "/api/products/"+xssPayload)
+		w := client.Get(t, "/api/product/"+xssPayload)
 
 		// API treats this as a valid ID format that doesn't exist (not a malformed request)
 		// Note: API returns 404 status code, verifying it handles special characters safely
@@ -49,7 +50,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		client.SetToken("")
 
 		// SQL injection payload in product ID
-		w := client.Get(t, "/api/products/101' OR '1'='1")
+		w := client.Get(t, "/api/product/101' OR '1'='1")
 
 		// Verify 400 response (parsing error)
 		assert.Equal(t, http.StatusBadRequest, w.Code, "Should return 400 Bad Request")
@@ -71,7 +72,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		client.SetToken("")
 
 		// Max uint32 boundary
-		w := client.Get(t, "/api/products/4294967295")
+		w := client.Get(t, "/api/product/4294967295")
 
 		// Should return 404 (product not found) or handle gracefully
 		assert.True(t,
@@ -95,7 +96,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/104")
+		w := client.Get(t, "/api/product/104")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -140,7 +141,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/102")
+		w := client.Get(t, "/api/product/102")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 

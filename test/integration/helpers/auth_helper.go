@@ -24,7 +24,7 @@ func Login(t *testing.T, client *APIClient, email, password string) string {
 		Password: password,
 	}
 
-	w := client.Post(t, "/api/auth/login", requestBody)
+	w := client.Post(t, "/api/user/auth/login", requestBody)
 
 	assert.Equal(t, 200, w.Code, "Login should succeed")
 

@@ -2,7 +2,7 @@ package product
 
 import (
 	"ecommerce-be/common"
-	"ecommerce-be/product/routes"
+	"ecommerce-be/product/route"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,10 +30,12 @@ func NewContainer(router *gin.Engine) *common.Container {
 
 // TODO: create reviews and ratings for product
 func addModules(c *common.Container) {
-	c.RegisterModule(routes.NewCategoryModule())
-	c.RegisterModule(routes.NewAttributeModule())
-	c.RegisterModule(routes.NewProductModule())
-	c.RegisterModule(routes.NewProductAttributeModule())
-	c.RegisterModule(routes.NewProductOptionModule())
-	c.RegisterModule(routes.NewVariantModule())
+	c.RegisterModule(route.NewCategoryModule())
+	c.RegisterModule(route.NewAttributeModule())
+	c.RegisterModule(route.NewProductModule())
+	c.RegisterModule(route.NewProductAttributeModule())
+	c.RegisterModule(route.NewProductOptionModule())
+	c.RegisterModule(route.NewVariantModule())
+	c.RegisterModule(route.NewWishlistModule())
+	c.RegisterModule(route.NewWishlistItemModule())
 }

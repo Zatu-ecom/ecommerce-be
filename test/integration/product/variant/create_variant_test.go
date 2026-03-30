@@ -18,8 +18,9 @@ func TestCreateVariant(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -48,7 +49,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -90,7 +91,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -128,7 +129,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -158,7 +159,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -196,7 +197,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -224,7 +225,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -256,7 +257,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -281,7 +282,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -305,7 +306,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -332,7 +333,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/invalid/variants"
+		url := "/api/product/invalid/variant"
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -350,7 +351,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/0/variants"
+		url := "/api/product/0/variant"
 		w := client.Post(t, url, requestBody)
 
 		// Product ID 0 is treated as "not found" which returns 404
@@ -371,7 +372,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -391,7 +392,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -411,7 +412,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -431,7 +432,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
@@ -448,7 +449,7 @@ func TestCreateVariant(t *testing.T) {
 			"price": 29.99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -466,7 +467,7 @@ func TestCreateVariant(t *testing.T) {
 			"options": []map[string]interface{}{},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -486,7 +487,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -506,7 +507,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -526,7 +527,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -546,7 +547,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -557,7 +558,7 @@ func TestCreateVariant(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 
 		// Test with empty body (missing all required fields)
 		requestBody := map[string]interface{}{}
@@ -585,7 +586,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -610,7 +611,7 @@ func TestCreateVariant(t *testing.T) {
 				},
 			}
 
-			url := fmt.Sprintf("/api/products/%d/variants", productID)
+			url := fmt.Sprintf("/api/product/%d/variant", productID)
 			w := client.Post(t, url, requestBody)
 
 			// Should return 404 or 403
@@ -636,7 +637,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -656,7 +657,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -678,7 +679,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 
@@ -713,7 +714,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -734,7 +735,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		// This should fail - either validation error or business logic error
@@ -758,7 +759,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -777,7 +778,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -797,7 +798,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		assert.Equal(t, http.StatusForbidden, w.Code)
@@ -819,7 +820,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Admin should be able to create variants (if your business logic allows)
@@ -844,7 +845,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -885,7 +886,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -926,7 +927,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -957,7 +958,7 @@ func TestCreateVariant(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/variants", productID)
+		url := fmt.Sprintf("/api/product/%d/variant", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)

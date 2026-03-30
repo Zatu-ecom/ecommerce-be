@@ -19,8 +19,9 @@ func TestCreateProductOption(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -46,7 +47,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -102,7 +103,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -173,7 +174,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -224,7 +225,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -266,7 +267,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    3,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w1 := client.Post(t, url, requestBody1)
 
 		response1 := helpers.AssertSuccessResponse(
@@ -331,7 +332,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -349,7 +350,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position": 1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -368,7 +369,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -390,7 +391,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -409,7 +410,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -431,7 +432,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -458,7 +459,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -484,7 +485,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -510,7 +511,7 @@ func TestCreateProductOption(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -532,7 +533,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -550,7 +551,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -570,7 +571,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Should return 403 Forbidden (seller doesn't own this product)
@@ -591,7 +592,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    3,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Admin should be able to create options for any product
@@ -615,7 +616,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    3,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Admin should be able to create options
@@ -638,7 +639,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Should return 403 Forbidden (only sellers can create options)
@@ -663,7 +664,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -683,7 +684,7 @@ func TestCreateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 
 		// Create first option - should succeed
 		w1 := client.Post(t, url, requestBody)
@@ -718,7 +719,7 @@ func TestCreateProductOption(t *testing.T) {
 		}
 
 		// Use invalid product ID format
-		url := "/api/products/invalid/options"
+		url := "/api/product/invalid/option"
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)

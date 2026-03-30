@@ -12,6 +12,7 @@ type VariantAggregation struct {
 	MainImage     string
 	OptionNames   []string
 	OptionValues  map[string][]string // optionName -> []values
+	IsWishlisted  bool                // At least one variant is in user's wishlist (user-specific)
 }
 
 // VariantWithOptions represents a variant with its selected option values
@@ -54,4 +55,5 @@ type VariantBasicInfoRow struct {
 	CategoryID  uint
 	BaseSKU     string
 	SellerID    uint
+	Price       float64
 }

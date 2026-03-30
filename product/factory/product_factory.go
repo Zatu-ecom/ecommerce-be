@@ -350,6 +350,7 @@ func BuildProductResponse(
 		SellerID:         product.SellerID,
 		HasVariants:      variantAgg.HasVariants,
 		AllowPurchase:    variantAgg.AllowPurchase,
+		IsWishlisted:     variantAgg.IsWishlisted,
 		CreatedAt:        helper.FormatTimestamp(product.CreatedAt),
 		UpdatedAt:        helper.FormatTimestamp(product.UpdatedAt),
 	}

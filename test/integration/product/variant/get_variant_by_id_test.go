@@ -18,8 +18,9 @@ func TestGetVariantByID(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -38,7 +39,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -62,7 +63,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -86,7 +87,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 3
 		variantID := 7
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -108,7 +109,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -125,7 +126,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 10
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -142,7 +143,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -159,7 +160,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -178,7 +179,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		// This should succeed but currently panics with nil pointer dereference
@@ -198,7 +199,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 2
 		variantID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		// This should succeed but currently panics with nil pointer dereference
@@ -217,7 +218,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -233,7 +234,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -254,7 +255,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 99999
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -266,7 +267,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 99999
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -279,7 +280,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 6 // Summer Dress
 		variantID := 9 // T-Shirt variant
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -292,7 +293,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1 // iPhone (owned by seller 2)
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		// This is actually better security practice to distinguish authorization from not-found
@@ -305,7 +306,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -317,7 +318,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -334,7 +335,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 7
 		variantID := 14
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -373,7 +374,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -385,7 +386,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -403,7 +404,7 @@ func TestGetVariantByID(t *testing.T) {
 
 			productID := 5
 			variantID := 9
-			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 			w := client.Get(t, url)
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -434,7 +435,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -458,7 +459,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 1
 		variantID := 1
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -494,7 +495,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9 // Black variant
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -527,7 +528,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -549,7 +550,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -574,13 +575,13 @@ func TestGetVariantByID(t *testing.T) {
 			productID := 5
 
 			// Get Variant 9 (Black + M)
-			url1 := fmt.Sprintf("/api/products/%d/variants/9", productID)
+			url1 := fmt.Sprintf("/api/product/%d/variant/9", productID)
 			w1 := client.Get(t, url1)
 			response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 			variant1 := helpers.GetResponseData(t, response1, "variant")
 
 			// Get Variant 10 (White + M)
-			url2 := fmt.Sprintf("/api/products/%d/variants/10", productID)
+			url2 := fmt.Sprintf("/api/product/%d/variant/10", productID)
 			w2 := client.Get(t, url2)
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 			variant2 := helpers.GetResponseData(t, response2, "variant")
@@ -608,12 +609,12 @@ func TestGetVariantByID(t *testing.T) {
 			productID := 5
 
 			// Get two different variants of same product
-			url1 := fmt.Sprintf("/api/products/%d/variants/9", productID)
+			url1 := fmt.Sprintf("/api/product/%d/variant/9", productID)
 			w1 := client.Get(t, url1)
 			response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 			variant1 := helpers.GetResponseData(t, response1, "variant")
 
-			url2 := fmt.Sprintf("/api/products/%d/variants/10", productID)
+			url2 := fmt.Sprintf("/api/product/%d/variant/10", productID)
 			w2 := client.Get(t, url2)
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 			variant2 := helpers.GetResponseData(t, response2, "variant")
@@ -634,7 +635,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -655,7 +656,7 @@ func TestGetVariantByID(t *testing.T) {
 
 		productID := 5
 		variantID := 9 // Black + M
-		url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -690,7 +691,7 @@ func TestGetVariantByID(t *testing.T) {
 			variantID := 9
 
 			// Get variant by ID (returns VariantDetailResponse)
-			url := fmt.Sprintf("/api/products/%d/variants/%d", productID, variantID)
+			url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 			w := client.Get(t, url)
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 			variantDetail := helpers.GetResponseData(t, response, "variant")

@@ -7,7 +7,7 @@ import (
 	"ecommerce-be/common/handler"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/service"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"github.com/gin-gonic/gin"
 )
@@ -66,13 +66,13 @@ func (h *UserQueryHandler) ListUsers(c *gin.Context) {
 	callerSellerID := h.getCallerSellerID(c)
 
 	// Call service
-	response, err := h.userQueryService.ListUsers(filter, callerSellerID)
+	response, err := h.userQueryService.ListUsers(c, filter, callerSellerID)
 	if err != nil {
-		h.HandleError(c, err, utils.FailedToListUsersMsg)
+		h.HandleError(c, err, constant.FAILED_TO_LIST_USERS_MSG)
 		return
 	}
 
-	h.Success(c, http.StatusOK, utils.UsersRetrievedMsg, response)
+	h.Success(c, http.StatusOK, constant.USERS_RETRIEVED_MSG, response)
 }
 
 // getCallerSellerID gets the caller's seller ID from context

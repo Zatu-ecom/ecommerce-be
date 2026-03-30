@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGetProductFilters tests the GET /api/products/filters endpoint
+// TestGetProductFilters tests the GET /api/product/filters endpoint
 // Requirements:
-// - migrations/seeds/001_seed_user_data.sql (for authentication)
-// - migrations/seeds/002_seed_product_data.sql (for products with categories, brands, variants)
+// - migrations/seeds/mock/001_seed_users.sql (for authentication)
+// - migrations/seeds/mock/002_seed_products.sql (for products with categories, brands, variants)
 func TestGetProductFilters(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
@@ -21,8 +21,9 @@ func TestGetProductFilters(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -38,7 +39,7 @@ func TestGetProductFilters(t *testing.T) {
 		// Seller 2 has products: iPhone, Samsung, MacBook, Sony (4 products)
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -93,7 +94,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify category hierarchy structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -130,7 +131,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify brands array structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -167,7 +168,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify price range structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -193,7 +194,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify variant types structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -223,7 +224,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify stock status structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -248,7 +249,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Verify attributes structure", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -276,13 +277,13 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Different sellers get different filter results", func(t *testing.T) {
 		// Get filters for seller 2 (Electronics - iPhone, Samsung, MacBook, Sony)
 		client.SetHeader("X-Seller-ID", "2")
-		w2 := client.Get(t, "/api/products/filters")
+		w2 := client.Get(t, "/api/product/filters")
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		filters2 := response2["data"].(map[string]interface{})["filters"].(map[string]interface{})
 
 		// Get filters for seller 3 (Fashion - T-Shirt, Dress, Shoes)
 		client.SetHeader("X-Seller-ID", "3")
-		w3 := client.Get(t, "/api/products/filters")
+		w3 := client.Get(t, "/api/product/filters")
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 		filters3 := response3["data"].(map[string]interface{})["filters"].(map[string]interface{})
 
@@ -321,7 +322,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Seller 2 filters include only their products", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -341,7 +342,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Seller 3 filters include only their products", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -361,7 +362,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Seller 4 filters include only their products", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "4")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -382,7 +383,7 @@ func TestGetProductFilters(t *testing.T) {
 		// Seller 3 should see Fashion categories, not Electronics
 		client.SetHeader("X-Seller-ID", "3")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -412,7 +413,7 @@ func TestGetProductFilters(t *testing.T) {
 		clientNoHeader := helpers.NewAPIClient(server)
 		// Don't set X-Seller-ID header
 
-		w := clientNoHeader.Get(t, "/api/products/filters")
+		w := clientNoHeader.Get(t, "/api/product/filters")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -421,7 +422,7 @@ func TestGetProductFilters(t *testing.T) {
 		clientInvalidHeader := helpers.NewAPIClient(server)
 		clientInvalidHeader.SetHeader("X-Seller-ID", "invalid")
 
-		w := clientInvalidHeader.Get(t, "/api/products/filters")
+		w := clientInvalidHeader.Get(t, "/api/product/filters")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -430,7 +431,7 @@ func TestGetProductFilters(t *testing.T) {
 		clientZeroHeader := helpers.NewAPIClient(server)
 		clientZeroHeader.SetHeader("X-Seller-ID", "0")
 
-		w := clientZeroHeader.Get(t, "/api/products/filters")
+		w := clientZeroHeader.Get(t, "/api/product/filters")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -439,7 +440,7 @@ func TestGetProductFilters(t *testing.T) {
 		clientNegativeHeader := helpers.NewAPIClient(server)
 		clientNegativeHeader.SetHeader("X-Seller-ID", "-1")
 
-		w := clientNegativeHeader.Get(t, "/api/products/filters")
+		w := clientNegativeHeader.Get(t, "/api/product/filters")
 
 		helpers.AssertShouldNotSucceed(t, w)
 	})
@@ -454,7 +455,7 @@ func TestGetProductFilters(t *testing.T) {
 		// Seller 4 has furniture products (fewer products than seller 2)
 		client.SetHeader("X-Seller-ID", "4")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -477,7 +478,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Success - Response structure is valid JSON", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -500,7 +501,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Validation - Product counts are accurate", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -524,7 +525,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Validation - Price range reflects variant prices", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -543,7 +544,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Validation - No duplicate brands in filter", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -567,7 +568,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Validation - Variant types have unique values", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -603,7 +604,7 @@ func TestGetProductFilters(t *testing.T) {
 		clientSQLInjection := helpers.NewAPIClient(server)
 		clientSQLInjection.SetHeader("X-Seller-ID", "1; DROP TABLE product; --")
 
-		w := clientSQLInjection.Get(t, "/api/products/filters")
+		w := clientSQLInjection.Get(t, "/api/product/filters")
 
 		// Should return 400 Bad Request, not execute SQL
 		assert.Equal(t, http.StatusBadRequest, w.Code, "SQL injection should be rejected")
@@ -612,11 +613,11 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Security - No data leakage in error messages", func(t *testing.T) {
 		clientNoHeader := helpers.NewAPIClient(server)
 
-		w := clientNoHeader.Get(t, "/api/products/filters")
+		w := clientNoHeader.Get(t, "/api/product/filters")
 
 		// Verify error message doesn't expose internal details
 		assert.NotEqual(t, http.StatusOK, w.Code, "Should return error")
-		
+
 		// Error response should not contain sensitive information
 		// like database structure, file paths, or stack traces
 		bodyStr := w.Body.String()
@@ -633,7 +634,7 @@ func TestGetProductFilters(t *testing.T) {
 	t.Run("Performance - Response contains reasonable amount of data", func(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/filters")
+		w := client.Get(t, "/api/product/filters")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 

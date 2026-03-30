@@ -13,6 +13,9 @@ type ProductVariant struct {
 	AllowPurchase bool           `json:"allowPurchase" gorm:"column:allow_purchase"`
 	IsPopular     bool           `json:"isPopular"     gorm:"column:is_popular;default:false"`
 	IsDefault     bool           `json:"isDefault"     gorm:"column:is_default;default:false"`
+
+	// Relationships - use pointers to avoid N+1 queries
+	Product *Product `json:"product,omitempty" gorm:"foreignKey:ProductID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
 }
 
 type VariantOptionValue struct {

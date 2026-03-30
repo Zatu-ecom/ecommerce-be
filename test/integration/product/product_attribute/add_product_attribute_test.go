@@ -18,8 +18,9 @@ func TestAddProductAttribute(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -48,7 +49,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -88,7 +89,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -121,7 +122,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             5,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -150,7 +151,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -180,7 +181,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -201,7 +202,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		// Should return either 403 Forbidden or 404 Not Found depending on implementation
@@ -230,7 +231,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             5,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -256,7 +257,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             5,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -283,7 +284,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -304,7 +305,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -326,7 +327,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 
 		// Add first time - should succeed
 		w1 := client.Post(t, url, requestBody)
@@ -358,7 +359,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -377,7 +378,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder": 0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -394,7 +395,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             0,
 		}
 
-		url := "/api/products/invalid/attributes"
+		url := "/api/product/invalid/attribute"
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -419,7 +420,7 @@ func TestAddProductAttribute(t *testing.T) {
 			"sortOrder":             1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w1 := client.Post(t, url, requestBody1)
 		helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 
@@ -444,7 +445,7 @@ func TestAddProductAttribute(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w3, http.StatusCreated)
 
 		// Verify all attributes exist by getting them
-		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
+		getURL := fmt.Sprintf("/api/product/%d/attribute", productID)
 		wGet := client.Get(t, getURL)
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 

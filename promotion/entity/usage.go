@@ -23,7 +23,7 @@ type PromotionUsage struct {
 	UsedAt time.Time `json:"usedAt" gorm:"column:used_at;not null;index"`
 
 	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 
 	// Relationships
 	Promotion *Promotion `json:"promotion,omitempty" gorm:"foreignKey:PromotionID"`
@@ -51,7 +51,7 @@ type DiscountCodeUsage struct {
 	UsedAt time.Time `json:"usedAt" gorm:"column:used_at;not null;index"`
 
 	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 
 	// Relationships
 	DiscountCode *DiscountCode `json:"discountCode,omitempty" gorm:"foreignKey:DiscountCodeID"`

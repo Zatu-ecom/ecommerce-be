@@ -5,10 +5,10 @@ import (
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -36,7 +36,7 @@ type VariantService interface {
 
 // VariantServiceImpl implements the VariantService interface
 type VariantServiceImpl struct {
-	variantRepo      repositories.VariantRepository
+	variantRepo      repository.VariantRepository
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 	queryService     VariantQueryService
@@ -44,7 +44,7 @@ type VariantServiceImpl struct {
 
 // NewVariantService creates a new instance of VariantService
 func NewVariantService(
-	variantRepo repositories.VariantRepository,
+	variantRepo repository.VariantRepository,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 	queryService VariantQueryService,
@@ -67,7 +67,11 @@ func (s *VariantServiceImpl) CreateVariant(
 	request *model.CreateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(
+		ctx,
+		productID,
+		sellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +145,11 @@ func (s *VariantServiceImpl) UpdateVariant(
 	request *model.UpdateVariantRequest,
 ) (*model.VariantDetailResponse, error) {
 	// Get product and validate seller access
-	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(
+		ctx,
+		productID,
+		sellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +188,11 @@ func (s *VariantServiceImpl) UpdateVariant(
 /***********************************************
  *                DeleteVariant                *
  ***********************************************/
-func (s *VariantServiceImpl) DeleteVariant(ctx context.Context, productID, variantID uint, sellerID uint) error {
+func (s *VariantServiceImpl) DeleteVariant(
+	ctx context.Context,
+	productID, variantID uint,
+	sellerID uint,
+) error {
 	// Get product and validate seller access
 	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {

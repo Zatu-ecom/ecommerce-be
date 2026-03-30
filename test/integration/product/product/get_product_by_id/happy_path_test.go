@@ -18,8 +18,9 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 	containers.RunSeeds(t, "test/integration/data/get_product_by_id_seed_data.sql")
 
 	// Setup test server
@@ -35,7 +36,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		// Product 1 (iPhone 15 Pro) belongs to seller 2
 		client.SetHeader("X-Seller-ID", "2")
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -88,7 +89,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		client.SetToken(customerToken)
 		client.SetHeader("X-Seller-ID", "") // Clear seller ID header
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -109,11 +110,11 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 	// HP-03: Seller Gets Their Own Product
 	// ============================================================================
 	t.Run("HP-03: Seller Gets Their Own Product", func(t *testing.T) {
-		// Login as seller (seller_id 2 owns products 1-4)
+		// Login as seller (seller_id 2 owns product 1-4)
 		sellerToken := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(sellerToken)
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -153,7 +154,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Admin should be able to get product from any seller
-		w := client.Get(t, "/api/products/5") // Product 5 belongs to seller 3
+		w := client.Get(t, "/api/product/5") // Product 5 belongs to seller 3
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -177,7 +178,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("") // Clear token
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -239,7 +240,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -280,7 +281,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 

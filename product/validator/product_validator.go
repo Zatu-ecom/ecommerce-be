@@ -3,7 +3,7 @@ package validator
 import (
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/model"
 )
 
@@ -22,12 +22,12 @@ func ValidateProductExistsAndOwnership(product *entity.Product, sellerID *uint) 
 	if product == nil {
 		return prodErrors.ErrProductNotFound
 	}
-	
+
 	if sellerID != nil {
 		// Reuse existing validation logic
 		return ValidateProductBelongsToSeller(product, *sellerID)
 	}
-	
+
 	return nil
 }
 

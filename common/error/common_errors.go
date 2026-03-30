@@ -10,6 +10,9 @@ import (
 const (
 	VALIDATION_ERROR_CODE = "VALIDATION_ERROR"
 	INVALID_ID_CODE       = "INVALID_ID"
+	// DATABASE_ERROR_CODE is used when a repository or DB layer operation fails (HTTP 500).
+	// Use NewDatabaseError(message) for a caller-specific message.
+	DATABASE_ERROR_CODE = "DATABASE_ERROR"
 )
 
 // Common validation error messages
@@ -95,3 +98,12 @@ var (
 		StatusCode: http.StatusBadRequest,
 	}
 )
+
+// DatabaseError returns an AppError for database failures with a caller-specific message.
+func DatabaseError(message string) *AppError {
+	return NewAppError(
+		DATABASE_ERROR_CODE,
+		message,
+		http.StatusInternalServerError,
+	)
+}

@@ -18,8 +18,9 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -35,7 +36,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			"sortOrder":             sortOrder,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
@@ -82,7 +83,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -149,7 +150,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -193,7 +194,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -235,7 +236,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -264,7 +265,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", otherProductID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", otherProductID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		// Should return 403 Forbidden or 404 Not Found
@@ -282,8 +283,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		productID := 5
-		attr1 := createAttribute(productID, 5, "128", 0)        // Storage (doesn't exist on Product 5)
-		attr2 := createAttribute(productID, 6, "8", 0)          // RAM (doesn't exist on Product 5)
+		attr1 := createAttribute(productID, 5, "128", 0) // Storage (doesn't exist on Product 5)
+		attr2 := createAttribute(productID, 6, "8", 0)   // RAM (doesn't exist on Product 5)
 		attrID1 := int(attr1["id"].(float64))
 		attrID2 := int(attr2["id"].(float64))
 
@@ -306,7 +307,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -349,7 +350,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -388,7 +389,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		}
 
 		// Use non-existent product ID
-		url := "/api/products/99999/attributes/bulk"
+		url := "/api/product/99999/attribute/bulk"
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -405,7 +406,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			"attributes": []map[string]interface{}{},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -430,7 +431,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -456,7 +457,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -480,7 +481,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -517,7 +518,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes/bulk", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -562,7 +563,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 			},
 		}
 
-		url := "/api/products/6/attributes/bulk"
+		url := "/api/product/6/attribute/bulk"
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)

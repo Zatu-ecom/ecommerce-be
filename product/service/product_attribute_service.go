@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -62,17 +62,17 @@ type ProductAttributeService interface {
 
 // ProductAttributeServiceImpl implements the ProductAttributeService interface
 type ProductAttributeServiceImpl struct {
-	productAttrRepo  repositories.ProductAttributeRepository
-	productRepo      repositories.ProductRepository
-	attributeRepo    repositories.AttributeDefinitionRepository
+	productAttrRepo  repository.ProductAttributeRepository
+	productRepo      repository.ProductRepository
+	attributeRepo    repository.AttributeDefinitionRepository
 	validatorService ProductValidatorService
 }
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
 func NewProductAttributeService(
-	productAttrRepo repositories.ProductAttributeRepository,
-	productRepo repositories.ProductRepository,
-	attributeRepo repositories.AttributeDefinitionRepository,
+	productAttrRepo repository.ProductAttributeRepository,
+	productRepo repository.ProductRepository,
+	attributeRepo repository.AttributeDefinitionRepository,
 	validatorService ProductValidatorService,
 ) ProductAttributeService {
 	return &ProductAttributeServiceImpl{
@@ -468,6 +468,9 @@ func (s *ProductAttributeServiceImpl) convertAttributesToModels(
 }
 
 // DeleteAttributesByProductID deletes all product attributes for a product
-func (s *ProductAttributeServiceImpl) DeleteAttributesByProductID(ctx context.Context, productID uint) error {
+func (s *ProductAttributeServiceImpl) DeleteAttributesByProductID(
+	ctx context.Context,
+	productID uint,
+) error {
 	return s.attributeRepo.DeleteProductAttributesByProductID(ctx, productID)
 }

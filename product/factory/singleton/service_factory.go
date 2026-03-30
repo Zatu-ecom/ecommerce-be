@@ -10,17 +10,20 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	categoryService         service.CategoryService
-	attributeService        service.AttributeDefinitionService
-	productService          service.ProductService
-	productQueryService     service.ProductQueryService
-	variantService          service.VariantService
-	variantQueryService     service.VariantQueryService
-	variantBulkService      service.VariantBulkService
-	productAttributeService service.ProductAttributeService
-	productOptionService    service.ProductOptionService
-	optionValueService      service.ProductOptionValueService
-	validatorService        service.ProductValidatorService
+	categoryService          service.CategoryService
+	attributeService         service.AttributeDefinitionService
+	productService           service.ProductService
+	productQueryService      service.ProductQueryService
+	variantService           service.VariantService
+	variantQueryService      service.VariantQueryService
+	variantBulkService       service.VariantBulkService
+	productAttributeService  service.ProductAttributeService
+	productOptionService     service.ProductOptionService
+	optionValueService       service.ProductOptionValueService
+	validatorService         service.ProductValidatorService
+	wishlistService          service.WishlistService
+	wishlistItemService      service.WishlistItemService
+	collectionProductService service.CollectionProductService
 
 	once sync.Once
 }
@@ -52,9 +55,16 @@ func (f *ServiceFactory) initialize() {
 			f.validatorService,
 		)
 
+		// Initialize WishlistItemService (needed by VariantQueryService)
+		f.wishlistItemService = service.NewWishlistItemService(
+			f.repoFactory.GetWishlistItemRepository(),
+			f.repoFactory.GetWishlistRepository(),
+		)
+
 		// Initialize VariantQueryService (query operations only - no circular dependencies)
 		f.variantQueryService = service.NewVariantQueryService(
 			variantRepo,
+			f.wishlistItemService,
 			f.productOptionService,
 			f.validatorService,
 		)
@@ -90,6 +100,18 @@ func (f *ServiceFactory) initialize() {
 			f.categoryService,
 			f.productAttributeService,
 			f.productOptionService,
+		)
+
+		// Initialize WishlistService (needs ProductQueryService for product details)
+		f.wishlistService = service.NewWishlistService(
+			f.repoFactory.GetWishlistRepository(),
+			f.repoFactory.GetWishlistItemRepository(),
+			f.productQueryService,
+		)
+
+		// Initialize CollectionProductService
+		f.collectionProductService = service.NewCollectionProductService(
+			f.repoFactory.GetCollectionProductRepository(),
 		)
 
 		// Initialize ProductService with its dependencies
@@ -170,4 +192,21 @@ func (f *ServiceFactory) GetProductOptionValueService() service.ProductOptionVal
 func (f *ServiceFactory) GetProductValidatorService() service.ProductValidatorService {
 	f.initialize()
 	return f.validatorService
+}
+
+// GetWishlistService returns the singleton wishlist service
+func (f *ServiceFactory) GetWishlistService() service.WishlistService {
+	f.initialize()
+	return f.wishlistService
+}
+
+// GetWishlistItemService returns the singleton wishlist item service
+func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
+	f.initialize()
+	return f.wishlistItemService
+}
+
+func (f *ServiceFactory) GetCollectionProductService() service.CollectionProductService {
+	f.initialize()
+	return f.collectionProductService
 }

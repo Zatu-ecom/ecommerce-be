@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/utils"
 	"ecommerce-be/product/utils/helper"
 	"ecommerce-be/product/validator"
@@ -53,7 +53,10 @@ type ProductOptionService interface {
 
 	// GetProductsOptionsWithValues retrieves all options with their values for multiple products
 	// Batch operation to prevent N+1 queries
-	GetProductsOptionsWithValues(ctx context.Context, productIDs []uint) (map[uint][]entity.ProductOption, error)
+	GetProductsOptionsWithValues(
+		ctx context.Context,
+		productIDs []uint,
+	) (map[uint][]entity.ProductOption, error)
 
 	// DeleteOptionsByProductID deletes all product options and their values for a product
 	// Handles cascade deletion of option_values
@@ -71,13 +74,13 @@ type ProductOptionService interface {
 
 // ProductOptionServiceImpl implements the ProductOptionService interface
 type ProductOptionServiceImpl struct {
-	optionRepo       repositories.ProductOptionRepository
+	optionRepo       repository.ProductOptionRepository
 	validatorService ProductValidatorService
 }
 
 // NewProductOptionService creates a new instance of ProductOptionService
 func NewProductOptionService(
-	optionRepo repositories.ProductOptionRepository,
+	optionRepo repository.ProductOptionRepository,
 	validatorService ProductValidatorService,
 ) ProductOptionService {
 	return &ProductOptionServiceImpl{
@@ -249,7 +252,10 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 
 // DeleteOptionsByProductID deletes all product options and their values for a product
 // Handles cascade deletion of option_values
-func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(ctx context.Context, productID uint) error {
+func (s *ProductOptionServiceImpl) DeleteOptionsByProductID(
+	ctx context.Context,
+	productID uint,
+) error {
 	// Get all product options
 	productOptions, err := s.optionRepo.FindOptionsByProductID(ctx, productID)
 	if err != nil {
@@ -353,7 +359,10 @@ func (s *ProductOptionServiceImpl) GetProductOptionsWithVariantCounts(
 	}
 
 	// Get options with variant counts from repository
-	productOptions, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(ctx, productID)
+	productOptions, variantCounts, err := s.optionRepo.GetProductOptionsWithVariantCounts(
+		ctx,
+		productID,
+	)
 	if err != nil {
 		return nil, err
 	}

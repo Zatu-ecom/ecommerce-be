@@ -29,20 +29,26 @@ type LocationUpdateRequest struct {
 
 // AddressRequest represents the address information in a request
 type AddressRequest struct {
-	Street  string `json:"street"  binding:"required,min=5"`
-	City    string `json:"city"    binding:"required,min=2"`
-	State   string `json:"state"   binding:"required,min=2"`
-	ZipCode string `json:"zipCode" binding:"required"`
-	Country string `json:"country" binding:"required,min=2"`
+	Address   string   `json:"address"   binding:"required,min=5,max=500"`
+	Landmark  string   `json:"landmark"  binding:"omitempty,max=255"`
+	City      string   `json:"city"      binding:"required,min=2,max=100"`
+	State     string   `json:"state"     binding:"required,min=2,max=100"`
+	ZipCode   string   `json:"zipCode"   binding:"required,max=20"`
+	CountryID uint     `json:"countryId" binding:"required"`
+	Latitude  *float64 `json:"latitude"  binding:"omitempty"`
+	Longitude *float64 `json:"longitude" binding:"omitempty"`
 }
 
-// AddressRequest represents the address information in a request
+// AddressUpdateRequest represents the address information in an update request
 type AddressUpdateRequest struct {
-	Street  *string `json:"street"  binding:"omitempty,min=5"`
-	City    *string `json:"city"    binding:"omitempty,min=2"`
-	State   *string `json:"state"   binding:"omitempty,min=2"`
-	ZipCode *string `json:"zipCode" binding:"omitempty"`
-	Country *string `json:"country" binding:"omitempty,min=2"`
+	Address   *string  `json:"address"   binding:"omitempty,min=5,max=500"`
+	Landmark  *string  `json:"landmark"  binding:"omitempty,max=255"`
+	City      *string  `json:"city"      binding:"omitempty,min=2,max=100"`
+	State     *string  `json:"state"     binding:"omitempty,min=2,max=100"`
+	ZipCode   *string  `json:"zipCode"   binding:"omitempty,max=20"`
+	CountryID *uint    `json:"countryId"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
 }
 
 // Locations filter API paramters
@@ -85,16 +91,19 @@ type LocationResponse struct {
 
 // AddressResponse represents the address data in a response
 type AddressResponse struct {
-	ID      uint   `json:"id,omitempty"`
-	Street  string `json:"street,omitempty"`
-	City    string `json:"city,omitempty"`
-	State   string `json:"state,omitempty"`
-	ZipCode string `json:"zipCode,omitempty"`
-	Country string `json:"country,omitempty"`
+	ID        uint     `json:"id,omitempty"`
+	Address   string   `json:"address,omitempty"`
+	Landmark  string   `json:"landmark,omitempty"`
+	City      string   `json:"city,omitempty"`
+	State     string   `json:"state,omitempty"`
+	ZipCode   string   `json:"zipCode,omitempty"`
+	CountryID uint     `json:"countryId"`
+	Latitude  *float64 `json:"latitude,omitempty"`
+	Longitude *float64 `json:"longitude,omitempty"`
 }
 
 // LocationsResponse represents the paginated response for getting all locations
 type LocationsResponse struct {
-	Locations  []LocationResponse       `json:"locations"`
+	Locations  []LocationResponse        `json:"locations"`
 	Pagination common.PaginationResponse `json:"pagination"`
 }

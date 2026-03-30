@@ -18,8 +18,9 @@ func TestCreateProduct(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -66,7 +67,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody) // Debug: Print response if not successful
+		w := client.Post(t, "/api/product", requestBody) // Debug: Print response if not successful
 		if w.Code != http.StatusCreated {
 			t.Logf("Response Status: %d", w.Code)
 			t.Logf("Response Body: %s", w.Body.String())
@@ -174,7 +175,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -302,7 +303,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -381,7 +382,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -443,7 +444,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -531,7 +532,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -652,7 +653,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -725,7 +726,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -805,7 +806,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -874,7 +875,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -930,7 +931,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w1 := client.Post(t, "/api/products", requestBody1)
+		w1 := client.Post(t, "/api/product", requestBody1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 		product1 := helpers.GetResponseData(t, response1, "product")
 		assert.Equal(t, float64(4), product1["categoryId"])
@@ -960,7 +961,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w2 := client.Post(t, "/api/products", requestBody2)
+		w2 := client.Post(t, "/api/product", requestBody2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusCreated)
 		product2 := helpers.GetResponseData(t, response2, "product")
 		assert.Equal(t, float64(7), product2["categoryId"])
@@ -990,7 +991,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w3 := client.Post(t, "/api/products", requestBody3)
+		w3 := client.Post(t, "/api/product", requestBody3)
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusCreated)
 		product3 := helpers.GetResponseData(t, response3, "product")
 		assert.Equal(t, float64(10), product3["categoryId"])
@@ -1025,7 +1026,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -1070,7 +1071,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
@@ -1116,7 +1117,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1139,7 +1140,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1154,7 +1155,7 @@ func TestCreateProduct(t *testing.T) {
 			// variants is missing
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1177,7 +1178,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1206,7 +1207,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1229,7 +1230,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
@@ -1252,7 +1253,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1275,7 +1276,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1298,7 +1299,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1321,7 +1322,7 @@ func TestCreateProduct(t *testing.T) {
 				},
 			}
 
-			w := client.Post(t, "/api/products", requestBody)
+			w := client.Post(t, "/api/product", requestBody)
 			helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 		},
 	)
@@ -1343,7 +1344,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1369,7 +1370,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
@@ -1395,7 +1396,7 @@ func TestCreateProduct(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }

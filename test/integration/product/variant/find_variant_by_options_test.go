@@ -18,8 +18,9 @@ func TestFindVariantByOptions(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -41,7 +42,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Natural%%20Titanium&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -70,7 +71,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -109,7 +110,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Space%%20Black&Memory=16GB&Storage=512GB",
+			"/api/product/%d/variant/find?Color=Space%%20Black&Memory=16GB&Storage=512GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -133,7 +134,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -150,7 +151,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -167,7 +168,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		// Product 5 belongs to seller 3
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=White", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=White", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -185,7 +186,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		// Try any product
 		productID := 1
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Blue%%20Titanium&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Blue%%20Titanium&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -203,7 +204,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		productID := 2
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Onyx%%20Black&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Onyx%%20Black&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -222,7 +223,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		productID := 5
 
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=White", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=White", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -237,7 +238,7 @@ func TestFindVariantByOptions(t *testing.T) {
 	// ============================================================================
 
 	t.Run("Error - Invalid productId (non-numeric)", func(t *testing.T) {
-		url := "/api/products/abc/variants/find?Color=Red&Size=M"
+		url := "/api/product/abc/variant/find?Color=Red&Size=M"
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -249,7 +250,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -264,7 +265,7 @@ func TestFindVariantByOptions(t *testing.T) {
 	t.Run("Error - Empty option values", func(t *testing.T) {
 		productID := 5
 		// Query parameters with empty values
-		url := fmt.Sprintf("/api/products/%d/variants/find?Color=&Size=", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Color=&Size=", productID)
 		w := client.Get(t, url)
 
 		// This should fail validation
@@ -277,7 +278,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 	t.Run("Error - Product does not exist", func(t *testing.T) {
 		productID := 99999
-		url := fmt.Sprintf("/api/products/%d/variants/find?Color=Red&Size=M", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Color=Red&Size=M", productID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -286,7 +287,7 @@ func TestFindVariantByOptions(t *testing.T) {
 	t.Run("Error - Variant not found with given options", func(t *testing.T) {
 		// Product 5 exists but Purple XL combination doesn't exist
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Color=Purple&Size=XL", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Color=Purple&Size=XL", productID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -300,7 +301,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M", productID)
 		w := client.Get(t, url)
 
 		// LOGIC ISSUE: The API currently returns 200 OK with a variant even with partial options
@@ -320,7 +321,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Style=Casual&Size=M", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Style=Casual&Size=M", productID)
 		w := client.Get(t, url)
 
 		// API returns 400 Bad Request with "Invalid option name: Style"
@@ -336,7 +337,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		// Try to access product 1 which belongs to seller 2
 		productID := 1
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Natural%%20Titanium&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -348,7 +349,7 @@ func TestFindVariantByOptions(t *testing.T) {
 	t.Run("Error - Wrong option value for existing option name", func(t *testing.T) {
 		// Product 5 has Color option but not "Rainbow" as a value
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Rainbow", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Rainbow", productID)
 		w := client.Get(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -365,7 +366,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		productID := 5
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Black&Size=M&page=1&limit=10&sort=price",
+			"/api/product/%d/variant/find?Color=Black&Size=M&page=1&limit=10&sort=price",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -381,7 +382,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		// Product 7: Running Shoes has "Black/White" color with slash
 		productID := 7
 		// URL encode the slash
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=9&Color=Black%%2FWhite", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=9&Color=Black%%2FWhite", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -395,13 +396,13 @@ func TestFindVariantByOptions(t *testing.T) {
 		productID := 5
 
 		// Test with Size first
-		url1 := fmt.Sprintf("/api/products/%d/variants/find?Size=L&Color=Black", productID)
+		url1 := fmt.Sprintf("/api/product/%d/variant/find?Size=L&Color=Black", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1 := helpers.GetResponseData(t, response1, "variant")
 
 		// Test with Color first
-		url2 := fmt.Sprintf("/api/products/%d/variants/find?Color=Black&Size=L", productID)
+		url2 := fmt.Sprintf("/api/product/%d/variant/find?Color=Black&Size=L", productID)
 		w2 := client.Get(t, url2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		variant2 := helpers.GetResponseData(t, response2, "variant")
@@ -414,7 +415,7 @@ func TestFindVariantByOptions(t *testing.T) {
 	t.Run("EdgeCase - Verify color option has colorCode", func(t *testing.T) {
 		// Product 5: T-Shirt with Color option that has color codes
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -445,7 +446,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetToken("invalid-token-12345")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		// Should return 401 Unauthorized
@@ -458,7 +459,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetToken(expiredToken)
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		// Should return 401 Unauthorized
@@ -474,7 +475,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -498,7 +499,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		productID := 1
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Natural%%20Titanium&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -534,7 +535,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 
 		productID := 5
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -553,7 +554,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		productID := 1
 		url := fmt.Sprintf(
-			"/api/products/%d/variants/find?Color=Natural%%20Titanium&Storage=128GB",
+			"/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=128GB",
 			productID,
 		)
 		w := client.Get(t, url)
@@ -578,7 +579,7 @@ func TestFindVariantByOptions(t *testing.T) {
 			productID := 1
 
 			url := fmt.Sprintf(
-				"/api/products/%d/variants/find?Color=Natural%%20Titanium&Storage=256GB",
+				"/api/product/%d/variant/find?Color=Natural%%20Titanium&Storage=256GB",
 				productID,
 			)
 			w := client.Get(t, url)
@@ -599,13 +600,13 @@ func TestFindVariantByOptions(t *testing.T) {
 		productID := 5 // T-Shirt
 
 		// Get Black variant
-		url1 := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=Black", productID)
+		url1 := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=Black", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1 := helpers.GetResponseData(t, response1, "variant")
 
 		// Get White variant
-		url2 := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=White", productID)
+		url2 := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=White", productID)
 		w2 := client.Get(t, url2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		variant2 := helpers.GetResponseData(t, response2, "variant")
@@ -624,14 +625,14 @@ func TestFindVariantByOptions(t *testing.T) {
 		productID := 7
 
 		// Try with exact match
-		url1 := fmt.Sprintf("/api/products/%d/variants/find?Size=9&Color=Black%%2FWhite", productID)
+		url1 := fmt.Sprintf("/api/product/%d/variant/find?Size=9&Color=Black%%2FWhite", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1 := helpers.GetResponseData(t, response1, "variant")
 		assert.Equal(t, "ADIDAS-RUN-BW-9", variant1["sku"])
 
 		// Try with slightly different value (should fail)
-		url2 := fmt.Sprintf("/api/products/%d/variants/find?Size=9&Color=Black-White", productID)
+		url2 := fmt.Sprintf("/api/product/%d/variant/find?Size=9&Color=Black-White", productID)
 		w2 := client.Get(t, url2)
 		// API returns 404 for variant not found, not 400
 		helpers.AssertErrorResponse(t, w2, http.StatusNotFound)
@@ -645,7 +646,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		productID := 5
 
 		// Try with lowercase "black" instead of "Black"
-		url := fmt.Sprintf("/api/products/%d/variants/find?Size=M&Color=black", productID)
+		url := fmt.Sprintf("/api/product/%d/variant/find?Size=M&Color=black", productID)
 		w := client.Get(t, url)
 
 		// This will reveal if the system is case-sensitive or not

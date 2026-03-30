@@ -6,10 +6,10 @@ import (
 
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -39,14 +39,14 @@ type VariantBulkService interface {
 
 // VariantBulkServiceImpl implements the VariantBulkService interface
 type VariantBulkServiceImpl struct {
-	variantRepo      repositories.VariantRepository
+	variantRepo      repository.VariantRepository
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 }
 
 // NewVariantBulkService creates a new instance of VariantBulkService
 func NewVariantBulkService(
-	variantRepo repositories.VariantRepository,
+	variantRepo repository.VariantRepository,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 ) VariantBulkService {

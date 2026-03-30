@@ -18,7 +18,8 @@ func TestGetAllCategories(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -43,7 +44,7 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Global Electronics",
 			"description": "Global electronics category",
 		}
-		client.Post(t, "/api/categories", globalReq)
+		client.Post(t, "/api/product/category", globalReq)
 
 		// Create seller-specific category
 		client.SetToken(sellerToken)
@@ -51,13 +52,13 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Seller Custom Category",
 			"description": "Seller's custom category",
 		}
-		client.Post(t, "/api/categories", sellerReq)
+		client.Post(t, "/api/product/category", sellerReq)
 
 		// Now test public access with X-Seller-ID header
 		client.SetToken("")                               // Clear token for public access
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Jane Merchant's seller ID
 
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -92,7 +93,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetToken("")                              // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "") // No X-Seller-ID
 
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -104,7 +105,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetToken("")                                     // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "invalid") // Invalid seller ID
 
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -116,7 +117,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetToken("")                               // No JWT token
 		client.SetHeader(constants.SELLER_ID_HEADER, "0") // Zero seller ID
 
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -142,7 +143,7 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Global Furniture",
 			"description": "Global furniture category",
 		}
-		client.Post(t, "/api/categories", globalReq)
+		client.Post(t, "/api/product/category", globalReq)
 
 		// Create seller-specific category
 		client.SetToken(sellerToken)
@@ -150,10 +151,10 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Seller Custom Furniture",
 			"description": "Seller's custom furniture",
 		}
-		client.Post(t, "/api/categories", sellerReq)
+		client.Post(t, "/api/product/category", sellerReq)
 
 		// Get all categories with seller token
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -193,7 +194,7 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Seller1 Exclusive Category",
 			"description": "Seller 1's category",
 		}
-		client.Post(t, "/api/categories", seller1Req)
+		client.Post(t, "/api/product/category", seller1Req)
 
 		// Login as admin
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
@@ -205,10 +206,10 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Admin Global Category",
 			"description": "Global category by admin",
 		}
-		client.Post(t, "/api/categories", globalReq)
+		client.Post(t, "/api/product/category", globalReq)
 
 		// Get all categories as admin
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -252,7 +253,7 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Parent Category Hierarchy",
 			"description": "Parent category",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -267,7 +268,7 @@ func TestGetAllCategories(t *testing.T) {
 			"description": "Child category",
 			"parentId":    parentID,
 		}
-		childW := client.Post(t, "/api/categories", childReq)
+		childW := client.Post(t, "/api/product/category", childReq)
 		childResponse := helpers.AssertSuccessResponse(
 			t,
 			childW,
@@ -282,10 +283,10 @@ func TestGetAllCategories(t *testing.T) {
 			"description": "Grandchild category",
 			"parentId":    childID,
 		}
-		client.Post(t, "/api/categories", grandchildReq)
+		client.Post(t, "/api/product/category", grandchildReq)
 
 		// Get all categories
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -361,13 +362,13 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Only Global Category",
 			"description": "Only global, no seller-specific",
 		}
-		client.Post(t, "/api/categories", globalReq)
+		client.Post(t, "/api/product/category", globalReq)
 
 		// Access as public with a seller ID that has no categories
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Seller with no custom categories
 
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
@@ -405,10 +406,10 @@ func TestGetAllCategories(t *testing.T) {
 			"name":        "Response Validation Category",
 			"description": "Category for response validation",
 		}
-		client.Post(t, "/api/categories", createReq)
+		client.Post(t, "/api/product/category", createReq)
 
 		// Get all categories
-		getW := client.Get(t, "/api/categories")
+		getW := client.Get(t, "/api/product/category")
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,

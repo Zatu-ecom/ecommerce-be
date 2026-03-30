@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"ecommerce-be/common"
 	"ecommerce-be/inventory/entity"
@@ -117,6 +118,48 @@ func (s *InventoryQueryServiceImpl) GetInventories(
 	}, nil
 }
 
+// GetTotalAvailableQuantities queries the database to aggregate the total available quantity
+// (quantity - reserved - threshold) for a batch of variants or products
+func (s *InventoryQueryServiceImpl) GetTotalAvailableQuantities(
+	ctx context.Context,
+	req model.TotalAvailableQuantityRequest,
+	sellerID uint,
+) (*model.TotalAvailableQuantityResponse, error) {
+	// Need to query against all active seller locations
+	activeLocationIDs, err := s.getActiveLocationIDs(ctx, sellerID)
+	if err != nil {
+		if errors.Is(err, invErrors.ErrLocationNotFound) {
+			return &model.TotalAvailableQuantityResponse{
+				Items: []model.VariantAvailableQuantity{},
+			}, nil
+		}
+		return nil, err
+	}
+
+	rows, err := s.inventoryRepo.GetTotalAvailableQuantityBatch(
+		ctx,
+		req.VariantIDs,
+		req.ProductIDs,
+		activeLocationIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &model.TotalAvailableQuantityResponse{
+		Items: make([]model.VariantAvailableQuantity, len(rows)),
+	}
+
+	for i, row := range rows {
+		response.Items[i] = model.VariantAvailableQuantity{
+			VariantID:      row.VariantID,
+			TotalAvailable: row.TotalAvailable,
+		}
+	}
+
+	return response, nil
+}
+
 // GetInventoryByVariantAndLocationPriority retrieves inventory allocations for reservation items,
 // selecting inventory from locations by priority and splitting across multiple locations when needed.
 func (s *InventoryQueryServiceImpl) GetInventoryByVariantAndLocationPriority(
@@ -159,7 +202,10 @@ func (s *InventoryQueryServiceImpl) extractVariantRequests(
 }
 
 // getActiveLocationIDs retrieves active location IDs sorted by priority
-func (s *InventoryQueryServiceImpl) getActiveLocationIDs(ctx context.Context, sellerID uint) ([]uint, error) {
+func (s *InventoryQueryServiceImpl) getActiveLocationIDs(
+	ctx context.Context,
+	sellerID uint,
+) ([]uint, error) {
 	locations, err := s.locationRepo.FindActiveByPriority(ctx, sellerID)
 	if err != nil {
 		return nil, err
@@ -267,7 +313,11 @@ func (s *InventoryQueryServiceImpl) allocateForVariant(
 	return responses, nil
 }
 
-func (s *InventoryQueryServiceImpl) validateLocation(ctx context.Context, locationID uint, sellerID uint) error {
+func (s *InventoryQueryServiceImpl) validateLocation(
+	ctx context.Context,
+	locationID uint,
+	sellerID uint,
+) error {
 	location, err := s.locationRepo.FindByID(ctx, locationID, sellerID)
 	if err != nil {
 		return err

@@ -127,42 +127,51 @@ prune:
 	docker system prune -f
 	@echo "✅ Prune complete!"
 
-# Run tests in Docker
-test:
-	@echo "🧪 Running tests in Docker..."
-	docker-compose --profile dev run --rm app-dev go test ./test/integration/... -v
-
 # Run tests locally
-test-local:
+test:
 	@echo "🧪 Running tests locally..."
 	go test ./test/integration/... -v
 
 # Run all tests with summary (failed tests shown at end)
 test-all:
-	@echo "🧪 Running all integration tests..."
+	@echo "🧪 Running all integration tests (use 'make test-pretty' for a formatted test report)..."
 	@go test ./test/integration/... -v 2>&1 | tee /tmp/test_output.txt; \
-	EXIT_CODE=$$?; \
+
+# Install gotestsum if not present and run tests with pretty format
+test-pretty:
+	@echo "🔍 Checking for gotestsum..."
+	@which gotestsum >/dev/null || (echo "📦 Installing gotestsum..." && go install gotest.tools/gotestsum@latest)
+	@echo "🧪 Running tests with gotestsum for a formatted summary..."
+	@$$(go env GOPATH)/bin/gotestsum --format pkgname -- -v -timeout=15m ./test/integration/... 2>&1 | tee /tmp/test_output.txt; \
 	echo ""; \
 	echo "=========================================="; \
 	echo "           📊 TEST SUMMARY"; \
 	echo "=========================================="; \
 	echo ""; \
-	FAILED=$$(grep -c "^    --- FAIL:\|^--- FAIL:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
-	PASSED=$$(grep -c "^    --- PASS:\|^--- PASS:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
-	TOTAL=$$((PASSED + FAILED)); \
+	TOTAL=$$(grep -oE 'DONE [0-9]+' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
+	TOTAL=$${TOTAL:-0}; \
+	LEAF_FAILED=$$(grep -Fe '--- FAIL:' /tmp/test_output.txt 2>/dev/null | grep -v '^===' | grep '/' | wc -l || true); \
+	LEAF_FAILED=$${LEAF_FAILED:-0}; \
+	ALL_FAILED=$$(grep -cFe '--- FAIL:' /tmp/test_output.txt 2>/dev/null || true); \
+	ALL_FAILED=$${ALL_FAILED:-0}; \
+	if [ "$$LEAF_FAILED" -gt 0 ]; then FAILED=$$LEAF_FAILED; else FAILED=$$ALL_FAILED; fi; \
+	SKIPPED=$$(grep -oE '[0-9]+ skipped' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
+	SKIPPED=$${SKIPPED:-0}; \
+	PASSED=$$((TOTAL - FAILED - SKIPPED)); \
 	echo "📈 Total:  $$TOTAL"; \
 	echo "✅ Passed: $$PASSED"; \
+	echo "⏭️  Skipped: $$SKIPPED"; \
 	echo "❌ Failed: $$FAILED"; \
 	echo ""; \
 	if [ "$$FAILED" -gt 0 ]; then \
 		echo "=========================================="; \
 		echo "           ❌ FAILED TESTS"; \
 		echo "=========================================="; \
-		grep "^    --- FAIL:\|^--- FAIL:" /tmp/test_output.txt | sed 's/^    //' | sort -u; \
+		grep -Fe '--- FAIL:' /tmp/test_output.txt | grep -v '^===' | grep '/' | sed 's/^    //' | sort -u; \
 	else \
 		echo "🎉 All tests passed!"; \
 	fi; \
-	exit $$EXIT_CODE
+	[ "$$FAILED" -eq 0 ]
 
 # Run tests with JSON output for CI/CD
 test-json:
@@ -176,7 +185,7 @@ test-failed:
 		echo "❌ No previous test run found. Run 'make test-all' first."; \
 		exit 1; \
 	fi; \
-	FAILED_TESTS=$$(grep "^--- FAIL:" /tmp/test_output.txt | sed 's/--- FAIL: //' | sed 's/ (.*//' | tr '\n' '|' | sed 's/|$$//'); \
+	FAILED_TESTS=$$(grep -Fe '--- FAIL:' /tmp/test_output.txt | grep -v '^===' | grep '/' | sed 's/^    //' | sed 's/--- FAIL: //' | sed 's/ (.*//' | tr '\n' '|' | sed 's/|$$//'); \
 	if [ -z "$$FAILED_TESTS" ]; then \
 		echo "✅ No failed tests to re-run!"; \
 	else \
@@ -186,8 +195,16 @@ test-failed:
 		echo "=========================================="; \
 		echo "           📊 RE-RUN SUMMARY"; \
 		echo "=========================================="; \
-		FAILED=$$(grep -c "^--- FAIL:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
-		PASSED=$$(grep -c "^--- PASS:" /tmp/test_output.txt 2>/dev/null || echo "0"); \
+		LEAF_FAILED=$$(grep -Fe '--- FAIL:' /tmp/test_output.txt 2>/dev/null | grep '/' | wc -l || true); \
+		LEAF_FAILED=$${LEAF_FAILED:-0}; \
+		ALL_FAILED=$$(grep -cFe '--- FAIL:' /tmp/test_output.txt 2>/dev/null || true); \
+		ALL_FAILED=$${ALL_FAILED:-0}; \
+		if [ "$$LEAF_FAILED" -gt 0 ]; then FAILED=$$LEAF_FAILED; else FAILED=$$ALL_FAILED; fi; \
+		LEAF_PASSED=$$(grep -Fe '--- PASS:' /tmp/test_output.txt 2>/dev/null | grep '/' | wc -l || true); \
+		LEAF_PASSED=$${LEAF_PASSED:-0}; \
+		ALL_PASSED=$$(grep -cFe '--- PASS:' /tmp/test_output.txt 2>/dev/null || true); \
+		ALL_PASSED=$${ALL_PASSED:-0}; \
+		if [ "$$LEAF_PASSED" -gt 0 ]; then PASSED=$$LEAF_PASSED; else PASSED=$$ALL_PASSED; fi; \
 		echo "✅ Passed: $$PASSED"; \
 		echo "❌ Failed: $$FAILED"; \
 		if [ "$$FAILED" -gt 0 ]; then \
@@ -195,7 +212,7 @@ test-failed:
 			echo "=========================================="; \
 			echo "           ❌ STILL FAILING"; \
 			echo "=========================================="; \
-			grep "^--- FAIL:" /tmp/test_output.txt; \
+			grep -Fe '--- FAIL:' /tmp/test_output.txt | grep '/' | sed 's/^    //' | sort -u; \
 		fi; \
 	fi
 

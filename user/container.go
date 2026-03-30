@@ -28,4 +28,6 @@ func NewContainer(router *gin.Engine) *common.Container {
 func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewAddressModule())
 	c.RegisterModule(routes.NewUserModule())
+	c.RegisterModule(routes.NewCountryModule())
+	c.RegisterModule(routes.NewSellerModule())
 }

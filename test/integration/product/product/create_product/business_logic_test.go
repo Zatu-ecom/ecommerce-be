@@ -19,8 +19,9 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -72,7 +73,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should accept with "last one wins" rule - only White variant is default
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -143,7 +144,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid option value
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -176,16 +177,16 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			"variants": []map[string]interface{}{
 				{
 					"sku":   "TEST-MISSING-OPT-001-V1",
-				"price": 299.99,
-				"options": []map[string]interface{}{
-					{"optionName": "color", "value": "black"},
+					"price": 299.99,
+					"options": []map[string]interface{}{
+						{"optionName": "color", "value": "black"},
 						// Missing Size option - should fail validation
 					},
 				},
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for missing required option
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -227,7 +228,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for zero price
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -269,7 +270,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for negative price
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -311,7 +312,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for zero quantity
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -353,7 +354,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for negative quantity
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)

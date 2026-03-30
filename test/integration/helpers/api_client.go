@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // APIClient wraps HTTP requests for testing
@@ -18,10 +20,12 @@ type APIClient struct {
 
 // NewAPIClient creates a new API client for testing
 func NewAPIClient(handler http.Handler) *APIClient {
-	return &APIClient{
+	client := &APIClient{
 		Handler: handler,
 		Headers: make(map[string]string),
 	}
+	client.SetHeader("X-Correlation-ID", uuid.New().String())
+	return client
 }
 
 // SetToken sets the authentication token for subsequent requests
@@ -53,6 +57,33 @@ func (c *APIClient) Post(t *testing.T, url string, body interface{}) *httptest.R
 	req.Header.Set("Content-Type", "application/json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
+	w := httptest.NewRecorder()
+	c.Handler.ServeHTTP(w, req)
+
+	return w
+}
+
+// PostRaw makes a POST request with raw bytes (invalid JSON, edge cases)
+func (c *APIClient) PostRaw(t *testing.T, url string, body []byte) *httptest.ResponseRecorder {
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
 	}
 
 	w := httptest.NewRecorder()
@@ -139,6 +170,29 @@ func (c *APIClient) Patch(t *testing.T, url string, body interface{}) *httptest.
 	return w
 }
 
+// PutRaw makes a PUT request with raw bytes (for testing invalid JSON)
+func (c *APIClient) PutRaw(t *testing.T, url string, body []byte) *httptest.ResponseRecorder {
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Add custom headers
+	for key, value := range c.Headers {
+		req.Header.Set(key, value)
+	}
+
+	w := httptest.NewRecorder()
+	c.Handler.ServeHTTP(w, req)
+
+	return w
+}
+
 // Delete makes a DELETE request
 func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -162,8 +216,8 @@ func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder 
 }
 
 // ParseResponse parses JSON response into a map
-func ParseResponse(t *testing.T, body io.Reader) map[string]interface{} {
-	var response map[string]interface{}
+func ParseResponse(t *testing.T, body io.Reader) map[string]any {
+	var response map[string]any
 	if err := json.NewDecoder(body).Decode(&response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}

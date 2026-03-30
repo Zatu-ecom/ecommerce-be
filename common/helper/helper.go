@@ -3,7 +3,9 @@ package helper
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
 )
 
 // ToFormattedJSON converts an object to pretty-printed JSON (multi-line with indentation)
@@ -146,7 +148,12 @@ func JoinToCommaSeparated[T Primitive](values []T) string {
 // ============================================================================
 
 // StringPtr returns a pointer to a string
+// It's trims whitespace. If the resulting string is empty, it returns nil.
 func StringPtr(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
 	return &s
 }
 
@@ -163,4 +170,53 @@ func UintPtr(u uint) *uint {
 // BoolPtr returns a pointer to a bool
 func BoolPtr(b bool) *bool {
 	return &b
+}
+
+// ============================================================================
+// Slug Helpers
+// ============================================================================
+
+// nonAlphanumericRegex matches any character that is not a letter, digit, or hyphen
+var nonAlphanumericRegex = regexp.MustCompile(`[^a-z0-9-]+`)
+
+// multipleHyphenRegex matches consecutive hyphens
+var multipleHyphenRegex = regexp.MustCompile(`-{2,}`)
+
+// GenerateSlug generates a URL-friendly slug from a given name.
+//
+// Examples:
+//   - "Diwali Sale 2026" -> "diwali-sale-2026"
+//   - "iPhone 15 Pro — 20% Off!" -> "iphone-15-pro-20-off"
+//   - "  Big   Billion   Day  " -> "big-billion-day"
+func GenerateSlug(name string) string {
+	// Lowercase
+	slug := strings.ToLower(strings.TrimSpace(name))
+
+	// Replace Unicode spaces / special whitespace with hyphens
+	slug = strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return '-'
+		}
+		return r
+	}, slug)
+
+	// Remove non-alphanumeric characters (except hyphens)
+	slug = nonAlphanumericRegex.ReplaceAllString(slug, "")
+
+	// Collapse multiple hyphens into one
+	slug = multipleHyphenRegex.ReplaceAllString(slug, "-")
+
+	// Trim leading/trailing hyphens
+	slug = strings.Trim(slug, "-")
+
+	return slug
+}
+
+// ToSet converts a slice to a set
+func ToSet[T comparable](slice []T) map[T]bool {
+	set := make(map[T]bool)
+	for _, v := range slice {
+		set[v] = true
+	}
+	return set
 }

@@ -18,8 +18,9 @@ func TestDeleteProductOption(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -35,7 +36,7 @@ func TestDeleteProductOption(t *testing.T) {
 			"position":    position,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "option")
@@ -50,7 +51,7 @@ func TestDeleteProductOption(t *testing.T) {
 			"values":      values,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "option")
@@ -73,7 +74,7 @@ func TestDeleteProductOption(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Delete the option
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -100,7 +101,7 @@ func TestDeleteProductOption(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Delete the option
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		deleteURL := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -118,7 +119,7 @@ func TestDeleteProductOption(t *testing.T) {
 		productID := 7
 
 		// First, get initial count of options
-		getURL := fmt.Sprintf("/api/products/%d/options", productID)
+		getURL := fmt.Sprintf("/api/product/%d/option", productID)
 		wGetInitial := client.Get(t, getURL)
 		getInitialResponse := helpers.AssertSuccessResponse(t, wGetInitial, http.StatusOK)
 		initialOptionsData := helpers.GetResponseData(t, getInitialResponse, "options")
@@ -153,7 +154,7 @@ func TestDeleteProductOption(t *testing.T) {
 		assert.Equal(t, 3, len(optionValues), "Should have 3 values")
 
 		// Delete the option
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		deleteURL := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -200,7 +201,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -220,7 +221,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Set invalid token
 		client.SetToken("invalid.token.here")
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -241,7 +242,7 @@ func TestDeleteProductOption(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -262,7 +263,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Product 1 is owned by John Smith (seller_id 2)
 		otherProductID := 1
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", otherProductID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", otherProductID, optionID)
 		w := client.Delete(t, url)
 
 		// Should return 400, 403 Forbidden or 404 Not Found
@@ -290,7 +291,7 @@ func TestDeleteProductOption(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		// Admin should be able to delete options
@@ -308,7 +309,7 @@ func TestDeleteProductOption(t *testing.T) {
 		option := createOption(productID, "certification", "Certification", 1)
 		optionID := int(option["id"].(float64))
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, url)
 
 		// Admin should be able to delete
@@ -325,7 +326,7 @@ func TestDeleteProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use invalid product ID
-		url := "/api/products/invalid/options/1"
+		url := "/api/product/invalid/option/1"
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -339,7 +340,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		url := fmt.Sprintf("/api/products/%d/options/invalid", productID)
+		url := fmt.Sprintf("/api/product/%d/option/invalid", productID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -351,7 +352,7 @@ func TestDeleteProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use non-existent product ID
-		url := "/api/products/99999/options/1"
+		url := "/api/product/99999/option/1"
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -366,7 +367,7 @@ func TestDeleteProductOption(t *testing.T) {
 		productID := 5
 
 		// Use non-existent option ID
-		url := fmt.Sprintf("/api/products/%d/options/99999", productID)
+		url := fmt.Sprintf("/api/product/%d/option/99999", productID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -385,7 +386,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Try to delete it using product 6's URL
 		productID2 := 6
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID2, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID2, optionID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -402,7 +403,7 @@ func TestDeleteProductOption(t *testing.T) {
 		option := createOption(productID, "length", "Length", 1)
 		optionID := int(option["id"].(float64))
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 
 		// Delete first time - should succeed
 		w1 := client.Delete(t, url)
@@ -426,7 +427,7 @@ func TestDeleteProductOption(t *testing.T) {
 		// Variants 14 and 15 use option 12 (Size) and option 13 (Color)
 		productID := 7
 		optionToDelete := 12 // Size option used by variants
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionToDelete)
+		deleteURL := fmt.Sprintf("/api/product/%d/option/%d", productID, optionToDelete)
 		w := client.Delete(t, deleteURL)
 
 		// Should return 400 or 409 (Conflict)
@@ -452,7 +453,7 @@ func TestDeleteProductOption(t *testing.T) {
 		productID := 5
 
 		// Get initial count
-		getURL := fmt.Sprintf("/api/products/%d/options", productID)
+		getURL := fmt.Sprintf("/api/product/%d/option", productID)
 		wGetInitial := client.Get(t, getURL)
 		getInitialResponse := helpers.AssertSuccessResponse(t, wGetInitial, http.StatusOK)
 		initialOptionsData := helpers.GetResponseData(t, getInitialResponse, "options")
@@ -467,7 +468,7 @@ func TestDeleteProductOption(t *testing.T) {
 		option2ID := int(option2["id"].(float64))
 
 		// Delete the second option
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID, option2ID)
+		deleteURL := fmt.Sprintf("/api/product/%d/option/%d", productID, option2ID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -512,7 +513,7 @@ func TestDeleteProductOption(t *testing.T) {
 		option1ID := int(option1["id"].(float64))
 
 		// Get initial count for product 2
-		getURL2 := fmt.Sprintf("/api/products/%d/options", productID2)
+		getURL2 := fmt.Sprintf("/api/product/%d/option", productID2)
 		wGetInitial2 := client.Get(t, getURL2)
 		getInitialResponse2 := helpers.AssertSuccessResponse(t, wGetInitial2, http.StatusOK)
 		initialOptionsData2 := helpers.GetResponseData(t, getInitialResponse2, "options")
@@ -520,7 +521,7 @@ func TestDeleteProductOption(t *testing.T) {
 		initialCount2 := len(initialOptions2)
 
 		// Delete option from product 1
-		deleteURL := fmt.Sprintf("/api/products/%d/options/%d", productID1, option1ID)
+		deleteURL := fmt.Sprintf("/api/product/%d/option/%d", productID1, option1ID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -553,12 +554,12 @@ func TestDeleteProductOption(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Soft delete the product
-		deleteProductURL := fmt.Sprintf("/api/products/%d", productID)
+		deleteProductURL := fmt.Sprintf("/api/product/%d", productID)
 		wDelete := client.Delete(t, deleteProductURL)
 		helpers.AssertSuccessResponse(t, wDelete, http.StatusOK)
 
 		// Try to delete option from soft-deleted product
-		deleteOptionURL := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		deleteOptionURL := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Delete(t, deleteOptionURL)
 
 		// Should return 404 since product is soft-deleted

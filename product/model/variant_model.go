@@ -13,9 +13,10 @@ type VariantOptionResponse struct {
 
 // ProductBasicInfo represents basic product information in variant response
 type ProductBasicInfo struct {
-	ID    uint   `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Brand string `json:"brand,omitempty"`
+	ID         uint   `json:"id,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Brand      string `json:"brand,omitempty"`
+	CategoryID uint   `json:"categoryId,omitempty"`
 }
 
 // VariantDetailResponse represents detailed variant information
@@ -29,6 +30,7 @@ type VariantDetailResponse struct {
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
+	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 	CreatedAt       string                  `json:"createdAt,omitempty"`
 	UpdatedAt       string                  `json:"updatedAt,omitempty"`
@@ -43,6 +45,7 @@ type VariantResponse struct {
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
+	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 }
 
@@ -147,6 +150,10 @@ type ListVariantsRequest struct {
 	// Filter by product IDs (optional - if you want variants across multiple products)
 	// Supports format: ?productIds=1,2,3
 	ProductIDs string `form:"productIds"`
+
+	// Filter by Category IDs (optional)
+	// Supports format: ?categoryIds=1,2,3
+	CategoryIDs string `form:"categoryIds"`
 
 	// Price range filters
 	MinPrice *float64 `form:"minPrice" binding:"omitempty,gte=0"`

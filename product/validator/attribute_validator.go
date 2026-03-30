@@ -4,7 +4,7 @@ import (
 	"regexp"
 
 	commonError "ecommerce-be/common/error"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 )
 
 // ValidateKey validates the attribute key format

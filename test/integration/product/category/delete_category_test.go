@@ -18,7 +18,8 @@ func TestDeleteCategory(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -40,7 +41,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Delete Test Global Category",
 			"description": "Category to be deleted",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -50,7 +51,7 @@ func TestDeleteCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Delete the category
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteW,
@@ -58,7 +59,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify category is deleted - GET by ID should return 404
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -76,7 +77,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Seller Delete Test Category",
 			"description": "Seller category to be deleted",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -86,7 +87,7 @@ func TestDeleteCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Delete the category
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteW,
@@ -94,7 +95,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify category is deleted
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getW,
@@ -109,7 +110,7 @@ func TestDeleteCategory(t *testing.T) {
 
 		// Try to delete non-existent category
 		nonExistentID := uint(99999)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", nonExistentID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", nonExistentID))
 
 		// Note: GORM Delete may not error on non-existent records
 		// We need to verify the actual behavior
@@ -134,7 +135,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Parent For Delete Test",
 			"description": "Parent category with children",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -149,10 +150,10 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Child category",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", childReq)
+		client.Post(t, "/api/product/category", childReq)
 
 		// Try to delete parent category (should fail)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", parentID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", parentID))
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -160,7 +161,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify parent still exists
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", parentID))
 		assert.Equal(t, http.StatusOK, getW.Code, "Parent category should still exist")
 	})
 
@@ -184,7 +185,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Parent With Both Delete Test",
 			"description": "Parent with children and products",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -199,7 +200,7 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Child category",
 			"parentId":    parentID,
 		}
-		client.Post(t, "/api/categories", childReq)
+		client.Post(t, "/api/product/category", childReq)
 
 		// Create product in parent category
 		productReq := map[string]interface{}{
@@ -212,7 +213,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.Post(t, "/api/products", productReq)
 
 		// Try to delete parent (should fail on first check)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", parentID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", parentID))
 		assert.Equal(t, http.StatusBadRequest, deleteW.Code, "Should return 400")
 
 		// Should fail with either children or products error
@@ -235,7 +236,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken("")
 
 		// Try to delete without authentication
-		deleteW := client.Delete(t, "/api/categories/1")
+		deleteW := client.Delete(t, "/api/product/category/1")
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -252,7 +253,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Category For Customer Delete Test",
 			"description": "Category that customer will try to delete",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -266,7 +267,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(customerToken)
 
 		// Try to delete as customer (should fail)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -275,7 +276,7 @@ func TestDeleteCategory(t *testing.T) {
 
 		// Verify category still exists
 		client.SetToken(adminToken)
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		assert.Equal(t, http.StatusOK, getW.Code, "Category should still exist")
 	})
 
@@ -292,7 +293,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Seller1 Category Delete Test",
 			"description": "Seller1's category",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -306,7 +307,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(customerToken)
 
 		// Try to delete seller's category (should fail)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 
 		// Should be 403 Forbidden
 		assert.Equal(
@@ -317,7 +318,7 @@ func TestDeleteCategory(t *testing.T) {
 
 		// Verify category still exists
 		client.SetToken(seller1Token)
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		assert.Equal(t, http.StatusOK, getW.Code, "Category should still exist")
 	})
 
@@ -330,7 +331,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Global Category Seller Delete Test",
 			"description": "Global category that seller will try to delete",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -344,7 +345,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Try to delete global category (should fail)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -353,7 +354,7 @@ func TestDeleteCategory(t *testing.T) {
 
 		// Verify category still exists
 		client.SetToken(adminToken)
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		assert.Equal(t, http.StatusOK, getW.Code, "Global category should still exist")
 	})
 
@@ -366,7 +367,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Seller Category Admin Delete Test",
 			"description": "Seller category that admin will delete",
 		}
-		sellerW := client.Post(t, "/api/categories", sellerReq)
+		sellerW := client.Post(t, "/api/product/category", sellerReq)
 		sellerResponse := helpers.AssertSuccessResponse(
 			t,
 			sellerW,
@@ -384,7 +385,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Global Category Admin Delete Test",
 			"description": "Global category that admin will delete",
 		}
-		globalW := client.Post(t, "/api/categories", globalReq)
+		globalW := client.Post(t, "/api/product/category", globalReq)
 		globalResponse := helpers.AssertSuccessResponse(
 			t,
 			globalW,
@@ -394,7 +395,7 @@ func TestDeleteCategory(t *testing.T) {
 		globalCategoryID := uint(globalCategory["id"].(float64))
 
 		// Admin deletes seller-specific category
-		deleteSellerW := client.Delete(t, fmt.Sprintf("/api/categories/%d", sellerCategoryID))
+		deleteSellerW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", sellerCategoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteSellerW,
@@ -402,7 +403,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Admin deletes global category
-		deleteGlobalW := client.Delete(t, fmt.Sprintf("/api/categories/%d", globalCategoryID))
+		deleteGlobalW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", globalCategoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteGlobalW,
@@ -410,10 +411,10 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify both are deleted
-		getSellerW := client.Get(t, fmt.Sprintf("/api/categories/%d", sellerCategoryID))
+		getSellerW := client.Get(t, fmt.Sprintf("/api/product/category/%d", sellerCategoryID))
 		assert.Equal(t, http.StatusNotFound, getSellerW.Code, "Seller category should be deleted")
 
-		getGlobalW := client.Get(t, fmt.Sprintf("/api/categories/%d", globalCategoryID))
+		getGlobalW := client.Get(t, fmt.Sprintf("/api/product/category/%d", globalCategoryID))
 		assert.Equal(t, http.StatusNotFound, getGlobalW.Code, "Global category should be deleted")
 	})
 
@@ -431,7 +432,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Grandparent Delete Test",
 			"description": "Top level category",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
@@ -446,7 +447,7 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Second level category",
 			"parentId":    parentID,
 		}
-		childW := client.Post(t, "/api/categories", childReq)
+		childW := client.Post(t, "/api/product/category", childReq)
 		childResponse := helpers.AssertSuccessResponse(
 			t,
 			childW,
@@ -461,10 +462,10 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Third level category",
 			"parentId":    childID,
 		}
-		client.Post(t, "/api/categories", grandchildReq)
+		client.Post(t, "/api/product/category", grandchildReq)
 
 		// Try to delete grandparent (should fail because it has children)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", parentID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", parentID))
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -472,7 +473,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify grandparent still exists
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", parentID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", parentID))
 		assert.Equal(t, http.StatusOK, getW.Code, "Grandparent should still exist")
 	})
 
@@ -482,7 +483,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Try to delete with invalid ID format
-		deleteW := client.Delete(t, "/api/categories/invalid")
+		deleteW := client.Delete(t, "/api/product/category/invalid")
 		helpers.AssertErrorResponse(
 			t,
 			deleteW,
@@ -500,7 +501,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Double Delete Test Category",
 			"description": "Category to delete twice",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -510,7 +511,7 @@ func TestDeleteCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// First delete (should succeed)
-		delete1W := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		delete1W := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			delete1W,
@@ -518,7 +519,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Second delete attempt (should fail or succeed depending on GORM behavior)
-		delete2W := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		delete2W := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 
 		// Note: GORM Delete may return success even if record doesn't exist
 		// We expect either 404 or 200 depending on validation logic
@@ -539,7 +540,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Hard Delete Verification Test",
 			"description": "Category to verify hard delete",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
@@ -549,11 +550,11 @@ func TestDeleteCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Verify category exists in list
-		getAllW := client.Get(t, "/api/categories")
+		getAllW := client.Get(t, "/api/product/category")
 		assert.Equal(t, http.StatusOK, getAllW.Code)
 
 		// Delete the category
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteW,
@@ -561,7 +562,7 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify category is NOT in GET all categories
-		getAllAfterW := client.Get(t, "/api/categories")
+		getAllAfterW := client.Get(t, "/api/product/category")
 		assert.Equal(t, http.StatusOK, getAllAfterW.Code)
 		getAllResponse := helpers.ParseResponse(t, getAllAfterW.Body)
 		data := getAllResponse["data"].(map[string]interface{})
@@ -579,7 +580,7 @@ func TestDeleteCategory(t *testing.T) {
 		}
 
 		// Verify GET by ID returns 404
-		getByIDW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getByIDW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getByIDW,
@@ -597,7 +598,7 @@ func TestDeleteCategory(t *testing.T) {
 			"name":        "Level A Delete Test",
 			"description": "Top level",
 		}
-		aW := client.Post(t, "/api/categories", aReq)
+		aW := client.Post(t, "/api/product/category", aReq)
 		aResponse := helpers.AssertSuccessResponse(t, aW, http.StatusCreated)
 		aCategory := helpers.GetResponseData(t, aResponse, "category")
 		aID := uint(aCategory["id"].(float64))
@@ -608,7 +609,7 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Second level",
 			"parentId":    aID,
 		}
-		bW := client.Post(t, "/api/categories", bReq)
+		bW := client.Post(t, "/api/product/category", bReq)
 		bResponse := helpers.AssertSuccessResponse(t, bW, http.StatusCreated)
 		bCategory := helpers.GetResponseData(t, bResponse, "category")
 		bID := uint(bCategory["id"].(float64))
@@ -619,7 +620,7 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Third level",
 			"parentId":    bID,
 		}
-		cW := client.Post(t, "/api/categories", cReq)
+		cW := client.Post(t, "/api/product/category", cReq)
 		cResponse := helpers.AssertSuccessResponse(t, cW, http.StatusCreated)
 		cCategory := helpers.GetResponseData(t, cResponse, "category")
 		cID := uint(cCategory["id"].(float64))
@@ -630,13 +631,13 @@ func TestDeleteCategory(t *testing.T) {
 			"description": "Fourth level - leaf node",
 			"parentId":    cID,
 		}
-		dW := client.Post(t, "/api/categories", dReq)
+		dW := client.Post(t, "/api/product/category", dReq)
 		dResponse := helpers.AssertSuccessResponse(t, dW, http.StatusCreated)
 		dCategory := helpers.GetResponseData(t, dResponse, "category")
 		dID := uint(dCategory["id"].(float64))
 
 		// Delete D (leaf node - should succeed)
-		deleteW := client.Delete(t, fmt.Sprintf("/api/categories/%d", dID))
+		deleteW := client.Delete(t, fmt.Sprintf("/api/product/category/%d", dID))
 		helpers.AssertSuccessResponse(
 			t,
 			deleteW,
@@ -644,17 +645,17 @@ func TestDeleteCategory(t *testing.T) {
 		)
 
 		// Verify D is deleted
-		getDW := client.Get(t, fmt.Sprintf("/api/categories/%d", dID))
+		getDW := client.Get(t, fmt.Sprintf("/api/product/category/%d", dID))
 		assert.Equal(t, http.StatusNotFound, getDW.Code, "D should be deleted")
 
 		// Verify A, B, C still exist
-		getAW := client.Get(t, fmt.Sprintf("/api/categories/%d", aID))
+		getAW := client.Get(t, fmt.Sprintf("/api/product/category/%d", aID))
 		assert.Equal(t, http.StatusOK, getAW.Code, "A should still exist")
 
-		getBW := client.Get(t, fmt.Sprintf("/api/categories/%d", bID))
+		getBW := client.Get(t, fmt.Sprintf("/api/product/category/%d", bID))
 		assert.Equal(t, http.StatusOK, getBW.Code, "B should still exist")
 
-		getCW := client.Get(t, fmt.Sprintf("/api/categories/%d", cID))
+		getCW := client.Get(t, fmt.Sprintf("/api/product/category/%d", cID))
 		assert.Equal(t, http.StatusOK, getCW.Code, "C should still exist")
 	})
 }

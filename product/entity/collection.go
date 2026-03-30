@@ -2,6 +2,7 @@ package entity
 
 import (
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/helper"
 
 	"gorm.io/gorm"
 )
@@ -38,15 +39,7 @@ func (Collection) TableName() string {
 func (c *Collection) BeforeCreate(tx *gorm.DB) error {
 	// Generate slug if empty
 	if c.Slug == "" {
-		c.Slug = generateSlug(c.Name)
+		c.Slug = helper.GenerateSlug(c.Name)
 	}
 	return nil
-}
-
-// Helper function to generate slug (basic implementation)
-func generateSlug(name string) string {
-	// This is a simple implementation
-	// In production, use a proper slug generation library
-	// For now, just return the name (will be improved later)
-	return name
 }

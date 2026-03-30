@@ -47,7 +47,7 @@ func runSQLFile(t *testing.T, sqlDB *sql.DB, relativePath string) {
 }
 
 // RunMigrations runs the SQL migration scripts
-func (tc *TestContainers) RunMigrations(t *testing.T, migrationPath string) {
+func (tc *TestContainer) RunMigrations(t *testing.T, migrationPath string) {
 	sqlDB, err := tc.DB.DB()
 	if err != nil {
 		t.Fatalf("failed to get sql.DB from gorm.DB: %v", err)
@@ -56,7 +56,7 @@ func (tc *TestContainers) RunMigrations(t *testing.T, migrationPath string) {
 }
 
 // RunSeeds runs the SQL seed scripts
-func (tc *TestContainers) RunSeeds(t *testing.T, seedPath string) {
+func (tc *TestContainer) RunSeeds(t *testing.T, seedPath string) {
 	sqlDB, err := tc.DB.DB()
 	if err != nil {
 		t.Fatalf("failed to get sql.DB from gorm.DB: %v", err)
@@ -66,7 +66,7 @@ func (tc *TestContainers) RunSeeds(t *testing.T, seedPath string) {
 
 // RunAllMigrations automatically discovers and runs all migration files in order
 // Migrations are expected to be in the migrations/ directory and numbered (e.g., 001_*.sql, 002_*.sql)
-func (tc *TestContainers) RunAllMigrations(t *testing.T) {
+func (tc *TestContainer) RunAllMigrations(t *testing.T) {
 	migrationsDir := "migrations"
 	absPath, err := getAbsolutePath(migrationsDir)
 	if err != nil {
@@ -113,12 +113,38 @@ func (tc *TestContainers) RunAllMigrations(t *testing.T) {
 }
 
 // RunAllSeeds automatically discovers and runs all seed files in order
-// Seeds are expected to be in the migrations/seeds/ directory and numbered (e.g., 001_*.sql, 002_*.sql)
-func (tc *TestContainers) RunAllSeeds(t *testing.T) {
-	seedsDir := "migrations/seeds"
+// Seeds are expected to be in the migrations/seeds/core/ and migrations/seeds/mock/ directories
+// Core seeds run first (roles, geo data, plans), then mock seeds (users, products, etc.)
+func (tc *TestContainer) RunAllSeeds(t *testing.T) {
+	// Run core seeds first (required base data)
+	tc.RunAllCoreSeeds(t)
+	// Then run mock seeds (test data)
+	tc.RunAllMockSeeds(t)
+}
+
+// RunAllCoreSeeds runs all seed files from migrations/seeds/core/ in order
+// Core seeds contain essential base data like roles, geo data, plans
+func (tc *TestContainer) RunAllCoreSeeds(t *testing.T) {
+	tc.runSeedsFromDir(t, "migrations/seeds/core")
+}
+
+// RunAllMockSeeds runs all seed files from migrations/seeds/mock/ in order
+// Mock seeds contain test data like users, products, wishlists
+func (tc *TestContainer) RunAllMockSeeds(t *testing.T) {
+	tc.runSeedsFromDir(t, "migrations/seeds/mock")
+}
+
+// runSeedsFromDir is a helper that runs all SQL seed files from a specific directory
+func (tc *TestContainer) runSeedsFromDir(t *testing.T, seedsDir string) {
 	absPath, err := getAbsolutePath(seedsDir)
 	if err != nil {
 		t.Fatalf("Failed to get absolute path for seeds directory: %v", err)
+	}
+
+	// Check if directory exists
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		t.Logf("Seeds directory %s does not exist, skipping", seedsDir)
+		return
 	}
 
 	// Read all files in seeds directory
@@ -154,5 +180,4 @@ func (tc *TestContainers) RunAllSeeds(t *testing.T) {
 		t.Logf("  - Running seed: %s", fileName)
 		tc.RunSeeds(t, seedPath)
 	}
-	// t.Logf("All seeds completed successfully")
 }

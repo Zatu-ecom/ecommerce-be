@@ -21,8 +21,9 @@ func TestBulkAddOptionValues(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -47,7 +48,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 			"position":    position,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "option")
@@ -59,7 +60,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 			"values": values,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d/values/bulk", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value/bulk", productID, optionID)
 		return client.Post(t, url, requestBody)
 	}
 
@@ -359,7 +360,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 		}
 
 		requestBody := map[string]interface{}{"values": values}
-		w := client.Post(t, "/api/products/invalid/options/8/values/bulk", requestBody)
+		w := client.Post(t, "/api/product/invalid/option/8/value/bulk", requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -373,7 +374,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 		}
 
 		requestBody := map[string]interface{}{"values": values}
-		w := client.Post(t, "/api/products/5/options/abc/values/bulk", requestBody)
+		w := client.Post(t, "/api/product/5/option/abc/value/bulk", requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -418,7 +419,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 			"values": []map[string]interface{}{},
 		}
 
-		url := fmt.Sprintf("/api/products/5/options/%d/values/bulk", optionID)
+		url := fmt.Sprintf("/api/product/5/option/%d/value/bulk", optionID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -434,7 +435,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 
 		requestBody := map[string]interface{}{}
 
-		url := fmt.Sprintf("/api/products/5/options/%d/values/bulk", optionID)
+		url := fmt.Sprintf("/api/product/5/option/%d/value/bulk", optionID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -452,7 +453,7 @@ func TestBulkAddOptionValues(t *testing.T) {
 			"values": "not-an-array",
 		}
 
-		url := fmt.Sprintf("/api/products/5/options/%d/values/bulk", optionID)
+		url := fmt.Sprintf("/api/product/5/option/%d/value/bulk", optionID)
 		w := client.Post(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)

@@ -20,11 +20,12 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 	// Run all migrations including the stored procedure
 	containers.RunAllMigrations(t)
+	containers.RunAllCoreSeeds(t)
 
 	// Run seeds with comprehensive test data
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/003_seed_related_products_test_data.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/003_seed_related_products.sql")
 
 	// Setup test server with real database and Redis
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -42,7 +43,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -79,7 +80,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=25", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=25", productID)
 
 		w := client.Get(t, url)
 
@@ -101,7 +102,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		productID := 101
 
 		// Get page 1
-		url1 := fmt.Sprintf("/api/products/%d/related?page=1&limit=10", productID)
+		url1 := fmt.Sprintf("/api/product/%d/related?page=1&limit=10", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		data1 := response1["data"].(map[string]interface{})
@@ -113,7 +114,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		// Get page 2 if available
 		if pagination1["hasNext"].(bool) {
-			url2 := fmt.Sprintf("/api/products/%d/related?page=2&limit=10", productID)
+			url2 := fmt.Sprintf("/api/product/%d/related?page=2&limit=10", productID)
 			w2 := client.Get(t, url2)
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 			data2 := response2["data"].(map[string]interface{})
@@ -141,7 +142,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		productID := 101
 
 		// Get first page to know total pages
-		url1 := fmt.Sprintf("/api/products/%d/related?limit=10", productID)
+		url1 := fmt.Sprintf("/api/product/%d/related?limit=10", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		data1 := response1["data"].(map[string]interface{})
@@ -151,7 +152,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		if totalPages > 1 {
 			// Get last page
 			urlLast := fmt.Sprintf(
-				"/api/products/%d/related?page=%d&limit=10",
+				"/api/product/%d/related?page=%d&limit=10",
 				productID,
 				totalPages,
 			)
@@ -177,7 +178,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=0", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=0", productID)
 
 		w := client.Get(t, url)
 
@@ -191,7 +192,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=101", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=101", productID)
 
 		w := client.Get(t, url)
 
@@ -205,7 +206,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?page=999&limit=10", productID)
+		url := fmt.Sprintf("/api/product/%d/related?page=999&limit=10", productID)
 
 		w := client.Get(t, url)
 
@@ -231,7 +232,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		productID := 101
 		url := fmt.Sprintf(
-			"/api/products/%d/related?strategies=same_category,same_brand",
+			"/api/product/%d/related?strategies=same_category,same_brand",
 			productID,
 		)
 
@@ -265,7 +266,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 105 // Has tags
-		url := fmt.Sprintf("/api/products/%d/related?strategies=tag_matching", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=tag_matching", productID)
 
 		w := client.Get(t, url)
 
@@ -287,7 +288,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?strategies=invalid_strategy", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=invalid_strategy", productID)
 
 		w := client.Get(t, url)
 
@@ -301,7 +302,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?strategies=all", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=all", productID)
 
 		w := client.Get(t, url)
 
@@ -323,7 +324,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101 // Seller 2's product
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -347,7 +348,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		// Try to access Seller 2's product with Seller 3's credentials
 		productID := 101 // Seller 2's product
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -367,7 +368,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 			// Product 8 or 9 belongs to Seller 4 (Home & Living)
 			// They might have limited related products
 			productID := 8
-			url := fmt.Sprintf("/api/products/%d/related", productID)
+			url := fmt.Sprintf("/api/product/%d/related", productID)
 
 			w := client.Get(t, url)
 
@@ -398,7 +399,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken("")
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -412,7 +413,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
 
-		url := "/api/products/invalid/related"
+		url := "/api/product/invalid/related"
 
 		w := client.Get(t, url)
 
@@ -426,7 +427,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 99999 // Non-existent product
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -446,7 +447,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		// Use a product that might have no tags (if any exist in seed data)
 		// For this test, we'll use any product and verify tag_matching strategy is not used
 		productID := 142 // Anker headphones - might have minimal tags
-		url := fmt.Sprintf("/api/products/%d/related?strategies=tag_matching", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=tag_matching", productID)
 
 		w := client.Get(t, url)
 
@@ -466,7 +467,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		// Product 150 is ultra budget (~$99)
 		productID := 150
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -492,7 +493,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?page=999", productID)
+		url := fmt.Sprintf("/api/product/%d/related?page=999", productID)
 
 		w := client.Get(t, url)
 
@@ -518,7 +519,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		// Product 102 (iPhone 13) should match 101 via multiple strategies
 		productID := 102
-		url := fmt.Sprintf("/api/products/%d/related?limit=50", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=50", productID)
 
 		w := client.Get(t, url)
 

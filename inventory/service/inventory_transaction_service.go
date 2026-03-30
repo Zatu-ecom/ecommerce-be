@@ -107,7 +107,7 @@ func (s *InventoryTransactionServiceImpl) buildTransactionsFromParams(
 			Type:        p.TransactionType,
 
 			// Actual quantity tracking
-			QuantityChange:       p.QuantityChange,
+			QuantityChange: p.QuantityChange,
 			BeforeQuantity: p.BeforeQuantity,
 			AfterQuantity:  p.AfterQuantity,
 
@@ -210,7 +210,7 @@ func (s *InventoryTransactionServiceImpl) buildTransactionResponse(
 		Type:        txn.Type,
 
 		// Actual quantity tracking
-		QuantityChange:       txn.QuantityChange,
+		QuantityChange: txn.QuantityChange,
 		BeforeQuantity: txn.BeforeQuantity,
 		AfterQuantity:  txn.AfterQuantity,
 
@@ -343,13 +343,14 @@ func (s *InventoryTransactionServiceImpl) fetchUserMap(
 		userIDs,
 		batchSize,
 		func(batchIDs []uint) (map[uint]string, error) {
-			return s.fetchUserBatchByIDs(batchIDs, sellerIDPtr)
+			return s.fetchUserBatchByIDs(ctx, batchIDs, sellerIDPtr)
 		},
 	)
 }
 
 // fetchUserBatchByIDs fetches a batch of users by IDs
 func (s *InventoryTransactionServiceImpl) fetchUserBatchByIDs(
+	ctx context.Context,
 	userIDs []uint,
 	sellerIDPtr *uint,
 ) (map[uint]string, error) {
@@ -362,7 +363,7 @@ func (s *InventoryTransactionServiceImpl) fetchUserBatchByIDs(
 	}
 
 	// TODO [MICROSERVICE]: When moving to microservices, replace this with HTTP call to User Service
-	response, err := s.userQueryService.ListUsers(filter, sellerIDPtr)
+	response, err := s.userQueryService.ListUsers(ctx, filter, sellerIDPtr)
 	if err != nil {
 		return nil, err
 	}

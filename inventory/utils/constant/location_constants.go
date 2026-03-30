@@ -40,15 +40,15 @@ const (
 	LOCATION_NAME_LENGTH_MSG      = "Location name must be between 3 and 255 characters"
 	LOCATION_TYPE_REQUIRED_MSG    = "Location type is required"
 	LOCATION_ADDRESS_REQUIRED_MSG = "Location address is required"
-	ADDRESS_STREET_REQUIRED_MSG   = "Address street is required"
-	ADDRESS_STREET_LENGTH_MSG     = "Address street must be at least 5 characters"
+	ADDRESS_REQUIRED_MSG          = "Address is required"
+	ADDRESS_LENGTH_MSG            = "Address must be between 5 and 500 characters"
 	ADDRESS_CITY_REQUIRED_MSG     = "Address city is required"
-	ADDRESS_CITY_LENGTH_MSG       = "Address city must be at least 2 characters"
+	ADDRESS_CITY_LENGTH_MSG       = "Address city must be between 2 and 100 characters"
 	ADDRESS_STATE_REQUIRED_MSG    = "Address state is required"
-	ADDRESS_STATE_LENGTH_MSG      = "Address state must be at least 2 characters"
+	ADDRESS_STATE_LENGTH_MSG      = "Address state must be between 2 and 100 characters"
 	ADDRESS_ZIPCODE_REQUIRED_MSG  = "Address zip code is required"
 	ADDRESS_COUNTRY_REQUIRED_MSG  = "Address country is required"
-	ADDRESS_COUNTRY_LENGTH_MSG    = "Address country must be at least 2 characters"
+	ADDRESS_LANDMARK_LENGTH_MSG   = "Address landmark must not exceed 255 characters"
 )
 
 // Location field names

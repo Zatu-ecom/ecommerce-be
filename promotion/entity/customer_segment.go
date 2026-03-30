@@ -1,9 +1,6 @@
 package entity
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-
 	"ecommerce-be/common/db"
 )
 
@@ -23,34 +20,11 @@ type CustomerSegment struct {
 	Rules SegmentRules `json:"rules" gorm:"column:rules;type:jsonb;not null"`
 
 	// Metadata
-	Metadata JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 }
 
-// SegmentRules holds the segmentation logic in JSONB format
-type SegmentRules map[string]interface{}
-
-// Scan implements sql.Scanner interface
-func (sr *SegmentRules) Scan(value interface{}) error {
-	if value == nil {
-		*sr = make(SegmentRules)
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-
-	return json.Unmarshal(bytes, sr)
-}
-
-// Value implements driver.Valuer interface
-func (sr SegmentRules) Value() (driver.Value, error) {
-	if sr == nil {
-		return json.Marshal(make(map[string]interface{}))
-	}
-	return json.Marshal(sr)
-}
+// SegmentRules holds the segmentation logic in JSONB format.
+type SegmentRules = db.JSONMap
 
 // TableName specifies the table name
 func (CustomerSegment) TableName() string {

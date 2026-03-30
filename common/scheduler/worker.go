@@ -74,12 +74,12 @@ func getPoolSize() int {
 	if cfg == nil {
 		return defaultPoolSize
 	}
-	
+
 	poolSize := cfg.Scheduler.WorkerPoolSize
 	if poolSize <= 0 {
 		return defaultPoolSize
 	}
-	
+
 	return poolSize
 }
 

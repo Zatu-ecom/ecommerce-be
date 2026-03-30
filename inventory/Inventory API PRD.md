@@ -29,8 +29,8 @@ common/response.go).
     "country": "USA"
   }
 }
-
 ```
+
 ### Inventory Object
 
 ```json
@@ -107,6 +107,7 @@ common/response.go).
 }
 
 ```
+
 ### 3.3 Update Location
 
 **Endpoint**: `PUT /inventory/locations/:id` **Description**: Update location details (Name, Priority, Address).
@@ -136,7 +137,7 @@ common/response.go).
 
 ### 4.1 Get Inventory for Variant
 
-**Endpoint**: `GET /inventory/products/:variantId` **Description**: Get stock levels for a specific product variant across all locations.
+**Endpoint**: `GET /inventory/product/:variantId` **Description**: Get stock levels for a specific product variant across all locations.
 
 **Response (200 OK)**:
 
@@ -234,6 +235,7 @@ common/response.go).
 - `quantity`: Must be <= Available stock at Source.
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -266,6 +268,7 @@ common/response.go).
 - **CANCELLED**: Releases reserved stock at Source.
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -274,7 +277,6 @@ common/response.go).
 }
 ```
 
-
 ---
 
 ## 6. Validation Rules
@@ -282,66 +284,66 @@ common/response.go).
 ### 6.1 Location Validations
 
 - **Name**:
-    - Required.
-    - Min length: 3 characters.
-    - Max length: 255 characters.
-    - Must be unique per seller (case-insensitive).
+  - Required.
+  - Min length: 3 characters.
+  - Max length: 255 characters.
+  - Must be unique per seller (case-insensitive).
 - **Type**:
-    - Required.
-    - Must be one of: `WAREHOUSE`, `STORE`, `RETURN_CENTER`.
+  - Required.
+  - Must be one of: `WAREHOUSE`, `STORE`, `RETURN_CENTER`.
 - **Priority**:
-    - Optional (default: 0).
-    - Must be >= 0.
+  - Optional (default: 0).
+  - Must be >= 0.
 - **Address**:
-    - Required.
-    - `street`: Required, min 5 chars.
-    - `city`: Required, min 2 chars.
-    - `state`: Required, min 2 chars.
-    - `zipCode`: Required, valid format check (regex).
-    - `country`: Required, min 2 chars.
+  - Required.
+  - `street`: Required, min 5 chars.
+  - `city`: Required, min 2 chars.
+  - `state`: Required, min 2 chars.
+  - `zipCode`: Required, valid format check (regex).
+  - `country`: Required, min 2 chars.
 
 ### 6.2 Inventory Adjustment Validations
 
 - **VariantID**:
-    - Required.
-    - Must exist in `product_variants` table.
+  - Required.
+  - Must exist in `product_variants` table.
 - **LocationID**:
-    - Required.
-    - Must exist in `locations` table.
-    - Location must be `isActive: true`.
+  - Required.
+  - Must exist in `locations` table.
+  - Location must be `isActive: true`.
 - **Quantity**:
-    - Required.
-    - Must be > 0.
-    - For `REMOVE` type: Must be <= `AvailableQuantity` (cannot remove more than what's available).
+  - Required.
+  - Must be > 0.
+  - For `REMOVE` type: Must be <= `AvailableQuantity` (cannot remove more than what's available).
 - **Type**:
-    - Required.
-    - Must be one of: `ADD`, `REMOVE`, `SET`.
+  - Required.
+  - Must be one of: `ADD`, `REMOVE`, `SET`.
 - **Reason**:
-    - Required.
-    - Min length: 5 characters (e.g., "Stock count correction", "Damaged goods").
+  - Required.
+  - Min length: 5 characters (e.g., "Stock count correction", "Damaged goods").
 
 ### 6.3 Stock Transfer Validations
 
 - **SourceLocationID**:
-    - Required.
-    - Must exist and be active.
+  - Required.
+  - Must exist and be active.
 - **DestinationLocationID**:
-    - Required.
-    - Must exist and be active.
-    - **Constraint**: `SourceLocationID` != `DestinationLocationID`.
+  - Required.
+  - Must exist and be active.
+  - **Constraint**: `SourceLocationID` != `DestinationLocationID`.
 - **Items**:
-    - Required.
-    - Must contain at least 1 item.
-    - **Duplicate Check**: Same `variantId` cannot appear twice in the list.
+  - Required.
+  - Must contain at least 1 item.
+  - **Duplicate Check**: Same `variantId` cannot appear twice in the list.
 - **Item Quantity**:
-    - Must be > 0.
-    - **Stock Check**: Source location must have `AvailableQuantity` >= `TransferQuantity` for each item.
+  - Must be > 0.
+  - **Stock Check**: Source location must have `AvailableQuantity` >= `TransferQuantity` for each item.
 - **Status Transitions**:
-    - `PENDING` -> `SHIPPED`: Allowed.
-    - `SHIPPED` -> `RECEIVED`: Allowed.
-    - `PENDING` -> `CANCELLED`: Allowed.
-    - `SHIPPED` -> `CANCELLED`: Allowed (requires restocking logic).
-    - `RECEIVED` -> `CANCELLED`: **Not Allowed** (transfer is final).
+  - `PENDING` -> `SHIPPED`: Allowed.
+  - `SHIPPED` -> `RECEIVED`: Allowed.
+  - `PENDING` -> `CANCELLED`: Allowed.
+  - `SHIPPED` -> `CANCELLED`: Allowed (requires restocking logic).
+  - `RECEIVED` -> `CANCELLED`: **Not Allowed** (transfer is final).
 
 ---
 

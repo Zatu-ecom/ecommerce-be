@@ -21,11 +21,12 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 
 	// Run all migrations including the stored procedure
 	containers.RunAllMigrations(t)
+	containers.RunAllCoreSeeds(t)
 
 	// Run seeds with comprehensive test data
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/003_seed_related_products_test_data.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/003_seed_related_products.sql")
 
 	// Setup test server with real database and Redis
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -44,7 +45,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 
 		// Product 101 is iPhone 14 in Smartphones category (ID 4)
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -117,7 +118,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		// Product 101 is iPhone 14 (Apple brand)
 		// Should find other Apple products like MacBook, iPad, Apple Watch
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -165,7 +166,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 
 		// Product 101 is in Smartphones (ID 4), sibling categories: Laptops (5), Tablets (12), etc.
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -214,7 +215,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		// Product 143 (Canon EOS R6) has tags: ["camera", "canon", "mirrorless", "professional"]
 		// Use tag_matching strategy explicitly to force tag-based matching only
 		productID := 143
-		url := fmt.Sprintf("/api/products/%d/related?strategies=tag_matching", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=tag_matching", productID)
 
 		w := client.Get(t, url)
 
@@ -250,7 +251,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		// Product 101 (iPhone 14) price range: ~799-899
 		// Should find products in similar range (25% variance)
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -296,7 +297,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 			// Product 103 is Samsung Galaxy S23 (Samsung brand, Smartphones category)
 			// Should find Samsung Galaxy S24, A54 with bonus points
 			productID := 103
-			url := fmt.Sprintf("/api/products/%d/related", productID)
+			url := fmt.Sprintf("/api/product/%d/related", productID)
 
 			w := client.Get(t, url)
 
@@ -337,7 +338,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=20", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=20", productID)
 
 		w := client.Get(t, url)
 

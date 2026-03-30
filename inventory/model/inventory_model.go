@@ -125,3 +125,20 @@ type InventoryResponseWithPagination struct {
 	common.PaginationResponse
 	Inventories []InventoryResponse `json:"inventories"`
 }
+
+// TotalAvailableQuantityRequest models the batch lookup for total inventory
+type TotalAvailableQuantityRequest struct {
+	VariantIDs []uint `json:"variantIds" form:"variantIds"`
+	ProductIDs []uint `json:"productIds" form:"productIds"`
+}
+
+// VariantAvailableQuantity models the resulting stock sum
+type VariantAvailableQuantity struct {
+	VariantID      uint `json:"variantId"`
+	TotalAvailable int  `json:"totalAvailable"`
+}
+
+// TotalAvailableQuantityResponse models the entire batch stock sum payload
+type TotalAvailableQuantityResponse struct {
+	Items []VariantAvailableQuantity `json:"items"`
+}

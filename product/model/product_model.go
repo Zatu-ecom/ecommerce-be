@@ -100,6 +100,7 @@ type ProductResponse struct {
 	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
 	Images         []string        `json:"images"`                   // Main product images
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
+	IsWishlisted   bool            `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
 
 	// Detail product info (for get product by ID)
 	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
@@ -241,6 +242,7 @@ type GetProductsParams struct {
 	CategoryIDs *string `form:"categoryIds"`
 	Brands      *string `form:"brands"`
 	IDs         *string `form:"ids"`
+	VariantIDs  *string `form:"variantIds"`
 }
 
 type GetProductsFilter struct {
@@ -248,6 +250,7 @@ type GetProductsFilter struct {
 	CategoryIDs []uint
 	Brands      []string
 	IDs         []uint
+	VariantIDs  []uint
 }
 
 func (p *GetProductsParams) ToGetProductsFilter(
@@ -258,6 +261,7 @@ func (p *GetProductsParams) ToGetProductsFilter(
 		CategoryIDs:           helper.ParseCommaSeparatedPtr[uint](p.CategoryIDs),
 		Brands:                helper.ParseCommaSeparatedPtr[string](p.Brands),
 		IDs:                   helper.ParseCommaSeparatedPtr[uint](p.IDs),
+		VariantIDs:            helper.ParseCommaSeparatedPtr[uint](p.VariantIDs),
 	}
 	filter.SellerID = sellerID
 	return filter
