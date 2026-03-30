@@ -18,8 +18,9 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 	containers.RunSeeds(t, "test/integration/data/get_product_by_id_seed_data.sql")
 
 	// Setup test server
@@ -36,7 +37,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/103")
+		w := client.Get(t, "/api/product/103")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -82,7 +83,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/106")
+		w := client.Get(t, "/api/product/106")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -130,7 +131,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/110")
+		w := client.Get(t, "/api/product/110")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -165,7 +166,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/105")
+		w := client.Get(t, "/api/product/105")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -216,7 +217,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		client.SetToken("")
 
-		w := client.Get(t, "/api/products/1")
+		w := client.Get(t, "/api/product/1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -231,9 +232,12 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		// Verify RFC3339 format (contains T and Z or timezone offset)
 		assert.Contains(t, createdAt, "T", "CreatedAt should be in RFC3339 format")
-		assert.True(t,
-			createdAt[len(createdAt)-1:] == "Z" || createdAt[len(createdAt)-6] == '+' || createdAt[len(createdAt)-6] == '-',
-			"CreatedAt should have timezone information")
+		assert.True(
+			t,
+			createdAt[len(createdAt)-1:] == "Z" || createdAt[len(createdAt)-6] == '+' ||
+				createdAt[len(createdAt)-6] == '-',
+			"CreatedAt should have timezone information",
+		)
 
 		assert.Contains(t, updatedAt, "T", "UpdatedAt should be in RFC3339 format")
 

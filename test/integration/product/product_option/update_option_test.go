@@ -19,8 +19,9 @@ func TestUpdateProductOption(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -49,7 +50,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options", productID)
+		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w1 := client.Post(t, url, requestBody1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 		option1 := helpers.GetResponseData(t, response1, "option")
@@ -87,7 +88,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Updated Display Name",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -121,7 +122,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position": 5,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -154,7 +155,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Only DisplayName Changed",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -186,7 +187,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position": 10,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -220,7 +221,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    99,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -249,7 +250,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position": 0,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -277,7 +278,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position": -5,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -308,7 +309,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "AB", // Only 2 characters
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -329,7 +330,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": longDisplayName,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -347,7 +348,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "ABC", // Exactly 3 characters (minimum valid)
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -375,7 +376,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": displayName100,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(
@@ -397,7 +398,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Send invalid JSON (this will be caught by the JSON parser)
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 
 		// Create a raw request with invalid JSON
 		// Note: The client.Put expects a valid map, so we test with empty body
@@ -431,7 +432,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Should Fail",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -448,7 +449,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Should Fail",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -468,7 +469,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		createUrl := fmt.Sprintf("/api/products/%d/options", productID)
+		createUrl := fmt.Sprintf("/api/product/%d/option", productID)
 		wCreate := client.Post(t, createUrl, createBody)
 		createResponse := helpers.AssertSuccessResponse(t, wCreate, http.StatusCreated)
 		option := helpers.GetResponseData(t, createResponse, "option")
@@ -496,7 +497,7 @@ func TestUpdateProductOption(t *testing.T) {
 		}
 
 		// Try to update with different product ID (product 1 owned by different seller)
-		updateUrl := fmt.Sprintf("/api/products/%d/options/%d", differentProductID, optionID)
+		updateUrl := fmt.Sprintf("/api/product/%d/option/%d", differentProductID, optionID)
 		w := client.Put(t, updateUrl, updateBody)
 
 		// Should return 403 forbidden (invalid product-option combination)
@@ -517,7 +518,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    10,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		// Admin should be able to update options
@@ -541,7 +542,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Color Choice - Admin Updated",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		// Admin should be able to update
@@ -562,7 +563,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Customer Update",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		// Should return 403 Forbidden
@@ -587,7 +588,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Use non-existent product ID
 		nonExistentProductID := uint(99999)
-		url := fmt.Sprintf("/api/products/%d/options/%d", nonExistentProductID, optionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", nonExistentProductID, optionID)
 		w := client.Put(t, url, requestBody)
 
 		// Should return 404 Not Found
@@ -606,7 +607,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Should Fail",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", productID, nonExistentOptionID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", productID, nonExistentOptionID)
 		w := client.Put(t, url, requestBody)
 
 		// Should return 404 Not Found
@@ -626,7 +627,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		createUrl5 := fmt.Sprintf("/api/products/%d/options", product5ID)
+		createUrl5 := fmt.Sprintf("/api/product/%d/option", product5ID)
 		wCreate5 := client.Post(t, createUrl5, createBody5)
 		response5 := helpers.AssertSuccessResponse(t, wCreate5, http.StatusCreated)
 		option5 := helpers.GetResponseData(t, response5, "option")
@@ -640,7 +641,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"position":    1,
 		}
 
-		createUrl6 := fmt.Sprintf("/api/products/%d/options", product6ID)
+		createUrl6 := fmt.Sprintf("/api/product/%d/option", product6ID)
 		wCreate6 := client.Post(t, createUrl6, createBody6)
 		response6 := helpers.AssertSuccessResponse(t, wCreate6, http.StatusCreated)
 		option6 := helpers.GetResponseData(t, response6, "option")
@@ -651,7 +652,7 @@ func TestUpdateProductOption(t *testing.T) {
 			"displayName": "Mismatched Update",
 		}
 
-		url := fmt.Sprintf("/api/products/%d/options/%d", product6ID, option5ID)
+		url := fmt.Sprintf("/api/product/%d/option/%d", product6ID, option5ID)
 		w := client.Put(t, url, updateBody)
 
 		// Should return 400 Bad Request (option doesn't belong to this product)
@@ -659,7 +660,7 @@ func TestUpdateProductOption(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 
 		// Reverse: Try to update product 6's option using product 5's endpoint
-		url2 := fmt.Sprintf("/api/products/%d/options/%d", product5ID, option6ID)
+		url2 := fmt.Sprintf("/api/product/%d/option/%d", product5ID, option6ID)
 		w2 := client.Put(t, url2, updateBody)
 
 		// Should also return 400 Bad Request
@@ -679,7 +680,7 @@ func TestUpdateProductOption(t *testing.T) {
 		}
 
 		// Use invalid product ID format
-		url := fmt.Sprintf("/api/products/invalid/options/%d", optionID)
+		url := fmt.Sprintf("/api/product/invalid/option/%d", optionID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -697,7 +698,7 @@ func TestUpdateProductOption(t *testing.T) {
 		}
 
 		// Use invalid option ID format
-		url := fmt.Sprintf("/api/products/%d/options/invalid", productID)
+		url := fmt.Sprintf("/api/product/%d/option/invalid", productID)
 		w := client.Put(t, url, requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)

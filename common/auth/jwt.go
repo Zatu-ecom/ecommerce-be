@@ -8,7 +8,7 @@ import (
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // JWT claims struct with enhanced role-based information
@@ -19,7 +19,7 @@ type Claims struct {
 	RoleName  *string `json:"role_name"`           // Required - pointer to detect missing field
 	RoleLevel *uint   `json:"role_level"`          // Required - pointer to detect missing field
 	SellerID  *uint   `json:"seller_id,omitempty"` // Optional - only for seller-related users
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // TokenUserInfo contains all user information needed for token generation
@@ -49,9 +49,9 @@ func GenerateToken(userInfo TokenUserInfo, secret string) (string, error) {
 		RoleName:  &userInfo.RoleName,
 		RoleLevel: &userInfo.RoleLevel,
 		SellerID:  userInfo.SellerID,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(expiryDuration).Unix(),
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiryDuration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 

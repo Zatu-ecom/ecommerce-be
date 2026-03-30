@@ -8,9 +8,9 @@ import (
 type TransferStatus string
 
 const (
-	TrfPending   TransferStatus = "PENDING"   // Draft
-	TrfShipped   TransferStatus = "SHIPPED"   // Left source location (In-Transit)
-	TrfReceived  TransferStatus = "RECEIVED"  // Arrived at destination
+	TrfPending   TransferStatus = "PENDING"  // Draft
+	TrfShipped   TransferStatus = "SHIPPED"  // Left source location (In-Transit)
+	TrfReceived  TransferStatus = "RECEIVED" // Arrived at destination
 	TrfCancelled TransferStatus = "CANCELLED"
 )
 

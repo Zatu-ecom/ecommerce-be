@@ -44,6 +44,12 @@ type InventoryQueryService interface {
 		filter model.GetInventoriesFilter,
 	) (*model.InventoryResponseWithPagination, error)
 
+	GetTotalAvailableQuantities(
+		ctx context.Context,
+		req model.TotalAvailableQuantityRequest,
+		sellerID uint,
+	) (*model.TotalAvailableQuantityResponse, error)
+
 	GetInventoryByVariantAndLocationPriority(
 		ctx context.Context,
 		items []model.ReservationItem,

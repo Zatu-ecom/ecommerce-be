@@ -1,10 +1,12 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"gorm.io/gorm"
 )
@@ -12,33 +14,31 @@ import (
 // AddressRepository defines the interface for address data operations
 type AddressRepository interface {
 	// Address CRUD operations
-	Create(address *entity.Address) error
-	FindByID(id uint, userID uint) (*entity.Address, error)
-	FindByUserID(userID uint) ([]entity.Address, error)
-	Update(address *entity.Address) error
-	Delete(id uint, userID uint) error
-	SetDefault(id uint, userID uint) error
+	Create(ctx context.Context, address *entity.Address) error
+	FindByID(ctx context.Context, id uint, userID uint) (*entity.Address, error)
+	FindByUserID(ctx context.Context, userID uint) ([]entity.Address, error)
+	Update(ctx context.Context, address *entity.Address) error
+	Delete(ctx context.Context, id uint, userID uint) error
+	SetDefault(ctx context.Context, id uint, userID uint) error
 }
 
 // AddressRepositoryImpl implements the AddressRepository interface
-type AddressRepositoryImpl struct {
-	db *gorm.DB
-}
+type AddressRepositoryImpl struct{}
 
 // NewAddressRepository creates a new instance of AddressRepository
 func NewAddressRepository(db *gorm.DB) AddressRepository {
-	return &AddressRepositoryImpl{db: db}
+	return &AddressRepositoryImpl{}
 }
 
 // Create creates a new address in the database
-func (r *AddressRepositoryImpl) Create(address *entity.Address) error {
+func (r *AddressRepositoryImpl) Create(ctx context.Context, address *entity.Address) error {
 	// If this is the first address or marked as default, ensure it's set as default
 	var count int64
-	r.db.Model(&entity.Address{}).Where("user_id = ?", address.UserID).Count(&count)
+	db.DB(ctx).Model(&entity.Address{}).Where("user_id = ?", address.UserID).Count(&count)
 
 	if count == 0 || address.IsDefault {
 		// If this is the first address or marked as default
-		tx := r.db.Begin()
+		tx := db.DB(ctx).Begin()
 		// Reset all existing addresses to non-default if this one is default
 		if address.IsDefault {
 			if err := tx.Model(&entity.Address{}).Where("user_id = ?", address.UserID).Update("is_default", false).Error; err != nil {
@@ -58,16 +58,23 @@ func (r *AddressRepositoryImpl) Create(address *entity.Address) error {
 		return tx.Commit().Error
 	}
 
-	return r.db.Create(address).Error
+	return db.DB(ctx).Create(address).Error
 }
 
 // FindByID finds an address by ID and user ID
-func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address, error) {
+func (r *AddressRepositoryImpl) FindByID(
+	ctx context.Context,
+	id uint,
+	userID uint,
+) (*entity.Address, error) {
 	var address entity.Address
-	result := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address)
+	result := db.DB(ctx).
+		Preload("Country").
+		Where("id = ? AND user_id = ?", id, userID).
+		First(&address)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.AddressNotFoundMsg)
+			return nil, errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -75,9 +82,12 @@ func (r *AddressRepositoryImpl) FindByID(id uint, userID uint) (*entity.Address,
 }
 
 // FindByUserID finds all addresses for a user
-func (r *AddressRepositoryImpl) FindByUserID(userID uint) ([]entity.Address, error) {
+func (r *AddressRepositoryImpl) FindByUserID(
+	ctx context.Context,
+	userID uint,
+) ([]entity.Address, error) {
 	var addresses []entity.Address
-	result := r.db.Where("user_id = ?", userID).Find(&addresses)
+	result := db.DB(ctx).Preload("Country").Where("user_id = ?", userID).Find(&addresses)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -85,8 +95,8 @@ func (r *AddressRepositoryImpl) FindByUserID(userID uint) ([]entity.Address, err
 }
 
 // Update updates an existing address
-func (r *AddressRepositoryImpl) Update(address *entity.Address) error {
-	tx := r.db.Begin()
+func (r *AddressRepositoryImpl) Update(ctx context.Context, address *entity.Address) error {
+	tx := db.DB(ctx).Begin()
 
 	// If setting as default, reset other addresses
 	if address.IsDefault {
@@ -107,25 +117,25 @@ func (r *AddressRepositoryImpl) Update(address *entity.Address) error {
 }
 
 // Delete deletes an address by ID and user ID
-func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
+func (r *AddressRepositoryImpl) Delete(ctx context.Context, id uint, userID uint) error {
 	// Check if it's the default address
 	var address entity.Address
-	if err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
+	if err := db.DB(ctx).Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New(utils.AddressNotFoundMsg)
+			return errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return err
 	}
 
 	// Don't allow deletion if it's the only address and is default
 	var count int64
-	r.db.Model(&entity.Address{}).Where("user_id = ?", userID).Count(&count)
+	db.DB(ctx).Model(&entity.Address{}).Where("user_id = ?", userID).Count(&count)
 
 	if address.IsDefault && count == 1 {
-		return errors.New(utils.CannotDeleteOnlyDefaultAddressMsg)
+		return errors.New(constant.CANNOT_DELETE_ONLY_DEFAULT_ADDRESS_MSG)
 	}
 
-	tx := r.db.Begin()
+	tx := db.DB(ctx).Begin()
 
 	if err := tx.Where("id = ? AND user_id = ?", id, userID).Delete(&entity.Address{}).Error; err != nil {
 		tx.Rollback()
@@ -148,8 +158,8 @@ func (r *AddressRepositoryImpl) Delete(id uint, userID uint) error {
 }
 
 // SetDefault sets an address as the default address
-func (r *AddressRepositoryImpl) SetDefault(id uint, userID uint) error {
-	tx := r.db.Begin()
+func (r *AddressRepositoryImpl) SetDefault(ctx context.Context, id uint, userID uint) error {
+	tx := db.DB(ctx).Begin()
 
 	// Reset all addresses to non-default
 	if err := tx.Model(&entity.Address{}).Where("user_id = ?", userID).Update("is_default", false).Error; err != nil {
@@ -162,7 +172,7 @@ func (r *AddressRepositoryImpl) SetDefault(id uint, userID uint) error {
 	if err := tx.Where("id = ? AND user_id = ?", id, userID).First(&address).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New(utils.AddressNotFoundMsg)
+			return errors.New(constant.ADDRESS_NOT_FOUND_MSG)
 		}
 		return err
 	}

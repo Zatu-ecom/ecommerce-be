@@ -20,8 +20,9 @@ func TestDeleteOptionValue(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -55,7 +56,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 	// Helper function to delete an option value
 	deleteOptionValue := func(productID int, optionID, valueID int) *httptest.ResponseRecorder {
-		url := fmt.Sprintf("/api/products/%d/options/%d/values/%d", productID, optionID, valueID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value/%d", productID, optionID, valueID)
 		return client.Delete(t, url)
 	}
 
@@ -108,7 +109,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify other values still exist by trying to get available options
-		getURL := "/api/products/5/options"
+		getURL := "/api/product/5/option"
 		wGet := client.Get(t, getURL)
 		assert.Equal(t, http.StatusOK, wGet.Code)
 		// The option should still have other values
@@ -177,7 +178,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Delete(t, "/api/products/invalid/options/8/values/24")
+		w := client.Delete(t, "/api/product/invalid/option/8/value/24")
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -186,7 +187,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Delete(t, "/api/products/5/options/invalid/values/24")
+		w := client.Delete(t, "/api/product/5/option/invalid/value/24")
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -195,7 +196,7 @@ func TestDeleteOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Delete(t, "/api/products/5/options/8/values/invalid")
+		w := client.Delete(t, "/api/product/5/option/8/value/invalid")
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -312,7 +313,7 @@ func TestDeleteOptionValue(t *testing.T) {
 
 		// Verify the variant still exists by checking product options
 		// (In a real scenario, you'd query the variant endpoint)
-		wGet := client.Get(t, "/api/products/5/options")
+		wGet := client.Get(t, "/api/product/5/option")
 		assert.Equal(t, http.StatusOK, wGet.Code)
 	})
 

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"ecommerce-be/common"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
@@ -12,6 +14,7 @@ type UserQueryService interface {
 	// ListUsers returns paginated list of users based on filters
 	// Applies seller isolation based on callerSellerID presence
 	ListUsers(
+		ctx context.Context,
 		filter model.ListUsersFilter,
 		callerSellerID *uint,
 	) (*model.ListUsersResponse, error)
@@ -35,6 +38,7 @@ func NewUserQueryService(userRepo repository.UserRepository) UserQueryService {
 
 // ListUsers returns paginated list of users based on filters
 func (s *UserQueryServiceImpl) ListUsers(
+	ctx context.Context,
 	filter model.ListUsersFilter,
 	callerSellerID *uint,
 ) (*model.ListUsersResponse, error) {
@@ -45,13 +49,13 @@ func (s *UserQueryServiceImpl) ListUsers(
 	filter.SetDefaults()
 
 	// Fetch users from repository
-	users, total, err := s.userRepo.FindByFilter(filter)
+	users, total, err := s.userRepo.FindByFilter(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch roles for all users
-	roleMap, err := s.fetchRolesForUsers(users)
+	roleMap, err := s.fetchRolesForUsers(ctx, users)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +79,7 @@ func (s *UserQueryServiceImpl) applySellerIsolation(
 
 // fetchRolesForUsers fetches roles for a list of users
 func (s *UserQueryServiceImpl) fetchRolesForUsers(
+	ctx context.Context,
 	users []entity.User,
 ) (map[uint]*entity.Role, error) {
 	if len(users) == 0 {
@@ -93,7 +98,7 @@ func (s *UserQueryServiceImpl) fetchRolesForUsers(
 	}
 
 	// Fetch roles
-	roles, err := s.userRepo.FindRolesByIDs(roleIDs)
+	roles, err := s.userRepo.FindRolesByIDs(ctx, roleIDs)
 	if err != nil {
 		return nil, err
 	}

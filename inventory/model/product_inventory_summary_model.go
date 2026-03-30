@@ -23,17 +23,17 @@ type ProductsAtLocationFilter struct {
 
 // ProductInventorySummary represents inventory summary for a product at location
 type ProductInventorySummary struct {
-	ProductID         uint        `json:"productId"`
-	ProductName       string      `json:"productName"`
-	CategoryID        uint        `json:"categoryId"`
-	BaseSKU           string      `json:"baseSku"`
-	VariantCount      uint        `json:"variantCount"`
-	TotalStock        int         `json:"totalStock"`        // Can be negative for backorder support
-	TotalReserved     int         `json:"totalReserved"`
-	TotalAvailable    int         `json:"totalAvailable"`
-	LowStockVariants  uint        `json:"lowStockVariants"`  // Count of variants at low stock
-	OutOfStockVariants uint       `json:"outOfStockVariants"` // Count of variants out of stock
-	StockStatus       StockStatus `json:"stockStatus"`       // IN_STOCK, LOW_STOCK, OUT_OF_STOCK
+	ProductID          uint        `json:"productId"`
+	ProductName        string      `json:"productName"`
+	CategoryID         uint        `json:"categoryId"`
+	BaseSKU            string      `json:"baseSku"`
+	VariantCount       uint        `json:"variantCount"`
+	TotalStock         int         `json:"totalStock"` // Can be negative for backorder support
+	TotalReserved      int         `json:"totalReserved"`
+	TotalAvailable     int         `json:"totalAvailable"`
+	LowStockVariants   uint        `json:"lowStockVariants"`   // Count of variants at low stock
+	OutOfStockVariants uint        `json:"outOfStockVariants"` // Count of variants out of stock
+	StockStatus        StockStatus `json:"stockStatus"`        // IN_STOCK, LOW_STOCK, OUT_OF_STOCK
 }
 
 // ProductAtLocationResponse represents full product inventory details
@@ -53,7 +53,7 @@ type ProductsAtLocationResponse struct {
 
 // =========================================================================
 // API 3: Get Variant Details with Inventory
-// Endpoint: GET /api/inventory/locations/{locationId}/products/{productId}/variants
+// Endpoint: GET /api/inventory/locations/{locationId}/product/{productId}/variant
 // Purpose: Shows all variants of a product with their inventory at a location
 // =========================================================================
 

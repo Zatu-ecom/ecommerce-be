@@ -18,8 +18,9 @@ func TestDeleteProductAttribute(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -35,7 +36,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 			"sortOrder":             sortOrder,
 		}
 
-		url := fmt.Sprintf("/api/products/%d/attributes", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute", productID)
 		w := client.Post(t, url, requestBody)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		return helpers.GetResponseData(t, response, "attribute")
@@ -60,7 +61,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Delete the attribute
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(
@@ -85,7 +86,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Delete the attribute (still logged in as same seller)
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(
@@ -110,7 +111,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Delete the attribute
-		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		deleteURL := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
@@ -119,7 +120,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		helpers.AssertErrorResponse(t, w2, http.StatusNotFound)
 
 		// Verify it's not in the list
-		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
+		getURL := fmt.Sprintf("/api/product/%d/attribute", productID)
 		wGet := client.Get(t, getURL)
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
@@ -154,7 +155,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -176,7 +177,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Try to delete using product 1 which doesn't belong to Jane (belongs to seller_id 2)
 		otherProductID := 1
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", otherProductID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", otherProductID, attributeID)
 		w := client.Delete(t, url)
 
 		// Should return 403 Forbidden or 404 Not Found
@@ -203,7 +204,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -219,7 +220,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		productID := 1
 		attributeID := 1
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -243,7 +244,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Use non-existent product ID
-		url := fmt.Sprintf("/api/products/99999/attributes/%d", attributeID)
+		url := fmt.Sprintf("/api/product/99999/attribute/%d", attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -258,7 +259,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		productID := 5
 
 		// Use non-existent attribute ID
-		url := fmt.Sprintf("/api/products/%d/attributes/99999", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/99999", productID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -278,7 +279,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Try to delete it using product 6's URL (Jane's Summer Dress)
 		productID2 := 6
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID2, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID2, attributeID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
@@ -297,7 +298,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attribute := createAttribute(productID, attributeDefID, "100x50x5", 0)
 		attributeID := int(attribute["id"].(float64))
 
-		url := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attributeID)
+		url := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attributeID)
 
 		// Delete first time - should succeed
 		w1 := client.Delete(t, url)
@@ -316,7 +317,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		url := fmt.Sprintf("/api/products/%d/attributes/invalid", productID)
+		url := fmt.Sprintf("/api/product/%d/attribute/invalid", productID)
 		w := client.Delete(t, url)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -352,12 +353,12 @@ func TestDeleteProductAttribute(t *testing.T) {
 		attr3ID := int(attr3["id"].(float64))
 
 		// Delete the second attribute
-		deleteURL := fmt.Sprintf("/api/products/%d/attributes/%d", productID, attr2ID)
+		deleteURL := fmt.Sprintf("/api/product/%d/attribute/%d", productID, attr2ID)
 		w := client.Delete(t, deleteURL)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify other attributes still exist
-		getURL := fmt.Sprintf("/api/products/%d/attributes", productID)
+		getURL := fmt.Sprintf("/api/product/%d/attribute", productID)
 		wGet := client.Get(t, getURL)
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 

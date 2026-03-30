@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/utils"
 	"ecommerce-be/product/validator"
 )
@@ -54,15 +54,15 @@ type ProductOptionValueService interface {
 
 // ProductOptionValueServiceImpl implements the ProductOptionValueService interface
 type ProductOptionValueServiceImpl struct {
-	optionRepo       repositories.ProductOptionRepository
-	productRepo      repositories.ProductRepository
+	optionRepo       repository.ProductOptionRepository
+	productRepo      repository.ProductRepository
 	validatorService ProductValidatorService
 }
 
 // NewProductOptionValueService creates a new instance of ProductOptionValueService
 func NewProductOptionValueService(
-	optionRepo repositories.ProductOptionRepository,
-	productRepo repositories.ProductRepository,
+	optionRepo repository.ProductOptionRepository,
+	productRepo repository.ProductRepository,
 	validatorService ProductValidatorService,
 ) ProductOptionValueService {
 	return &ProductOptionValueServiceImpl{

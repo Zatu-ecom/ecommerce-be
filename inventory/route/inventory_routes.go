@@ -1,4 +1,4 @@
-package routes
+package route
 
 import (
 	"ecommerce-be/common/constants"
@@ -40,10 +40,25 @@ func (m *InventoryModule) RegisterRoutes(router *gin.Engine) {
 		inventoryRoutes.POST("/manage/bulk", sellerAuth, m.inventoryHandler.BulkManageInventory)
 
 		// Get inventory by variant (across all locations)
-		inventoryRoutes.GET("/product/:variantId", sellerAuth, m.inventoryHandler.GetInventoryByVariant)
+		inventoryRoutes.GET(
+			"/product/:variantId",
+			sellerAuth,
+			m.inventoryHandler.GetInventoryByVariant,
+		)
 
 		// Get inventory by location (all variants at location)
-		inventoryRoutes.GET("/location/:locationId/inventory", sellerAuth, m.inventoryHandler.GetInventoryByLocation)
+		inventoryRoutes.GET(
+			"/location/:locationId/inventory",
+			sellerAuth,
+			m.inventoryHandler.GetInventoryByLocation,
+		)
+
+		// Get aggregated total available quantities for variants/products in bulk
+		inventoryRoutes.POST(
+			"/summary/available",
+			sellerAuth,
+			m.inventoryHandler.GetTotalAvailableQuantities,
+		)
 
 		// List inventory transactions with filters
 		inventoryRoutes.GET("/transaction", sellerAuth, m.inventoryHandler.ListTransactions)

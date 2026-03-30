@@ -21,4 +21,8 @@ go.work.sum
 # Environment file
 .env
 
-.vscode
+.vscode/*
+
+.idea/*
+
+.cursor/*

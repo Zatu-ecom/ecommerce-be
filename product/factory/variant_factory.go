@@ -152,9 +152,17 @@ func BuildVariantDetailResponse(
 	// Add product basic info
 	if product != nil {
 		response.Product = model.ProductBasicInfo{
-			ID:    product.ID,
-			Name:  product.Name,
-			Brand: product.Brand,
+			ID:         product.ID,
+			Name:       product.Name,
+			Brand:      product.Brand,
+			CategoryID: product.CategoryID,
+		}
+	} else if variant.Product != nil {
+		response.Product = model.ProductBasicInfo{
+			ID:         variant.Product.ID,
+			Name:       variant.Product.Name,
+			Brand:      variant.Product.Brand,
+			CategoryID: variant.Product.CategoryID,
 		}
 	}
 

@@ -141,4 +141,3 @@ func (h *InventorySummaryHandler) GetVariantInventoryAtLocation(c *gin.Context) 
 	// Return response
 	h.Success(c, http.StatusOK, invConstants.VARIANTS_RETRIEVED_MSG, response)
 }
-

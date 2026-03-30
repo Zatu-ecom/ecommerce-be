@@ -20,11 +20,11 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 
 	// Run all migrations including the stored procedure
 	containers.RunAllMigrations(t)
-
+	containers.RunAllCoreSeeds(t)
 	// Run seeds with comprehensive test data
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/003_seed_related_products_test_data.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/003_seed_related_products.sql")
 
 	// Setup test server with real database and Redis
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -42,7 +42,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -75,7 +75,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -114,7 +114,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -138,7 +138,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -172,7 +172,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?page=1&limit=10", productID)
+		url := fmt.Sprintf("/api/product/%d/related?page=1&limit=10", productID)
 
 		w := client.Get(t, url)
 
@@ -224,7 +224,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=100", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=100", productID)
 
 		w := client.Get(t, url)
 
@@ -250,7 +250,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		sourceProductID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=100", sourceProductID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=100", sourceProductID)
 
 		w := client.Get(t, url)
 
@@ -274,7 +274,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101 // Seller 2's product
-		url := fmt.Sprintf("/api/products/%d/related?limit=100", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=100", productID)
 
 		w := client.Get(t, url)
 
@@ -302,7 +302,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken("")
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -317,7 +317,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken("invalid_token_12345")
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related", productID)
+		url := fmt.Sprintf("/api/product/%d/related", productID)
 
 		w := client.Get(t, url)
 
@@ -331,7 +331,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		// Try SQL injection patterns
-		url := "/api/products/1' OR '1'='1/related"
+		url := "/api/product/1' OR '1'='1/related"
 
 		w := client.Get(t, url)
 
@@ -346,7 +346,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 
 		productID := 101
 		url := fmt.Sprintf(
-			"/api/products/%d/related?strategies=same_category' OR '1'='1",
+			"/api/product/%d/related?strategies=same_category' OR '1'='1",
 			productID,
 		)
 
@@ -368,7 +368,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		productID := 101
 
 		// Step 1: Get first page
-		url1 := fmt.Sprintf("/api/products/%d/related?page=1&limit=10", productID)
+		url1 := fmt.Sprintf("/api/product/%d/related?page=1&limit=10", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		data1 := response1["data"].(map[string]interface{})
@@ -378,7 +378,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 
 		// Step 2: If multiple pages exist, get second page
 		if totalPages > 1 {
-			url2 := fmt.Sprintf("/api/products/%d/related?page=2&limit=10", productID)
+			url2 := fmt.Sprintf("/api/product/%d/related?page=2&limit=10", productID)
 			w2 := client.Get(t, url2)
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 			data2 := response2["data"].(map[string]interface{})
@@ -388,7 +388,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		}
 
 		// Step 3: Get last page
-		urlLast := fmt.Sprintf("/api/products/%d/related?page=%d&limit=10", productID, totalPages)
+		urlLast := fmt.Sprintf("/api/product/%d/related?page=%d&limit=10", productID, totalPages)
 		wLast := client.Get(t, urlLast)
 		responseLast := helpers.AssertSuccessResponse(t, wLast, http.StatusOK)
 		dataLast := responseLast["data"].(map[string]interface{})
@@ -406,7 +406,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		productID := 101
 
 		// Step 1: Get all strategies
-		urlAll := fmt.Sprintf("/api/products/%d/related", productID)
+		urlAll := fmt.Sprintf("/api/product/%d/related", productID)
 		wAll := client.Get(t, urlAll)
 		responseAll := helpers.AssertSuccessResponse(t, wAll, http.StatusOK)
 		dataAll := responseAll["data"].(map[string]interface{})
@@ -417,7 +417,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		// Step 2: Filter by first available strategy
 		if len(strategiesUsedAll) > 0 {
 			firstStrategy := strategiesUsedAll[0].(string)
-			urlFiltered := fmt.Sprintf("/api/products/%d/related?strategies=%s",
+			urlFiltered := fmt.Sprintf("/api/product/%d/related?strategies=%s",
 				productID, firstStrategy)
 			wFiltered := client.Get(t, urlFiltered)
 			responseFiltered := helpers.AssertSuccessResponse(t, wFiltered, http.StatusOK)
@@ -445,7 +445,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID1 := 101 // Seller 2's product
-		url1 := fmt.Sprintf("/api/products/%d/related?limit=100", productID1)
+		url1 := fmt.Sprintf("/api/product/%d/related?limit=100", productID1)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		data1 := response1["data"].(map[string]interface{})
@@ -463,7 +463,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller3Token)
 
 		productID2 := 6 // Seller 3's product (if exists)
-		url2 := fmt.Sprintf("/api/products/%d/related?limit=100", productID2)
+		url2 := fmt.Sprintf("/api/product/%d/related?limit=100", productID2)
 		w2 := client.Get(t, url2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		data2 := response2["data"].(map[string]interface{})
@@ -489,7 +489,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=100", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=100", productID)
 
 		w := client.Get(t, url)
 
@@ -512,7 +512,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 
 		// Use a product that might not have matches for a specific strategy
 		productID := 150 // Budget product with possibly no price range matches
-		url := fmt.Sprintf("/api/products/%d/related?strategies=price_range", productID)
+		url := fmt.Sprintf("/api/product/%d/related?strategies=price_range", productID)
 
 		w := client.Get(t, url)
 
@@ -531,7 +531,7 @@ func TestGetRelatedProductsValidation(t *testing.T) {
 		client.SetToken(seller2Token)
 
 		productID := 101
-		url := fmt.Sprintf("/api/products/%d/related?limit=100", productID)
+		url := fmt.Sprintf("/api/product/%d/related?limit=100", productID)
 
 		w := client.Get(t, url)
 

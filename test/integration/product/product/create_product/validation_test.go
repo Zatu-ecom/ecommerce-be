@@ -17,7 +17,8 @@ func TestCreateProductValidation(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -58,7 +59,7 @@ func TestCreateProductValidation(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid data type
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -92,7 +93,7 @@ func TestCreateProductValidation(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid data type
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -109,7 +110,7 @@ func TestCreateProductValidation(t *testing.T) {
 			"variants":   "not-an-array", // Invalid: string instead of array
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid data type
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -132,7 +133,7 @@ func TestCreateProductValidation(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid data type
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -167,7 +168,7 @@ func TestCreateProductValidation(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 400 Bad Request for invalid data type
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)

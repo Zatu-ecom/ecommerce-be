@@ -244,42 +244,25 @@ run_migrations() {
     echo ""
 }
 
-# Function to run seed data
-run_seeds() {
-    echo ""
-    echo "========================================="
-    echo "  Running Seed Data Scripts"
-    echo "========================================="
-    echo ""
-    
-    # Check connection first
-    if ! check_connection; then
-        exit 1
-    fi
-    
-    # Create migration tracking table if not exists
-    create_migration_table
-    
-    echo ""
-    print_info "Starting seed data insertion..."
-    echo ""
+# Function to run seed files from a specific directory
+run_seed_directory() {
+    local seed_dir=$1
+    local dir_name=$2
     
     # Automatically discover and run all seed files in order (sorted by filename)
-    local seed_files=($(ls -1 seeds/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort))
+    local seed_files=($(ls -1 "$seed_dir"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort))
     
     if [ ${#seed_files[@]} -eq 0 ]; then
-        print_warning "No seed files found in seeds/ directory matching pattern: [0-9][0-9][0-9]_*.sql"
-        return 1
+        print_warning "No seed files found in $seed_dir/ directory"
+        return 0
     fi
     
-    print_info "Found ${#seed_files[@]} seed file(s)"
+    print_info "Found ${#seed_files[@]} seed file(s) in $dir_name"
     echo ""
     
     local applied_count=0
     local skipped_count=0
     local failed_count=0
-    local applied_files=()
-    local failed_files=()
     
     for file in "${seed_files[@]}"; do
         if is_migration_applied "$file"; then
@@ -296,7 +279,8 @@ run_seeds() {
             local error_file=$(mktemp)
             
             # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
-            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+            # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
                 local end_time=$(date +%s%3N)
                 local execution_time=$((end_time - start_time))
                 
@@ -319,23 +303,178 @@ run_seeds() {
                 
                 record_migration "$file" "FAILED" "$error_msg" "$execution_time"
                 rm -f "$error_file"
-                failed_count=$((failed_count + 1))
-                failed_files+=("$file")
                 print_error "Seed failed, stopping."
                 exit 1
             fi
         fi
     done
     
+    print_success "$dir_name seeds completed! Applied: $applied_count, Skipped: $skipped_count"
     echo ""
-    print_success "Seeds completed! Applied: $applied_count, Skipped: $skipped_count, Failed: $failed_count"
-    if [ ${#failed_files[@]} -gt 0 ]; then
-        echo "  Failed files:"
-        for f in "${failed_files[@]}"; do
-            echo "    - $f"
-        done
+}
+
+# Function to run CORE seeds only (production-safe)
+run_seeds_core() {
+    echo ""
+    echo "========================================="
+    echo "  Running CORE Seed Data (Production)"
+    echo "========================================="
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
     fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
     echo ""
+    print_info "Starting CORE seed data insertion..."
+    print_info "These are production-safe seeds (roles, countries, currencies)"
+    echo ""
+    
+    run_seed_directory "seeds/core" "CORE"
+    
+    print_success "CORE seeds completed!"
+    echo ""
+}
+
+# Function to run MOCK seeds only (dev/staging)
+run_seeds_mock() {
+    echo ""
+    echo "========================================="
+    echo "  Running MOCK Seed Data (Dev/Staging)"
+    echo "========================================="
+    echo ""
+    
+    print_warning "Running MOCK seeds - this is for development only!"
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
+    echo ""
+    print_info "Starting MOCK seed data insertion..."
+    echo ""
+    
+    run_seed_directory "seeds/mock" "MOCK"
+    
+    print_success "MOCK seeds completed!"
+    echo ""
+}
+
+# Function to run seed data (LEGACY - runs old flat structure for backward compatibility)
+run_seeds_legacy() {
+    echo ""
+    echo "========================================="
+    echo "  Running Legacy Seed Data Scripts"
+    echo "========================================="
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
+    echo ""
+    print_info "Starting legacy seed data insertion..."
+    echo ""
+    
+    # Automatically discover and run all seed files in order (sorted by filename)
+    local seed_files=($(ls -1 seeds/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort))
+    
+    if [ ${#seed_files[@]} -eq 0 ]; then
+        print_warning "No legacy seed files found"
+        return 0
+    fi
+    
+    print_info "Found ${#seed_files[@]} legacy seed file(s)"
+    echo ""
+    
+    local applied_count=0
+    local skipped_count=0
+    
+    for file in "${seed_files[@]}"; do
+        if is_migration_applied "$file"; then
+            print_warning "Skipped (already applied): $file"
+            skipped_count=$((skipped_count + 1))
+        else
+            record_migration "$file" "RUNNING" "" 0
+            local start_time=$(date +%s%3N)
+            local error_file=$(mktemp)
+            
+            # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+            if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+                local end_time=$(date +%s%3N)
+                local execution_time=$((end_time - start_time))
+                print_success "Completed: $file (${execution_time}ms)"
+                record_migration "$file" "SUCCESS" "" "$execution_time"
+                rm -f "$error_file"
+                applied_count=$((applied_count + 1))
+            else
+                local error_msg=$(cat "$error_file")
+                print_error "Failed: $file"
+                cat "$error_file"
+                record_migration "$file" "FAILED" "$error_msg" "0"
+                rm -f "$error_file"
+                exit 1
+            fi
+        fi
+    done
+    
+    print_success "Legacy seeds completed! Applied: $applied_count, Skipped: $skipped_count"
+    echo ""
+}
+
+# Function to run seed data (runs core + mock for dev environments)
+run_seeds() {
+    echo ""
+    echo "========================================="
+    echo "  Running Seed Data Scripts"
+    echo "========================================="
+    echo ""
+    
+    # Check connection first
+    if ! check_connection; then
+        exit 1
+    fi
+    
+    # Create migration tracking table if not exists
+    create_migration_table
+    
+    echo ""
+    print_info "Starting seed data insertion..."
+    echo ""
+    
+    # Check if new folder structure exists
+    if [ -d "seeds/core" ]; then
+        print_info "Using new seed structure (core + mock)"
+        echo ""
+        
+        # Run core seeds first
+        run_seed_directory "seeds/core" "CORE"
+        
+        # Run mock seeds (for dev/staging)
+        if [ -d "seeds/mock" ]; then
+            run_seed_directory "seeds/mock" "MOCK"
+        fi
+        
+        print_success "All seeds completed!"
+        echo ""
+    else
+        # Fallback to legacy structure
+        print_warning "Using legacy seed structure"
+        run_seeds_legacy
+    fi
 }
 
 # Function to run seed data (force - ignores tracking, always runs)
@@ -389,7 +528,8 @@ run_seeds_force() {
         local error_file=$(mktemp)
         
         # Use ON_ERROR_STOP=1 to make psql exit with error on SQL failures
-        if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
+        # Use --single-transaction to wrap each file in a transaction (auto rollback on error)
+        if PGPASSWORD=$DB_PASSWORD psql -v ON_ERROR_STOP=1 --single-transaction -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$file" 2>"$error_file"; then
             local end_time=$(date +%s%3N)
             local execution_time=$((end_time - start_time))
             
@@ -440,17 +580,27 @@ Usage: ./run_migrations.sh [OPTIONS]
 Options:
     -h, --help          Show this help message
     -m, --migrate       Run migrations only (skips already applied)
-    -s, --seed          Run seed data only (skips already applied)
+    -s, --seed          Run seed data only (core + mock, skips already applied)
+    -sc, --seed-core    Run CORE seeds only (production-safe: roles, countries, currencies)
+    -sm, --seed-mock    Run MOCK seeds only (dev data: test users, products)
     -fs, --force-seed   Run ALL seed data (ignores tracking, re-runs everything)
     -a, --all           Run migrations and seed data (default)
+    -p, --production    Run migrations + CORE seeds only (for production)
     -r, --reset         Drop all tables and recreate (WARNING: Data loss!)
     --status            Show migration status history
 
 Examples:
-    ./run_migrations.sh                 # Run all (migrations + seeds)
+    ./run_migrations.sh                 # Run all (migrations + core + mock seeds)
     ./run_migrations.sh --migrate       # Run migrations only
-    ./run_migrations.sh --seed          # Run seeds only
+    ./run_migrations.sh --seed          # Run all seeds (core + mock)
+    ./run_migrations.sh --seed-core     # Run core seeds only (production)
+    ./run_migrations.sh --seed-mock     # Run mock seeds only (dev)
+    ./run_migrations.sh --production    # Run migrations + core seeds (for production)
     ./run_migrations.sh --all           # Run all (explicit)
+
+Seed Structure:
+    seeds/core/         Production-safe seeds (roles, plans, countries, currencies)
+    seeds/mock/         Development seeds (test users, sample products)
 
 Environment Variables (from .env):
     DB_HOST             Database host (default: localhost)
@@ -556,12 +706,26 @@ case "${1:-all}" in
     -s|--seed)
         run_seeds
         ;;
+    -sc|--seed-core)
+        run_seeds_core
+        ;;
+    -sm|--seed-mock)
+        run_seeds_mock
+        ;;
     -fs|--force-seed)
         run_seeds_force
         ;;
     -a|--all|all)
         run_migrations
         run_seeds
+        ;;
+    -p|--production)
+        echo ""
+        echo "========================================="
+        echo "  Production Mode (Migrations + Core)"
+        echo "========================================="
+        run_migrations
+        run_seeds_core
         ;;
     -r|--reset)
         reset_database

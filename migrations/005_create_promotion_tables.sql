@@ -43,11 +43,6 @@ CREATE TABLE IF NOT EXISTS promotion (
     -- Scope
     applies_to VARCHAR(50) NOT NULL DEFAULT 'specific_products',
     
-    -- Conditions
-    min_purchase_amount_cents BIGINT DEFAULT 0,
-    min_quantity INT DEFAULT 1,
-    max_discount_amount_cents BIGINT,
-    
     -- Customer Eligibility
     eligible_for VARCHAR(50) DEFAULT 'everyone',
     customer_segment_id INTEGER REFERENCES customer_segment(id),
@@ -80,9 +75,6 @@ CREATE TABLE IF NOT EXISTS promotion (
     -- Priority
     priority INT DEFAULT 0,
     
-    -- Metadata
-    metadata JSONB DEFAULT '{}',
-    
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -107,13 +99,24 @@ CREATE TABLE IF NOT EXISTS promotion_product (
     id BIGSERIAL PRIMARY KEY,
     promotion_id BIGINT NOT NULL REFERENCES promotion(id) ON DELETE CASCADE,
     product_id BIGINT NOT NULL REFERENCES product(id) ON DELETE CASCADE,
-    variant_id BIGINT REFERENCES product_variant(id) ON DELETE CASCADE,
     override_discount_config JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_promotion_product_variant UNIQUE(promotion_id, product_id, variant_id)
+    CONSTRAINT unique_promotion_product UNIQUE(promotion_id, product_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_promotion_product_promotion_id ON promotion_product(promotion_id);
+
+-- Product Variants
+CREATE TABLE IF NOT EXISTS promotion_product_variant (
+    id BIGSERIAL PRIMARY KEY,
+    promotion_id BIGINT NOT NULL REFERENCES promotion(id) ON DELETE CASCADE,
+    variant_id BIGINT NOT NULL REFERENCES product_variant(id) ON DELETE CASCADE,
+    override_discount_config JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT unique_promotion_variant UNIQUE(promotion_id, variant_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_promotion_variant_promotion_id ON promotion_product_variant(promotion_id);
 
 -- Categories
 CREATE TABLE IF NOT EXISTS promotion_category (

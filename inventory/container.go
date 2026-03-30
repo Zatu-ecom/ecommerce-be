@@ -40,7 +40,7 @@ func addModules(c *common.Container) {
 func registerScheduler() {
 	f := singleton.GetInstance()
 	scheduleInventoryReservationHandler := f.GetScheduleInventoryReservationHandler()
-	
+
 	scheduler.Register(
 		constant.INVENTORYY_RESERVATION_EXPRIY_EVENT_COMMAND,
 		scheduleInventoryReservationHandler.ExpireScheduleReservation,

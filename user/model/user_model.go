@@ -2,15 +2,21 @@ package model
 
 // UserRegisterRequest represents the request body for user registration
 type UserRegisterRequest struct {
-	FirstName       string `json:"firstName"       binding:"required"`
-	LastName        string `json:"lastName"        binding:"required"`
-	Email           string `json:"email"           binding:"required,email"`
-	Password        string `json:"password"        binding:"required,min=6"`
+	CreateUserRequest
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
-	SellerID        uint   `json:"sellerId"`
-	Phone           string `json:"phone"`
-	DateOfBirth     string `json:"dateOfBirth"`
-	Gender          string `json:"gender"`
+}
+
+// CreateUserRequest represents internal request for creating a user with any role
+// Used by services like SellerRegistrationService, UserService.Register
+type CreateUserRequest struct {
+	FirstName   string `json:"firstName"   binding:"required"`
+	LastName    string `json:"lastName"    binding:"required"`
+	Email       string `json:"email"       binding:"required,email"`
+	Password    string `json:"password"    binding:"required,min=6"`
+	Phone       string `json:"phone"`
+	DateOfBirth string `json:"dateOfBirth"`
+	Gender      string `json:"gender"`
+	SellerID    uint   `json:"sellerId"`
 }
 
 // UserLoginRequest represents the request body for user login
@@ -20,12 +26,17 @@ type UserLoginRequest struct {
 }
 
 // UserUpdateRequest represents the request body for updating user profile
+// Uses pointers to distinguish between null (don't update) and empty (set to empty)
 type UserUpdateRequest struct {
-	FirstName   string `json:"firstName"   binding:"required"`
-	LastName    string `json:"lastName"    binding:"required"`
-	Phone       string `json:"phone"`
-	DateOfBirth string `json:"dateOfBirth"`
-	Gender      string `json:"gender"`
+	FirstName   *string `json:"firstName"   binding:"omitempty,min=1"`
+	LastName    *string `json:"lastName"    binding:"omitempty,min=1"`
+	Phone       *string `json:"phone"`
+	DateOfBirth *string `json:"dateOfBirth"`
+	Gender      *string `json:"gender"`
+
+	// Preferences (Note: User's country is derived from default address)
+	CurrencyID *uint   `json:"currencyId"`                                  // Preferred display currency
+	Locale     *string `json:"locale"     binding:"omitempty,min=2,max=10"` // Locale: 'en-US', 'hi-IN'
 }
 
 // UserPasswordChangeRequest represents the request body for changing user password
@@ -47,6 +58,27 @@ type UserResponse struct {
 	IsActive    bool   `json:"isActive"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
+
+	// Preferences (Note: User's country is derived from default address)
+	CurrencyID *uint  `json:"currencyId,omitempty"`
+	Locale     string `json:"locale,omitempty"`
+}
+
+// UserDetailResponse represents user with expanded currency info
+// Note: User's country is derived from default address
+type UserDetailResponse struct {
+	ID          uint              `json:"id"`
+	FirstName   string            `json:"firstName"`
+	LastName    string            `json:"lastName"`
+	Email       string            `json:"email"`
+	Phone       string            `json:"phone"`
+	DateOfBirth string            `json:"dateOfBirth"`
+	Gender      string            `json:"gender"`
+	Currency    *CurrencyResponse `json:"currency,omitempty"`
+	Locale      string            `json:"locale,omitempty"`
+	IsActive    bool              `json:"isActive"`
+	CreatedAt   string            `json:"createdAt"`
+	UpdatedAt   string            `json:"updatedAt"`
 }
 
 // AuthResponse represents the authentication response with user data and token

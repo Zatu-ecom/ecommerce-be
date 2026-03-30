@@ -9,7 +9,7 @@ import (
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // TestCreateProductAuthorization tests authentication and authorization scenarios
@@ -21,8 +21,9 @@ func TestCreateProductAuthorization(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -63,7 +64,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 		// Don't set any token
 		client.SetToken("")
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 401 Unauthorized
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -73,7 +74,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 		// Set an invalid token
 		client.SetToken("invalid-token-12345")
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 401 Unauthorized
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -98,7 +99,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 
 		client.SetToken(expiredToken)
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 401 Unauthorized for expired token
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -109,7 +110,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 403 Forbidden (only sellers allowed)
 		helpers.AssertErrorResponse(t, w, http.StatusForbidden)
@@ -123,16 +124,16 @@ func TestCreateProductAuthorization(t *testing.T) {
 		// admins are allowed, expect StatusCreated
 
 		requestBody["sellerId"] = helpers.SellerUserID // Admin creating product for a seller
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Based on the requirement: "Expected: allowed"
-		// This test checks if admin can create products
+		// This test checks if admin can create product
 		if w.Code != http.StatusCreated && w.Code != http.StatusForbidden {
 			t.Logf("Unexpected status code: %d", w.Code)
 			t.Logf("Response: %s", w.Body.String())
 		}
 
-		// If your business logic allows admins to create products:
+		// If your business logic allows admins to create product:
 		if w.Code == http.StatusCreated {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 			product := helpers.GetResponseData(t, response, "product")
@@ -145,7 +146,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Seller should be allowed
 		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -167,7 +168,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 
 		client.SetToken(invalidToken)
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 401 Unauthorized for invalid signature
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)
@@ -189,7 +190,7 @@ func TestCreateProductAuthorization(t *testing.T) {
 
 		client.SetToken(incompleteToken)
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should return 401 Unauthorized for missing claims
 		helpers.AssertErrorResponse(t, w, http.StatusUnauthorized)

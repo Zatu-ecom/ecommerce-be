@@ -19,7 +19,8 @@ func TestGetCategoryByID(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -40,12 +41,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Global Test Category",
 			"description": "Global category for testing",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -53,12 +54,12 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Jane Merchant's seller ID
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -80,12 +81,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Seller Specific GetByID Test",
 			"description": "Seller's own category",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -93,12 +94,12 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3") // Same seller (Jane Merchant)
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -120,12 +121,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Seller1 Private Category",
 			"description": "Seller 1's private category",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -133,24 +134,24 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "4") // Seller 2's ID
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getW,
 			http.StatusNotFound,
-			)
+		)
 	})
 
 	t.Run("Public access without seller ID fails", func(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "")
 
-		getW := client.Get(t, "/api/categories/1")
+		getW := client.Get(t, "/api/product/category/1")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
 			http.StatusBadRequest,
-			)
+		)
 	})
 
 	// ============================================================================
@@ -166,12 +167,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Global For Seller Auth Test",
 			"description": "Global category",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -180,12 +181,12 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken(sellerToken)
 		client.SetHeader(constants.SELLER_ID_HEADER, "") // Clear header
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -207,22 +208,22 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Own Category Auth Test",
 			"description": "Seller's own category with auth",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
 		// Get the same category
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify response
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -244,12 +245,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Seller1 Auth Private Category",
 			"description": "Seller 1's private category",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -257,12 +258,12 @@ func TestGetCategoryByID(t *testing.T) {
 		seller2Token := helpers.Login(t, client, "bob.store@example.com", "seller123")
 		client.SetToken(seller2Token)
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		helpers.AssertErrorResponse(
 			t,
 			getW,
 			http.StatusNotFound,
-			)
+		)
 	})
 
 	t.Run("Admin can get any category", func(t *testing.T) {
@@ -274,12 +275,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Seller Category For Admin Test",
 			"description": "Seller's category that admin will access",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
@@ -287,12 +288,12 @@ func TestGetCategoryByID(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify admin can access seller-specific category
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -300,7 +301,7 @@ func TestGetCategoryByID(t *testing.T) {
 			t,
 			categoryID,
 			uint(returnedCategory["id"].(float64)),
-			)
+		)
 		assert.False(t, returnedCategory["isGlobal"].(bool), "Should be seller-specific")
 	})
 
@@ -313,12 +314,12 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/99999")
+		getW := client.Get(t, "/api/product/category/99999")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
 			http.StatusNotFound,
-			)
+		)
 	})
 
 	t.Run("Invalid category ID format", func(t *testing.T) {
@@ -326,12 +327,12 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader(constants.SELLER_ID_HEADER, "3")
 
-		getW := client.Get(t, "/api/categories/invalid")
+		getW := client.Get(t, "/api/product/category/invalid")
 		helpers.AssertErrorResponse(
 			t,
 			getW,
 			http.StatusBadRequest,
-			)
+		)
 	})
 
 	// ============================================================================
@@ -347,22 +348,22 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Response Fields Validation Category",
 			"description": "Category for field validation",
 		}
-		createW := client.Post(t, "/api/categories", createReq)
+		createW := client.Post(t, "/api/product/category", createReq)
 		createResponse := helpers.AssertSuccessResponse(
 			t,
 			createW,
 			http.StatusCreated,
-			)
+		)
 		category := helpers.GetResponseData(t, createResponse, "category")
 		categoryID := uint(category["id"].(float64))
 
 		// Get category
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", categoryID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", categoryID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		// Verify all required fields
 		returnedCategory := helpers.GetResponseData(t, response, "category")
@@ -397,12 +398,12 @@ func TestGetCategoryByID(t *testing.T) {
 			"name":        "Parent For Reference Test",
 			"description": "Parent category",
 		}
-		parentW := client.Post(t, "/api/categories", parentReq)
+		parentW := client.Post(t, "/api/product/category", parentReq)
 		parentResponse := helpers.AssertSuccessResponse(
 			t,
 			parentW,
 			http.StatusCreated,
-			)
+		)
 		parentCategory := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parentCategory["id"].(float64))
 
@@ -412,22 +413,22 @@ func TestGetCategoryByID(t *testing.T) {
 			"description": "Child category",
 			"parentId":    parentID,
 		}
-		childW := client.Post(t, "/api/categories", childReq)
+		childW := client.Post(t, "/api/product/category", childReq)
 		childResponse := helpers.AssertSuccessResponse(
 			t,
 			childW,
 			http.StatusCreated,
-			)
+		)
 		childCategory := helpers.GetResponseData(t, childResponse, "category")
 		childID := uint(childCategory["id"].(float64))
 
 		// Get child category and verify parentId
-		getW := client.Get(t, fmt.Sprintf("/api/categories/%d", childID))
+		getW := client.Get(t, fmt.Sprintf("/api/product/category/%d", childID))
 		response := helpers.AssertSuccessResponse(
 			t,
 			getW,
 			http.StatusOK,
-			)
+		)
 
 		returnedCategory := helpers.GetResponseData(t, response, "category")
 		assert.NotNil(t, returnedCategory["parentId"], "Child should have parentId")

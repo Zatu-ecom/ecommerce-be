@@ -21,9 +21,9 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
-
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
 
@@ -52,7 +52,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 
 	// Helper function to update an option value
 	updateOptionValue := func(productID int, optionID, valueID int, body map[string]interface{}) *httptest.ResponseRecorder {
-		url := fmt.Sprintf("/api/products/%d/options/%d/values/%d", productID, optionID, valueID)
+		url := fmt.Sprintf("/api/product/%d/option/%d/value/%d", productID, optionID, valueID)
 		return client.Put(t, url, body)
 	}
 
@@ -243,7 +243,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/products/invalid/options/8/values/24", map[string]interface{}{
+		w := client.Put(t, "/api/product/invalid/option/8/value/24", map[string]interface{}{
 			"displayName": "Updated",
 		})
 
@@ -254,7 +254,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/products/5/options/invalid/values/24", map[string]interface{}{
+		w := client.Put(t, "/api/product/5/option/invalid/value/24", map[string]interface{}{
 			"displayName": "Updated",
 		})
 
@@ -265,7 +265,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/products/5/options/8/values/invalid", map[string]interface{}{
+		w := client.Put(t, "/api/product/5/option/8/value/invalid", map[string]interface{}{
 			"displayName": "Updated",
 		})
 

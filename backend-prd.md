@@ -3,9 +3,11 @@
 ## 1. Project Overview
 
 ### 1.1 Purpose
+
 This document outlines the backend API requirements for the Datun e-commerce platform, designed to support a React-based frontend application selling natural dental care products and related items.
 
 ### 1.2 Technology Stack
+
 - **Language**: Go (Golang)
 - **Framework**: Gin/Echo (recommended)
 - **Database**: PostgreSQL (Primary recommendation)
@@ -26,15 +28,17 @@ This document outlines the backend API requirements for the Datun e-commerce pla
 ✅ **Performance**: Excellent query optimization and indexing  
 ✅ **Go Integration**: Outstanding support with libraries like pgx and GORM  
 ✅ **Scalability**: Proven performance in large-scale applications  
-✅ **Data Integrity**: Strong consistency guarantees for critical operations  
+✅ **Data Integrity**: Strong consistency guarantees for critical operations
 
 **Alternative Considerations:**
+
 - **MySQL**: Good alternative, slightly simpler but less advanced JSON support
 - **MongoDB**: Consider only if you need extreme flexibility, but lacks ACID guarantees needed for e-commerce
 
 ## 2. Core Entities & Data Models
 
 ### 2.1 User Entity
+
 ```go
 type User struct {
     ID          uint      `json:"id" gorm:"primaryKey"`
@@ -48,7 +52,7 @@ type User struct {
     IsActive    bool      `json:"isActive" gorm:"default:true"`
     CreatedAt   time.Time `json:"createdAt"`
     UpdatedAt   time.Time `json:"updatedAt"`
-    
+
     // Relationships
     Addresses []Address `json:"addresses" gorm:"foreignKey:UserID"`
     Orders    []Order   `json:"orders" gorm:"foreignKey:UserID"`
@@ -67,6 +71,7 @@ type Address struct {
 ```
 
 ### 2.2 Product Entity
+
 ```go
 type Product struct {
     ID               uint                `json:"id" gorm:"primaryKey"`
@@ -105,6 +110,7 @@ type NutritionalInfo struct {
 ```
 
 ### 2.3 Cart Entity
+
 ```go
 type Cart struct {
     ID        uint       `json:"id" gorm:"primaryKey"`
@@ -121,13 +127,14 @@ type CartItem struct {
     PackageSize string  `json:"packageSize"`
     Quantity    int     `json:"quantity" binding:"required,min=1"`
     Price       float64 `json:"price" binding:"required"`
-    
+
     // Relationships
     Product Product `json:"product" gorm:"foreignKey:ProductID"`
 }
 ```
 
 ### 2.4 Order Entity
+
 ```go
 type Order struct {
     ID          uint        `json:"id" gorm:"primaryKey"`
@@ -139,10 +146,10 @@ type Order struct {
     Shipping    float64     `json:"shipping"`
     Total       float64     `json:"total"`
     Items       []OrderItem `json:"items" gorm:"foreignKey:OrderID"`
-    
+
     // Shipping Address
     ShippingAddress Address `json:"shippingAddress" gorm:"embedded;embeddedPrefix:shipping_"`
-    
+
     CreatedAt time.Time `json:"createdAt"`
     UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -154,7 +161,7 @@ type OrderItem struct {
     PackageSize string  `json:"packageSize"`
     Quantity    int     `json:"quantity"`
     Price       float64 `json:"price"`
-    
+
     // Relationships
     Product Product `json:"product" gorm:"foreignKey:ProductID"`
 }
@@ -165,10 +172,12 @@ type OrderItem struct {
 ### 3.1 Authentication APIs
 
 #### 3.1.1 User Registration
+
 - **Endpoint**: `POST /api/auth/register`
 - **Description**: Register a new user account
 - **Headers**: `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "firstName": "John",
@@ -180,7 +189,9 @@ type OrderItem struct {
   "gender": "male"
 }
 ```
+
 - **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -201,7 +212,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -219,7 +232,9 @@ type OrderItem struct {
   "code": "VALIDATION_ERROR"
 }
 ```
+
 - **Error Response (409 Conflict)**:
+
 ```json
 {
   "success": false,
@@ -229,17 +244,21 @@ type OrderItem struct {
 ```
 
 #### 3.1.2 User Login
+
 - **Endpoint**: `POST /api/auth/login`
 - **Description**: Authenticate user and return JWT token
 - **Headers**: `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "email": "john.doe@example.com",
   "password": "securePassword123"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -261,7 +280,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (401 Unauthorized)**:
+
 ```json
 {
   "success": false,
@@ -269,7 +290,9 @@ type OrderItem struct {
   "code": "INVALID_CREDENTIALS"
 }
 ```
+
 - **Error Response (403 Forbidden)**:
+
 ```json
 {
   "success": false,
@@ -279,13 +302,15 @@ type OrderItem struct {
 ```
 
 #### 3.1.3 Token Refresh
+
 - **Endpoint**: `POST /api/auth/refresh`
 - **Description**: Refresh JWT token
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**: `{}` (empty object)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -296,7 +321,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (401 Unauthorized)**:
+
 ```json
 {
   "success": false,
@@ -306,20 +333,24 @@ type OrderItem struct {
 ```
 
 #### 3.1.4 User Logout
+
 - **Endpoint**: `POST /api/auth/logout`
 - **Description**: Logout user and blacklist JWT token
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**: `{}` (empty object)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
   "message": "Logged out successfully"
 }
 ```
+
 - **Error Response (401 Unauthorized)**:
+
 ```json
 {
   "success": false,
@@ -331,11 +362,13 @@ type OrderItem struct {
 ### 3.2 User Management APIs
 
 #### 3.2.1 Get User Profile
+
 - **Endpoint**: `GET /api/users/profile`
 - **Description**: Get current user's profile information
 - **Headers**: `Authorization: Bearer <token>`
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -367,7 +400,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (401 Unauthorized)**:
+
 ```json
 {
   "success": false,
@@ -375,7 +410,9 @@ type OrderItem struct {
   "code": "AUTH_REQUIRED"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -385,12 +422,14 @@ type OrderItem struct {
 ```
 
 #### 3.2.2 Update User Profile
+
 - **Endpoint**: `PUT /api/users/profile`
 - **Description**: Update user profile information
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "firstName": "John",
@@ -400,7 +439,9 @@ type OrderItem struct {
   "gender": "male"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -421,7 +462,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -441,11 +484,13 @@ type OrderItem struct {
 ```
 
 #### 3.2.3 Get User Addresses
+
 - **Endpoint**: `GET /api/users/addresses`
 - **Description**: Get all addresses for the current user
 - **Headers**: `Authorization: Bearer <token>`
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -476,12 +521,14 @@ type OrderItem struct {
 ```
 
 #### 3.2.4 Add Address
+
 - **Endpoint**: `POST /api/users/addresses`
 - **Description**: Add a new address for the user
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "street": "456 Oak Ave",
@@ -492,7 +539,9 @@ type OrderItem struct {
   "isDefault": false
 }
 ```
+
 - **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -510,7 +559,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -530,13 +581,15 @@ type OrderItem struct {
 ```
 
 #### 3.2.5 Update Address
+
 - **Endpoint**: `PUT /api/users/addresses/:id`
 - **Description**: Update an existing address
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Path Parameters**: `id` (integer) - Address ID
 - **Request Body**:
+
 ```json
 {
   "street": "456 Oak Ave Apt 2B",
@@ -547,7 +600,9 @@ type OrderItem struct {
   "isDefault": true
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -565,7 +620,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -573,7 +630,9 @@ type OrderItem struct {
   "code": "ADDRESS_NOT_FOUND"
 }
 ```
+
 - **Error Response (403 Forbidden)**:
+
 ```json
 {
   "success": false,
@@ -583,19 +642,23 @@ type OrderItem struct {
 ```
 
 #### 3.2.6 Delete Address
+
 - **Endpoint**: `DELETE /api/users/addresses/:id`
 - **Description**: Delete an address
 - **Headers**: `Authorization: Bearer <token>`
 - **Path Parameters**: `id` (integer) - Address ID
 - **Request Body**: None (DELETE request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
   "message": "Address deleted successfully"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -603,7 +666,9 @@ type OrderItem struct {
   "code": "ADDRESS_NOT_FOUND"
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -613,14 +678,16 @@ type OrderItem struct {
 ```
 
 #### 3.2.7 Set Default Address
+
 - **Endpoint**: `PATCH /api/users/addresses/:id/default`
 - **Description**: Set an address as the default shipping address
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Path Parameters**: `id` (integer) - Address ID
 - **Request Body**: `{}` (empty object)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -640,12 +707,14 @@ type OrderItem struct {
 ```
 
 #### 3.2.8 Change Password
+
 - **Endpoint**: `PATCH /api/users/password`
 - **Description**: Change user password
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "currentPassword": "oldPassword123",
@@ -653,14 +722,18 @@ type OrderItem struct {
   "confirmPassword": "newSecurePassword456"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
   "message": "Password changed successfully"
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -672,6 +745,7 @@ type OrderItem struct {
 ### 3.3 Product APIs
 
 #### 3.3.1 Get All Products
+
 - **Endpoint**: `GET /api/products`
 - **Description**: Get paginated list of products with filtering and search
 - **Headers**: None required
@@ -688,6 +762,7 @@ type OrderItem struct {
   - `maxPrice`: Maximum price filter (number)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -768,7 +843,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -788,12 +865,14 @@ type OrderItem struct {
 ```
 
 #### 3.3.2 Get Product by ID
-- **Endpoint**: `GET /api/products/:id`
+
+- **Endpoint**: `GET /api/product/:id`
 - **Description**: Get detailed product information by ID
 - **Headers**: None required
 - **Path Parameters**: `id` (integer) - Product ID
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -838,9 +917,7 @@ type OrderItem struct {
         "cholesterol": "300mg",
         "sodium": "0mg"
       },
-      "ingredients": [
-        "Pure Cow Milk Cream"
-      ],
+      "ingredients": ["Pure Cow Milk Cream"],
       "benefits": [
         "Rich in vitamins A, D, E, and K",
         "Supports healthy digestion",
@@ -855,7 +932,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -865,11 +944,13 @@ type OrderItem struct {
 ```
 
 #### 3.3.3 Get Product Categories
-- **Endpoint**: `GET /api/products/categories`
+
+- **Endpoint**: `GET /api/product/categories`
 - **Description**: Get list of all available product categories
 - **Headers**: None required
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -903,13 +984,15 @@ type OrderItem struct {
 ```
 
 #### 3.3.4 Get Product Filters
-- **Endpoint**: `GET /api/products/filters`
+
+- **Endpoint**: `GET /api/product/filters`
 - **Description**: Get all available filter attributes and their possible values for product filtering UI
 - **Headers**: None required
 - **Query Parameters**:
   - `category`: Get filters specific to a category (optional, string)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1078,7 +1161,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Response with Category Filter (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1124,7 +1209,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1134,7 +1221,8 @@ type OrderItem struct {
 ```
 
 #### 3.3.5 Search Products
-- **Endpoint**: `GET /api/products/search`
+
+- **Endpoint**: `GET /api/product/search`
 - **Description**: Advanced product search with multiple filters
 - **Headers**: None required
 - **Query Parameters**:
@@ -1146,6 +1234,7 @@ type OrderItem struct {
   - `sortOrder`: Sort order (asc, desc) (default: desc)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1181,7 +1270,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1191,7 +1282,8 @@ type OrderItem struct {
 ```
 
 #### 3.3.6 Get Related Products
-- **Endpoint**: `GET /api/products/:id/related`
+
+- **Endpoint**: `GET /api/product/:id/related`
 - **Description**: Get products related to a specific product
 - **Headers**: None required
 - **Path Parameters**: `id` (integer) - Product ID
@@ -1199,6 +1291,7 @@ type OrderItem struct {
   - `limit`: Number of related products (default: 4, max: 10, integer)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1244,11 +1337,13 @@ type OrderItem struct {
 ### 3.4 Cart APIs
 
 #### 3.4.1 Get User Cart
+
 - **Endpoint**: `GET /api/cart`
 - **Description**: Get current user's shopping cart with all items
 - **Headers**: `Authorization: Bearer <token>`
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1310,7 +1405,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (401 Unauthorized)**:
+
 ```json
 {
   "success": false,
@@ -1318,7 +1415,9 @@ type OrderItem struct {
   "code": "AUTH_REQUIRED"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1328,12 +1427,14 @@ type OrderItem struct {
 ```
 
 #### 3.4.2 Add Item to Cart
+
 - **Endpoint**: `POST /api/cart/items`
 - **Description**: Add a product item to user's cart
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "productId": 1,
@@ -1341,7 +1442,9 @@ type OrderItem struct {
   "quantity": 2
 }
 ```
+
 - **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -1370,7 +1473,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1388,7 +1493,9 @@ type OrderItem struct {
   "code": "VALIDATION_ERROR"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1396,7 +1503,9 @@ type OrderItem struct {
   "code": "PRODUCT_NOT_FOUND"
 }
 ```
+
 - **Error Response (409 Conflict)**:
+
 ```json
 {
   "success": false,
@@ -1406,19 +1515,23 @@ type OrderItem struct {
 ```
 
 #### 3.4.3 Update Cart Item
+
 - **Endpoint**: `PUT /api/cart/items/:id`
 - **Description**: Update quantity of an existing cart item
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Path Parameters**: `id` (integer) - Cart item ID
 - **Request Body**:
+
 ```json
 {
   "quantity": 3
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1443,7 +1556,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1451,7 +1566,9 @@ type OrderItem struct {
   "code": "INVALID_QUANTITY"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1461,12 +1578,14 @@ type OrderItem struct {
 ```
 
 #### 3.4.4 Remove Cart Item
+
 - **Endpoint**: `DELETE /api/cart/items/:id`
 - **Description**: Remove a specific item from cart
 - **Headers**: `Authorization: Bearer <token>`
 - **Path Parameters**: `id` (integer) - Cart item ID
 - **Request Body**: None (DELETE request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1479,7 +1598,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1487,7 +1608,9 @@ type OrderItem struct {
   "code": "CART_ITEM_NOT_FOUND"
 }
 ```
+
 - **Error Response (403 Forbidden)**:
+
 ```json
 {
   "success": false,
@@ -1497,11 +1620,13 @@ type OrderItem struct {
 ```
 
 #### 3.4.5 Clear Cart
+
 - **Endpoint**: `DELETE /api/cart`
 - **Description**: Remove all items from user's cart
 - **Headers**: `Authorization: Bearer <token>`
 - **Request Body**: None (DELETE request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1516,11 +1641,13 @@ type OrderItem struct {
 ```
 
 #### 3.4.6 Get Cart Summary
+
 - **Endpoint**: `GET /api/cart/summary`
 - **Description**: Get cart summary without full item details
 - **Headers**: `Authorization: Bearer <token>`
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1539,18 +1666,22 @@ type OrderItem struct {
 ```
 
 #### 3.4.7 Apply Coupon to Cart
+
 - **Endpoint**: `POST /api/cart/coupon`
 - **Description**: Apply a discount coupon to the cart
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "couponCode": "SAVE10"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1572,7 +1703,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1584,12 +1717,14 @@ type OrderItem struct {
 ### 3.5 Order APIs
 
 #### 3.5.1 Create Order
+
 - **Endpoint**: `POST /api/orders`
 - **Description**: Create a new order from current cart items
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "shippingAddressId": 1,
@@ -1602,7 +1737,9 @@ type OrderItem struct {
   "notes": "Please deliver in the evening after 6 PM"
 }
 ```
+
 - **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -1673,7 +1810,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1681,7 +1820,9 @@ type OrderItem struct {
   "code": "EMPTY_CART"
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1689,7 +1830,9 @@ type OrderItem struct {
   "code": "ADDRESS_NOT_FOUND"
 }
 ```
+
 - **Error Response (422 Unprocessable Entity)**:
+
 ```json
 {
   "success": false,
@@ -1706,6 +1849,7 @@ type OrderItem struct {
 ```
 
 #### 3.5.2 Get User Orders
+
 - **Endpoint**: `GET /api/orders`
 - **Description**: Get paginated list of user's orders
 - **Headers**: `Authorization: Bearer <token>`
@@ -1719,6 +1863,7 @@ type OrderItem struct {
   - `sortOrder`: Sort order (asc, desc) (default: desc)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1766,12 +1911,14 @@ type OrderItem struct {
 ```
 
 #### 3.5.3 Get Order by ID
+
 - **Endpoint**: `GET /api/orders/:id`
 - **Description**: Get detailed information about a specific order
 - **Headers**: `Authorization: Bearer <token>`
 - **Path Parameters**: `id` (integer) - Order ID
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1849,7 +1996,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1857,7 +2006,9 @@ type OrderItem struct {
   "code": "ORDER_NOT_FOUND"
 }
 ```
+
 - **Error Response (403 Forbidden)**:
+
 ```json
 {
   "success": false,
@@ -1867,20 +2018,24 @@ type OrderItem struct {
 ```
 
 #### 3.5.4 Cancel Order
+
 - **Endpoint**: `PATCH /api/orders/:id/cancel`
 - **Description**: Cancel an order (only if status is pending or confirmed)
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Path Parameters**: `id` (integer) - Order ID
 - **Request Body**:
+
 ```json
 {
   "reason": "Changed my mind",
   "refundMethod": "original_payment"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1898,7 +2053,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -1908,12 +2065,14 @@ type OrderItem struct {
 ```
 
 #### 3.5.5 Track Order
+
 - **Endpoint**: `GET /api/orders/:id/track`
 - **Description**: Get tracking information for an order
 - **Headers**: `Authorization: Bearer <token>`
 - **Path Parameters**: `id` (integer) - Order ID
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1951,7 +2110,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Error Response (404 Not Found)**:
+
 ```json
 {
   "success": false,
@@ -1961,14 +2122,16 @@ type OrderItem struct {
 ```
 
 #### 3.5.6 Reorder
+
 - **Endpoint**: `POST /api/orders/:id/reorder`
 - **Description**: Add all items from a previous order to the current cart
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 - **Path Parameters**: `id` (integer) - Order ID
 - **Request Body**: `{}` (empty object)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -1998,6 +2161,7 @@ type OrderItem struct {
 ```
 
 #### 3.5.7 Get Order Invoice
+
 - **Endpoint**: `GET /api/orders/:id/invoice`
 - **Description**: Get invoice details for an order
 - **Headers**: `Authorization: Bearer <token>`
@@ -2006,6 +2170,7 @@ type OrderItem struct {
   - `format`: Response format (json, pdf) (default: json)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2056,11 +2221,13 @@ type OrderItem struct {
 ### 3.6 Additional Utility APIs
 
 #### 3.6.1 Health Check
+
 - **Endpoint**: `GET /health`
 - **Description**: Check API and system health status
 - **Headers**: None required
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "status": "healthy",
@@ -2093,7 +2260,9 @@ type OrderItem struct {
   }
 }
 ```
+
 - **Response (503 Service Unavailable)**:
+
 ```json
 {
   "status": "unhealthy",
@@ -2109,23 +2278,27 @@ type OrderItem struct {
 ```
 
 #### 3.6.2 Upload Image
+
 - **Endpoint**: `POST /api/upload/image`
 - **Description**: Upload product or user images
-- **Headers**: 
+- **Headers**:
   - `Authorization: Bearer <token>`
   - `Content-Type: multipart/form-data`
 - **Request Body**: Form data with image file
+
 ```
 file: [binary image data]
 category: product | profile | other
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
   "message": "Image uploaded successfully",
   "data": {
-    "imageUrl": "https://cdn.datun.com/images/products/abc123.jpg",
+    "imageUrl": "https://cdn.datun.com/images/product/abc123.jpg",
     "publicId": "products/abc123",
     "size": 245760,
     "format": "jpg",
@@ -2136,7 +2309,9 @@ category: product | profile | other
   }
 }
 ```
+
 - **Error Response (400 Bad Request)**:
+
 ```json
 {
   "success": false,
@@ -2146,11 +2321,13 @@ category: product | profile | other
 ```
 
 #### 3.6.3 Get Application Statistics
+
 - **Endpoint**: `GET /api/stats`
 - **Description**: Get application statistics (admin only)
 - **Headers**: `Authorization: Bearer <admin-token>`
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2186,6 +2363,7 @@ category: product | profile | other
 ```
 
 #### 3.6.4 Search Suggestions
+
 - **Endpoint**: `GET /api/search/suggestions`
 - **Description**: Get search suggestions based on query
 - **Headers**: None required
@@ -2194,6 +2372,7 @@ category: product | profile | other
   - `limit`: Number of suggestions (default: 10, max: 20)
 - **Request Body**: None (GET request)
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2224,12 +2403,14 @@ category: product | profile | other
 ```
 
 #### 3.6.5 Contact Support
+
 - **Endpoint**: `POST /api/support/contact`
 - **Description**: Submit a contact/support request
-- **Headers**: 
+- **Headers**:
   - `Content-Type: application/json`
   - `Authorization: Bearer <token>` (optional, for logged-in users)
 - **Request Body**:
+
 ```json
 {
   "name": "John Doe",
@@ -2240,7 +2421,9 @@ category: product | profile | other
   "orderId": 123
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2255,10 +2438,12 @@ category: product | profile | other
 ```
 
 #### 3.6.6 Newsletter Subscription
+
 - **Endpoint**: `POST /api/newsletter/subscribe`
 - **Description**: Subscribe to newsletter
 - **Headers**: `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "email": "john.doe@example.com",
@@ -2269,7 +2454,9 @@ category: product | profile | other
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2283,17 +2470,21 @@ category: product | profile | other
 ```
 
 #### 3.6.7 Unsubscribe from Newsletter
+
 - **Endpoint**: `DELETE /api/newsletter/unsubscribe`
 - **Description**: Unsubscribe from newsletter
 - **Headers**: `Content-Type: application/json`
 - **Request Body**:
+
 ```json
 {
   "email": "john.doe@example.com",
   "token": "unsubscribe_token_abc123"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -2302,6 +2493,7 @@ category: product | profile | other
 ```
 
 ### 4.1 Standard Error Response Format
+
 ```json
 {
   "success": false,
@@ -2317,6 +2509,7 @@ category: product | profile | other
 ```
 
 ### 4.2 HTTP Status Codes
+
 - **200 OK**: Successful GET, PUT, DELETE requests
 - **201 Created**: Successful POST requests
 - **400 Bad Request**: Validation errors, malformed requests
@@ -2330,6 +2523,7 @@ category: product | profile | other
 ## 5. Authentication & Security
 
 ### 5.1 JWT Token Structure
+
 ```json
 {
   "user_id": 1,
@@ -2340,6 +2534,7 @@ category: product | profile | other
 ```
 
 ### 5.2 Security Requirements
+
 - Password hashing using bcrypt
 - JWT token expiration (24 hours)
 - Rate limiting on authentication endpoints
@@ -2465,6 +2660,7 @@ CREATE TABLE order_items (
 ```
 
 #### 6.1.2 Key Relationships
+
 - **User → Addresses**: One-to-Many (Users can have multiple addresses)
 - **User → Orders**: One-to-Many (Users can have multiple orders)
 - **User → Cart**: One-to-One (Each user has one active cart)
@@ -2510,6 +2706,7 @@ CREATE INDEX idx_order_items_product ON order_items(product_id);
 #### 6.1.4 Advanced Features
 
 **Full-text Search:**
+
 ```sql
 -- Add full-text search capability
 ALTER TABLE products ADD COLUMN search_vector tsvector;
@@ -2519,7 +2716,7 @@ CREATE INDEX idx_products_search ON products USING GIN(search_vector);
 CREATE OR REPLACE FUNCTION update_product_search()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.search_vector := 
+    NEW.search_vector :=
         setweight(to_tsvector('english', COALESCE(NEW.name, '')), 'A') ||
         setweight(to_tsvector('english', COALESCE(NEW.short_description, '')), 'B') ||
         setweight(to_tsvector('english', COALESCE(NEW.category, '')), 'C');
@@ -2533,23 +2730,25 @@ CREATE TRIGGER trigger_update_product_search
 ```
 
 **JSONB Queries Examples:**
+
 ```sql
 -- Query products by nutritional info
-SELECT * FROM products 
+SELECT * FROM products
 WHERE nutritional_info->>'calories' LIKE '%900%';
 
 -- Query products by benefits
-SELECT * FROM products 
+SELECT * FROM products
 WHERE benefits @> '["Rich in vitamins A, D, E, and K"]';
 
 -- Query products by ingredient
-SELECT * FROM products 
+SELECT * FROM products
 WHERE ingredients @> '["Pure Cow Milk Cream"]';
 ```
 
 ### 6.2 Data Migration Strategy
 
 #### 6.2.1 Migration Files Structure
+
 ```
 migrations/
 ├── 001_create_users_table.up.sql
@@ -2562,10 +2761,11 @@ migrations/
 ```
 
 #### 6.2.2 Seed Data Strategy
+
 ```sql
 -- Sample seed data for development
 INSERT INTO products (name, category, price, short_description, images, nutritional_info) VALUES
-('Premium Ghee', 'Dairy', 850.00, 'Pure and aromatic cow ghee', 
+('Premium Ghee', 'Dairy', 850.00, 'Pure and aromatic cow ghee',
  '["https://images.unsplash.com/photo-1563379091339-03246a5d6690?w=400"]',
  '{"calories": "900 per 100g", "fat": "100g", "saturatedFat": "60g"}');
 ```
@@ -2573,6 +2773,7 @@ INSERT INTO products (name, category, price, short_description, images, nutritio
 ## 7. API Rate Limiting
 
 ### 7.1 Rate Limits
+
 - Authentication endpoints: 5 requests per minute per IP
 - General API endpoints: 100 requests per minute per user
 - Product listing: 1000 requests per hour per IP
@@ -2580,6 +2781,7 @@ INSERT INTO products (name, category, price, short_description, images, nutritio
 ## 8. Caching Strategy
 
 ### 8.1 Redis Caching
+
 - Product listings: Cache for 1 hour
 - Product details: Cache for 30 minutes
 - User sessions: Store JWT blacklist
@@ -2588,6 +2790,7 @@ INSERT INTO products (name, category, price, short_description, images, nutritio
 ## 9. Deployment Requirements
 
 ### 9.1 Environment Variables
+
 ```env
 # Database
 DB_HOST=localhost
@@ -2614,6 +2817,7 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ```
 
 ### 9.2 Docker Configuration
+
 - Multi-stage build for optimized image size
 - Health checks for container monitoring
 - Volume mounts for persistent data
@@ -2621,12 +2825,14 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ## 10. Testing Requirements
 
 ### 10.1 Unit Tests
+
 - All service layer functions
 - Authentication middleware
 - Input validation
 - Error handling
 
 ### 10.2 Integration Tests
+
 - API endpoint testing
 - Database operations
 - Authentication flows
@@ -2635,14 +2841,17 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ## 11. Monitoring & Logging
 
 ### 11.1 Logging Requirements
+
 - Request/response logging
 - Error logging with stack traces
 - Performance metrics
 - Authentication attempts
 
 ### 11.2 Health Check Endpoint
+
 - **Endpoint**: `GET /health`
 - **Response**:
+
 ```json
 {
   "status": "healthy",
@@ -2655,6 +2864,7 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ## 12. Future Enhancements
 
 ### 12.1 Phase 2 Features
+
 - Payment gateway integration
 - Order tracking and notifications
 - Product reviews and ratings
@@ -2665,6 +2875,7 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 - Email notifications
 
 ### 12.2 Performance Optimizations
+
 - Database query optimization
 - API response caching
 - Image optimization and CDN

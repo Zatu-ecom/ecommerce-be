@@ -16,7 +16,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 2.2 Database Tables
 
 - `category` - Hierarchical product categories (singular table names)
-- `attribute_definition` - Master attribute definitions  
+- `attribute_definition` - Master attribute definitions
 - `category_attribute` - Category-specific attribute configurations
 - `product` - Core product information
 - `product_attribute` - Dynamic product attribute values
@@ -29,15 +29,17 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 3.1 Category Management APIs
 
 #### 3.1.1 Get All Categories
-- **Endpoint**: `GET /api/categories`
+
+- **Endpoint**: `GET /api/product/category/`
 - **Description**: Get hierarchical list of all product categories
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (optional for public access)
 - **Query Parameters**:
   - `parentId`: Filter by parent category ID (integer, optional)
 - **Request Body**: None
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -72,12 +74,14 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.1.2 Create Category
-- **Endpoint**: `POST /api/categories`
+
+- **Endpoint**: `POST /api/product/category/`
 - **Description**: Create a new product category
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Request Body**:
+
 ```json
 {
   "name": "Gaming Laptops",
@@ -87,11 +91,13 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Validation Rules**:
+
 - `name`: Required, 3-100 characters, unique within parent
 - `parentId`: Optional, must exist if provided
 - `description`: Optional, max 500 characters
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -110,14 +116,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.1.3 Update Category
-- **Endpoint**: `PUT /api/categories/{categoryId}`
+
+- **Endpoint**: `PUT /api/product/category/{categoryId}`
 - **Description**: Update an existing category
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Path Parameters**:
   - `categoryId`: Category ID to update
 - **Request Body**:
+
 ```json
 {
   "name": "Premium Gaming Laptops",
@@ -126,6 +134,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -143,19 +152,22 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.1.4 Delete Category
-- **Endpoint**: `DELETE /api/categories/{categoryId}`
+
+- **Endpoint**: `DELETE /api/product/category/{categoryId}`
 - **Description**: Permanently delete a category
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `categoryId`: Category ID to delete
 
 **Business Rules**:
+
 - Cannot delete category with products
 - Cannot delete category with child categories
 - Permanent deletion (hard delete)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -164,14 +176,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.1.5 Get Category Attributes with Inheritance
-- **Endpoint**: `GET /api/categories/{categoryId}/attributes`
+
+- **Endpoint**: `GET /api/product/category/{categoryId}/attribute`
 - **Description**: Get all attributes for a category including inherited attributes from parent categories
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `categoryId`: Category ID
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -206,14 +220,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 3.2 Attribute Definition APIs
 
 #### 3.2.1 Get All Attribute Definitions
-- **Endpoint**: `GET /api/attributes`
+
+- **Endpoint**: `GET /api/attribute`
 - **Description**: Get all attribute definitions
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
 - **Query Parameters**:
   - `dataType`: Filter by data type (string, number, boolean, array)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -246,12 +262,14 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.2.2 Create Attribute Definition
-- **Endpoint**: `POST /api/attributes`
+
+- **Endpoint**: `POST /api/attribute`
 - **Description**: Create a new attribute definition
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Request Body**:
+
 ```json
 {
   "key": "screen_size",
@@ -264,6 +282,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Validation Rules**:
+
 - `key`: Required, 3-50 characters, lowercase with underscores, unique
 - `name`: Required, 3-100 characters
 - `dataType`: Required, enum (string, number, boolean, array)
@@ -272,6 +291,7 @@ This document outlines the API specifications for the Product Service in our e-c
 - `allowedValues`: Optional array, only for predefined options
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -293,14 +313,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.2.3 Create Category-Specific Attribute Definition
-- **Endpoint**: `POST /api/attributes/{categoryId}`
+
+- **Endpoint**: `POST /api/attribute/{categoryId}`
 - **Description**: Create a new attribute definition and associate it with a specific category
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Path Parameters**:
   - `categoryId`: Category ID to associate the attribute with
 - **Request Body**:
+
 ```json
 {
   "key": "gpu_memory",
@@ -313,11 +335,13 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Validation Rules**:
+
 - Same as Create Attribute Definition
 - `categoryId`: Must exist and be active
 - `key`: Must be unique across all attributes
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -343,14 +367,16 @@ This document outlines the API specifications for the Product Service in our e-c
 > **Note**: The category attribute configuration APIs have been moved to the Category Management section (3.1.5) and Attribute Definition section (3.2.3) for better organization. The inheritance-based approach provides a more flexible and maintainable solution.
 
 #### 3.3.1 Get Category Attributes
-- **Endpoint**: `GET /api/categories/{categoryId}/attributes` (Now returns inherited attributes)
+
+- **Endpoint**: `GET /api/product/category/{categoryId}/attribute` (Now returns inherited attributes)
 - **Description**: Get all attributes for a category including inherited attributes from parent categories
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `categoryId`: Category ID
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -383,14 +409,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.3.2 Configure Category Attributes
-- **Endpoint**: `POST /api/categories/{categoryId}/attributes` (Now creates category-specific attributes)
+
+- **Endpoint**: `POST /api/product/category/{categoryId}/attribute` (Now creates category-specific attributes)
 - **Description**: Create a new attribute definition and associate it with a specific category
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
   - `Content-Type`: application/json
 - **Path Parameters**:
   - `categoryId`: Category ID to associate the attribute with
 - **Request Body**:
+
 ```json
 {
   "key": "gpu_memory",
@@ -403,6 +431,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -426,6 +455,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 3.4 Product Management APIs
 
 #### 3.4.1 Get All Products
+
 - **Endpoint**: `GET /api/products`
 - **Description**: Get paginated list of products with filtering and search
 - **Headers**: None required
@@ -445,6 +475,7 @@ This document outlines the API specifications for the Product Service in our e-c
   - `attributes`: Filter by attributes (format: key:value,key2:value2)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -503,13 +534,15 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.4.2 Get Product by ID
-- **Endpoint**: `GET /api/products/{productId}`
+
+- **Endpoint**: `GET /api/product/{productId}`
 - **Description**: Get detailed information about a specific product
 - **Headers**: None required
 - **Path Parameters**:
   - `productId`: Product ID
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -587,12 +620,14 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.4.3 Create Product
+
 - **Endpoint**: `POST /api/products`
 - **Description**: Create a new product
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin/Seller required)
   - `Content-Type`: application/json
 - **Request Body**:
+
 ```json
 {
   "name": "Samsung Galaxy S24",
@@ -642,6 +677,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Validation Rules**:
+
 - `name`: Required, 3-200 characters
 - `categoryId`: Required, must exist and be active
 - `brand`: Optional, max 100 characters
@@ -657,12 +693,14 @@ This document outlines the API specifications for the Product Service in our e-c
 - `packageOptions`: Optional array, max 50 options
 
 **Business Rules**:
+
 - Validate all required attributes for the category
 - Validate attribute values against allowed values (if defined)
 - SKU must be unique across all products
 - Price must be positive
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -688,9 +726,10 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.4.4 Update Product
-- **Endpoint**: `PUT /api/products/{productId}`
+
+- **Endpoint**: `PUT /api/product/{productId}`
 - **Description**: Update an existing product
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin/Seller required)
   - `Content-Type`: application/json
 - **Path Parameters**:
@@ -698,6 +737,7 @@ This document outlines the API specifications for the Product Service in our e-c
 - **Request Body**: Same as create product (all fields optional)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -714,14 +754,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.4.5 Delete Product
-- **Endpoint**: `DELETE /api/products/{productId}`
+
+- **Endpoint**: `DELETE /api/product/{productId}`
 - **Description**: Soft delete a product (set isActive to false)
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin required)
 - **Path Parameters**:
   - `productId`: Product ID to delete
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -730,14 +772,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.4.6 Update Product Stock Status
-- **Endpoint**: `PATCH /api/products/{productId}/stock`
+
+- **Endpoint**: `PATCH /api/product/{productId}/stock`
 - **Description**: Update product stock status
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin/Seller required)
   - `Content-Type`: application/json
 - **Path Parameters**:
   - `productId`: Product ID
 - **Request Body**:
+
 ```json
 {
   "inStock": false
@@ -745,6 +789,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -755,7 +800,8 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 3.5 Search and Filter APIs
 
 #### 3.5.1 Search Products
-- **Endpoint**: `GET /api/products/search`
+
+- **Endpoint**: `GET /api/product/search`
 - **Description**: Advanced product search with full-text search and filters
 - **Headers**: None required
 - **Query Parameters**:
@@ -768,6 +814,7 @@ This document outlines the API specifications for the Product Service in our e-c
   - `filters`: Additional filters (format: attribute1:value1,attribute2:value2)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -796,13 +843,15 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.5.2 Get Product Filters
-- **Endpoint**: `GET /api/products/filters`
+
+- **Endpoint**: `GET /api/product/filters`
 - **Description**: Get available filters for product search
 - **Headers**: None required
 - **Query Parameters**:
   - `categoryId`: Get filters for specific category (integer)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -858,7 +907,8 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.5.3 Get Related Products
-- **Endpoint**: `GET /api/products/{productId}/related`
+
+- **Endpoint**: `GET /api/product/{productId}/related`
 - **Description**: Get products related to a specific product
 - **Headers**: None required
 - **Path Parameters**:
@@ -867,6 +917,7 @@ This document outlines the API specifications for the Product Service in our e-c
   - `limit`: Number of related products (default: 5, max: 20)
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -889,13 +940,15 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 3.6 Package Option APIs
 
 #### 3.6.1 Get Product Package Options
-- **Endpoint**: `GET /api/products/{productId}/packages`
+
+- **Endpoint**: `GET /api/product/{productId}/packages`
 - **Description**: Get all package options for a product
 - **Headers**: None required
 - **Path Parameters**:
   - `productId`: Product ID
 
 **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -916,14 +969,16 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 3.6.2 Add Package Option
-- **Endpoint**: `POST /api/products/{productId}/packages`
+
+- **Endpoint**: `POST /api/product/{productId}/packages`
 - **Description**: Add a new package option to a product
-- **Headers**: 
+- **Headers**:
   - `Authorization`: Bearer token (Admin/Seller required)
   - `Content-Type`: application/json
 - **Path Parameters**:
   - `productId`: Product ID
 - **Request Body**:
+
 ```json
 {
   "name": "512GB Model",
@@ -934,6 +989,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -955,6 +1011,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ### 4.1 Common Error Responses
 
 #### 400 Bad Request
+
 ```json
 {
   "success": false,
@@ -973,6 +1030,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 401 Unauthorized
+
 ```json
 {
   "success": false,
@@ -982,6 +1040,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 403 Forbidden
+
 ```json
 {
   "success": false,
@@ -991,6 +1050,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 404 Not Found
+
 ```json
 {
   "success": false,
@@ -1000,6 +1060,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 409 Conflict
+
 ```json
 {
   "success": false,
@@ -1009,6 +1070,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 422 Unprocessable Entity
+
 ```json
 {
   "success": false,
@@ -1023,6 +1085,7 @@ This document outlines the API specifications for the Product Service in our e-c
 ```
 
 #### 500 Internal Server Error
+
 ```json
 {
   "success": false,
@@ -1034,17 +1097,20 @@ This document outlines the API specifications for the Product Service in our e-c
 ## 5. Security & Authorization
 
 ### 5.1 Authentication
+
 - JWT-based authentication for protected endpoints
 - Public access for product listing and details
 - Admin/Seller roles for product management
 
 ### 5.2 Authorization Levels
+
 - **Public**: Product listing, details, search, filters
 - **Authenticated**: Access to user-specific features
 - **Seller**: Create/update own products
 - **Admin**: Full access to all product management features
 
 ### 5.3 Rate Limiting
+
 - **Public APIs**: 1000 requests per hour per IP
 - **Authenticated APIs**: 5000 requests per hour per user
 - **Admin APIs**: 10000 requests per hour per user
@@ -1052,34 +1118,40 @@ This document outlines the API specifications for the Product Service in our e-c
 ## 6. Performance Considerations
 
 ### 6.1 Caching Strategy
+
 - **Product Lists**: Cache for 5 minutes
 - **Product Details**: Cache for 15 minutes
 - **Category Lists**: Cache for 1 hour
 - **Filters**: Cache for 30 minutes
 
 ### 6.2 Pagination
+
 - Default: 20 items per page
 - Maximum: 100 items per page
 - Use cursor-based pagination for large datasets
 
 ### 6.3 Database Optimization
+
 - Proper indexing on search fields
 - Composite indexes for filter combinations
 - Query optimization for attribute lookups
 
 ### 6.4 Category Hierarchy Performance
+
 - **Get All Categories API**: Uses optimized queries to avoid N+1 problems
 - **Inheritance-based Attributes**: Reduces data duplication and improves maintainability
 - **Single Query Approach**: Fetches all categories in one query and builds hierarchy in memory
 - **Avoids Duplicate Data**: Prevents fetching the same category multiple times in nested relationships
 
 **Performance Benefits**:
+
 - Reduced database queries for category hierarchies
 - Eliminated duplicate category data in responses
 - Improved response times for large category trees
 - Better memory efficiency for nested category structures
 
 ### 6.5 Simplified Data Model
+
 - **Removed `isActive` Fields**: All entities now use hard delete instead of soft delete
 - **Cleaner API Responses**: No more `isActive` fields in JSON responses
 - **Simplified Queries**: No need to filter by `isActive` status in database queries

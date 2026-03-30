@@ -20,8 +20,9 @@ func TestCreateProductEdgeCases(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -62,7 +63,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should succeed and verify rounding behavior
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -109,7 +110,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
@@ -150,7 +151,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
@@ -187,7 +188,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
@@ -201,7 +202,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create a URL with 1000+ characters
-		baseURL := "https://example.com/images/products/very-long-path/"
+		baseURL := "https://example.com/images/product/very-long-path/"
 		longPath := strings.Repeat("subdirectory/", 50) // Creates a long path
 		veryLongURL := baseURL + longPath + "image.jpg"
 
@@ -234,7 +235,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 
 		t.Logf("Testing with URL length: %d characters", len(veryLongURL))
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Behavior depends on database constraints
 		// Either accepts (if no length limit) or rejects (if URL too long)
@@ -284,7 +285,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
@@ -336,7 +337,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Should accept empty strings for optional fields
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
@@ -374,7 +375,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		w := client.Post(t, "/api/products", requestBody)
+		w := client.Post(t, "/api/product", requestBody)
 
 		// Behavior depends on database constraints
 		if w.Code == http.StatusCreated {

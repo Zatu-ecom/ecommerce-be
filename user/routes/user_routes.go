@@ -37,6 +37,8 @@ func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 	authRoutes := router.Group(constants.APIBaseUser + "/auth")
 	{
 		authRoutes.POST("/register", m.userHandler.Register)
+
+		// TODO: Looks like in login response we not return the user role related information
 		authRoutes.POST("/login", m.userHandler.Login)
 		authRoutes.POST("/refresh", auth, m.userHandler.RefreshToken)
 		authRoutes.POST("/logout", auth, m.userHandler.Logout)

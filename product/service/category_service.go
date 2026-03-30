@@ -5,10 +5,10 @@ import (
 
 	"ecommerce-be/common/constants"
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -64,16 +64,16 @@ type CategoryService interface {
 
 // CategoryServiceImpl implements the CategoryService interface
 type CategoryServiceImpl struct {
-	categoryRepo  repositories.CategoryRepository
-	productRepo   repositories.ProductRepository
-	attributeRepo repositories.AttributeDefinitionRepository
+	categoryRepo  repository.CategoryRepository
+	productRepo   repository.ProductRepository
+	attributeRepo repository.AttributeDefinitionRepository
 }
 
 // NewCategoryService creates a new instance of CategoryService
 func NewCategoryService(
-	categoryRepo repositories.CategoryRepository,
-	productRepo repositories.ProductRepository,
-	attributeRepo repositories.AttributeDefinitionRepository,
+	categoryRepo repository.CategoryRepository,
+	productRepo repository.ProductRepository,
+	attributeRepo repository.AttributeDefinitionRepository,
 ) CategoryService {
 	return &CategoryServiceImpl{
 		categoryRepo:  categoryRepo,

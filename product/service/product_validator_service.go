@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
 )
 
@@ -28,11 +28,11 @@ type ProductValidatorService interface {
 }
 
 type ProductValidatorServiceImpl struct {
-	productRepo repositories.ProductRepository
+	productRepo repository.ProductRepository
 }
 
 func NewProductValidatorService(
-	productRepo repositories.ProductRepository,
+	productRepo repository.ProductRepository,
 ) *ProductValidatorServiceImpl {
 	return &ProductValidatorServiceImpl{
 		productRepo: productRepo,

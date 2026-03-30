@@ -435,7 +435,7 @@ Show detailed inventory information for each variant within a product (expanded 
 ### API Endpoint
 
 ```
-GET /api/inventory/products/{productId}/variants?locationId=1
+GET /api/inventory/product/{productId}/variant?locationId=1
 
 Response:
 {
@@ -505,7 +505,7 @@ Response:
 | -------------------------------------------- | ---------------------------------- | ----- |
 | `GET /api/inventory/locations/summary`       | Location list with inventory stats | 1     |
 | `GET /api/inventory/locations/{id}/products` | Product list for a location        | 2     |
-| `GET /api/inventory/products/{id}/variants`  | Variant details with inventory     | 3     |
+| `GET /api/inventory/product/{id}/variant`    | Variant details with inventory     | 3     |
 | `POST /api/inventory/adjustments`            | Adjust stock quantity              | 3     |
 | `POST /api/inventory/transfers`              | Transfer stock between locations   | 3     |
 | `GET /api/inventory/transactions`            | Transaction history                | 3     |

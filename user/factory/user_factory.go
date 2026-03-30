@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"strconv"
 	"time"
 
 	"ecommerce-be/common/auth"
@@ -8,7 +9,6 @@ import (
 	"ecommerce-be/common/constants"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/utils"
 )
 
 /***********************************************
@@ -29,6 +29,9 @@ func BuildUserResponse(user *entity.User) model.UserResponse {
 		IsActive:    user.IsActive,
 		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+		// Preferences (Note: User's country is derived from default address)
+		CurrencyID: user.CurrencyID,
+		Locale:     user.Locale,
 	}
 }
 
@@ -64,7 +67,7 @@ func BuildAuthResponse(
 	authResponse := &model.AuthResponse{
 		User:      userResponse,
 		Token:     token,
-		ExpiresIn: utils.TokenExpirationDisplay,
+		ExpiresIn: strconv.Itoa(config.Get().Auth.JWTExpiryHours) + "h",
 	}
 
 	return authResponse, nil
@@ -94,7 +97,7 @@ func BuildTokenResponse(
 
 	tokenResponse := &model.TokenResponse{
 		Token:     token,
-		ExpiresIn: utils.TokenExpirationDisplay,
+		ExpiresIn: strconv.Itoa(config.Get().Auth.JWTExpiryHours) + "h",
 	}
 
 	return tokenResponse, nil

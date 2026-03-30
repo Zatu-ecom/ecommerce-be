@@ -10,6 +10,20 @@ import (
 	userModel "ecommerce-be/user/model"
 )
 
+// LocationTypeToAddressType maps inventory location type to user address type
+func LocationTypeToAddressType(locType entity.LocationType) userEntity.AddressType {
+	switch locType {
+	case entity.LOC_WAREHOUSE:
+		return userEntity.ADDR_WAREHOUSE
+	case entity.LOC_STORE:
+		return userEntity.ADDR_STORE
+	case entity.LOC_RETURN_CENTER:
+		return userEntity.ADDR_RETURN_CENTER
+	default:
+		return userEntity.ADDR_OTHER
+	}
+}
+
 // BuildLocationResponse converts a Location entity to LocationResponse DTO
 func BuildLocationResponse(location *entity.Location) *model.LocationResponse {
 	if location == nil {
@@ -29,12 +43,15 @@ func BuildLocationResponse(location *entity.Location) *model.LocationResponse {
 // BuildAddressResponse converts an Address entity to AddressResponse DTO
 func BuildAddressResponse(address *userEntity.Address) model.AddressResponse {
 	return model.AddressResponse{
-		ID:      address.ID,
-		Street:  address.Street,
-		City:    address.City,
-		State:   address.State,
-		ZipCode: address.ZipCode,
-		Country: address.Country,
+		ID:        address.ID,
+		Address:   address.Address,
+		Landmark:  address.Landmark,
+		City:      address.City,
+		State:     address.State,
+		ZipCode:   address.ZipCode,
+		CountryID: address.CountryID,
+		Latitude:  address.Latitude,
+		Longitude: address.Longitude,
 	}
 }
 
@@ -68,13 +85,18 @@ func BuildUpdateLocationEntity(location *entity.Location, req model.LocationUpda
 
 func BuildUserAddressReqToInventoryAddressReq(
 	address model.AddressRequest,
+	locType entity.LocationType,
 ) userModel.AddressRequest {
 	return userModel.AddressRequest{
-		Street:    address.Street,
+		Type:      LocationTypeToAddressType(locType), // Sync address type with location type
+		Address:   address.Address,
+		Landmark:  address.Landmark,
 		City:      address.City,
 		State:     address.State,
 		ZipCode:   address.ZipCode,
-		Country:   address.Country,
+		CountryID: address.CountryID,
+		Latitude:  address.Latitude,
+		Longitude: address.Longitude,
 		IsDefault: false,
 	}
 }
@@ -84,25 +106,40 @@ func BuildUserAddressResponseToInventoryAddressResponse(
 	userAddress *userModel.AddressResponse,
 ) model.AddressResponse {
 	return model.AddressResponse{
-		ID:      userAddress.ID,
-		Street:  userAddress.Street,
-		City:    userAddress.City,
-		State:   userAddress.State,
-		ZipCode: userAddress.ZipCode,
-		Country: userAddress.Country,
+		ID:        userAddress.ID,
+		Address:   userAddress.Address,
+		Landmark:  userAddress.Landmark,
+		City:      userAddress.City,
+		State:     userAddress.State,
+		ZipCode:   userAddress.ZipCode,
+		CountryID: userAddress.CountryID,
+		Latitude:  userAddress.Latitude,
+		Longitude: userAddress.Longitude,
 	}
 }
 
 func BuildInventoryUserUpdateReqToUserAddressUpdateReq(
 	userAddress model.AddressUpdateRequest,
+	locType *entity.LocationType,
 ) userModel.AddressUpdateRequest {
-	return userModel.AddressUpdateRequest{
-		Street:  userAddress.Street,
-		City:    userAddress.City,
-		State:   userAddress.State,
-		ZipCode: userAddress.ZipCode,
-		Country: userAddress.Country,
+	req := userModel.AddressUpdateRequest{
+		Address:   userAddress.Address,
+		Landmark:  userAddress.Landmark,
+		City:      userAddress.City,
+		State:     userAddress.State,
+		ZipCode:   userAddress.ZipCode,
+		CountryID: userAddress.CountryID,
+		Latitude:  userAddress.Latitude,
+		Longitude: userAddress.Longitude,
 	}
+
+	// Sync address type if location type is being updated
+	if locType != nil {
+		addrType := LocationTypeToAddressType(*locType)
+		req.Type = &addrType
+	}
+
+	return req
 }
 
 // BuildLocationSummaryResponse creates a LocationSummaryResponse with inventory data

@@ -22,8 +22,9 @@ func TestUpdateProductNegativePath(t *testing.T) {
 
 	// Run migrations and seeds
 	containers.RunAllMigrations(t)
-	containers.RunSeeds(t, "migrations/seeds/001_seed_user_data.sql")
-	containers.RunSeeds(t, "migrations/seeds/002_seed_product_data.sql")
+	containers.RunAllCoreSeeds(t)
+	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
 
 	// Setup test server
 	server := setup.SetupTestServer(t, containers.DB, containers.RedisClient)
@@ -48,7 +49,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Unauthorized Update",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 401
@@ -74,7 +75,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Invalid Token Update",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 401
@@ -104,7 +105,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Expired Token Update",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 401
@@ -132,7 +133,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Unauthorized Update Attempt",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 403 Forbidden
@@ -161,7 +162,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Customer Update Attempt",
 		}
-		url := fmt.Sprintf("/api/products/%d", productID)
+		url := fmt.Sprintf("/api/product/%d", productID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 403 Forbidden
@@ -187,7 +188,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Non-Existent Product",
 		}
-		url := "/api/products/99999"
+		url := "/api/product/99999"
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 404 Not Found
@@ -203,7 +204,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Invalid ID Format",
 		}
-		url := "/api/products/abc"
+		url := "/api/product/abc"
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -219,7 +220,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Negative ID",
 		}
-		url := "/api/products/-5"
+		url := "/api/product/-5"
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -235,40 +236,43 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "Zero ID",
 		}
-		url := "/api/products/0"
+		url := "/api/product/0"
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 404 Not Found (product with ID 0 doesn't exist)
 		assert.Equal(t, http.StatusNotFound, w.Code, "Should return 404 Not Found")
 	})
 
-	t.Run("UPD_PROD_NEG_010 - Update with Empty Request Body (All Fields Null)", func(t *testing.T) {
-		// Given: Seller is authenticated
-		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
-		client.SetToken(sellerToken)
+	t.Run(
+		"UPD_PROD_NEG_010 - Update with Empty Request Body (All Fields Null)",
+		func(t *testing.T) {
+			// Given: Seller is authenticated
+			sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+			client.SetToken(sellerToken)
 
-		// Find a product owned by seller
-		var product entity.Product
-		err := containers.DB.Where("seller_id = ?", helpers.SellerUserID).First(&product).Error
-		require.NoError(t, err, "Should find product for seller")
+			// Find a product owned by seller
+			var product entity.Product
+			err := containers.DB.Where("seller_id = ?", helpers.SellerUserID).First(&product).Error
+			require.NoError(t, err, "Should find product for seller")
 
-		originalName := product.Name
+			originalName := product.Name
 
-		// When: Request sent with empty body (all fields null = no fields provided)
-		updateRequest := map[string]interface{}{}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
-		w := client.Put(t, url, updateRequest)
+			// When: Request sent with empty body (all fields null = no fields provided)
+			updateRequest := map[string]interface{}{}
+			url := fmt.Sprintf("/api/product/%d", product.ID)
+			w := client.Put(t, url, updateRequest)
 
-		// Then: Should return 400 Bad Request (at least one field required)
-		// API requires at least one field to be provided for update
-		assert.Equal(t, http.StatusBadRequest, w.Code, "Should return 400 Bad Request")
+			// Then: Should return 400 Bad Request (at least one field required)
+			// API requires at least one field to be provided for update
+			assert.Equal(t, http.StatusBadRequest, w.Code, "Should return 400 Bad Request")
 
-		// Validate product is NOT updated in database
-		var dbProduct entity.Product
-		err = containers.DB.First(&dbProduct, product.ID).Error
-		require.NoError(t, err, "Should find product in database")
-		assert.Equal(t, originalName, dbProduct.Name, "Product name should not be updated")
-	})
+			// Validate product is NOT updated in database
+			var dbProduct entity.Product
+			err = containers.DB.First(&dbProduct, product.ID).Error
+			require.NoError(t, err, "Should find product in database")
+			assert.Equal(t, originalName, dbProduct.Name, "Product name should not be updated")
+		},
+	)
 
 	t.Run("UPD_PROD_NEG_011 - Update with Wrong Data Type", func(t *testing.T) {
 		// Given: Seller is authenticated
@@ -284,7 +288,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": 12345, // Should be string
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -305,7 +309,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": "AB",
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request (min=3 validation)
@@ -327,7 +331,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"name": longName,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -349,7 +353,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"brand": longBrand,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -371,7 +375,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"shortDescription": longDesc,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -393,7 +397,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"longDescription": longDesc,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -418,7 +422,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"tags": tags,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 Bad Request
@@ -439,7 +443,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		updateRequest := map[string]interface{}{
 			"categoryId": 99999,
 		}
-		url := fmt.Sprintf("/api/products/%d", product.ID)
+		url := fmt.Sprintf("/api/product/%d", product.ID)
 		w := client.Put(t, url, updateRequest)
 
 		// Then: Should return 400 or 404

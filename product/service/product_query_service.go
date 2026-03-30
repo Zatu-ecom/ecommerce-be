@@ -5,11 +5,11 @@ import (
 	"math"
 
 	"ecommerce-be/product/entity"
-	prodErrors "ecommerce-be/product/errors"
+	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
-	"ecommerce-be/product/repositories"
+	"ecommerce-be/product/repository"
 )
 
 // ProductQueryService defines the interface for product query operations
@@ -19,17 +19,20 @@ type ProductQueryService interface {
 		ctx context.Context,
 		page, limit int,
 		filter model.GetProductsFilter,
+		userID *uint, // Optional: if provided, checks if products are wishlisted by this user
 	) (*model.ProductsResponse, error)
 	GetProductByID(
 		ctx context.Context,
 		id uint,
 		sellerID *uint,
+		userID *uint, // Optional: if provided, checks if product is wishlisted by this user
 	) (*model.ProductResponse, error)
 	SearchProducts(
 		ctx context.Context,
 		query string,
 		filters map[string]interface{},
 		page, limit int,
+		userID *uint, // Optional: if provided, checks if products are wishlisted by this user
 	) (*model.SearchResponse, error)
 	GetProductFilters(
 		ctx context.Context,
@@ -42,12 +45,13 @@ type ProductQueryService interface {
 		page int,
 		strategies string,
 		sellerID *uint,
+		userID *uint, // Optional: if provided, checks if products are wishlisted by this user
 	) (*model.RelatedProductsScoredResponse, error)
 }
 
 // ProductQueryServiceImpl implements the ProductQueryService interface
 type ProductQueryServiceImpl struct {
-	productRepo             repositories.ProductRepository
+	productRepo             repository.ProductRepository
 	variantQueryService     VariantQueryService
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
@@ -56,7 +60,7 @@ type ProductQueryServiceImpl struct {
 
 // NewProductQueryService creates a new instance of ProductQueryService
 func NewProductQueryService(
-	productRepo repositories.ProductRepository,
+	productRepo repository.ProductRepository,
 	variantQueryService VariantQueryService,
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
@@ -80,6 +84,7 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 	page,
 	limit int,
 	filter model.GetProductsFilter,
+	userID *uint,
 ) (*model.ProductsResponse, error) {
 	// Validate and set default pagination values
 	page, limit = s.validatePaginationParams(page, limit)
@@ -92,7 +97,7 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 
 	// Build product responses with variant data using batch aggregation
 	// This prevents N+1 queries by fetching all variant data in a single query
-	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products)
+	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +114,11 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 
 // buildProductResponsesWithVariants builds ProductResponse list from products with variant data
 // Performs batch variant aggregation for optimal performance - single query for all products
+// If userID is provided, also checks if products are wishlisted by that user
 func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 	ctx context.Context,
 	products []entity.Product,
+	userID *uint,
 ) ([]model.ProductResponse, error) {
 	if len(products) == 0 {
 		return []model.ProductResponse{}, nil
@@ -125,7 +132,12 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 
 	// Fetch variant aggregations for all products in ONE query via VariantService
 	// This is the key optimization to prevent N+1 queries
-	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(ctx, productIDs)
+	// If userID is provided, also fetches wishlist status
+	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(
+		ctx,
+		productIDs,
+		userID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +167,7 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	ctx context.Context,
 	id uint,
 	sellerID *uint,
+	userID *uint,
 ) (*model.ProductResponse, error) {
 	// Fetch product entity
 	product, err := s.productRepo.FindByID(ctx, id)
@@ -169,17 +182,20 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	}
 
 	// Build detailed product response using service dependencies
-	return s.buildDetailedProductResponse(ctx, product)
+	return s.buildDetailedProductResponse(ctx, product, userID)
 }
 
 // buildDetailedProductResponse builds a complete ProductResponse with all details
 // Uses service layer dependencies to fetch related data efficiently
+// If userID is provided, also checks if product is wishlisted by that user
 func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	ctx context.Context,
 	product *entity.Product,
+	userID *uint,
 ) (*model.ProductResponse, error) {
 	// Get variant aggregation for summary info using VariantService
-	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(ctx, product.ID)
+	// If userID is provided, also fetches wishlist status
+	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(ctx, product.ID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -235,6 +251,7 @@ func (s *ProductQueryServiceImpl) SearchProducts(
 	query string,
 	filters map[string]interface{},
 	page, limit int,
+	userID *uint,
 ) (*model.SearchResponse, error) {
 	// Validate and set default pagination values
 	page, limit = s.validatePaginationParams(page, limit)
@@ -247,7 +264,8 @@ func (s *ProductQueryServiceImpl) SearchProducts(
 
 	// Build product responses with variant data using batch aggregation
 	// Reuses the same optimization as GetAllProducts to prevent N+1 queries
-	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products)
+	// If userID is provided, also fetches wishlist status
+	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +378,7 @@ func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
 	page int,
 	strategies string,
 	sellerID *uint,
+	userID *uint,
 ) (*model.RelatedProductsScoredResponse, error) {
 	// Validate and set defaults
 	page, limit = s.validatePaginationParams(page, limit)
@@ -395,7 +414,10 @@ func (s *ProductQueryServiceImpl) GetRelatedProductsScored(
 	}
 
 	// Build related items using batch operation and factory methods
-	relatedItems, strategiesUsedMap, totalScore, err := s.buildRelatedProductItems(ctx, scoredResults)
+	relatedItems, strategiesUsedMap, totalScore, err := s.buildRelatedProductItems(
+		ctx,
+		scoredResults,
+	)
 	if err != nil {
 		return nil, err
 	}

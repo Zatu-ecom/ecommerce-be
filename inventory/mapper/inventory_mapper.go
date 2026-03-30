@@ -20,3 +20,9 @@ type VariantInventoryRow struct {
 	Threshold        int
 	BinLocation      string
 }
+
+// VariantAvailableQuantityRow maps the flat batch aggregate lookup for total available qty
+type VariantAvailableQuantityRow struct {
+	VariantID      uint `gorm:"column:variant_id"`
+	TotalAvailable int  `gorm:"column:total_available"`
+}

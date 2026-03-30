@@ -1,11 +1,13 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
+	"ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
-	"ecommerce-be/user/utils"
+	"ecommerce-be/user/utils/constant"
 
 	"gorm.io/gorm"
 )
@@ -13,47 +15,43 @@ import (
 // UserRepository defines the interface for user data operations
 type UserRepository interface {
 	// User CRUD operations
-	Create(user *entity.User) error
-	FindByID(id uint) (*entity.User, error)
-	FindByEmail(email string) (*entity.User, error)
-	FindByEmailWithRole(email string) (*entity.User, *entity.Role, error)
-	FindByIDWithRole(id uint) (*entity.User, *entity.Role, error)
-	Update(user *entity.User) error
-	Delete(id uint) error
+	Create(ctx context.Context, user *entity.User) error
+	FindByID(ctx context.Context, id uint) (*entity.User, error)
+	FindByEmail(ctx context.Context, email string) (*entity.User, error)
+	FindByEmailWithRole(ctx context.Context, email string) (*entity.User, *entity.Role, error)
+	FindByIDWithRole(ctx context.Context, id uint) (*entity.User, *entity.Role, error)
+	Update(ctx context.Context, user *entity.User) error
+	Delete(ctx context.Context, id uint) error
 
 	// Role operations
-	FindRoleByName(name string) (*entity.Role, error)
-	FindRolesByIDs(ids []uint) ([]entity.Role, error)
+	FindRoleByName(ctx context.Context, name string) (*entity.Role, error)
+	FindRolesByIDs(ctx context.Context, ids []uint) ([]entity.Role, error)
 
 	// List operations
-	FindByFilter(filter model.ListUsersFilter) ([]entity.User, int64, error)
-	FindByIDs(ids []uint) ([]entity.User, error)
+	FindByFilter(ctx context.Context, filter model.ListUsersFilter) ([]entity.User, int64, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]entity.User, error)
 }
 
 // UserRepositoryImpl implements the UserRepository interface
-type UserRepositoryImpl struct {
-	db *gorm.DB
-}
+type UserRepositoryImpl struct{}
 
 // NewUserRepository creates a new instance of UserRepository
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &UserRepositoryImpl{
-		db: db,
-	}
+func NewUserRepository() UserRepository {
+	return &UserRepositoryImpl{}
 }
 
 // Create creates a new user in the database
-func (r *UserRepositoryImpl) Create(user *entity.User) error {
-	return r.db.Create(user).Error
+func (r *UserRepositoryImpl) Create(ctx context.Context, user *entity.User) error {
+	return db.DB(ctx).Create(user).Error
 }
 
 // FindByID finds a user by ID
-func (r *UserRepositoryImpl) FindByID(id uint) (*entity.User, error) {
+func (r *UserRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.User, error) {
 	var user entity.User
-	result := r.db.First(&user, id)
+	result := db.DB(ctx).First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.UserNotFoundMsg)
+			return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -61,12 +59,12 @@ func (r *UserRepositoryImpl) FindByID(id uint) (*entity.User, error) {
 }
 
 // FindByEmail finds a user by email
-func (r *UserRepositoryImpl) FindByEmail(email string) (*entity.User, error) {
+func (r *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (*entity.User, error) {
 	var user entity.User
-	result := r.db.Where("email = ?", email).First(&user)
+	result := db.DB(ctx).Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, errors.New(utils.UserNotFoundMsg)
+			return nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, result.Error
 	}
@@ -74,31 +72,34 @@ func (r *UserRepositoryImpl) FindByEmail(email string) (*entity.User, error) {
 }
 
 // Update updates an existing user
-func (r *UserRepositoryImpl) Update(user *entity.User) error {
-	return r.db.Save(user).Error
+func (r *UserRepositoryImpl) Update(ctx context.Context, user *entity.User) error {
+	return db.DB(ctx).Save(user).Error
 }
 
 // Delete deletes a user by ID
-func (r *UserRepositoryImpl) Delete(id uint) error {
-	return r.db.Delete(&entity.User{}, id).Error
+func (r *UserRepositoryImpl) Delete(ctx context.Context, id uint) error {
+	return db.DB(ctx).Delete(&entity.User{}, id).Error
 }
 
 // FindByEmailWithRole finds a user by email and includes role information
-func (r *UserRepositoryImpl) FindByEmailWithRole(email string) (*entity.User, *entity.Role, error) {
+func (r *UserRepositoryImpl) FindByEmailWithRole(
+	ctx context.Context,
+	email string,
+) (*entity.User, *entity.Role, error) {
 	var user entity.User
 	var role entity.Role
 
 	// First find the user
-	result := r.db.Where("email = ?", email).First(&user)
+	result := db.DB(ctx).Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil, errors.New(utils.UserNotFoundMsg)
+			return nil, nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, nil, result.Error
 	}
 
 	// Then find the role
-	roleResult := r.db.First(&role, user.RoleID)
+	roleResult := db.DB(ctx).First(&role, user.RoleID)
 	if roleResult.Error != nil {
 		if errors.Is(roleResult.Error, gorm.ErrRecordNotFound) {
 			return &user, nil, errors.New("role not found")
@@ -110,21 +111,24 @@ func (r *UserRepositoryImpl) FindByEmailWithRole(email string) (*entity.User, *e
 }
 
 // FindByIDWithRole finds a user by ID and includes role information
-func (r *UserRepositoryImpl) FindByIDWithRole(id uint) (*entity.User, *entity.Role, error) {
+func (r *UserRepositoryImpl) FindByIDWithRole(
+	ctx context.Context,
+	id uint,
+) (*entity.User, *entity.Role, error) {
 	var user entity.User
 	var role entity.Role
 
 	// First find the user
-	result := r.db.First(&user, id)
+	result := db.DB(ctx).First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil, errors.New(utils.UserNotFoundMsg)
+			return nil, nil, errors.New(constant.USER_NOT_FOUND_MSG)
 		}
 		return nil, nil, result.Error
 	}
 
 	// Then find the role
-	roleResult := r.db.First(&role, user.RoleID)
+	roleResult := db.DB(ctx).First(&role, user.RoleID)
 	if roleResult.Error != nil {
 		if errors.Is(roleResult.Error, gorm.ErrRecordNotFound) {
 			return &user, nil, errors.New("role not found")
@@ -136,9 +140,12 @@ func (r *UserRepositoryImpl) FindByIDWithRole(id uint) (*entity.User, *entity.Ro
 }
 
 // FindRoleByName finds a role by its name
-func (r *UserRepositoryImpl) FindRoleByName(name string) (*entity.Role, error) {
+func (r *UserRepositoryImpl) FindRoleByName(
+	ctx context.Context,
+	name string,
+) (*entity.Role, error) {
 	var role entity.Role
-	result := r.db.Where("name = ?", name).First(&role)
+	result := db.DB(ctx).Where("name = ?", name).First(&role)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.New("role not found")
@@ -149,13 +156,16 @@ func (r *UserRepositoryImpl) FindRoleByName(name string) (*entity.Role, error) {
 }
 
 // FindRolesByIDs finds roles by multiple IDs
-func (r *UserRepositoryImpl) FindRolesByIDs(ids []uint) ([]entity.Role, error) {
+func (r *UserRepositoryImpl) FindRolesByIDs(
+	ctx context.Context,
+	ids []uint,
+) ([]entity.Role, error) {
 	if len(ids) == 0 {
 		return []entity.Role{}, nil
 	}
 
 	var roles []entity.Role
-	if err := r.db.Where("id IN ?", ids).Find(&roles).Error; err != nil {
+	if err := db.DB(ctx).Where("id IN ?", ids).Find(&roles).Error; err != nil {
 		return nil, err
 	}
 	return roles, nil
@@ -163,12 +173,13 @@ func (r *UserRepositoryImpl) FindRolesByIDs(ids []uint) ([]entity.Role, error) {
 
 // FindByFilter finds users based on filter criteria with pagination
 func (r *UserRepositoryImpl) FindByFilter(
+	ctx context.Context,
 	filter model.ListUsersFilter,
 ) ([]entity.User, int64, error) {
 	var users []entity.User
 	var total int64
 
-	query := r.db.Model(&entity.User{})
+	query := db.DB(ctx).Model(&entity.User{})
 
 	// Apply filters
 	query = r.applyUserFilters(query, filter)
@@ -222,6 +233,12 @@ func (r *UserRepositoryImpl) applyUserFilters(
 		query = query.Where("role_id IN ?", filter.RoleIDs)
 	}
 
+	// Filter by role names (requires join with roles table)
+	if len(filter.RoleNames) > 0 {
+		query = query.Joins("JOIN role ON role.id = \"user\".role_id").
+			Where("role.name IN ?", filter.RoleNames)
+	}
+
 	// Filter by seller IDs
 	if len(filter.SellerIDs) > 0 {
 		query = query.Where("seller_id IN ?", filter.SellerIDs)
@@ -253,13 +270,13 @@ func (r *UserRepositoryImpl) applyUserFilters(
 }
 
 // FindByIDs finds users by multiple IDs
-func (r *UserRepositoryImpl) FindByIDs(ids []uint) ([]entity.User, error) {
+func (r *UserRepositoryImpl) FindByIDs(ctx context.Context, ids []uint) ([]entity.User, error) {
 	if len(ids) == 0 {
 		return []entity.User{}, nil
 	}
 
 	var users []entity.User
-	if err := r.db.Where("id IN ?", ids).Find(&users).Error; err != nil {
+	if err := db.DB(ctx).Where("id IN ?", ids).Find(&users).Error; err != nil {
 		return nil, err
 	}
 	return users, nil
