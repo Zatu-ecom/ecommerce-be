@@ -16,12 +16,14 @@ import (
 	logger "ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/common/scheduler"
+	fileModule "ecommerce-be/file"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
 	"ecommerce-be/payment"
 	product "ecommerce-be/product"
 	"ecommerce-be/promotion"
+	"ecommerce-be/report"
 	user "ecommerce-be/user"
 
 	"github.com/gin-gonic/gin"
@@ -127,10 +129,12 @@ func gracefulShutdown(srv *http.Server) {
 
 func registerContainer(router *gin.Engine) {
 	_ = user.NewContainer(router)
+	_ = fileModule.NewContainer(router)
 	_ = product.NewContainer(router)
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
+	_ = report.NewContainer(router)
 }

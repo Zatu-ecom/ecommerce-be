@@ -22,4 +22,10 @@ const (
 	APIBaseNotification = "/api/notification"
 
 	APIBasePromotion = "/api/promotion"
+
+	// Report Service Base Path
+	APIBaseReport = "/api/report"
+
+	// File Service Base Path
+	APIBaseFile = "/api/file"
 )
