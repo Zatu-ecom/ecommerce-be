@@ -7,22 +7,25 @@ import (
 	"time"
 
 	"ecommerce-be/common/config"
+	"ecommerce-be/common/constants"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/file/entity"
+	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
 	"ecommerce-be/file/repository"
-)
+	"ecommerce-be/file/utils/constant"
 
-var (
-	ErrProviderNotFound    = errors.New("storage provider not found or inactive")
-	ErrUnauthorized        = errors.New("unauthorized to manage this storage config")
-	ErrConfigNotFound      = errors.New("storage config not found")
-	ErrSerializationFailed = errors.New("failed to process configuration data")
+	"gorm.io/gorm"
 )
 
 type ConfigService interface {
 	GetProviders(ctx context.Context) ([]model.ProviderResponse, error)
-	SaveConfig(ctx context.Context, userID uint, role string, req model.SaveConfigRequest) (*model.ConfigResponse, error)
+	SaveConfig(
+		ctx context.Context,
+		userID uint,
+		role string,
+		req model.SaveConfigRequest,
+	) (*model.ConfigResponse, error)
 }
 
 type configService struct {
@@ -38,7 +41,10 @@ func NewConfigService(configRepo repository.ConfigRepository) ConfigService {
 func (s *configService) GetProviders(ctx context.Context) ([]model.ProviderResponse, error) {
 	providers, err := s.configRepo.GetProviders(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fileError.ErrPersistenceFailed.WithMessagef(
+			"Failed to fetch providers: %v",
+			err,
+		)
 	}
 
 	res := make([]model.ProviderResponse, len(providers))
@@ -49,31 +55,75 @@ func (s *configService) GetProviders(ctx context.Context) ([]model.ProviderRespo
 	return res, nil
 }
 
-func (s *configService) SaveConfig(ctx context.Context, userID uint, role string, req model.SaveConfigRequest) (*model.ConfigResponse, error) {
-	isSeller := role == "SELLER"
-
-	var cfg *entity.StorageConfig
-	var err error
-
-	// Find existing or initialize new
-	if req.ID != nil {
-		cfg, err = s.configRepo.GetConfigByID(ctx, *req.ID)
-		if err != nil {
-			return nil, ErrConfigNotFound
-		}
-
-		// Check authorization for updates
-		if isSeller && (cfg.OwnerType != entity.OwnerTypeSeller || cfg.OwnerID == nil || *cfg.OwnerID != userID) {
-			return nil, ErrUnauthorized
-		}
-		if !isSeller && cfg.OwnerType != entity.OwnerTypePlatform {
-			return nil, ErrUnauthorized
-		}
-	} else {
-		cfg = &entity.StorageConfig{}
+func (s *configService) SaveConfig(
+	ctx context.Context,
+	userID uint,
+	role string,
+	req model.SaveConfigRequest,
+) (*model.ConfigResponse, error) {
+	isSeller, err := s.resolveRole(role)
+	if err != nil {
+		return nil, err
 	}
 
-	// Update basic fields
+	if err := s.ensureProviderIsActive(ctx, req.ProviderID); err != nil {
+		return nil, err
+	}
+
+	cfg, err := s.resolveTargetConfig(ctx, req.ID, userID, isSeller)
+	if err != nil {
+		return nil, err
+	}
+
+	s.applyRequestFields(cfg, req)
+	s.applyOwnership(cfg, userID, isSeller, req.IsDefault)
+
+	encryptedCredentials, err := s.encryptCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	cfg.CredentialsEncrypted = encryptedCredentials
+
+	s.applyTimestamps(cfg)
+
+	clearPlatformDefaults := !isSeller && cfg.IsDefault
+	if err := s.saveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+		return nil, err
+	}
+
+	res := model.MapConfigToResponse(*cfg)
+	return &res, nil
+}
+
+func (s *configService) resolveRole(role string) (bool, error) {
+	isSeller := role == constants.SELLER_ROLE_NAME
+	isAdmin := role == constants.ADMIN_ROLE_NAME
+	if !isSeller && !isAdmin {
+		return false, fileError.ErrInvalidRole
+	}
+	return isSeller, nil
+}
+
+func (s *configService) ensureProviderIsActive(
+	ctx context.Context,
+	providerID uint,
+) error {
+	if _, err := s.configRepo.GetActiveProviderByID(ctx, providerID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fileError.ErrProviderNotFound
+		}
+		return fileError.ErrPersistenceFailed.WithMessagef(
+			constant.FILE_PROVIDER_LOOKUP_FAILED_FMT,
+			err,
+		)
+	}
+	return nil
+}
+
+func (s *configService) applyRequestFields(
+	cfg *entity.StorageConfig,
+	req model.SaveConfigRequest,
+) {
 	cfg.ProviderID = req.ProviderID
 	cfg.DisplayName = req.DisplayName
 	cfg.BucketOrContainer = req.BucketOrContainer
@@ -81,60 +131,138 @@ func (s *configService) SaveConfig(ctx context.Context, userID uint, role string
 	cfg.Endpoint = req.Endpoint
 	cfg.BasePath = req.BasePath
 	cfg.ForcePathStyle = req.ForcePathStyle
-
-	// Restrict defaults and owner scope based on role
-	if isSeller {
-		cfg.OwnerType = entity.OwnerTypeSeller
-		var uid = userID
-		cfg.OwnerID = &uid
-		cfg.IsDefault = false
-	} else {
-		cfg.OwnerType = entity.OwnerTypePlatform
-		cfg.OwnerID = nil
-		cfg.IsDefault = req.IsDefault
-	}
-
-	// Serialize configs
 	if req.ConfigJSON != nil {
 		cfg.ConfigJSON = req.ConfigJSON
 	}
+}
 
-	// Encrypt credentials
-	credBytes, err := json.Marshal(req.Credentials)
+func (s *configService) applyOwnership(
+	cfg *entity.StorageConfig,
+	userID uint,
+	isSeller bool,
+	isDefault bool,
+) {
+	if isSeller {
+		cfg.OwnerType = entity.OwnerTypeSeller
+		cfg.OwnerID = &userID
+		cfg.IsDefault = false
+		return
+	}
+
+	cfg.OwnerType = entity.OwnerTypePlatform
+	cfg.OwnerID = nil
+	cfg.IsDefault = isDefault
+}
+
+func (s *configService) encryptCredentials(
+	credentials map[string]any,
+) ([]byte, error) {
+	credBytes, err := json.Marshal(credentials)
 	if err != nil {
-		return nil, ErrSerializationFailed
+		return nil, fileError.ErrSerializationFailed.WithMessagef(
+			constant.FILE_INVALID_CREDENTIALS_PAYLOAD_FMT,
+			err,
+		)
 	}
 
-	appConfig := config.Get().App
-	encrypted, err := helper.Encrypt(string(credBytes), appConfig.EncryptionKey)
+	cfgSingleton := config.Get()
+	if cfgSingleton == nil {
+		return nil, fileError.ErrEncryptionFailed.WithMessage(constant.FILE_CONFIG_NOT_LOADED_MSG)
+	}
+
+	encrypted, err := helper.Encrypt(string(credBytes), cfgSingleton.App.EncryptionKey)
 	if err != nil {
-		return nil, errors.New("failed to encrypt credentials")
+		return nil, fileError.ErrEncryptionFailed.WithMessage(err.Error())
 	}
 
-	cfg.CredentialsEncrypted = []byte(encrypted)
+	return []byte(encrypted), nil
+}
 
-	// Admin clear defaults logically
-	if !isSeller && cfg.IsDefault {
-		_ = s.configRepo.ClearDefaultConfigs(ctx)
-	}
-
+func (s *configService) applyTimestamps(cfg *entity.StorageConfig) {
 	now := time.Now()
-	// Create or Update
-	if req.ID != nil {
-		cfg.UpdatedAt = now
-		err = s.configRepo.UpdateConfig(ctx, cfg)
-	} else {
+	if cfg.ID == 0 {
 		cfg.IsActive = true
-		cfg.ValidationStatus = "PENDING"
+		cfg.ValidationStatus = constant.FILE_CONFIG_PENDING_STATUS
 		cfg.CreatedAt = now
-		cfg.UpdatedAt = now
-		err = s.configRepo.CreateConfig(ctx, cfg)
+	}
+	cfg.UpdatedAt = now
+}
+
+func (s *configService) saveConfig(
+	ctx context.Context,
+	cfg *entity.StorageConfig,
+	clearPlatformDefaults bool,
+) error {
+	if err := s.configRepo.SaveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+		return fileError.ErrPersistenceFailed.WithMessagef(
+			constant.FILE_SAVE_CONFIG_FAILED_FMT,
+			err,
+		)
+	}
+	return nil
+}
+
+func (s *configService) resolveTargetConfig(
+	ctx context.Context,
+	id *uint,
+	userID uint,
+	isSeller bool,
+) (*entity.StorageConfig, error) {
+	if id == nil {
+		return &entity.StorageConfig{}, nil
 	}
 
-	if err != nil {
-		return nil, err
+	if isSeller {
+		return s.resolveSellerScopedConfig(ctx, *id, userID)
 	}
 
-	res := model.MapConfigToResponse(*cfg)
-	return &res, nil
+	return s.resolvePlatformScopedConfig(ctx, *id)
+}
+
+func (s *configService) resolveSellerScopedConfig(
+	ctx context.Context,
+	configID uint,
+	sellerID uint,
+) (*entity.StorageConfig, error) {
+	cfg, err := s.configRepo.GetSellerOwnedConfigByID(ctx, configID, sellerID)
+	if err == nil {
+		return cfg, nil
+	}
+	return nil, s.mapScopedLookupError(ctx, configID, err)
+}
+
+func (s *configService) resolvePlatformScopedConfig(
+	ctx context.Context,
+	configID uint,
+) (*entity.StorageConfig, error) {
+	cfg, err := s.configRepo.GetPlatformConfigByID(ctx, configID)
+	if err == nil {
+		return cfg, nil
+	}
+	return nil, s.mapScopedLookupError(ctx, configID, err)
+}
+
+func (s *configService) mapScopedLookupError(
+	ctx context.Context,
+	configID uint,
+	err error,
+) error {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fileError.ErrPersistenceFailed.WithMessagef(
+			constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
+			err,
+		)
+	}
+
+	_, lookupErr := s.configRepo.GetConfigByID(ctx, configID)
+	if lookupErr == nil {
+		return fileError.ErrUnauthorized
+	}
+	if errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+		return fileError.ErrConfigNotFound
+	}
+	return fileError.ErrPersistenceFailed.WithMessagef(
+		constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
+		lookupErr,
+	)
 }

@@ -5,14 +5,21 @@ import (
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/file/entity"
+
+	"gorm.io/gorm"
 )
 
 type ConfigRepository interface {
 	GetProviders(ctx context.Context) ([]entity.StorageProvider, error)
-	CreateConfig(ctx context.Context, config *entity.StorageConfig) error
-	UpdateConfig(ctx context.Context, config *entity.StorageConfig) error
+	GetActiveProviderByID(ctx context.Context, id uint) (*entity.StorageProvider, error)
 	GetConfigByID(ctx context.Context, id uint) (*entity.StorageConfig, error)
-	ClearDefaultConfigs(ctx context.Context) error
+	GetSellerOwnedConfigByID(
+		ctx context.Context,
+		id uint,
+		sellerID uint,
+	) (*entity.StorageConfig, error)
+	GetPlatformConfigByID(ctx context.Context, id uint) (*entity.StorageConfig, error)
+	SaveConfig(ctx context.Context, config *entity.StorageConfig, clearPlatformDefaults bool) error
 }
 
 type configRepository struct{}
@@ -27,18 +34,19 @@ func (r *configRepository) GetProviders(ctx context.Context) ([]entity.StoragePr
 	return providers, err
 }
 
-func (r *configRepository) CreateConfig(
+func (r *configRepository) GetActiveProviderByID(
 	ctx context.Context,
-	config *entity.StorageConfig,
-) error {
-	return db.DB(ctx).Create(config).Error
-}
-
-func (r *configRepository) UpdateConfig(
-	ctx context.Context,
-	config *entity.StorageConfig,
-) error {
-	return db.DB(ctx).Save(config).Error
+	id uint,
+) (*entity.StorageProvider, error) {
+	var provider entity.StorageProvider
+	err := db.DB(ctx).
+		Where("id = ? AND is_active = ?", id, true).
+		First(&provider).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return &provider, nil
 }
 
 func (r *configRepository) GetConfigByID(
@@ -53,10 +61,62 @@ func (r *configRepository) GetConfigByID(
 	return &config, nil
 }
 
-func (r *configRepository) ClearDefaultConfigs(ctx context.Context) error {
-	return db.DB(ctx).
-		Model(&entity.StorageConfig{}).
-		Where("owner_type = ?", entity.OwnerTypePlatform).
-		Update("is_default", false).
+func (r *configRepository) GetSellerOwnedConfigByID(
+	ctx context.Context,
+	id uint,
+	sellerID uint,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Where(
+			"id = ? AND owner_type = ? AND owner_id = ?",
+			id,
+			entity.OwnerTypeSeller,
+			sellerID,
+		).
+		First(&cfg).
 		Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *configRepository) GetPlatformConfigByID(
+	ctx context.Context,
+	id uint,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Where("id = ? AND owner_type = ?", id, entity.OwnerTypePlatform).
+		First(&cfg).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *configRepository) SaveConfig(
+	ctx context.Context,
+	config *entity.StorageConfig,
+	clearPlatformDefaults bool,
+) error {
+	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if clearPlatformDefaults {
+			if err := tx.
+				Model(&entity.StorageConfig{}).
+				Where("owner_type = ? AND id <> ?", entity.OwnerTypePlatform, config.ID).
+				Update("is_default", false).
+				Error; err != nil {
+				return err
+			}
+		}
+
+		if config.ID == 0 {
+			return tx.Create(config).Error
+		}
+
+		return tx.Save(config).Error
+	})
 }

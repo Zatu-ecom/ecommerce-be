@@ -1,19 +1,28 @@
 package handler
 
 import (
+	"net/http"
+
+	"ecommerce-be/common"
+	"ecommerce-be/common/auth"
+	commonError "ecommerce-be/common/error"
+	baseHandler "ecommerce-be/common/handler"
 	"ecommerce-be/file/model"
 	"ecommerce-be/file/service"
+	"ecommerce-be/file/utils/constant"
 
 	"github.com/gin-gonic/gin"
 )
 
 // ConfigHandler handles storage configuration APIs for the file module.
 type ConfigHandler struct {
+	*baseHandler.BaseHandler
 	configService service.ConfigService
 }
 
 func NewConfigHandler(configService service.ConfigService) *ConfigHandler {
 	return &ConfigHandler{
+		BaseHandler:   baseHandler.NewBaseHandler(),
 		configService: configService,
 	}
 }
@@ -22,54 +31,68 @@ func NewConfigHandler(configService service.ConfigService) *ConfigHandler {
 func (h *ConfigHandler) GetProviders(c *gin.Context) {
 	providers, err := h.configService.GetProviders(c.Request.Context())
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		h.HandleError(c, err, constant.FAILED_TO_FETCH_PROVIDERS_MSG)
 		return
 	}
-	c.JSON(200, gin.H{"success": true, "data": providers})
+
+	h.Success(c, http.StatusOK, constant.FILE_PROVIDERS_FETCHED_MSG, providers)
 }
 
 // SaveConfig handles POST /storage-config
 func (h *ConfigHandler) SaveConfig(c *gin.Context) {
 	var req model.SaveConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request payload: " + err.Error()})
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
 		return
 	}
 
-	// Retrieve user details from context (usually set by middleware)
-	userIDVal, exists := c.Get("userID")
+	userID, exists := auth.GetUserIDFromContext(c)
 	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		h.HandleError(c, commonError.UnauthorizedError, constant.FILE_AUTH_REQUIRED_MSG)
 		return
 	}
-	userID := userIDVal.(uint)
 
-	roleVal, exists := c.Get("userRole")
-	role := "SELLER" // Default or parse from context
-	if exists {
-		role = roleVal.(string)
+	_, roleName, exists := auth.GetUserRoleFromContext(c)
+	if !exists {
+		h.HandleError(c, commonError.ErrRoleDataMissing, constant.FILE_ROLE_DATA_MISSING_MSG)
+		return
 	}
 
-	res, err := h.configService.SaveConfig(c.Request.Context(), userID, role, req)
+	res, err := h.configService.SaveConfig(c.Request.Context(), userID, roleName, req)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		h.HandleError(c, err, constant.FAILED_TO_SAVE_CONFIG_MSG)
 		return
 	}
 
-	c.JSON(200, gin.H{"success": true, "data": res})
+	h.Success(c, http.StatusOK, constant.FILE_CONFIG_SAVED_MSG, res)
 }
 
 // TestConfig handles POST /storage-config/test
 func (h *ConfigHandler) TestConfig(c *gin.Context) {
-	c.JSON(200, gin.H{"success": true, "message": "Not implemented yet"})
+	common.ErrorWithCode(
+		c,
+		http.StatusNotImplemented,
+		constant.FILE_CONFIG_NOT_IMPLEMENTED_MSG,
+		constant.FILE_NOT_IMPLEMENTED_CODE,
+	)
 }
 
 // ActivateConfig handles POST /storage-config/{id}/activate
 func (h *ConfigHandler) ActivateConfig(c *gin.Context) {
-	c.JSON(200, gin.H{"success": true, "message": "Not implemented yet"})
+	common.ErrorWithCode(
+		c,
+		http.StatusNotImplemented,
+		constant.FILE_ACTIVATE_NOT_IMPLEMENTED_MSG,
+		constant.FILE_NOT_IMPLEMENTED_CODE,
+	)
 }
 
 // GetActiveConfig handles GET /storage-config/active
 func (h *ConfigHandler) GetActiveConfig(c *gin.Context) {
-	c.JSON(200, gin.H{"success": true, "message": "Not implemented yet"})
+	common.ErrorWithCode(
+		c,
+		http.StatusNotImplemented,
+		constant.FILE_ACTIVE_NOT_IMPLEMENTED_MSG,
+		constant.FILE_NOT_IMPLEMENTED_CODE,
+	)
 }
