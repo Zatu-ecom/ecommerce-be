@@ -31,7 +31,9 @@ func (m *FileStorageConfigModule) RegisterRoutes(router *gin.Engine) {
 		fileRoutes.GET("/storage/providers", sellerAuth, m.configHandler.GetProviders)
 		fileRoutes.POST("/storage-config/test", sellerAuth, m.configHandler.TestConfig)
 		fileRoutes.POST("/storage-config", sellerAuth, m.configHandler.SaveConfig)
+		fileRoutes.GET("/storage-config", sellerAuth, m.configHandler.ListConfigs)
 		fileRoutes.POST("/storage-config/:id/activate", sellerAuth, m.configHandler.ActivateConfig)
-		fileRoutes.GET("/storage-config/active", sellerAuth, m.configHandler.GetActiveConfig)
+		// NOTE: GET /storage-config/active is superseded by GET /storage-config (listing).
+		// See research Decision 8.
 	}
 }

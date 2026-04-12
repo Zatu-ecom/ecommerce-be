@@ -43,4 +43,14 @@ var (
 		constant.FILE_CONFIG_PERSISTENCE_ERR_MSG,
 		http.StatusInternalServerError,
 	)
+	ErrActivationFailed = commonError.NewAppError(
+		constant.FILE_CONFIG_ACTIVATION_ERR_CODE,
+		constant.FILE_CONFIG_ACTIVATION_ERR_MSG,
+		http.StatusInternalServerError,
+	)
+	ErrListFailed = commonError.NewAppError(
+		constant.FILE_CONFIG_LIST_ERR_CODE,
+		constant.FILE_CONFIG_LIST_ERR_MSG,
+		http.StatusInternalServerError,
+	)
 )
