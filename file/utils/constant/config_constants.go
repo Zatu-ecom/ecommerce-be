@@ -15,6 +15,7 @@ const (
 	FILE_CONFIG_ACTIVATION_ERR_CODE    = "FILE_CONFIG_ACTIVATION_FAILED"
 	FILE_CONFIG_LIST_ERR_CODE          = "FILE_CONFIG_LIST_FAILED"
 	FILE_NOT_IMPLEMENTED_CODE          = "NOT_IMPLEMENTED"
+	FILE_LIST_VALIDATION_ERR_CODE      = "VALIDATION_ERROR"
 )
 
 // ========================================
@@ -42,7 +43,6 @@ const (
 	FILE_LIST_SELLER_ID_FIELD         = "sellerId"
 	FILE_LIST_SELLER_ID_ERR_MSG       = "sellerId is not an allowed filter"
 	FILE_LIST_VALIDATION_ERR_MSG      = "Validation failed"
-	FILE_LIST_VALIDATION_ERR_CODE     = "VALIDATION_ERROR"
 )
 
 // ========================================
