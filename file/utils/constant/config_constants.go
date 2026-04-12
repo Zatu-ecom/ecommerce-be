@@ -12,6 +12,8 @@ const (
 	FILE_CONFIG_SERIALIZATION_ERR_CODE = "FILE_CONFIG_SERIALIZATION_FAILED"
 	FILE_CONFIG_ENCRYPTION_ERR_CODE    = "FILE_CONFIG_ENCRYPTION_FAILED"
 	FILE_CONFIG_PERSISTENCE_ERR_CODE   = "FILE_CONFIG_PERSISTENCE_FAILED"
+	FILE_CONFIG_ACTIVATION_ERR_CODE    = "FILE_CONFIG_ACTIVATION_FAILED"
+	FILE_CONFIG_LIST_ERR_CODE          = "FILE_CONFIG_LIST_FAILED"
 	FILE_NOT_IMPLEMENTED_CODE          = "NOT_IMPLEMENTED"
 )
 
@@ -27,6 +29,8 @@ const (
 	FILE_CONFIG_SERIALIZATION_ERR_MSG = "Failed to process configuration data"
 	FILE_CONFIG_ENCRYPTION_ERR_MSG    = "Failed to encrypt credentials"
 	FILE_CONFIG_PERSISTENCE_ERR_MSG   = "Failed to persist storage configuration"
+	FILE_CONFIG_ACTIVATION_ERR_MSG    = "Failed to activate storage configuration"
+	FILE_CONFIG_LIST_ERR_MSG          = "Failed to list storage configurations"
 	FILE_CONFIG_NOT_IMPLEMENTED_MSG   = "Storage config test endpoint is not implemented yet"
 	FILE_ACTIVATE_NOT_IMPLEMENTED_MSG = "Activate storage config endpoint is not implemented yet"
 	FILE_ACTIVE_NOT_IMPLEMENTED_MSG   = "Get active storage config endpoint is not implemented yet"
@@ -34,6 +38,11 @@ const (
 	FILE_ROLE_DATA_MISSING_MSG        = "Role data missing in token context"
 	FILE_CONFIG_NOT_LOADED_MSG        = "application config is not loaded"
 	FILE_CONFIG_PENDING_STATUS        = "PENDING"
+	FILE_CONFIG_INVALID_ID_MSG        = "Invalid config ID"
+	FILE_LIST_SELLER_ID_FIELD         = "sellerId"
+	FILE_LIST_SELLER_ID_ERR_MSG       = "sellerId is not an allowed filter"
+	FILE_LIST_VALIDATION_ERR_MSG      = "Validation failed"
+	FILE_LIST_VALIDATION_ERR_CODE     = "VALIDATION_ERROR"
 )
 
 // ========================================
@@ -43,6 +52,8 @@ const (
 const (
 	FILE_PROVIDERS_FETCHED_MSG = "Storage providers fetched successfully"
 	FILE_CONFIG_SAVED_MSG      = "Storage config saved successfully"
+	FILE_CONFIG_ACTIVATED_MSG  = "Storage config activated successfully"
+	FILE_CONFIG_LISTED_MSG     = "Storage configs retrieved successfully"
 )
 
 // ========================================
@@ -55,5 +66,7 @@ const (
 	FILE_PROVIDER_LOOKUP_FAILED_FMT      = "Provider lookup failed: %v"
 	FILE_INVALID_CREDENTIALS_PAYLOAD_FMT = "Invalid credentials payload: %v"
 	FILE_SAVE_CONFIG_FAILED_FMT          = "Failed to save config: %v"
+	FILE_ACTIVATE_CONFIG_FAILED_FMT      = "Failed to activate config: %v"
+	FILE_LIST_CONFIG_FAILED_FMT          = "Failed to list configs: %v"
 	FILE_CONFIG_LOOKUP_FAILED_FMT        = "Config lookup failed: %v"
 )

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"ecommerce-be/common"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/helper"
@@ -26,6 +27,16 @@ type ConfigService interface {
 		role string,
 		req model.SaveConfigRequest,
 	) (*model.ConfigResponse, error)
+	ListConfigs(
+		ctx context.Context,
+		filter model.ListStorageConfigFilter,
+	) (*model.ListStorageConfigsResponse, error)
+	ActivateConfig(
+		ctx context.Context,
+		userID uint,
+		role string,
+		configID uint,
+	) (*model.ActivateStorageConfigResponse, error)
 }
 
 type configService struct {
@@ -38,7 +49,9 @@ func NewConfigService(configRepo repository.ConfigRepository) ConfigService {
 	}
 }
 
-func (s *configService) GetProviders(ctx context.Context) ([]model.ProviderResponse, error) {
+func (s *configService) GetProviders(
+	ctx context.Context,
+) ([]model.ProviderResponse, error) {
 	providers, err := s.configRepo.GetProviders(ctx)
 	if err != nil {
 		return nil, fileError.ErrPersistenceFailed.WithMessagef(
@@ -265,4 +278,75 @@ func (s *configService) mapScopedLookupError(
 		constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
 		lookupErr,
 	)
+}
+
+func (s *configService) ListConfigs(
+	ctx context.Context,
+	filter model.ListStorageConfigFilter,
+) (*model.ListStorageConfigsResponse, error) {
+	configs, total, err := s.configRepo.ListConfigs(ctx, filter)
+	if err != nil {
+		return nil, fileError.ErrListFailed.WithMessagef(
+			constant.FILE_LIST_CONFIG_FAILED_FMT,
+			err,
+		)
+	}
+
+	items := make([]model.StorageConfigListItem, len(configs))
+	for i, c := range configs {
+		items[i] = model.MapConfigToListItem(c)
+	}
+
+	return &model.ListStorageConfigsResponse{
+		Configs:    items,
+		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+	}, nil
+}
+
+func (s *configService) ActivateConfig(
+	ctx context.Context,
+	userID uint,
+	role string,
+	configID uint,
+) (*model.ActivateStorageConfigResponse, error) {
+	isSeller, err := s.resolveRole(role)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify config exists and caller is in-scope
+	var cfg *entity.StorageConfig
+	if isSeller {
+		cfg, err = s.configRepo.GetSellerOwnedConfigByID(ctx, configID, userID)
+	} else {
+		cfg, err = s.configRepo.GetPlatformConfigByID(ctx, configID)
+	}
+	if err != nil {
+		return nil, s.mapScopedLookupError(ctx, configID, err)
+	}
+
+	// Determine scope params for activation transaction
+	var ownerID *uint
+	if isSeller {
+		ownerID = &userID
+	}
+
+	if err := s.configRepo.ActivateConfig(ctx, configID, cfg.OwnerType, ownerID); err != nil {
+		return nil, fileError.ErrActivationFailed.WithMessagef(
+			constant.FILE_ACTIVATE_CONFIG_FAILED_FMT,
+			err,
+		)
+	}
+
+	// Re-fetch to return current state
+	updatedCfg, err := s.configRepo.GetConfigByID(ctx, configID)
+	if err != nil {
+		return nil, fileError.ErrPersistenceFailed.WithMessagef(
+			constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
+			err,
+		)
+	}
+
+	res := model.MapConfigToActivateResponse(*updatedCfg)
+	return &res, nil
 }
