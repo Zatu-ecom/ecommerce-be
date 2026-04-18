@@ -10,6 +10,46 @@ import (
 	"gorm.io/gorm"
 )
 
+// sanitizeTimezone returns a known-safe IANA timezone name. Falls back to UTC
+// for anything that fails the whitelist of characters allowed in IANA names
+// (`A-Z a-z 0-9 _ + - /`). Prevents SQL injection via the `AT TIME ZONE`
+// clause where a bind parameter cannot be used.
+func sanitizeTimezone(tz string) string {
+	if tz == "" {
+		return "UTC"
+	}
+	for _, r := range tz {
+		switch {
+		case r >= 'A' && r <= 'Z':
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9':
+		case r == '_' || r == '+' || r == '-' || r == '/' || r == ':':
+		default:
+			return "UTC"
+		}
+	}
+	// Numeric offsets like "+05:30" are valid for Postgres `AT TIME ZONE`
+	// but not for Go's time.LoadLocation, so only run the Go check when the
+	// value looks like an IANA name (contains "/" or equals a bare "UTC"/
+	// region-less zone).
+	if tz == "UTC" {
+		return tz
+	}
+	hasSlash := false
+	for _, r := range tz {
+		if r == '/' {
+			hasSlash = true
+			break
+		}
+	}
+	if hasSlash {
+		if _, err := time.LoadLocation(tz); err != nil {
+			return "UTC"
+		}
+	}
+	return tz
+}
+
 type SummaryMetrics struct {
 	TotalRevenue   int64 `gorm:"column:total_revenue"`
 	TotalOrders    int   `gorm:"column:total_orders"`
@@ -31,6 +71,7 @@ type ReportRepository interface {
 		ctx context.Context,
 		startDate, endDate *time.Time,
 		interval string,
+		timezone string,
 	) ([]TrendMetric, error)
 }
 
@@ -83,6 +124,7 @@ func (r *reportRepository) GetSalesTrendsMetrics(
 	ctx context.Context,
 	startDate, endDate *time.Time,
 	interval string,
+	timezone string,
 ) ([]TrendMetric, error) {
 	var metrics []TrendMetric
 
@@ -91,13 +133,26 @@ func (r *reportRepository) GetSalesTrendsMetrics(
 		string(entity.ORDER_STATUS_COMPLETED),
 	}
 
-	// We use Postgres DATE_TRUNC to easily bucket timestamps.
-	// The interval parameter maps nicely to 'hour', 'day', 'month', etc.
-	selectQuery := fmt.Sprintf(`
-		TO_CHAR(DATE_TRUNC('%s', placed_at), 'YYYY-MM-DD HH24:MI:SS') as date,
-		COALESCE(SUM(total_cents)/100.0, 0) as total_revenue,
-		COUNT(id) as total_orders
-	`, interval)
+	tz := sanitizeTimezone(timezone)
+
+	// Storage is UTC (timestamptz) but presentation buckets must align with
+	// the caller's timezone — otherwise an IST client sees UTC-offset hours
+	// and UTC-offset days. `AT TIME ZONE '<tz>'` converts the timestamptz
+	// into a naive timestamp in that zone before DATE_TRUNC buckets it.
+	// tz is sanitised above so embedding it is safe; also interval is an
+	// internal enum (not user input).
+	bucketExpr := fmt.Sprintf(
+		"DATE_TRUNC('%s', placed_at AT TIME ZONE '%s')",
+		interval,
+		tz,
+	)
+
+	selectQuery := fmt.Sprintf(
+		"TO_CHAR(%s, 'YYYY-MM-DD HH24:MI:SS') as date, "+
+			"COALESCE(SUM(total_cents)/100.0, 0) as total_revenue, "+
+			"COUNT(id) as total_orders",
+		bucketExpr,
+	)
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.Order{}).
@@ -111,8 +166,7 @@ func (r *reportRepository) GetSalesTrendsMetrics(
 		query = query.Where("placed_at <= ?", endDate)
 	}
 
-	groupStr := fmt.Sprintf("DATE_TRUNC('%s', placed_at)", interval)
-	query = query.Group(groupStr).Order(groupStr + " ASC")
+	query = query.Group(bucketExpr).Order(bucketExpr + " ASC")
 
 	if err := query.Scan(&metrics).Error; err != nil {
 		return nil, err

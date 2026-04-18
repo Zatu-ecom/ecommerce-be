@@ -24,7 +24,7 @@ type ReportService interface {
 type reportService struct {
 	reportRepo         repository.ReportRepository
 	summaryBuilder     *factory.SummaryResponseBuilder
-	salesTrendsBuilder *factory.SalesTrendsResponseBuilder	
+	salesTrendsBuilder *factory.SalesTrendsResponseBuilder
 }
 
 func NewReportService(
@@ -96,7 +96,13 @@ func (s *reportService) GetSalesTrends(
 		interval = "quarter"
 	}
 
-	metrics, err := s.reportRepo.GetSalesTrendsMetrics(ctx, &periods.CurrStart, &periods.CurrEnd, interval)
+	metrics, err := s.reportRepo.GetSalesTrendsMetrics(
+		ctx,
+		&periods.CurrStart,
+		&periods.CurrEnd,
+		interval,
+		util.LocationToPostgresTZ(periods.CurrStart),
+	)
 	if err != nil {
 		return nil, err
 	}

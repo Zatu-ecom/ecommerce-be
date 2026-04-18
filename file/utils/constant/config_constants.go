@@ -57,6 +57,32 @@ const (
 )
 
 // ========================================
+// BLOB ADAPTER ERROR CODES
+// ========================================
+
+const (
+	BLOB_ADAPTER_NOT_FOUND_CODE         = "BLOB_ADAPTER_NOT_FOUND"
+	BLOB_ADAPTER_PERMISSION_DENIED_CODE = "BLOB_ADAPTER_PERMISSION_DENIED"
+	BLOB_ADAPTER_NETWORK_ERR_CODE       = "BLOB_ADAPTER_NETWORK_ERROR"
+	BLOB_ADAPTER_VALIDATION_ERR_CODE    = "BLOB_ADAPTER_VALIDATION_ERROR"
+	BLOB_ADAPTER_INTERNAL_ERR_CODE      = "BLOB_ADAPTER_INTERNAL_ERROR"
+	BLOB_FACTORY_INIT_ERR_CODE          = "BLOB_ADAPTER_FACTORY_INIT_FAILED"
+)
+
+// ========================================
+// BLOB ADAPTER ERROR MESSAGES
+// ========================================
+
+const (
+	BLOB_ADAPTER_NOT_FOUND_MSG         = "The requested object or bucket was not found"
+	BLOB_ADAPTER_PERMISSION_DENIED_MSG = "Access denied by the storage provider"
+	BLOB_ADAPTER_NETWORK_ERR_MSG       = "A network error occurred while communicating with the storage provider"
+	BLOB_ADAPTER_VALIDATION_ERR_MSG    = "Invalid parameters supplied to the blob adapter operation"
+	BLOB_ADAPTER_INTERNAL_ERR_MSG      = "An unexpected error occurred in the blob adapter"
+	BLOB_FACTORY_INIT_ERR_MSG          = "Failed to initialise the blob adapter factory"
+)
+
+// ========================================
 // FILE CONFIG FAILURE CONTEXT MESSAGES
 // ========================================
 
