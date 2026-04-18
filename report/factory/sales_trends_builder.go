@@ -79,7 +79,10 @@ func (b *SalesTrendsResponseBuilder) Build(
 		var dbKey string
 		var label string
 
-		// the DB "YYYY-MM-DD HH24:MI:SS"
+		// The repository now truncates `placed_at AT TIME ZONE <caller TZ>`
+		// before formatting, so the DB emits keys in the caller's location.
+		// `current` is iterated in that same location, so plain formatting
+		// produces matching keys.
 		dbFormat := "2006-01-02 15:04:05"
 		dbKey = current.Format(dbFormat)
 

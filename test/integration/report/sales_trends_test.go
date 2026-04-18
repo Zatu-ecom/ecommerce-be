@@ -145,18 +145,38 @@ func (s *ReportSuite) TestGetSalesTrends_Today_Hourly() {
 	twoHoursAgoStr := twoHoursAgo.Format("15:00")
 	twentyHoursAgoStr := twentyHoursAgo.Format("15:00")
 
+	// `time_range=today` includes [00:00 local, now]. An event placed 2h/20h
+	// before `now` only belongs to today when `now.Hour() >= 2` or >= 20 in
+	// the caller's local timezone. Otherwise the order's placed_at is on
+	// yesterday and must be filtered out — which is correct backend behaviour.
+	twoHoursAgoInToday := twoHoursAgo.Day() == now.Day()
+	twentyHoursAgoInToday := twentyHoursAgo.Day() == now.Day()
+
 	nowFound := false
 	for i, label := range responseBody.Data.Labels {
-		if label == nowStr {
+		switch label {
+		case nowStr:
 			s.Equal(200.0, responseBody.Data.RevenueData[i])
 			s.Equal(1, responseBody.Data.OrderVolumeData[i])
 			nowFound = true
-		} else if label == twoHoursAgoStr {
-			s.Equal(100.0, responseBody.Data.RevenueData[i])
-			s.Equal(1, responseBody.Data.OrderVolumeData[i])
-		} else if label == twentyHoursAgoStr {
-			s.Equal(50.0, responseBody.Data.RevenueData[i])
-			s.Equal(1, responseBody.Data.OrderVolumeData[i])
+		case twoHoursAgoStr:
+			if twoHoursAgoInToday {
+				s.Equal(100.0, responseBody.Data.RevenueData[i])
+				s.Equal(1, responseBody.Data.OrderVolumeData[i])
+			} else {
+				s.Equal(0.0, responseBody.Data.RevenueData[i],
+					"2h-ago event is from yesterday; should not count for today")
+				s.Equal(0, responseBody.Data.OrderVolumeData[i])
+			}
+		case twentyHoursAgoStr:
+			if twentyHoursAgoInToday {
+				s.Equal(50.0, responseBody.Data.RevenueData[i])
+				s.Equal(1, responseBody.Data.OrderVolumeData[i])
+			} else {
+				s.Equal(0.0, responseBody.Data.RevenueData[i],
+					"20h-ago event is from yesterday; should not count for today")
+				s.Equal(0, responseBody.Data.OrderVolumeData[i])
+			}
 		}
 	}
 	s.True(nowFound, "Current hour should be represented")
