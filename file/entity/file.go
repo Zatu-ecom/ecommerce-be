@@ -15,14 +15,19 @@ const (
 	FileVisibilityInternal FileVisibility = "INTERNAL"
 )
 
-// FilePurpose represents the purpose or usage of a file
+// FilePurpose represents the purpose or usage of a file.
+// This is a closed enumeration — init-upload rejects any value outside this set with 400 VALIDATION_FAILED.
+// EXPORT_FILE is system-generated only and is also rejected by init-upload.
 type FilePurpose string
 
 const (
-	FilePurposeProductImage FilePurpose = "PRODUCT_IMAGE"
-	FilePurposeImportFile   FilePurpose = "IMPORT_FILE"
-	FilePurposeExportFile   FilePurpose = "EXPORT_FILE"
-	FilePurposeDocument     FilePurpose = "DOCUMENT"
+	FilePurposeProductImage FilePurpose = "PRODUCT_IMAGE" // seller product / listing images; triggers variant generation
+	FilePurposeImportFile   FilePurpose = "IMPORT_FILE"   // bulk-import CSV / spreadsheet uploads
+	FilePurposeExportFile   FilePurpose = "EXPORT_FILE"   // system-generated exports; NOT accepted by init-upload
+	FilePurposeDocument     FilePurpose = "DOCUMENT"      // general seller documents (PDFs, scans)
+	FilePurposeUserAvatar   FilePurpose = "USER_AVATAR"   // profile / avatar images; triggers variant generation
+	FilePurposeSellerLogo   FilePurpose = "SELLER_LOGO"   // storefront logo; raster variants generated (SVG passthrough)
+	FilePurposeInvoicePDF   FilePurpose = "INVOICE_PDF"   // seller / platform invoice documents
 )
 
 // FileStatus represents the status of a file
