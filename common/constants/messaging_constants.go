@@ -11,4 +11,9 @@ const (
 	MSG_HEADER_TENANT_ID   = "x-tenant-id"
 	MSG_HEADER_ACTOR_ID    = "x-actor-id"
 	MSG_HEADER_TRACE_ID    = "x-trace-id"
+
+	// File module routing keys
+	// ROUTING_KEY_FILE_IMAGE_PROCESS_REQUESTED is used by complete-upload to trigger async
+	// variant generation for eligible file purposes (PRODUCT_IMAGE, USER_AVATAR, raster SELLER_LOGO).
+	ROUTING_KEY_FILE_IMAGE_PROCESS_REQUESTED = "file.image.process.requested"
 )

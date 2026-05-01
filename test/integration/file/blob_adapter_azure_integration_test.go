@@ -9,7 +9,7 @@ import (
 
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
-	"ecommerce-be/file/service/blob_adapter"
+	"ecommerce-be/file/service/blobAdapter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ type BlobAdapterAzureSuite struct {
 	suite.Suite
 
 	az      *AzuriteContainer
-	adapter blob_adapter.BlobAdapter
+	adapter blobAdapter.BlobAdapter
 	bucket  string
 }
 
@@ -31,7 +31,7 @@ func (s *BlobAdapterAzureSuite) SetupSuite() {
 	s.bucket = "blob-adapter-az-it-" + RandomHex(6)
 	s.az = SetupAzurite(s.T(), s.bucket)
 
-	a, err := blob_adapter.NewAzureBlobAdapter(blob_adapter.AzureOptions{
+	a, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
 		AccountName: s.az.AccountName,
 		AccountKey:  s.az.AccountKey,
 		Endpoint:    s.az.BlobEndpoint,
@@ -85,7 +85,12 @@ func (s *BlobAdapterAzureSuite) TestHeadObject_Success() {
 
 	meta, err := s.adapter.HeadObject(context.Background(), s.bucket, key)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), "text/plain", meta.ContentType, "ContentType must round-trip through Azure adapter")
+	assert.Equal(
+		s.T(),
+		"text/plain",
+		meta.ContentType,
+		"ContentType must round-trip through Azure adapter",
+	)
 	assert.Equal(s.T(), int64(len(payload)), meta.SizeBytes)
 	assert.NotEmpty(s.T(), meta.ETag)
 	assert.False(s.T(), meta.LastModified.IsZero())
@@ -205,7 +210,7 @@ func (s *BlobAdapterAzureSuite) TestDeleteObject_Success() {
 
 // Scenario: Constructor rejects empty account name.
 func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountName() {
-	_, err := blob_adapter.NewAzureBlobAdapter(blob_adapter.AzureOptions{
+	_, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
 		AccountName: "",
 		AccountKey:  s.az.AccountKey,
 		Endpoint:    s.az.BlobEndpoint,
@@ -217,7 +222,7 @@ func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountName() {
 
 // Scenario: Constructor rejects empty account key.
 func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountKey() {
-	_, err := blob_adapter.NewAzureBlobAdapter(blob_adapter.AzureOptions{
+	_, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
 		AccountName: s.az.AccountName,
 		AccountKey:  "",
 		Endpoint:    s.az.BlobEndpoint,
@@ -389,7 +394,11 @@ func (s *BlobAdapterAzureSuite) TestPutObject_NonExistentContainer() {
 
 // Scenario: GetObjectStream for a key that does not exist returns not-found, no stream opened.
 func (s *BlobAdapterAzureSuite) TestGetObjectStream_NotFound() {
-	rc, _, err := s.adapter.GetObjectStream(context.Background(), s.bucket, "az-missing-"+RandomHex(8))
+	rc, _, err := s.adapter.GetObjectStream(
+		context.Background(),
+		s.bucket,
+		"az-missing-"+RandomHex(8),
+	)
 	assert.Error(s.T(), err)
 	assert.True(s.T(), fileError.IsBlobError(err, fileError.ErrBlobNotFound))
 	if rc != nil {

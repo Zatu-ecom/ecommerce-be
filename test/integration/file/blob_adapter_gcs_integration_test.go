@@ -14,7 +14,7 @@ import (
 
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
-	"ecommerce-be/file/service/blob_adapter"
+	"ecommerce-be/file/service/blobAdapter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ type BlobAdapterGCSSuite struct {
 	suite.Suite
 
 	gcs     *FakeGCSContainer
-	adapter blob_adapter.BlobAdapter
+	adapter blobAdapter.BlobAdapter
 	bucket  string
 	saJSON  string
 }
@@ -68,7 +68,7 @@ func (s *BlobAdapterGCSSuite) SetupSuite() {
 	s.gcs = SetupFakeGCS(s.T(), "test-project", s.bucket)
 	s.saJSON = generateGCSServiceAccountJSON(s.T())
 
-	a, err := blob_adapter.NewGCSAdapter(context.Background(), blob_adapter.GCSOptions{
+	a, err := blobAdapter.NewGCSAdapter(context.Background(), blobAdapter.GCSOptions{
 		ServiceAccountJSON: s.saJSON,
 		ProjectID:          "test-project",
 		Endpoint:           s.gcs.Endpoint,
@@ -243,7 +243,7 @@ func (s *BlobAdapterGCSSuite) TestDeleteObject_Success() {
 
 // Scenario: Adapter constructed with invalid service account JSON returns validation error.
 func (s *BlobAdapterGCSSuite) TestInvalidCredentials_ConstructorValidation() {
-	_, err := blob_adapter.NewGCSAdapter(context.Background(), blob_adapter.GCSOptions{
+	_, err := blobAdapter.NewGCSAdapter(context.Background(), blobAdapter.GCSOptions{
 		ServiceAccountJSON: `{"type":"service_account"}`, // missing client_email + private_key
 		Endpoint:           s.gcs.Endpoint,
 	})
@@ -370,7 +370,11 @@ func (s *BlobAdapterGCSSuite) TestPutObject_NonExistentBucket() {
 
 // Scenario: GetObjectStream for a key that does not exist returns not-found, no stream opened.
 func (s *BlobAdapterGCSSuite) TestGetObjectStream_NotFound() {
-	rc, _, err := s.adapter.GetObjectStream(context.Background(), s.bucket, "gcs-missing-"+RandomHex(8))
+	rc, _, err := s.adapter.GetObjectStream(
+		context.Background(),
+		s.bucket,
+		"gcs-missing-"+RandomHex(8),
+	)
 	assert.Error(s.T(), err)
 	assert.True(s.T(), fileError.IsBlobError(err, fileError.ErrBlobNotFound))
 	if rc != nil {

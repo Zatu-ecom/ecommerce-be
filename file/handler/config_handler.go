@@ -147,7 +147,11 @@ func (h *ConfigHandler) ListConfigs(c *gin.Context) {
 	case constants.ADMIN_ROLE_NAME:
 		filter.OwnerType = entity.OwnerTypePlatform
 	default:
-		h.HandleError(c, fileError.ErrInvalidRole, constant.FILE_CONFIG_LIST_ERR_MSG)
+		h.HandleError(
+			c,
+			fileError.ErrInvalidRole,
+			constant.FILE_CONFIG_LIST_ERR_MSG,
+		)
 		return
 	}
 

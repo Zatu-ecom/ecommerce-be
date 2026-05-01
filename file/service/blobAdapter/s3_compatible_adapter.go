@@ -1,4 +1,4 @@
-package blob_adapter
+package blobAdapter
 
 import (
 	"context"

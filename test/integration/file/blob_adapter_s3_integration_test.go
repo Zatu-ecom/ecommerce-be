@@ -10,7 +10,7 @@ import (
 
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
-	"ecommerce-be/file/service/blob_adapter"
+	"ecommerce-be/file/service/blobAdapter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ type BlobAdapterS3Suite struct {
 	suite.Suite
 
 	minio   *MinioContainer
-	adapter blob_adapter.BlobAdapter
+	adapter blobAdapter.BlobAdapter
 	bucket  string
 }
 
@@ -29,9 +29,9 @@ func (s *BlobAdapterS3Suite) SetupSuite() {
 	s.bucket = "blob-adapter-it-" + RandomHex(6)
 	s.minio = SetupMinio(s.T(), s.bucket)
 
-	a, err := blob_adapter.NewS3CompatibleAdapter(
+	a, err := blobAdapter.NewS3CompatibleAdapter(
 		context.Background(),
-		blob_adapter.S3CompatibleOptions{
+		blobAdapter.S3CompatibleOptions{
 			Endpoint:        s.minio.Endpoint,
 			Region:          s.minio.Region,
 			ForcePathStyle:  true,
@@ -227,9 +227,9 @@ func (s *BlobAdapterS3Suite) TestDeleteObject_Success() {
 // Per spec FR-008 / User Story 1 scenario #8, invalid credentials must surface as
 // permission-denied, not as "not found" — otherwise operators chase ghost bugs.
 func (s *BlobAdapterS3Suite) TestInvalidCredentials_ReturnsPermissionDenied() {
-	a, err := blob_adapter.NewS3CompatibleAdapter(
+	a, err := blobAdapter.NewS3CompatibleAdapter(
 		context.Background(),
-		blob_adapter.S3CompatibleOptions{
+		blobAdapter.S3CompatibleOptions{
 			Endpoint:        s.minio.Endpoint,
 			Region:          s.minio.Region,
 			ForcePathStyle:  true,
@@ -308,7 +308,14 @@ func (s *BlobAdapterS3Suite) TestAlreadyCancelledContext_MetadataPresign() {
 // Scenario: CopyObject across two different buckets within the same account (FR-012).
 func (s *BlobAdapterS3Suite) TestCopyObject_CrossBucket() {
 	dstBucket := "blob-adapter-it-dst-" + RandomHex(6)
-	EnsureS3Bucket(s.T(), s.minio.Endpoint, s.minio.Region, s.minio.AccessKey, s.minio.SecretKey, dstBucket)
+	EnsureS3Bucket(
+		s.T(),
+		s.minio.Endpoint,
+		s.minio.Region,
+		s.minio.AccessKey,
+		s.minio.SecretKey,
+		dstBucket,
+	)
 
 	srcKey := RandomObjectKey("xbucket-src")
 	dstKey := RandomObjectKey("xbucket-dst")

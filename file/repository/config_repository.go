@@ -15,6 +15,8 @@ type ConfigRepository interface {
 	GetProviders(ctx context.Context) ([]entity.StorageProvider, error)
 	GetActiveProviderByID(ctx context.Context, id uint) (*entity.StorageProvider, error)
 	GetConfigByID(ctx context.Context, id uint) (*entity.StorageConfig, error)
+	GetActiveSellerStorageConfig(ctx context.Context, sellerID uint) (*entity.StorageConfig, error)
+	GetActivePlatformDefaultConfig(ctx context.Context) (*entity.StorageConfig, error)
 	GetSellerOwnedConfigByID(
 		ctx context.Context,
 		id uint,
@@ -58,11 +60,56 @@ func (r *configRepository) GetConfigByID(
 	id uint,
 ) (*entity.StorageConfig, error) {
 	var config entity.StorageConfig
-	err := db.DB(ctx).First(&config, id).Error
+	err := db.DB(ctx).Preload("Provider").First(&config, id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func (r *configRepository) GetActiveSellerStorageConfig(
+	ctx context.Context,
+	sellerID uint,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Table("storage_config AS sc").
+		Select("sc.*").
+		Joins("JOIN seller_storage_binding AS ssb ON ssb.storage_config_id = sc.id").
+		Where("ssb.seller_id = ? AND ssb.is_active = ?", sellerID, true).
+		Where("sc.is_active = ?", true).
+		Order("ssb.updated_at DESC").
+		Limit(1).
+		Scan(&cfg).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	if cfg.ID == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	// Ensure provider relationship is available for blob adapter factory.
+	if err := db.DB(ctx).Model(&cfg).Association("Provider").Find(&cfg.Provider); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *configRepository) GetActivePlatformDefaultConfig(
+	ctx context.Context,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Preload("Provider").
+		Where("owner_type = ? AND is_default = ? AND is_active = ?", entity.OwnerTypePlatform, true, true).
+		Order("updated_at DESC").
+		First(&cfg).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func (r *configRepository) GetSellerOwnedConfigByID(

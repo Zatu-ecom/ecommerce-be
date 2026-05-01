@@ -1,4 +1,4 @@
-package blob_adapter
+package blobAdapter
 
 import (
 	"context"
@@ -90,7 +90,10 @@ func NewAzureBlobAdapter(opts AzureOptions) (BlobAdapter, error) {
 // ─── BlobAdapter interface implementation ─────────────────────────────────────
 
 // PutObject uploads a blob to Azure Blob Storage.
-func (a *azureBlobAdapter) PutObject(ctx context.Context, in model.BlobPutObjectInput) (model.BlobPutObjectOutput, error) {
+func (a *azureBlobAdapter) PutObject(
+	ctx context.Context,
+	in model.BlobPutObjectInput,
+) (model.BlobPutObjectOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPutObjectOutput{}, a.mapErr("put_object", err)
 	}
@@ -119,7 +122,10 @@ func (a *azureBlobAdapter) DeleteObject(ctx context.Context, bucket, key string)
 }
 
 // HeadObject returns metadata for a blob without downloading its body.
-func (a *azureBlobAdapter) HeadObject(ctx context.Context, bucket, key string) (model.BlobObjectMeta, error) {
+func (a *azureBlobAdapter) HeadObject(
+	ctx context.Context,
+	bucket, key string,
+) (model.BlobObjectMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobObjectMeta{}, a.mapErr("head_object", err)
 	}
@@ -149,7 +155,10 @@ func (a *azureBlobAdapter) HeadObject(ctx context.Context, bucket, key string) (
 
 // GetObjectStream returns a streaming reader plus metadata for a blob.
 // Callers must close the returned io.ReadCloser.
-func (a *azureBlobAdapter) GetObjectStream(ctx context.Context, bucket, key string) (io.ReadCloser, model.BlobObjectMeta, error) {
+func (a *azureBlobAdapter) GetObjectStream(
+	ctx context.Context,
+	bucket, key string,
+) (io.ReadCloser, model.BlobObjectMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, model.BlobObjectMeta{}, a.mapErr("get_object_stream", err)
 	}
@@ -176,7 +185,10 @@ func (a *azureBlobAdapter) GetObjectStream(ctx context.Context, bucket, key stri
 
 // PresignUpload generates a short-lived SAS URL for direct client upload.
 // TTL must be positive. Requires the adapter to be initialised with an account key.
-func (a *azureBlobAdapter) PresignUpload(ctx context.Context, in model.BlobPresignUploadInput) (model.BlobPresignOutput, error) {
+func (a *azureBlobAdapter) PresignUpload(
+	ctx context.Context,
+	in model.BlobPresignUploadInput,
+) (model.BlobPresignOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPresignOutput{}, a.mapErr("presign_upload", err)
 	}
@@ -195,7 +207,10 @@ func (a *azureBlobAdapter) PresignUpload(ctx context.Context, in model.BlobPresi
 
 // PresignDownload generates a short-lived SAS URL for direct client download.
 // TTL must be positive. Requires the adapter to be initialised with an account key.
-func (a *azureBlobAdapter) PresignDownload(ctx context.Context, in model.BlobPresignDownloadInput) (model.BlobPresignOutput, error) {
+func (a *azureBlobAdapter) PresignDownload(
+	ctx context.Context,
+	in model.BlobPresignDownloadInput,
+) (model.BlobPresignOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPresignOutput{}, a.mapErr("presign_download", err)
 	}
@@ -228,16 +243,26 @@ func (a *azureBlobAdapter) CopyObject(ctx context.Context, in model.BlobCopyObje
 	if dr.ContentType != nil {
 		ct = *dr.ContentType
 	}
-	_, err = a.client.UploadStream(ctx, in.DestinationBucket, in.DestinationKey, dr.Body, &azblob.UploadStreamOptions{
-		HTTPHeaders: &blob.HTTPHeaders{BlobContentType: &ct},
-	})
+	_, err = a.client.UploadStream(
+		ctx,
+		in.DestinationBucket,
+		in.DestinationKey,
+		dr.Body,
+		&azblob.UploadStreamOptions{
+			HTTPHeaders: &blob.HTTPHeaders{BlobContentType: &ct},
+		},
+	)
 	return a.mapErr("copy_object", err)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // buildSASURL generates a shared-access-signature URL for the given blob.
-func (a *azureBlobAdapter) buildSASURL(container, key string, ttl time.Duration, permissions string) (string, time.Time, error) {
+func (a *azureBlobAdapter) buildSASURL(
+	container, key string,
+	ttl time.Duration,
+	permissions string,
+) (string, time.Time, error) {
 	expiresAt := time.Now().UTC().Add(ttl)
 	sasParams, err := sas.BlobSignatureValues{
 		Protocol:      sas.ProtocolHTTPSandHTTP,

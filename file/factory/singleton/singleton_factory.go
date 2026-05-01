@@ -46,8 +46,10 @@ func ResetInstance() {
 // Repository Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetFileRepository() repository.FileRepository {
-	return f.repoFactory.GetFileRepository()
+
+
+func (f *SingletonFactory) GetFileUploadRepository() repository.FileUploadRepository {
+	return f.repoFactory.GetFileUploadRepository()
 }
 
 func (f *SingletonFactory) GetConfigRepository() repository.ConfigRepository {
@@ -58,8 +60,21 @@ func (f *SingletonFactory) GetConfigRepository() repository.ConfigRepository {
 // Service Getters (Delegates)
 // ===============================
 
-func (f *SingletonFactory) GetFileService() service.FileService {
-	return f.serviceFactory.GetFileService()
+
+func (f *SingletonFactory) GetFileUploadService() service.FileUploadService {
+	return f.serviceFactory.GetFileUploadService()
+}
+
+func (f *SingletonFactory) GetUploadExpiryScheduler() service.UploadExpiryScheduler {
+	return f.serviceFactory.GetUploadExpiryScheduler()
+}
+
+func (f *SingletonFactory) GetUploadExpiryHandler() *service.UploadExpiryHandler {
+	return f.serviceFactory.GetUploadExpiryHandler()
+}
+
+func (f *SingletonFactory) GetVariantPublisher() service.VariantPublisher {
+	return f.serviceFactory.GetVariantPublisher()
 }
 
 func (f *SingletonFactory) GetConfigService() service.ConfigService {
@@ -72,6 +87,10 @@ func (f *SingletonFactory) GetConfigService() service.ConfigService {
 
 func (f *SingletonFactory) GetFileHandler() *handler.FileHandler {
 	return f.handlerFactory.GetFileHandler()
+}
+
+func (f *SingletonFactory) GetFileUploadHandler() *handler.FileUploadHandler {
+	return f.handlerFactory.GetFileUploadHandler()
 }
 
 func (f *SingletonFactory) GetConfigHandler() *handler.ConfigHandler {

@@ -11,7 +11,7 @@ import (
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
-	"ecommerce-be/file/service/blob_adapter"
+	"ecommerce-be/file/service/blobAdapter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +38,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("missing adapter type -> validation error", func(t *testing.T) {
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider: entity.StorageProvider{AdapterType: ""},
 		})
 		assert.Error(t, err)
@@ -46,7 +46,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 	})
 
 	t.Run("missing credentials payload -> validation error", func(t *testing.T) {
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			CredentialsEncrypted: nil,
 		})
@@ -56,7 +56,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 
 	t.Run("unknown adapter type -> validation error", func(t *testing.T) {
 		b := encryptCreds(t, testEncryptionKey, map[string]any{})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "unknown_provider"},
 			CredentialsEncrypted: b,
 		})
@@ -69,7 +69,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 			"access_key_id":     "AK",
 			"secret_access_key": "SK",
 		})
-		a, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		a, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			Region:               "us-east-1",
@@ -82,7 +82,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 
 	t.Run("s3_compatible missing secret_access_key -> validation error", func(t *testing.T) {
 		b := encryptCreds(t, testEncryptionKey, map[string]any{"access_key_id": "AK"})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			CredentialsEncrypted: b,
@@ -94,7 +94,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 	t.Run("gcs with valid service_account_json returns adapter", func(t *testing.T) {
 		saJSON := generateGCSServiceAccountJSON(t)
 		b := encryptCreds(t, testEncryptionKey, map[string]any{"service_account_json": saJSON})
-		a, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		a, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "gcs"},
 			CredentialsEncrypted: b,
 		})
@@ -104,7 +104,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 
 	t.Run("gcs missing service_account_json -> validation error", func(t *testing.T) {
 		b := encryptCreds(t, testEncryptionKey, map[string]any{})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "gcs"},
 			CredentialsEncrypted: b,
 		})
@@ -119,7 +119,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 			"account_name": "devstoreaccount1",
 			"account_key":  validB64Key,
 		})
-		a, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		a, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "azure"},
 			CredentialsEncrypted: b,
 		})
@@ -129,7 +129,7 @@ func TestNewAdapterFromConfig_DispatchAndValidation(t *testing.T) {
 
 	t.Run("azure missing account_name -> validation error", func(t *testing.T) {
 		b := encryptCreds(t, testEncryptionKey, map[string]any{"account_key": "key"})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "azure"},
 			CredentialsEncrypted: b,
 		})
@@ -150,7 +150,7 @@ func TestNewAdapterFromConfig_Decryption(t *testing.T) {
 			"access_key_id":     "REAL_AK",
 			"secret_access_key": "REAL_SK",
 		})
-		a, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		a, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			Region:               "us-east-1",
@@ -170,7 +170,7 @@ func TestNewAdapterFromConfig_Decryption(t *testing.T) {
 		})
 		t.Setenv("ENCRYPTION_KEY", wrongKey)
 
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			CredentialsEncrypted: b,
@@ -182,7 +182,7 @@ func TestNewAdapterFromConfig_Decryption(t *testing.T) {
 	t.Run("corrupt payload (not base64) -> factory init error", func(t *testing.T) {
 		t.Setenv("ENCRYPTION_KEY", testEncryptionKey)
 
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			CredentialsEncrypted: []byte("this-is-not-valid-base64-ciphertext!!!"),
@@ -198,7 +198,7 @@ func TestNewAdapterFromConfig_Decryption(t *testing.T) {
 			"access_key_id":     "AK",
 			"secret_access_key": "SK",
 		})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			CredentialsEncrypted: b,
@@ -224,7 +224,7 @@ func TestNewAdapterFromConfig_NoSecretLeak(t *testing.T) {
 		})
 		t.Setenv("ENCRYPTION_KEY", wrongKey)
 
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 			Endpoint:             "http://localhost:9000",
 			CredentialsEncrypted: b,
@@ -243,7 +243,7 @@ func TestNewAdapterFromConfig_NoSecretLeak(t *testing.T) {
 		b := encryptCreds(t, testEncryptionKey, map[string]any{
 			"account_key": "TOPSECRET_AK",
 		})
-		_, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+		_, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 			Provider:             entity.StorageProvider{AdapterType: "azure"},
 			CredentialsEncrypted: b,
 		})
@@ -271,7 +271,7 @@ func TestNewAdapterFromConfig_EndToEndWithMinio(t *testing.T) {
 		"secret_access_key": minio.SecretKey,
 	})
 
-	a, err := blob_adapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
+	a, err := blobAdapter.NewAdapterFromConfig(ctx, entity.StorageConfig{
 		Provider:             entity.StorageProvider{AdapterType: "s3_compatible"},
 		BucketOrContainer:    bucket,
 		Endpoint:             minio.Endpoint,
@@ -292,7 +292,11 @@ func TestNewAdapterFromConfig_EndToEndWithMinio(t *testing.T) {
 		ContentLength: int64(len(payload)),
 		Body:          bytes.NewReader([]byte(payload)),
 	})
-	require.NoError(t, err, "adapter returned by factory must be able to PutObject against real server")
+	require.NoError(
+		t,
+		err,
+		"adapter returned by factory must be able to PutObject against real server",
+	)
 
 	rc, meta, err := a.GetObjectStream(ctx, bucket, key)
 	require.NoError(t, err)
