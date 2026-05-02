@@ -53,7 +53,7 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 		c,
 		http.StatusOK,
 		constant.ADDRESSES_RETRIEVED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			constant.ADDRESSES_FIELD_NAME: addresses,
 		},
 	)
@@ -105,7 +105,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_RETRIEVED_MSG, map[string]interface{}{
+	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_RETRIEVED_MSG, map[string]any{
 		constant.ADDRESS_FIELD_NAME: address,
 	})
 }
@@ -156,7 +156,7 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 		c,
 		http.StatusCreated,
 		constant.ADDRESS_CREATED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			constant.ADDRESS_FIELD_NAME: address,
 		},
 	)
@@ -226,7 +226,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_UPDATED_MSG, map[string]interface{}{
+	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_UPDATED_MSG, map[string]any{
 		constant.ADDRESS_FIELD_NAME: address,
 	})
 }
@@ -339,7 +339,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		c,
 		http.StatusOK,
 		constant.DEFAULT_ADDRESS_UPDATED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			constant.ADDRESS_FIELD_NAME: address,
 		},
 	)

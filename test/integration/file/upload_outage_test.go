@@ -100,8 +100,8 @@ func (s *UploadSuite) TestInitUpload_StorageOutage() {
 	})
 }
 
-func initOutageRequest(filename string) map[string]interface{} {
-	return map[string]interface{}{
+func initOutageRequest(filename string) map[string]any {
+	return map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            filename,

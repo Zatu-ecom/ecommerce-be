@@ -36,7 +36,7 @@ func (s *UploadSuite) TestExpiryHandler_TransitionsToFailed() {
 	correlationID := "us6a-expiry-transitions-corr"
 	client.SetHeader(constants.CORRELATION_ID_HEADER, correlationID)
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "abandoned.jpg",
@@ -46,7 +46,7 @@ func (s *UploadSuite) TestExpiryHandler_TransitionsToFailed() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	// Resolve the file_object row ID for scheduler assertions.
@@ -83,7 +83,7 @@ func (s *UploadSuite) TestCompleteCancelsExpiryJob() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-cancel-expiry-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "complete-cancels.jpg",
@@ -93,7 +93,7 @@ func (s *UploadSuite) TestCompleteCancelsExpiryJob() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	var r struct{ ID uint64 }
@@ -108,7 +108,7 @@ func (s *UploadSuite) TestCompleteCancelsExpiryJob() {
 	uploadHelper.PutBytes(s.T(), initData, make([]byte, 2048))
 
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-cancel-expiry-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
@@ -133,7 +133,7 @@ func (s *UploadSuite) TestExpiryFires_AfterActive_IsNoOp() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-noop-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "noop-expiry.jpg",
@@ -143,7 +143,7 @@ func (s *UploadSuite) TestExpiryFires_AfterActive_IsNoOp() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	var r struct{ ID uint64 }
@@ -155,7 +155,7 @@ func (s *UploadSuite) TestExpiryFires_AfterActive_IsNoOp() {
 	uploadHelper.PutBytes(s.T(), initData, make([]byte, 2048))
 
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-noop-complete-corr")
-	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	helpers.AssertSuccessResponse(s.T(), completeW, http.StatusOK)
@@ -190,7 +190,7 @@ func (s *UploadSuite) TestReject_UploadExpiryOutOfRange() {
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-out-of-range-zero")
 
 		zeroMin := 0
-		w := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "bad-expiry.jpg",
@@ -209,7 +209,7 @@ func (s *UploadSuite) TestReject_UploadExpiryOutOfRange() {
 		client.SetToken(s.sellerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-out-of-range-61")
 
-		w := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "bad-expiry.jpg",
@@ -232,7 +232,7 @@ func (s *UploadSuite) TestReCompleteAfterExpiry_Returns410() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-recomplete-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "recomplete-after-expiry.jpg",
@@ -242,7 +242,7 @@ func (s *UploadSuite) TestReCompleteAfterExpiry_Returns410() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	var r struct{ ID uint64 }
@@ -258,7 +258,7 @@ func (s *UploadSuite) TestReCompleteAfterExpiry_Returns410() {
 
 	// Now attempt complete-upload on the expired row.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us6a-recomplete-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusGone) // 410

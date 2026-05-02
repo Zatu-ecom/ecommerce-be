@@ -25,7 +25,7 @@ func (s *UploadSuite) TestCompleteUpload_ObjectMissing() {
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-object-missing-corr")
 
 	// Init only — deliberately skip the PUT step.
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "not-uploaded.jpg",
@@ -35,11 +35,11 @@ func (s *UploadSuite) TestCompleteUpload_ObjectMissing() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	fileID := initResp["data"].(map[string]interface{})["fileId"].(string)
+	fileID := initResp["data"].(map[string]any)["fileId"].(string)
 
 	// Call complete without uploading bytes.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-object-missing-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusConflict)
@@ -68,7 +68,7 @@ func (s *UploadSuite) TestCompleteUpload_SizeMismatch() {
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-size-mismatch-init-corr")
 
 	// Declare 4096 bytes but PUT only 1024 bytes.
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "size-mismatch.jpg",
@@ -78,7 +78,7 @@ func (s *UploadSuite) TestCompleteUpload_SizeMismatch() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	// PUT 1024 bytes — intentionally wrong size.
@@ -87,7 +87,7 @@ func (s *UploadSuite) TestCompleteUpload_SizeMismatch() {
 
 	// Complete-upload should detect size mismatch.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-size-mismatch-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusUnprocessableEntity)
@@ -110,7 +110,7 @@ func (s *UploadSuite) TestCompleteUpload_Idempotent_OnActive() {
 	correlationID := "us5-idempotent-corr"
 	client.SetHeader(constants.CORRELATION_ID_HEADER, correlationID)
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "idempotent.jpg",
@@ -120,7 +120,7 @@ func (s *UploadSuite) TestCompleteUpload_Idempotent_OnActive() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
@@ -128,25 +128,25 @@ func (s *UploadSuite) TestCompleteUpload_Idempotent_OnActive() {
 
 	// First complete — should succeed and publish variant message.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, correlationID)
-	w1 := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w1 := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp1 := helpers.AssertSuccessResponse(s.T(), w1, http.StatusOK)
-	require.Equal(s.T(), "ACTIVE", resp1["data"].(map[string]interface{})["status"])
-	require.Equal(s.T(), true, resp1["data"].(map[string]interface{})["variantsQueued"])
+	require.Equal(s.T(), "ACTIVE", resp1["data"].(map[string]any)["status"])
+	require.Equal(s.T(), true, resp1["data"].(map[string]any)["variantsQueued"])
 
 	// Consume the first (and only) variant message.
 	_ = s.nextVariantMessage(3 * time.Second)
 
 	// Second complete — must return idempotent 200 without publishing another message.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-idempotent-second-corr")
-	w2 := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w2 := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp2 := helpers.AssertSuccessResponse(s.T(), w2, http.StatusOK)
-	require.Equal(s.T(), "ACTIVE", resp2["data"].(map[string]interface{})["status"])
+	require.Equal(s.T(), "ACTIVE", resp2["data"].(map[string]any)["status"])
 	// variantsQueued reflects the stored job, not a new publish — must still be true.
-	require.Equal(s.T(), true, resp2["data"].(map[string]interface{})["variantsQueued"])
+	require.Equal(s.T(), true, resp2["data"].(map[string]any)["variantsQueued"])
 
 	// No second variant message should arrive within the assertion window.
 	s.assertNoVariantMessage(500 * time.Millisecond)
@@ -161,7 +161,7 @@ func (s *UploadSuite) TestCompleteUpload_RabbitMQOutage_Still200() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-rabbit-outage-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "outage-test.jpg",
@@ -171,7 +171,7 @@ func (s *UploadSuite) TestCompleteUpload_RabbitMQOutage_Still200() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
@@ -188,11 +188,11 @@ func (s *UploadSuite) TestCompleteUpload_RabbitMQOutage_Still200() {
 
 	// Complete-upload must return 200 even though publish fails (FR-019).
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-rabbit-outage-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
-	require.Equal(s.T(), "ACTIVE", resp["data"].(map[string]interface{})["status"])
+	require.Equal(s.T(), "ACTIVE", resp["data"].(map[string]any)["status"])
 
 	// Row is ACTIVE.
 	s.assertFileStatus(fileID, entity.FileStatusActive)
@@ -250,7 +250,7 @@ func (s *UploadSuite) TestCompleteUpload_EtagHintMismatch() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-etag-mismatch-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "etag-mismatch.jpg",
@@ -260,7 +260,7 @@ func (s *UploadSuite) TestCompleteUpload_EtagHintMismatch() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	// PUT the correct bytes (so HeadObject size/mime checks pass).
@@ -270,7 +270,7 @@ func (s *UploadSuite) TestCompleteUpload_EtagHintMismatch() {
 	// Supply a deliberately wrong clientEtag.
 	wrongEtag := "\"deadbeef-0000-0000-0000-000000000000\""
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-etag-mismatch-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId":     fileID,
 		"clientEtag": wrongEtag,
 	})
@@ -302,7 +302,7 @@ func (s *UploadSuite) TestCompleteUpload_MimeMismatch() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-mime-mismatch-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "mime-mismatch.jpg",
@@ -312,7 +312,7 @@ func (s *UploadSuite) TestCompleteUpload_MimeMismatch() {
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	// PUT bytes but override Content-Type to something different from image/jpeg.
@@ -325,7 +325,7 @@ func (s *UploadSuite) TestCompleteUpload_MimeMismatch() {
 	_ = uploadHelper // already used indirectly via putWithMimeOverride
 
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-mime-mismatch-complete-corr")
-	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 
@@ -342,7 +342,7 @@ func (s *UploadSuite) TestCompleteUpload_MimeMismatch() {
 	} else {
 		// Provider did not enforce Content-Type — accept a 200 ACTIVE outcome.
 		resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
-		require.Equal(s.T(), "ACTIVE", resp["data"].(map[string]interface{})["status"])
+		require.Equal(s.T(), "ACTIVE", resp["data"].(map[string]any)["status"])
 		// Drain any variant message to avoid polluting subsequent tests.
 		select {
 		case <-s.variantMessages:
@@ -360,7 +360,7 @@ func (s *UploadSuite) TestCompleteUpload_ConcurrentCalls_SingleVariantMessage() 
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "us5-concurrent-init-corr")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "concurrent.jpg",
@@ -370,7 +370,7 @@ func (s *UploadSuite) TestCompleteUpload_ConcurrentCalls_SingleVariantMessage() 
 	}
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
@@ -390,7 +390,7 @@ func (s *UploadSuite) TestCompleteUpload_ConcurrentCalls_SingleVariantMessage() 
 			c := helpers.NewAPIClient(s.server)
 			c.SetToken(s.sellerToken)
 			c.SetHeader(constants.CORRELATION_ID_HEADER, "us5-concurrent-complete-corr")
-			w := c.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+			w := c.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 				"fileId": fileID,
 			})
 			results[i] = result{code: w.Code}

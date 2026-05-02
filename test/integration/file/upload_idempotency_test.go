@@ -20,7 +20,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us5a-same-key-corr")
 		client.SetHeader("Idempotency-Key", "same-key-123")
 
-		req := map[string]interface{}{
+		req := map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "idempotent-same.jpg",
@@ -40,8 +40,8 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			http.StatusOK,
 		)
 
-		firstData := first["data"].(map[string]interface{})
-		secondData := second["data"].(map[string]interface{})
+		firstData := first["data"].(map[string]any)
+		secondData := second["data"].(map[string]any)
 		fileID := firstData["fileId"].(string)
 		require.Equal(s.T(), fileID, secondData["fileId"])
 		require.Equal(s.T(), firstData["objectKey"], secondData["objectKey"])
@@ -72,7 +72,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us5a-reissue-corr")
 		client.SetHeader("Idempotency-Key", "reissue-key-123")
 
-		req := map[string]interface{}{
+		req := map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "idempotent-reissue.jpg",
@@ -86,14 +86,14 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			client.Post(s.T(), uploadInitEndpoint, req),
 			http.StatusCreated,
 		)
-		firstData := first["data"].(map[string]interface{})
+		firstData := first["data"].(map[string]any)
 		fileID := firstData["fileId"].(string)
 
 		key := s.idempotencyRedisKeyForFileID(fileID)
 		raw, err := s.container.RedisClient.Get(context.Background(), key).Bytes()
 		require.NoError(s.T(), err)
 
-		record := map[string]interface{}{}
+		record := map[string]any{}
 		require.NoError(s.T(), json.Unmarshal(raw, &record))
 		record["expiresAt"] = time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
 		updated, err := json.Marshal(record)
@@ -108,7 +108,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			client.Post(s.T(), uploadInitEndpoint, req),
 			http.StatusOK,
 		)
-		secondData := second["data"].(map[string]interface{})
+		secondData := second["data"].(map[string]any)
 		require.Equal(s.T(), fileID, secondData["fileId"])
 		require.NotEqual(s.T(), record["expiresAt"], secondData["expiresAt"])
 	})
@@ -119,7 +119,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us5a-active-conflict-init")
 		client.SetHeader("Idempotency-Key", "active-key-123")
 
-		req := map[string]interface{}{
+		req := map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "idempotent-active.jpg",
@@ -133,7 +133,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			client.Post(s.T(), uploadInitEndpoint, req),
 			http.StatusCreated,
 		)
-		initData := initResp["data"].(map[string]interface{})
+		initData := initResp["data"].(map[string]any)
 		fileID := initData["fileId"].(string)
 
 		uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
@@ -143,7 +143,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		client.SetHeader("Idempotency-Key", "")
 		helpers.AssertSuccessResponse(
 			s.T(),
-			client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{"fileId": fileID}),
+			client.Post(s.T(), uploadCompleteEndpoint, map[string]any{"fileId": fileID}),
 			http.StatusOK,
 		)
 		_ = s.nextVariantMessage(3 * time.Second)
@@ -165,7 +165,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us5a-malformed-key")
 		client.SetHeader("Idempotency-Key", "bad key")
 
-		w := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "bad-key.jpg",
@@ -176,15 +176,15 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 		require.Equal(s.T(), "VALIDATION_ERROR", resp["code"])
 
-		errors, ok := resp["errors"].([]interface{})
+		errors, ok := resp["errors"].([]any)
 		require.True(s.T(), ok)
 		require.NotEmpty(s.T(), errors)
-		first := errors[0].(map[string]interface{})
+		first := errors[0].(map[string]any)
 		require.Equal(s.T(), "Idempotency-Key", first["field"])
 	})
 
 	s.Run("DifferentSellers_SameKey_Distinct", func() {
-		req := map[string]interface{}{
+		req := map[string]any{
 			"purpose":             "DOCUMENT",
 			"visibility":          "PRIVATE",
 			"filename":            "same-key-different-sellers.pdf",
@@ -214,8 +214,8 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			http.StatusCreated,
 		)
 
-		fileID1 := resp1["data"].(map[string]interface{})["fileId"].(string)
-		fileID2 := resp2["data"].(map[string]interface{})["fileId"].(string)
+		fileID1 := resp1["data"].(map[string]any)["fileId"].(string)
+		fileID2 := resp2["data"].(map[string]any)["fileId"].(string)
 		require.NotEqual(s.T(), fileID1, fileID2)
 	})
 }
@@ -226,7 +226,7 @@ func (s *UploadSuite) idempotencyRedisKeyForFileID(fileID string) string {
 	for _, key := range keys {
 		raw, err := s.container.RedisClient.Get(context.Background(), key).Bytes()
 		s.Require().NoError(err)
-		record := map[string]interface{}{}
+		record := map[string]any{}
 		s.Require().NoError(json.Unmarshal(raw, &record))
 		if record["fileId"] == fileID {
 			return key

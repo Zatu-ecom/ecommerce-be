@@ -7,7 +7,6 @@ import (
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
-	commonError "ecommerce-be/common/error"
 	baseHandler "ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
 	"ecommerce-be/file/model"
@@ -35,12 +34,6 @@ func NewFileUploadHandler(uploadService service.FileUploadService) *FileUploadHa
 
 // InitUpload handles POST /init-upload
 func (h *FileUploadHandler) InitUpload(c *gin.Context) {
-	correlationID := c.GetHeader(constants.CORRELATION_ID_HEADER)
-	if correlationID == "" {
-		h.HandleError(c, commonError.ErrCorrelationIDMissing, "X-Correlation-ID header is missing")
-		return
-	}
-
 	principal, err := utils.ExtractPrincipal(c)
 	if err != nil {
 		h.HandleError(c, err, constant.FILE_UPLOAD_INTERNAL_MSG)
@@ -119,12 +112,6 @@ func (h *FileUploadHandler) InitUpload(c *gin.Context) {
 
 // CompleteUpload handles POST /complete-upload
 func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
-	correlationID := c.GetHeader(constants.CORRELATION_ID_HEADER)
-	if correlationID == "" {
-		h.HandleError(c, commonError.ErrCorrelationIDMissing, "X-Correlation-ID header is missing")
-		return
-	}
-
 	principal, err := utils.ExtractPrincipal(c)
 	if err != nil {
 		h.HandleError(c, err, constant.FILE_UPLOAD_INTERNAL_MSG)

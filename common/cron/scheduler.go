@@ -117,7 +117,7 @@ func Stop() {
 // panicLogger implements the robfig/cron.Logger interface to route panics to our logger
 type panicLogger struct{}
 
-func (l panicLogger) Printf(msg string, args ...interface{}) {
+func (l panicLogger) Printf(msg string, args ...any) {
 	formatted := fmt.Sprintf(msg, args...)
 	// In the robfig/cron recovery chain, panics are passed here
 	log.Error("CRON JOB PANIC", fmt.Errorf("%s\nStack:\n%s", formatted, string(debug.Stack())))

@@ -39,12 +39,12 @@ func (s *ConfigTestSuite) TestListConfigs_SellerScope() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	assert.NotEmpty(s.T(), items)
 
 	for _, item := range items {
-		entry := item.(map[string]interface{})
+		entry := item.(map[string]any)
 		assert.Equal(s.T(), "SELLER", entry["ownerType"],
 			"expected only SELLER configs in seller scope, got %v", entry["ownerType"])
 	}
@@ -72,12 +72,12 @@ func (s *ConfigTestSuite) TestListConfigs_PlatformScope() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	assert.NotEmpty(s.T(), items)
 
 	for _, item := range items {
-		entry := item.(map[string]interface{})
+		entry := item.(map[string]any)
 		assert.Equal(s.T(), "PLATFORM", entry["ownerType"],
 			"expected only PLATFORM configs in platform scope, got %v", entry["ownerType"])
 	}
@@ -91,7 +91,7 @@ func (s *ConfigTestSuite) TestListConfigs_EmptyListForNewSeller() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.NotNil(s.T(), data["configs"], "configs key must be present even when empty")
 }
 
@@ -112,10 +112,10 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByIsActive() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint+"?isActive=true")
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	for _, item := range items {
-		assert.Equal(s.T(), true, item.(map[string]interface{})["isActive"])
+		assert.Equal(s.T(), true, item.(map[string]any)["isActive"])
 	}
 }
 
@@ -126,10 +126,10 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByIsDefault() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint+"?isDefault=false")
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	for _, item := range items {
-		assert.Equal(s.T(), false, item.(map[string]interface{})["isDefault"])
+		assert.Equal(s.T(), false, item.(map[string]any)["isDefault"])
 	}
 }
 
@@ -154,11 +154,11 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByValidationStatuses() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint+"?validationStatuses=PENDING")
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	assert.NotEmpty(s.T(), items)
 	for _, item := range items {
-		assert.Equal(s.T(), "PENDING", item.(map[string]interface{})["validationStatus"])
+		assert.Equal(s.T(), "PENDING", item.(map[string]any)["validationStatus"])
 	}
 }
 
@@ -182,10 +182,10 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByIDs() {
 	w := s.client.Get(s.T(), fmt.Sprintf("%s?ids=%d", StorageConfigEndpoint, configID))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	assert.Len(s.T(), items, 1)
-	assert.Equal(s.T(), float64(configID), items[0].(map[string]interface{})["id"])
+	assert.Equal(s.T(), float64(configID), items[0].(map[string]any)["id"])
 }
 
 // Scenario: Filter by providerIds.
@@ -209,11 +209,11 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByProviderIDs() {
 	w := s.client.Get(s.T(), fmt.Sprintf("%s?providerIds=%d", StorageConfigEndpoint, s.providerID))
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	items := data["configs"].([]interface{})
+	data := resp["data"].(map[string]any)
+	items := data["configs"].([]any)
 	assert.NotEmpty(s.T(), items)
 	for _, item := range items {
-		assert.Equal(s.T(), float64(s.providerID), item.(map[string]interface{})["providerId"])
+		assert.Equal(s.T(), float64(s.providerID), item.(map[string]any)["providerId"])
 	}
 }
 
@@ -263,8 +263,8 @@ func (s *ConfigTestSuite) TestListConfigs_PageSizeClamped() {
 	w := s.client.Get(s.T(), StorageConfigEndpoint+"?pageSize=200")
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
-	pagination := data["pagination"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
+	pagination := data["pagination"].(map[string]any)
 	assert.LessOrEqual(s.T(), int(pagination["itemsPerPage"].(float64)), 100)
 }
 
@@ -277,7 +277,7 @@ func (s *ConfigTestSuite) TestErrorSchema_ActivateInvalidID() {
 	w := s.client.Post(
 		s.T(),
 		FileAPIBase+"/storage-config/not-a-number/activate",
-		map[string]interface{}{},
+		map[string]any{},
 	)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	assert.NotEmpty(s.T(), resp["code"])
@@ -286,7 +286,7 @@ func (s *ConfigTestSuite) TestErrorSchema_ActivateInvalidID() {
 // Scenario: Activation of a non-existent config — standardised 404 error schema.
 func (s *ConfigTestSuite) TestErrorSchema_ActivateNotFound() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(999999997), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(999999997), map[string]any{})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
 	assert.NotEmpty(s.T(), resp["code"])
 }
@@ -306,7 +306,7 @@ func (s *ConfigTestSuite) TestErrorSchema_ListForbiddenSellerID() {
 // Scenario: Unauthenticated activate — standardised 401.
 func (s *ConfigTestSuite) TestErrorSchema_ActivateUnauthenticated() {
 	s.client.SetToken("")
-	w := s.client.Post(s.T(), s.activateURL(1), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(1), map[string]any{})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 	assert.NotEmpty(s.T(), resp["message"])
 }
@@ -335,7 +335,7 @@ func (s *ConfigTestSuite) TestErrorSchema_ActivateCrossTenantForbidden() {
 	)
 
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(configID), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
 	helpers.AssertStatusCodeOneOf(s.T(), w, http.StatusForbidden, http.StatusNotFound)
 
 	resp := helpers.ParseResponse(s.T(), w.Body)

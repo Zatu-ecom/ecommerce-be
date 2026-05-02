@@ -44,7 +44,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Create first option for testing with unique name
 		optionCounter++
-		requestBody1 := map[string]interface{}{
+		requestBody1 := map[string]any{
 			"name":        fmt.Sprintf("test_option_%d_1", optionCounter),
 			"displayName": "Test Option 1",
 			"position":    1,
@@ -57,7 +57,7 @@ func TestUpdateProductOption(t *testing.T) {
 		optionID1 = uint(option1["id"].(float64))
 
 		// Create second option for testing with unique name
-		requestBody2 := map[string]interface{}{
+		requestBody2 := map[string]any{
 			"name":        fmt.Sprintf("test_option_%d_2", optionCounter),
 			"displayName": "Test Option 2",
 			"position":    2,
@@ -84,7 +84,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update only displayName
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Updated Display Name",
 		}
 
@@ -118,7 +118,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update only position
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"position": 5,
 		}
 
@@ -151,7 +151,7 @@ func TestUpdateProductOption(t *testing.T) {
 		originalPosition := float64(1)
 
 		// Update only displayName
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Only DisplayName Changed",
 		}
 
@@ -183,7 +183,7 @@ func TestUpdateProductOption(t *testing.T) {
 		originalDisplayName := "Test Option 2"
 
 		// Update only position
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"position": 10,
 		}
 
@@ -216,7 +216,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update both fields
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Both Fields Updated",
 			"position":    99,
 		}
@@ -246,7 +246,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update position to 0
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"position": 0,
 		}
 
@@ -274,7 +274,7 @@ func TestUpdateProductOption(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update position to negative value
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"position": -5,
 		}
 
@@ -305,7 +305,7 @@ func TestUpdateProductOption(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "AB", // Only 2 characters
 		}
 
@@ -326,7 +326,7 @@ func TestUpdateProductOption(t *testing.T) {
 		// Create a displayName longer than 100 characters
 		longDisplayName := strings.Repeat("a", 101)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": longDisplayName,
 		}
 
@@ -344,7 +344,7 @@ func TestUpdateProductOption(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "ABC", // Exactly 3 characters (minimum valid)
 		}
 
@@ -372,7 +372,7 @@ func TestUpdateProductOption(t *testing.T) {
 		// Create a displayName exactly 100 characters
 		displayName100 := strings.Repeat("a", 100)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": displayName100,
 		}
 
@@ -402,7 +402,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Create a raw request with invalid JSON
 		// Note: The client.Put expects a valid map, so we test with empty body
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		w := client.Put(t, url, requestBody)
 
@@ -428,7 +428,7 @@ func TestUpdateProductOption(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 
@@ -445,7 +445,7 @@ func TestUpdateProductOption(t *testing.T) {
 		// Set invalid token
 		client.SetToken("invalid.token.here")
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 
@@ -463,7 +463,7 @@ func TestUpdateProductOption(t *testing.T) {
 		productID := uint(5) // Owned by Jane (seller_id 3)
 
 		// Create option
-		createBody := map[string]interface{}{
+		createBody := map[string]any{
 			"name":        "seller1_option",
 			"displayName": "Seller 1 Option",
 			"position":    1,
@@ -492,7 +492,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Let's skip this complex scenario and test a simpler case:
 		// Try to update an option using wrong productId but correct optionId
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"displayName": "Hacked Update",
 		}
 
@@ -513,7 +513,7 @@ func TestUpdateProductOption(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Admin Update",
 			"position":    10,
 		}
@@ -538,7 +538,7 @@ func TestUpdateProductOption(t *testing.T) {
 		productID := uint(1)
 		optionID := uint(1)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Color Choice - Admin Updated",
 		}
 
@@ -559,7 +559,7 @@ func TestUpdateProductOption(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Customer Update",
 		}
 
@@ -582,7 +582,7 @@ func TestUpdateProductOption(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 
@@ -603,7 +603,7 @@ func TestUpdateProductOption(t *testing.T) {
 		productID := uint(5)
 		nonExistentOptionID := uint(99999)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 
@@ -621,7 +621,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Create option on product 5
 		product5ID := uint(5)
-		createBody5 := map[string]interface{}{
+		createBody5 := map[string]any{
 			"name":        "product5_option",
 			"displayName": "Product 5 Option",
 			"position":    1,
@@ -635,7 +635,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		// Create option on product 6
 		product6ID := uint(6)
-		createBody6 := map[string]interface{}{
+		createBody6 := map[string]any{
 			"name":        "product6_option",
 			"displayName": "Product 6 Option",
 			"position":    1,
@@ -648,7 +648,7 @@ func TestUpdateProductOption(t *testing.T) {
 		option6ID := uint(option6["id"].(float64))
 
 		// Try to update product 5's option using product 6's endpoint
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"displayName": "Mismatched Update",
 		}
 
@@ -675,7 +675,7 @@ func TestUpdateProductOption(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 
@@ -693,7 +693,7 @@ func TestUpdateProductOption(t *testing.T) {
 
 		productID := uint(5)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Should Fail",
 		}
 

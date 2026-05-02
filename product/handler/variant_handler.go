@@ -318,7 +318,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 		c,
 		http.StatusOK,
 		utils.VARIANTS_BULK_UPDATED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			utils.UPDATED_COUNT_FIELD_NAME: response.UpdatedCount,
 			utils.VARIANTS_FIELD_NAME:      response.Variants,
 		},
@@ -379,7 +379,7 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 		c,
 		http.StatusOK,
 		utils.VARIANT_RETRIEVED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			utils.VARIANTS_FIELD_NAME: response.Variants,
 			"total":                   response.Total,
 			"page":                    response.Page,

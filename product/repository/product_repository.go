@@ -30,7 +30,7 @@ type ProductRepository interface {
 	Search(
 		ctx context.Context,
 		query string,
-		filters map[string]interface{},
+		filters map[string]any,
 		page, limit int,
 	) ([]entity.Product, int64, error)
 	Delete(ctx context.Context, id uint) error
@@ -194,7 +194,7 @@ func (r *ProductRepositoryImpl) FindAll(
 func (r *ProductRepositoryImpl) Search(
 	ctx context.Context,
 	query string,
-	filters map[string]interface{},
+	filters map[string]any,
 	page, limit int,
 ) ([]entity.Product, int64, error) {
 	var products []entity.Product
@@ -314,7 +314,7 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	var results []mapper.RelatedProductScored
 
 	// Convert sellerID to BIGINT or NULL
-	var sellerParam interface{}
+	var sellerParam any
 	if sellerID != nil {
 		sellerParam = *sellerID
 	} else {
@@ -478,7 +478,7 @@ func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID 
 		return nil, nil, nil, nil, nil, nil, err
 	}
 
-	logmap := map[string]interface{}{
+	logmap := map[string]any{
 		"categories":     len(categories),
 		"attributes":     len(attributes),
 		"brands":         len(brands),

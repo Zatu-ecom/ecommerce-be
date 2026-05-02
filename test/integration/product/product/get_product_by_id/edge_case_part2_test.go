@@ -41,7 +41,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify name length (200 chars)
 		name := product["name"].(string)
@@ -64,7 +64,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		assert.LessOrEqual(t, len(longDesc), 5000, "Long description should be <= 5000 characters")
 
 		// Verify tags count (20 tags)
-		tags := product["tags"].([]interface{})
+		tags := product["tags"].([]any)
 		assert.LessOrEqual(t, len(tags), 20, "Tags should be <= 20 items")
 
 		// Verify response JSON is valid
@@ -87,19 +87,19 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Get variants
-		variants := product["variants"].([]interface{})
+		variants := product["variants"].([]any)
 		assert.NotEmpty(t, variants, "Variants should be present")
 
-		variant := variants[0].(map[string]interface{})
-		selectedOptions := variant["selectedOptions"].([]interface{})
+		variant := variants[0].(map[string]any)
+		selectedOptions := variant["selectedOptions"].([]any)
 
 		// Find option with special characters
 		hasSpecialChars := false
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			value := option["value"].(string)
 
 			// Check for special characters
@@ -135,7 +135,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify base SKU
 		baseSku := product["sku"].(string)
@@ -143,10 +143,10 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		assert.Contains(t, baseSku, "VERYLONGSKU", "Base SKU should contain prefix")
 
 		// Verify variants have complete SKUs
-		variants := product["variants"].([]interface{})
+		variants := product["variants"].([]any)
 		assert.NotEmpty(t, variants, "Variants should be present")
 
-		variant := variants[0].(map[string]interface{})
+		variant := variants[0].(map[string]any)
 		variantSku := variant["sku"].(string)
 		assert.NotEmpty(t, variantSku, "Variant SKU should be present")
 		assert.Contains(t, variantSku, "VERYLONGSKU", "Variant SKU should contain base SKU")
@@ -170,10 +170,10 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify price range includes zero
-		priceRange := product["priceRange"].(map[string]interface{})
+		priceRange := product["priceRange"].(map[string]any)
 		minPrice := priceRange["min"].(float64)
 		maxPrice := priceRange["max"].(float64)
 
@@ -181,13 +181,13 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		assert.Greater(t, maxPrice, 0.0, "Max price should be > 0 for paid variant")
 
 		// Verify variants
-		variants := product["variants"].([]interface{})
+		variants := product["variants"].([]any)
 		assert.NotEmpty(t, variants, "Variants should be present")
 
 		// Find the free variant
 		hasFreeVariant := false
 		for _, v := range variants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			price := variant["price"].(float64)
 
 			if price == 0.0 {
@@ -221,7 +221,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify timestamps are in RFC3339 format
 		createdAt := product["createdAt"].(string)

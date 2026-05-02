@@ -161,7 +161,7 @@ func jobDispatcher(jobs chan<- ScheduledJob) {
 
 func GetContextWithKeys(job ScheduledJob) context.Context {
 	ctx := &gin.Context{
-		Keys: map[string]interface{}{
+		Keys: map[string]any{
 			constants.USER_ID_KEY:        job.UserID,
 			constants.SELLER_ID_KEY:      job.SellerID,
 			constants.CORRELATION_ID_KEY: job.CorrelationId,

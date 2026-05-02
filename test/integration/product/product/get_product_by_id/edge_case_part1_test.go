@@ -100,7 +100,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify Unicode characters are preserved
 		name := product["name"].(string)
@@ -117,7 +117,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		assert.Contains(t, longDesc, "😀", "Emojis should be in description")
 
 		// Verify tags have Unicode
-		tags := product["tags"].([]interface{})
+		tags := product["tags"].([]any)
 		hasUnicodeTag := false
 		for _, tag := range tags {
 			tagStr := tag.(string)
@@ -145,7 +145,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify required fields are present
 		assert.NotNil(t, product["id"], "ID should be present")
@@ -162,7 +162,7 @@ func TestGetProductByID_EdgeCases_Part1(t *testing.T) {
 		longDesc := product["longDescription"].(string)
 		assert.Empty(t, longDesc, "Long description should be empty")
 
-		tags := product["tags"].([]interface{})
+		tags := product["tags"].([]any)
 		assert.Empty(t, tags, "Tags should be empty array")
 
 		// Verify response structure is still valid

@@ -94,7 +94,7 @@ func (r *fileUploadRepository) MarkActive(
 	result := db.DB(ctx).
 		Model(&entity.FileObject{}).
 		Where("id = ? AND status = ?", id, entity.FileStatusUploading).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":       entity.FileStatusActive,
 			"etag":         etag,
 			"size_bytes":   sizeBytes,
@@ -114,7 +114,7 @@ func (r *fileUploadRepository) MarkFailed(
 	return db.DB(ctx).
 		Model(&entity.FileObject{}).
 		Where("id = ? AND status = ?", id, entity.FileStatusUploading).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":         entity.FileStatusFailed,
 			"failure_reason": reason,
 		}).

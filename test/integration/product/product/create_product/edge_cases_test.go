@@ -39,24 +39,24 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Precise Price",
 			"categoryId": 4,
 			"baseSku":    "TEST-PRECISE-PRICE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-PRECISE-PRICE-001-V1",
 					"price": 19.999999, // Many decimal places
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -69,11 +69,11 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "variants should be an array")
 		assert.Len(t, variants, 1)
 
-		variant := variants[0].(map[string]interface{})
+		variant := variants[0].(map[string]any)
 		price := variant["price"].(float64)
 
 		// Verify price is rounded appropriately (typically to 2 decimal places)
@@ -86,24 +86,24 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Standard Price",
 			"categoryId": 4,
 			"baseSku":    "TEST-STD-PRICE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-STD-PRICE-001-V1",
 					"price": 99.99, // Standard 2 decimal places
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -115,9 +115,9 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
-		variant := variants[0].(map[string]interface{})
+		variant := variants[0].(map[string]any)
 
 		// Should preserve exact price
 		assert.Equal(t, 99.99, variant["price"], "Price should be preserved exactly")
@@ -127,24 +127,24 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "プロダクト名", // Japanese characters
 			"categoryId": 4,
 			"baseSku":    "TEST-UNICODE-JP-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-UNICODE-JP-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -164,24 +164,24 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Café Crème", // French accented characters
 			"categoryId": 4,
 			"baseSku":    "TEST-UNICODE-FR-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-UNICODE-FR-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -206,27 +206,27 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		longPath := strings.Repeat("subdirectory/", 50) // Creates a long path
 		veryLongURL := baseURL + longPath + "image.jpg"
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Long URL",
 			"categoryId": 4,
 			"baseSku":    "TEST-LONG-URL-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-LONG-URL-001-V1",
 					"price": 99.99,
 					"images": []string{
 						veryLongURL, // Very long URL (1000+ chars)
 					},
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -242,10 +242,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		if w.Code == http.StatusCreated {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 			product := helpers.GetResponseData(t, response, "product")
-			variants, ok := product["variants"].([]interface{})
+			variants, ok := product["variants"].([]any)
 			assert.True(t, ok)
-			variant := variants[0].(map[string]interface{})
-			images := variant["images"].([]interface{})
+			variant := variants[0].(map[string]any)
+			images := variant["images"].([]any)
 			assert.NotEmpty(t, images, "Image should be stored")
 			t.Log("Very long URL was accepted and stored")
 		} else {
@@ -260,25 +260,25 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		allowPurchase := false
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Not Purchasable",
 			"categoryId": 4,
 			"baseSku":    "TEST-NO-PURCHASE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":           "TEST-NO-PURCHASE-001-V1",
 					"price":         99.99,
 					"allowPurchase": allowPurchase, // Not purchasable
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -291,11 +291,11 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		product := helpers.GetResponseData(t, response, "product")
 
 		// Verify variant created but not purchasable
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, variants, 1)
 
-		variant := variants[0].(map[string]interface{})
+		variant := variants[0].(map[string]any)
 		assert.NotNil(t, variant["id"], "Variant should be created")
 
 		// Verify allowPurchase is false
@@ -310,27 +310,27 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":             "Test Product - Empty Optionals",
 			"categoryId":       4,
 			"baseSku":          "TEST-EMPTY-OPT-001",
 			"brand":            "", // Empty optional field
 			"shortDescription": "", // Empty optional field
 			"longDescription":  "", // Empty optional field
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-EMPTY-OPT-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -351,24 +351,24 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Max Price",
 			"categoryId": 4,
 			"baseSku":    "TEST-MAX-PRICE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-MAX-PRICE-001-V1",
 					"price": 999999.99, // Very high price
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -381,8 +381,8 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		if w.Code == http.StatusCreated {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 			product := helpers.GetResponseData(t, response, "product")
-			variants := product["variants"].([]interface{})
-			variant := variants[0].(map[string]interface{})
+			variants := product["variants"].([]any)
+			variant := variants[0].(map[string]any)
 			assert.Equal(t, 999999.99, variant["price"], "High price should be stored")
 			t.Log("Very high price was accepted")
 		} else {

@@ -100,8 +100,8 @@ func (s *ConfigTestSuite) buildCreateConfigRequest(
 	accessKey string,
 	secretKey string,
 	isDefault bool,
-) map[string]interface{} {
-	reqBody := map[string]interface{}{
+) map[string]any {
+	reqBody := map[string]any{
 		"providerId":        providerID,
 		"displayName":       displayName,
 		"bucketOrContainer": bucket,
@@ -121,7 +121,7 @@ func (s *ConfigTestSuite) buildUpdateConfigRequest(
 	bucket string,
 	accessKey string,
 	secretKey string,
-) map[string]interface{} {
+) map[string]any {
 	reqBody := s.buildCreateConfigRequest(
 		providerID, displayName, bucket, "", accessKey, secretKey, false,
 	)
@@ -133,12 +133,12 @@ func (s *ConfigTestSuite) buildUpdateConfigRequest(
 // Uses the standard POST /storage-config endpoint — no direct DB insertion.
 func (s *ConfigTestSuite) createConfigAndGetID(
 	token string,
-	reqBody map[string]interface{},
+	reqBody map[string]any,
 ) uint {
 	s.client.SetToken(token)
 	resp := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	assert.Equal(s.T(), http.StatusOK, resp.Code)
-	data := helpers.ParseResponse(s.T(), resp.Body)["data"].(map[string]interface{})
+	data := helpers.ParseResponse(s.T(), resp.Body)["data"].(map[string]any)
 	return uint(data["id"].(float64))
 }
 
@@ -180,7 +180,7 @@ func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), "SELLER", data["ownerType"])
 	assert.Equal(s.T(), false, data["isDefault"])
 }
@@ -201,7 +201,7 @@ func (s *ConfigTestSuite) TestSaveConfig_AdminSuccessPlatformDefault() {
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), "PLATFORM", data["ownerType"])
 	assert.Equal(s.T(), true, data["isDefault"])
 }
@@ -210,7 +210,7 @@ func (s *ConfigTestSuite) TestSaveConfig_AdminSuccessPlatformDefault() {
 // Validates: Middleware rejects unauthenticated access with 401.
 func (s *ConfigTestSuite) TestSaveConfig_FailsWithoutAuth() {
 	s.client.SetToken("")
-	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]interface{}{})
+	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
@@ -218,14 +218,14 @@ func (s *ConfigTestSuite) TestSaveConfig_FailsWithoutAuth() {
 // Validates: Middleware rejects invalid JWT with 401.
 func (s *ConfigTestSuite) TestSaveConfig_FailsWithInvalidToken() {
 	s.client.SetToken("invalid-token")
-	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]interface{}{})
+	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
 // Scenario: Request body omits required fields.
 // Validates: Binding/validation errors return 400.
 func (s *ConfigTestSuite) TestSaveConfig_ValidationFailure() {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"displayName": "Missing provider and bucket",
 		"credentials": map[string]string{"foo": "bar"},
 	}
@@ -364,7 +364,7 @@ func (s *ConfigTestSuite) TestSaveConfig_BackwardCompatible() {
 		"LEGACY_SK",
 		false,
 	)
-	reqBody["configJson"] = map[string]interface{}{
+	reqBody["configJson"] = map[string]any{
 		"customEndpoint": "https://s3.example.com",
 	}
 	s.client.SetToken(s.sellerToken)
@@ -375,6 +375,6 @@ func (s *ConfigTestSuite) TestSaveConfig_BackwardCompatible() {
 // Scenario: TestConfig stub endpoint returns 501.
 func (s *ConfigTestSuite) TestStubTestConfigEndpointReturnsNotImplemented() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigTestEndpoint, map[string]interface{}{})
+	w := s.client.Post(s.T(), StorageConfigTestEndpoint, map[string]any{})
 	assert.Equal(s.T(), http.StatusNotImplemented, w.Code)
 }

@@ -22,7 +22,7 @@ func (s *UploadSuite) TestUploadRoundTrip_Performance_1MBJPEG() {
 		client.SetToken(s.sellerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "perf-upload-round-trip")
 
-		initReq := map[string]interface{}{
+		initReq := map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "perf-1mb.jpg",
@@ -34,13 +34,13 @@ func (s *UploadSuite) TestUploadRoundTrip_Performance_1MBJPEG() {
 		startedAt := time.Now()
 		initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 		initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-		initData := initResp["data"].(map[string]interface{})
+		initData := initResp["data"].(map[string]any)
 
 		uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
 		uploadHelper.PutBytes(s.T(), initData, make([]byte, 1024*1024))
 
 		fileID := initData["fileId"].(string)
-		completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+		completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 			"fileId": fileID,
 		})
 		helpers.AssertSuccessResponse(s.T(), completeW, http.StatusOK)

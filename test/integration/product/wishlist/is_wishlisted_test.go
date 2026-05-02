@@ -160,15 +160,15 @@ func TestIsWishlistedField(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		variants := data["variants"].([]interface{})
+		data := response["data"].(map[string]any)
+		variants := data["variants"].([]any)
 
 		assert.NotEmpty(t, variants, "Should return variants")
 
 		// Check each variant's wishlist status
 		wishlistedCount := 0
 		for _, v := range variants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			variantID := int(variant["id"].(float64))
 			isWishlisted := variant["isWishlisted"].(bool)
 
@@ -190,12 +190,12 @@ func TestIsWishlistedField(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		variants := data["variants"].([]interface{})
+		data := response["data"].(map[string]any)
+		variants := data["variants"].([]any)
 
 		// All variants should have isWishlisted = false for unauthenticated user
 		for _, v := range variants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			isWishlisted, ok := variant["isWishlisted"].(bool)
 			assert.True(t, ok, "isWishlisted field should exist")
 			assert.False(t, isWishlisted, "isWishlisted should be false for unauthenticated user")
@@ -322,14 +322,14 @@ func TestIsWishlistedField(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		products := data["products"].([]interface{})
+		data := response["data"].(map[string]any)
+		products := data["products"].([]any)
 
 		assert.NotEmpty(t, products, "Should return products")
 
 		// Check that isWishlisted field exists on all products
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			_, ok := product["isWishlisted"].(bool)
 			assert.True(t, ok, "isWishlisted field should exist on product %v", product["id"])
 		}
@@ -337,7 +337,7 @@ func TestIsWishlistedField(t *testing.T) {
 		// Find product 1 (iPhone) - should be wishlisted
 		var foundProduct1 bool
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			if int(product["id"].(float64)) == 1 {
 				foundProduct1 = true
 				isWishlisted := product["isWishlisted"].(bool)
@@ -357,12 +357,12 @@ func TestIsWishlistedField(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		products := data["products"].([]interface{})
+		data := response["data"].(map[string]any)
+		products := data["products"].([]any)
 
 		// All products should have isWishlisted = false for unauthenticated user
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			isWishlisted, ok := product["isWishlisted"].(bool)
 			assert.True(t, ok, "isWishlisted field should exist")
 			assert.False(t, isWishlisted, "isWishlisted should be false for unauthenticated user")
@@ -384,14 +384,14 @@ func TestIsWishlistedField(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		// SearchResponse returns "results" not "products"
-		results := data["results"].([]interface{})
+		results := data["results"].([]any)
 
 		if len(results) > 0 {
 			// Check first result has isWishlisted field
 			// SearchResult embeds ProductResponse, so isWishlisted should be at top level
-			result := results[0].(map[string]interface{})
+			result := results[0].(map[string]any)
 			_, ok := result["isWishlisted"].(bool)
 			assert.True(t, ok, "isWishlisted field should exist on search results")
 		}

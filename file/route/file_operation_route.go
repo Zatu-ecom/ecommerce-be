@@ -27,7 +27,7 @@ func NewFileOperationModule() *FileOperationModule {
 // RegisterRoutes registers all file operation-related routes.
 func (m *FileOperationModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
-	adminAuth := middleware.AdminAuth()
+	// adminAuth := middleware.AdminAuth()
 
 	// Seller endpoints for generic file operations
 	fileRoutes := router.Group(constants.APIBaseFile)
@@ -36,19 +36,15 @@ func (m *FileOperationModule) RegisterRoutes(router *gin.Engine) {
 		fileRoutes.GET("/:fileId/download-url", sellerAuth, m.fileHandler.GetDownloadURL)
 		fileRoutes.DELETE("/:fileId", sellerAuth, m.fileHandler.DeleteFile)
 		fileRoutes.POST("/:fileId/variants", sellerAuth, m.fileHandler.RequestVariants)
-	}
 
-	// (a) Seller Auth Upload routes (/api/files)
-	uploadRoutes := router.Group("/api/files")
-	{
-		uploadRoutes.POST("/init-upload", sellerAuth, m.uploadHandler.InitUpload)
-		uploadRoutes.POST("/complete-upload", sellerAuth, m.uploadHandler.CompleteUpload)
+		fileRoutes.POST("/init-upload", sellerAuth, m.uploadHandler.InitUpload)
+		fileRoutes.POST("/complete-upload", sellerAuth, m.uploadHandler.CompleteUpload)
 	}
 
 	// (b) Admin Auth Upload routes (/api/admin/files)
-	adminUploadRoutes := router.Group("/api/admin/files")
-	{
-		adminUploadRoutes.POST("/init-upload", adminAuth, m.uploadHandler.InitUpload)
-		adminUploadRoutes.POST("/complete-upload", adminAuth, m.uploadHandler.CompleteUpload)
-	}
+	// adminUploadRoutes := router.Group("/api/admin/files")
+	// {
+	// 	adminUploadRoutes.POST("/init-upload", adminAuth, m.uploadHandler.InitUpload)
+	// 	adminUploadRoutes.POST("/complete-upload", adminAuth, m.uploadHandler.CompleteUpload)
+	// }
 }

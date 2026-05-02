@@ -564,7 +564,7 @@ func (s *FreeShippingPromotionTestSuite) TestCreateFreeShippingWithMinOrderAndCa
 // TestCreateFreeShippingMissingName validates that a promotion payload without the
 // required name field is rejected with HTTP 400.
 func (s *FreeShippingPromotionTestSuite) TestCreateFreeShippingMissingName() {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		// "name" intentionally omitted
 		"promotionType":  promoTypeFreeShipping,
 		"discountConfig": model.FreeShippingConfig{},
@@ -626,10 +626,10 @@ func (s *FreeShippingPromotionTestSuite) createFreeShippingPromotion(
 func (s *FreeShippingPromotionTestSuite) createGenericFreeShippingPromotion(
 	name string,
 	promoType string,
-	discountConfig interface{},
+	discountConfig any,
 	opts promotionCreateOptions,
 ) uint {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           name,
 		"promotionType":  promoType,
 		"discountConfig": discountConfig,
@@ -650,13 +650,13 @@ func (s *FreeShippingPromotionTestSuite) createGenericFreeShippingPromotion(
 }
 
 func (s *FreeShippingPromotionTestSuite) createPromotionFromFSPayload(
-	payload map[string]interface{},
+	payload map[string]any,
 ) uint {
 	res := s.sellerClient.Post(s.T(), PromotionAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code, "promotion creation should succeed")
 
 	respData := helpers.ParseResponse(s.T(), res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -676,7 +676,7 @@ func (s *FreeShippingPromotionTestSuite) linkFreeShippingProducts(
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionProductsEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"productIds":  productIDs,
 		},
@@ -715,12 +715,12 @@ func buildFreeShippingPayload(
 	name string,
 	minOrderCents *int64,
 	maxShippingDiscountCents *int64,
-) map[string]interface{} {
+) map[string]any {
 	config := model.FreeShippingConfig{
 		MinOrderCents:            minOrderCents,
 		MaxShippingDiscountCents: maxShippingDiscountCents,
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"name":           name,
 		"promotionType":  promoTypeFreeShipping,
 		"discountConfig": config,

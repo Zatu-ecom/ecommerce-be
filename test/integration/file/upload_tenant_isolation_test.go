@@ -16,7 +16,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken(s.sellerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-init")
 
-		initReq := map[string]interface{}{
+		initReq := map[string]any{
 			"purpose":             "PRODUCT_IMAGE",
 			"visibility":          "PRIVATE",
 			"filename":            "tenant-a.jpg",
@@ -27,7 +27,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 
 		initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 		initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-		return initResp["data"].(map[string]interface{})["fileId"].(string)
+		return initResp["data"].(map[string]any)["fileId"].(string)
 	}
 
 	s.Run("SellerB_Cannot_Complete_SellerA_File", func() {
@@ -37,7 +37,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken(s.seller2Token)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-seller-b")
 
-		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 			"fileId": fileID,
 		})
 		resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
@@ -53,7 +53,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken("")
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-unauth")
 
-		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 			"fileId": fileID,
 		})
 		helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
@@ -68,7 +68,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken(s.customerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-customer")
 
-		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+		w := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 			"fileId": fileID,
 		})
 		helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
@@ -83,7 +83,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken(s.adminToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-admin")
 
-		w := client.Post(s.T(), "/api/admin/files/complete-upload", map[string]interface{}{
+		w := client.Post(s.T(), "/api/admin/files/complete-upload", map[string]any{
 			"fileId": fileID,
 		})
 		resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)

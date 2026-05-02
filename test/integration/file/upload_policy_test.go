@@ -104,7 +104,7 @@ func TestUploadPolicyEvaluate_NegativeBranches(t *testing.T) {
 func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 	type tc struct {
 		name         string
-		req          map[string]interface{}
+		req          map[string]any
 		wantHTTPCode int
 		wantCode     string
 	}
@@ -112,7 +112,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 	tests := []tc{
 		{
 			name: "Reject_OversizedProductImage",
-			req: map[string]interface{}{
+			req: map[string]any{
 				"purpose":    "PRODUCT_IMAGE",
 				"visibility": "PRIVATE",
 				"filename":   "big.jpg",
@@ -124,7 +124,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 		},
 		{
 			name: "Reject_DisallowedMime",
-			req: map[string]interface{}{
+			req: map[string]any{
 				"purpose":    "PRODUCT_IMAGE",
 				"visibility": "PRIVATE",
 				"filename":   "evil.exe",
@@ -136,7 +136,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 		},
 		{
 			name: "Reject_EmptyFilename",
-			req: map[string]interface{}{
+			req: map[string]any{
 				"purpose":    "PRODUCT_IMAGE",
 				"visibility": "PRIVATE",
 				"filename":   "",
@@ -148,7 +148,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 		},
 		{
 			name: "Reject_ZeroSize",
-			req: map[string]interface{}{
+			req: map[string]any{
 				"purpose":    "PRODUCT_IMAGE",
 				"visibility": "PRIVATE",
 				"filename":   "zero.jpg",
@@ -160,7 +160,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 		},
 		{
 			name: "Reject_ExportFilePurpose",
-			req: map[string]interface{}{
+			req: map[string]any{
 				"purpose":    "EXPORT_FILE",
 				"visibility": "PRIVATE",
 				"filename":   "export.pdf",
@@ -217,7 +217,7 @@ func (s *UploadSuite) TestInitUpload_RejectsUnknownPurposeAndVisibility() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "upload-policy-unknown-enum")
 
-	wUnknownPurpose := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+	wUnknownPurpose := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 		"purpose":    "UNKNOWN_PURPOSE",
 		"visibility": "PRIVATE",
 		"filename":   "x.jpg",
@@ -227,7 +227,7 @@ func (s *UploadSuite) TestInitUpload_RejectsUnknownPurposeAndVisibility() {
 	respPurpose := helpers.AssertErrorResponse(s.T(), wUnknownPurpose, http.StatusBadRequest)
 	s.Require().Equal(constants.VALIDATION_ERROR_CODE, respPurpose["code"])
 
-	wUnknownVisibility := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+	wUnknownVisibility := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 		"purpose":    "PRODUCT_IMAGE",
 		"visibility": "OUTSIDE",
 		"filename":   "x.jpg",

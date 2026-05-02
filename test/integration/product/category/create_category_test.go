@@ -35,7 +35,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Electronics",
 			"description": "Electronic devices and accessories",
 		}
@@ -64,7 +64,7 @@ func TestCreateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// First create parent category
-		parentRequest := map[string]interface{}{
+		parentRequest := map[string]any{
 			"name":        "Home & Garden",
 			"description": "Home and garden products",
 		}
@@ -81,7 +81,7 @@ func TestCreateCategory(t *testing.T) {
 		assert.True(t, parentCategory["isGlobal"].(bool), "Parent category should be global")
 
 		// Create subcategory
-		childRequest := map[string]interface{}{
+		childRequest := map[string]any{
 			"name":        "Furniture",
 			"description": "Home furniture",
 			"parentId":    parentID,
@@ -117,7 +117,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "",
 			"description": "Test description",
 		}
@@ -136,7 +136,7 @@ func TestCreateCategory(t *testing.T) {
 			longName += "a"
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        longName,
 			"description": "Test description",
 		}
@@ -149,7 +149,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "ab", // Less than 3 characters
 			"description": "Test description",
 		}
@@ -168,7 +168,7 @@ func TestCreateCategory(t *testing.T) {
 			longDesc += "a"
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Valid Name",
 			"description": longDesc,
 		}
@@ -186,14 +186,14 @@ func TestCreateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create first category
-		firstRequest := map[string]interface{}{
+		firstRequest := map[string]any{
 			"name":        "Books",
 			"description": "Books and magazines",
 		}
 		client.Post(t, "/api/product/category", firstRequest)
 
 		// Try to create duplicate
-		duplicateRequest := map[string]interface{}{
+		duplicateRequest := map[string]any{
 			"name":        "Books",
 			"description": "Different description",
 		}
@@ -208,7 +208,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Test Category",
 			"description": "Test description",
 			"parentId":    99999, // Non-existent ID
@@ -225,7 +225,7 @@ func TestCreateCategory(t *testing.T) {
 	t.Run("Unauthorized access (no token)", func(t *testing.T) {
 		client.SetToken("") // Clear token
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Unauthorized Category",
 			"description": "Should fail",
 		}
@@ -238,7 +238,7 @@ func TestCreateCategory(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Customer Category",
 			"description": "Should fail",
 		}
@@ -256,7 +256,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalParentRequest := map[string]interface{}{
+		globalParentRequest := map[string]any{
 			"name":        "Global Sports",
 			"description": "Global sports category",
 		}
@@ -276,7 +276,7 @@ func TestCreateCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		childRequest := map[string]interface{}{
+		childRequest := map[string]any{
 			"name":        "My Sports Items",
 			"description": "My sports products",
 			"parentId":    globalParentID,
@@ -292,7 +292,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		parentRequest := map[string]interface{}{
+		parentRequest := map[string]any{
 			"name":        "Global Fashion",
 			"description": "Global fashion category",
 		}
@@ -306,7 +306,7 @@ func TestCreateCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Same or different admin can create subcategory
-		childRequest := map[string]interface{}{
+		childRequest := map[string]any{
 			"name":        "Women's Fashion",
 			"description": "Women's clothing and accessories",
 			"parentId":    parentID,
@@ -329,7 +329,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Verified Global",
 			"description": "Testing global category properties",
 		}
@@ -355,7 +355,7 @@ func TestCreateCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Verified Seller Category",
 			"description": "Testing seller-specific category properties",
 		}
@@ -390,7 +390,7 @@ func TestCreateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "Complete Category",
 			"description": "Category with all fields",
 		}

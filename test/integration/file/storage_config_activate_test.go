@@ -26,10 +26,10 @@ func (s *ConfigTestSuite) TestActivate_SellerHappyPath() {
 	)
 
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(configID), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), true, data["isActive"])
 	assert.Equal(s.T(), "SELLER", data["ownerType"])
 	assert.Equal(s.T(), float64(configID), data["id"])
@@ -39,7 +39,7 @@ func (s *ConfigTestSuite) TestActivate_SellerHappyPath() {
 // Validates: 400 is returned for invalid path param.
 func (s *ConfigTestSuite) TestActivate_InvalidIDFormat() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), FileAPIBase+"/storage-config/not-a-number/activate", map[string]interface{}{})
+	w := s.client.Post(s.T(), FileAPIBase+"/storage-config/not-a-number/activate", map[string]any{})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	assert.NotEmpty(s.T(), resp["code"])
 }
@@ -53,7 +53,7 @@ func (s *ConfigTestSuite) TestActivate_CrossTenantForbidden() {
 	)
 
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(configID), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
 	helpers.AssertStatusCodeOneOf(s.T(), w, http.StatusForbidden, http.StatusNotFound)
 
 	resp := helpers.ParseResponse(s.T(), w.Body)
@@ -66,7 +66,7 @@ func (s *ConfigTestSuite) TestActivate_CrossTenantForbidden() {
 // Validates: 401 is returned by auth middleware.
 func (s *ConfigTestSuite) TestActivate_Unauthenticated() {
 	s.client.SetToken("")
-	w := s.client.Post(s.T(), fmt.Sprintf(StorageConfigActivateEndpointTpl, 1), map[string]interface{}{})
+	w := s.client.Post(s.T(), fmt.Sprintf(StorageConfigActivateEndpointTpl, 1), map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
@@ -74,7 +74,7 @@ func (s *ConfigTestSuite) TestActivate_Unauthenticated() {
 // Validates: 404 is returned.
 func (s *ConfigTestSuite) TestActivate_NotFound() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(999999999), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(999999999), map[string]any{})
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
 	assert.NotEmpty(s.T(), resp["code"])
 }
@@ -88,7 +88,7 @@ func (s *ConfigTestSuite) TestActivate_SellerCannotActivatePlatformConfig() {
 	)
 
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(platformConfigID), map[string]interface{}{})
+	w := s.client.Post(s.T(), s.activateURL(platformConfigID), map[string]any{})
 	helpers.AssertStatusCodeOneOf(s.T(), w, http.StatusForbidden, http.StatusNotFound)
 
 	resp := helpers.ParseResponse(s.T(), w.Body)
@@ -110,13 +110,13 @@ func (s *ConfigTestSuite) TestActivate_Idempotent() {
 
 	s.client.SetToken(s.sellerToken)
 	// First activation
-	w1 := s.client.Post(s.T(), s.activateURL(configID), map[string]interface{}{})
+	w1 := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
 	helpers.AssertSuccessResponse(s.T(), w1, http.StatusOK)
 
 	// Second activation — must still succeed
-	w2 := s.client.Post(s.T(), s.activateURL(configID), map[string]interface{}{})
+	w2 := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
 	resp := helpers.AssertSuccessResponse(s.T(), w2, http.StatusOK)
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), true, data["isActive"])
 }
 
@@ -135,22 +135,22 @@ func (s *ConfigTestSuite) TestActivate_SingleActiveConvergence() {
 	s.client.SetToken(s.sellerToken)
 
 	// Activate A first
-	wA := s.client.Post(s.T(), s.activateURL(configA), map[string]interface{}{})
+	wA := s.client.Post(s.T(), s.activateURL(configA), map[string]any{})
 	helpers.AssertSuccessResponse(s.T(), wA, http.StatusOK)
 
 	// Activate B — B should now be the only active config
-	wB := s.client.Post(s.T(), s.activateURL(configB), map[string]interface{}{})
+	wB := s.client.Post(s.T(), s.activateURL(configB), map[string]any{})
 	helpers.AssertSuccessResponse(s.T(), wB, http.StatusOK)
 
 	// Verify via list API: only one active config in seller scope
 	listW := s.client.Get(s.T(), StorageConfigEndpoint+"?isActive=true")
 	listResp := helpers.AssertSuccessResponse(s.T(), listW, http.StatusOK)
 
-	listData := listResp["data"].(map[string]interface{})
-	items := listData["configs"].([]interface{})
+	listData := listResp["data"].(map[string]any)
+	items := listData["configs"].([]any)
 	activeCount := 0
 	for _, item := range items {
-		entry := item.(map[string]interface{})
+		entry := item.(map[string]any)
 		if entry["isActive"].(bool) {
 			activeCount++
 		}

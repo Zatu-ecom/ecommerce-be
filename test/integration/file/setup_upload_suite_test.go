@@ -39,7 +39,7 @@ var schedulerOnce sync.Once
 
 type VariantEnvelopeMessage struct {
 	Envelope messaging.Envelope
-	Payload  map[string]interface{}
+	Payload  map[string]any
 }
 
 // UploadSuite is the integration harness for upload init/complete happy-path behavior.
@@ -263,7 +263,7 @@ func (s *UploadSuite) setupVariantQueueConsumer() {
 				continue
 			}
 
-			payload := map[string]interface{}{}
+			payload := map[string]any{}
 			_ = json.Unmarshal(env.Payload, &payload)
 
 			select {

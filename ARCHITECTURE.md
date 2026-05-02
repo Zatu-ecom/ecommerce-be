@@ -332,23 +332,23 @@ service_name/                    # e.g., product/, user/, order/
 │   └─ Apply middleware (auth, validation)
 │   └─ Map routes to handlers
 │
-├── factory/                     # 🏭 Dependency Injection 
+├── factory/                     # 🏭 Dependency Injection
 │   └── singleton/              # Singleton pattern for complex services
 │   └─ Creates & caches dependencies (repos, services, handlers)
 │   └─ Used when service has many sub-modules
 │
 ├── mapper/                      # 🔄 Object for Complex Queries query to remove N+1 issues
-│   
 │
-├── query/                       # 🔍 Complex Queries 
+│
+├── query/                       # 🔍 Complex Queries
 │   └─ Search builders, filters, pagination
 │   └─ Raw SQL for performance-critical queries
 │
-├── errors/                      # ❌ Service-Specific Errors 
+├── errors/                      # ❌ Service-Specific Errors
 │   └─ Custom error types
 │   └─ Error codes & messages
 │
-├── utils/                       # 🛠️ Service Utilities 
+├── utils/                       # 🛠️ Service Utilities
 │   └─ Helper functions specific to this service
 │
 └── validator/                   # ✅ Business Validation
@@ -731,7 +731,7 @@ func TestCreateProduct(t *testing.T) {
     client.SetToken(token)
 
     // 3. Prepare request
-    req := map[string]interface{}{
+    req := map[string]any{
         "name": "iPhone 15 Pro",
         "categoryId": 1,
         "basePrice": 99999,
@@ -748,7 +748,7 @@ func TestCreateProduct(t *testing.T) {
     // 5. Assert response
     assert.Equal(t, http.StatusCreated, w.Code)
 
-    var response map[string]interface{}
+    var response map[string]any
     json.Unmarshal(w.Body.Bytes(), &response)
 
     assert.True(t, response["success"].(bool))
@@ -756,7 +756,7 @@ func TestCreateProduct(t *testing.T) {
 
     // 6. Verify database state
     var product entity.Product
-    containers.DB.First(&product, response["data"].(map[string]interface{})["id"])
+    containers.DB.First(&product, response["data"].(map[string]any)["id"])
     assert.Equal(t, "iPhone 15 Pro", product.Name)
     assert.Equal(t, uint(2), product.SellerID)
 }
@@ -823,7 +823,7 @@ helpers.LoginAsCustomer(t, client) string
 
 // Request builders
 helpers.CreateCategory(t, client, name string) uint
-helpers.CreateProduct(t, client, data map[string]interface{}) uint
+helpers.CreateProduct(t, client, data map[string]any) uint
 
 // Assertions
 helpers.AssertSuccess(t, w, expectedCode int)
@@ -997,7 +997,7 @@ func TestCreateYourEntity(t *testing.T) {
     client.SetToken(token)
 
     // Prepare request
-    req := map[string]interface{}{
+    req := map[string]any{
         "name": "Test Name",
         // Add test data
     }

@@ -18,7 +18,7 @@ func (s *UploadSuite) TestCompleteUpload_ProductImage_HappyPath() {
 	correlationID := "upload-complete-happy-correlation-id"
 	client.SetHeader(constants.CORRELATION_ID_HEADER, correlationID)
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "hero-complete.jpg",
@@ -29,18 +29,18 @@ func (s *UploadSuite) TestCompleteUpload_ProductImage_HappyPath() {
 
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
 	uploadHelper.PutBytes(s.T(), initData, make([]byte, 2048))
 
 	client.SetHeader(constants.CORRELATION_ID_HEADER, correlationID)
-	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	completeResp := helpers.AssertSuccessResponse(s.T(), completeW, http.StatusOK)
-	completeData := completeResp["data"].(map[string]interface{})
+	completeData := completeResp["data"].(map[string]any)
 
 	require.Equal(s.T(), "ACTIVE", completeData["status"])
 	require.Equal(s.T(), true, completeData["variantsQueued"])
@@ -90,7 +90,7 @@ func (s *UploadSuite) TestUploadHandler_ValidationAndCorrelationBehavior() {
 
 	// Missing correlation id -> 400.
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "")
-	wNoCorr := client.Post(s.T(), uploadInitEndpoint, map[string]interface{}{
+	wNoCorr := client.Post(s.T(), uploadInitEndpoint, map[string]any{
 		"purpose":    "PRODUCT_IMAGE",
 		"filename":   "missing-corr.jpg",
 		"mimeType":   "image/jpeg",
@@ -105,7 +105,7 @@ func (s *UploadSuite) TestCompleteUpload_Document_PDF_NoVariants() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "upload-complete-document-correlation-id")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "DOCUMENT",
 		"visibility":          "PRIVATE",
 		"filename":            "policy.pdf",
@@ -116,17 +116,17 @@ func (s *UploadSuite) TestCompleteUpload_Document_PDF_NoVariants() {
 
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
 	uploadHelper.PutBytes(s.T(), initData, make([]byte, 1024))
 
-	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	completeResp := helpers.AssertSuccessResponse(s.T(), completeW, http.StatusOK)
-	completeData := completeResp["data"].(map[string]interface{})
+	completeData := completeResp["data"].(map[string]any)
 
 	require.Equal(s.T(), "ACTIVE", completeData["status"])
 	require.Equal(s.T(), false, completeData["variantsQueued"])
@@ -153,7 +153,7 @@ func (s *UploadSuite) TestCompleteUpload_ImportFile_CSV_NoVariants() {
 	client.SetToken(s.sellerToken)
 	client.SetHeader(constants.CORRELATION_ID_HEADER, "upload-complete-import-correlation-id")
 
-	initReq := map[string]interface{}{
+	initReq := map[string]any{
 		"purpose":             "IMPORT_FILE",
 		"visibility":          "PRIVATE",
 		"filename":            "bulk.csv",
@@ -164,17 +164,17 @@ func (s *UploadSuite) TestCompleteUpload_ImportFile_CSV_NoVariants() {
 
 	initW := client.Post(s.T(), uploadInitEndpoint, initReq)
 	initResp := helpers.AssertSuccessResponse(s.T(), initW, http.StatusCreated)
-	initData := initResp["data"].(map[string]interface{})
+	initData := initResp["data"].(map[string]any)
 	fileID := initData["fileId"].(string)
 
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
 	uploadHelper.PutBytes(s.T(), initData, make([]byte, 1536))
 
-	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]interface{}{
+	completeW := client.Post(s.T(), uploadCompleteEndpoint, map[string]any{
 		"fileId": fileID,
 	})
 	completeResp := helpers.AssertSuccessResponse(s.T(), completeW, http.StatusOK)
-	completeData := completeResp["data"].(map[string]interface{})
+	completeData := completeResp["data"].(map[string]any)
 
 	require.Equal(s.T(), "ACTIVE", completeData["status"])
 	require.Equal(s.T(), false, completeData["variantsQueued"])

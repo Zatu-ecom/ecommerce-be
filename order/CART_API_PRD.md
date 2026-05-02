@@ -92,7 +92,7 @@ type CartBasicResponse struct {
     UserID   uint                   `json:"userId"`
     Currency CurrencyInfo           `json:"currency"`
     Items    []CartItemResponse     `json:"items"`     // Items without pricing
-    Metadata map[string]interface{} `json:"metadata"`
+    Metadata map[string]any `json:"metadata"`
 }
 ```
 
@@ -107,7 +107,7 @@ type CartResponse struct {
     AppliedCoupons      []AppliedCouponInfo           `json:"appliedCoupons"`
     Summary             CartSummary                   `json:"summary"`
     AvailablePromotions []AvailablePromotionInfo      `json:"availablePromotions,omitempty"`
-    Metadata            map[string]interface{}        `json:"metadata"`
+    Metadata            map[string]any        `json:"metadata"`
 }
 ```
 

@@ -17,7 +17,7 @@ func (s *UploadSuite) TestInitUpload_ProductImage_HappyPath() {
 	correlationID := "upload-init-happy-correlation-id"
 	client.SetHeader("X-Correlation-ID", correlationID)
 
-	req := map[string]interface{}{
+	req := map[string]any{
 		"purpose":             "PRODUCT_IMAGE",
 		"visibility":          "PRIVATE",
 		"filename":            "hero-shot.jpg",
@@ -29,7 +29,7 @@ func (s *UploadSuite) TestInitUpload_ProductImage_HappyPath() {
 	w := client.Post(s.T(), uploadInitEndpoint, req)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	require.NotEmpty(s.T(), data["fileId"])
 	require.NotEmpty(s.T(), data["uploadUrl"])
 	require.Equal(s.T(), "UPLOADING", data["status"])

@@ -92,6 +92,7 @@ t.Run("Error - Non-existent product returns not found", func(t *testing.T) {
 #### 5. **Use Descriptive Test Names**
 
 Format options:
+
 - `Test[FunctionName]` for top-level with `t.Run("[Status] - [Scenario]")` subtests
 - OR suite-based naming for scenario-heavy files: `Test[Feature]` entrypoint + `TestScenarioX_[Behavior]` methods
 
@@ -183,11 +184,11 @@ To keep test code easy to evolve, avoid repeating inline request bodies and endp
 Example:
 
 ```go
-func buildCreateVariantRequest(sku string, price float64) map[string]interface{} {
-    return map[string]interface{}{
+func buildCreateVariantRequest(sku string, price float64) map[string]any {
+    return map[string]any{
         "sku":   sku,
         "price": price,
-        "options": []map[string]interface{}{
+        "options": []map[string]any{
             {"optionName": "Size", "value": "XL"},
             {"optionName": "Color", "value": "Black"},
         },
@@ -243,7 +244,7 @@ assert.NotNil(t, variant["createdAt"], "CreatedAt should be set")
 assert.NotNil(t, variant["updatedAt"], "UpdatedAt should be set")
 
 // Check nested objects
-selectedOptions, ok := variant["selectedOptions"].([]interface{})
+selectedOptions, ok := variant["selectedOptions"].([]any)
 assert.True(t, ok, "selectedOptions should be an array")
 assert.Len(t, selectedOptions, 2, "Should have 2 selected options")
 
@@ -338,7 +339,7 @@ func (s *ProductIntegrationSuite) TestScenario1_CreateProductSuccess() {
     s.client.SetToken(sellerToken)
 
     // When: Create product
-    requestBody := map[string]interface{}{
+    requestBody := map[string]any{
         "name":        "Premium Laptop",
         "description": "High-performance laptop",
         "price":       1299.99,
@@ -440,7 +441,7 @@ func TestErrorScenarios(t *testing.T) {
         client.SetToken(adminToken)
 
         // When: Send invalid data
-        requestBody := map[string]interface{}{
+        requestBody := map[string]any{
             "name": "",  // Invalid: empty name
         }
         w := client.Post(t, "/api/product/category/", requestBody)
@@ -478,7 +479,7 @@ func TestCacheInvalidation(t *testing.T) {
         client.SetToken(adminToken)
 
         // Create category
-        createBody := map[string]interface{}{"name": "Electronics"}
+        createBody := map[string]any{"name": "Electronics"}
         w1 := client.Post(t, "/api/product/category/", createBody)
         response1 := helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
         category := helpers.GetResponseData(t, response1, "category")
@@ -490,7 +491,7 @@ func TestCacheInvalidation(t *testing.T) {
         helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 
         // Update category (should invalidate cache)
-        updateBody := map[string]interface{}{"name": "Electronics Updated"}
+        updateBody := map[string]any{"name": "Electronics Updated"}
         w3 := client.Put(t, url, updateBody)
         helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 
@@ -746,7 +747,7 @@ func TestValidateSKU(t *testing.T) {
 ```go
 // helpers/auth.go
 func Login(t *testing.T, client *APIClient, email, password string) string {
-    requestBody := map[string]interface{}{
+    requestBody := map[string]any{
         "email":    email,
         "password": password,
     }

@@ -16,8 +16,8 @@ type SaveConfigRequest struct {
 	Endpoint          string                 `json:"endpoint"`
 	BasePath          string                 `json:"basePath"`
 	ForcePathStyle    bool                   `json:"forcePathStyle"`
-	Credentials       map[string]interface{} `json:"credentials" binding:"required"`
-	ConfigJSON        map[string]interface{} `json:"configJson"`
+	Credentials       map[string]any `json:"credentials" binding:"required"`
+	ConfigJSON        map[string]any `json:"configJson"`
 	IsDefault         bool                   `json:"isDefault"`
 }
 

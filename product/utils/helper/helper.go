@@ -153,7 +153,7 @@ func GetOrEmptySlice[T any](slice []T) []T {
 	return []T{}
 }
 
-func MapToPrettyJSON(data map[string]interface{}) (string, error) {
+func MapToPrettyJSON(data map[string]any) (string, error) {
 	b, err := json.MarshalIndent(data, "", "  ") // 2-space indent
 	if err != nil {
 		return "", err

@@ -9,7 +9,7 @@ import (
 )
 
 // ToFormattedJSON converts an object to pretty-printed JSON (multi-line with indentation)
-func ToFormattedJSON(obj interface{}) string {
+func ToFormattedJSON(obj any) string {
 	jsonBytes, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)
@@ -18,7 +18,7 @@ func ToFormattedJSON(obj interface{}) string {
 }
 
 // ToJSON converts an object to compact JSON (single line)
-func ToJSON(obj interface{}) string {
+func ToJSON(obj any) string {
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)

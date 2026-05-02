@@ -33,7 +33,7 @@ func (e *AppError) WithMessage(message string) *AppError {
 }
 
 // WithMessagef creates a new error with a formatted message
-func (e *AppError) WithMessagef(format string, args ...interface{}) *AppError {
+func (e *AppError) WithMessagef(format string, args ...any) *AppError {
 	return &AppError{
 		Code:       e.Code,
 		Message:    fmt.Sprintf(format, args...),

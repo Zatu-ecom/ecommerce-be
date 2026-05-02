@@ -180,7 +180,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_RETRIEVED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			constant.USER_FIELD_NAME: profileResponse,
 		})
 }
@@ -228,7 +228,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_UPDATED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			constant.USER_FIELD_NAME: userResponse,
 		})
 }

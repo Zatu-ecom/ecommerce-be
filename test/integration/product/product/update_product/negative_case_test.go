@@ -46,7 +46,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find a product")
 
 		// When: Request sent without token
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Unauthorized Update",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -72,7 +72,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find a product")
 
 		// When: Request sent with invalid token
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Invalid Token Update",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -102,7 +102,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find a product")
 
 		// When: Request sent with malformed/expired token
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Expired Token Update",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -130,7 +130,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		originalName := product.Name
 
 		// When: Seller tries to update another seller's product
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Unauthorized Update Attempt",
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -159,7 +159,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		productID := product.ID
 
 		// When: Customer tries to update product
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Customer Update Attempt",
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -185,7 +185,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Seller tries to update non-existent product
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Non-Existent Product",
 		}
 		url := "/api/product/99999"
@@ -201,7 +201,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Request sent with non-numeric ID
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Invalid ID Format",
 		}
 		url := "/api/product/abc"
@@ -217,7 +217,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Request sent with negative ID
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Negative ID",
 		}
 		url := "/api/product/-5"
@@ -233,7 +233,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// When: Request sent with zero ID
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Zero ID",
 		}
 		url := "/api/product/0"
@@ -258,7 +258,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 			originalName := product.Name
 
 			// When: Request sent with empty body (all fields null = no fields provided)
-			updateRequest := map[string]interface{}{}
+			updateRequest := map[string]any{}
 			url := fmt.Sprintf("/api/product/%d", product.ID)
 			w := client.Put(t, url, updateRequest)
 
@@ -285,7 +285,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Request sent with wrong data type (number for name)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": 12345, // Should be string
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -306,7 +306,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with name < 3 characters (validation still applies when field is provided)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "AB",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -328,7 +328,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 
 		// When: Update with name > 200 characters
 		longName := strings.Repeat("A", 201)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": longName,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -350,7 +350,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 
 		// When: Update with brand > 100 characters
 		longBrand := strings.Repeat("B", 101)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"brand": longBrand,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -372,7 +372,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 
 		// When: Update with shortDescription > 500 characters
 		longDesc := strings.Repeat("D", 501)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"shortDescription": longDesc,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -394,7 +394,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 
 		// When: Update with longDescription > 5000 characters
 		longDesc := strings.Repeat("L", 5001)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"longDescription": longDesc,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -419,7 +419,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		for i := 0; i < 21; i++ {
 			tags[i] = fmt.Sprintf("tag%d", i+1)
 		}
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"tags": tags,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -440,7 +440,7 @@ func TestUpdateProductNegativePath(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with non-existent category ID
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"categoryId": 99999,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)

@@ -56,7 +56,7 @@ func (r *CategoryRepositoryImpl) Update(ctx context.Context, category *entity.Ca
 	// Use Updates with Select to handle pointer fields (ParentID) and force timestamp updates
 	return db.DB(ctx).Model(category).
 		Select("Name", "Description", "ParentID", "UpdatedAt").
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"name":        category.Name,
 			"description": category.Description,
 			"parent_id":   category.ParentID,
