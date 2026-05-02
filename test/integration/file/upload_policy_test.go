@@ -23,8 +23,20 @@ func TestUploadPolicyEvaluate(t *testing.T) {
 		shouldErr bool
 	}{
 		{"product image valid jpeg", entity.FilePurposeProductImage, "image/jpeg", 1024, false},
-		{"product image invalid mime", entity.FilePurposeProductImage, "application/pdf", 1024, true},
-		{"product image too large", entity.FilePurposeProductImage, "image/jpeg", 11 * 1024 * 1024, true},
+		{
+			"product image invalid mime",
+			entity.FilePurposeProductImage,
+			"application/pdf",
+			1024,
+			true,
+		},
+		{
+			"product image too large",
+			entity.FilePurposeProductImage,
+			"image/jpeg",
+			11 * 1024 * 1024,
+			true,
+		},
 		{"document pdf valid", entity.FilePurposeDocument, "application/pdf", 1024, false},
 		{"import csv valid", entity.FilePurposeImportFile, "text/csv", 1024, false},
 		{"avatar png valid", entity.FilePurposeUserAvatar, "image/png", 1024, false},
@@ -167,10 +179,13 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 			client.SetHeader(constants.CORRELATION_ID_HEADER, "upload-policy-reject")
 
 			var fileObjectCountBefore int64
-			err := s.container.DB.Raw("SELECT COUNT(1) FROM file_object").Scan(&fileObjectCountBefore).Error
+			err := s.container.DB.Raw("SELECT COUNT(1) FROM file_object").
+				Scan(&fileObjectCountBefore).
+				Error
 			s.Require().NoError(err)
 
-			schedulerJobsBefore, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").Result()
+			schedulerJobsBefore, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").
+				Result()
 			s.Require().NoError(err)
 
 			minioObjectsBefore := s.countMinioObjects()
@@ -180,11 +195,14 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 			s.Require().Equal(test.wantCode, resp["code"])
 
 			var fileObjectCountAfter int64
-			err = s.container.DB.Raw("SELECT COUNT(1) FROM file_object").Scan(&fileObjectCountAfter).Error
+			err = s.container.DB.Raw("SELECT COUNT(1) FROM file_object").
+				Scan(&fileObjectCountAfter).
+				Error
 			s.Require().NoError(err)
 			s.Require().Equal(fileObjectCountBefore, fileObjectCountAfter)
 
-			schedulerJobsAfter, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").Result()
+			schedulerJobsAfter, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").
+				Result()
 			s.Require().NoError(err)
 			s.Require().Equal(schedulerJobsBefore, schedulerJobsAfter)
 

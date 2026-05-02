@@ -109,6 +109,49 @@ func (s *UploadSuite) TearDownSuite() {
 	}
 }
 
+func (s *UploadSuite) TearDownTest() {
+	s.cleanupUploadState()
+	s.drainVariantMessages()
+}
+
+func (s *UploadSuite) cleanupUploadState() {
+	if s.container == nil {
+		return
+	}
+
+	ctx := context.Background()
+	if s.container.RedisClient != nil {
+		for _, pattern := range []string{
+			"file:init:idem:*",
+			"seller:*:file.upload.expiry:*",
+			"platform:file.upload.expiry:*",
+			"scheduled_job:*",
+		} {
+			keys, err := s.container.RedisClient.Keys(ctx, pattern).Result()
+			if err == nil && len(keys) > 0 {
+				_ = s.container.RedisClient.Del(ctx, keys...).Err()
+			}
+		}
+		_ = s.container.RedisClient.Del(ctx, "delayed_jobs").Err()
+	}
+
+	if s.container.DB != nil {
+		_ = s.container.DB.Exec(`DELETE FROM file_job`).Error
+		_ = s.container.DB.Exec(`DELETE FROM file_variant`).Error
+		_ = s.container.DB.Exec(`DELETE FROM file_object`).Error
+	}
+}
+
+func (s *UploadSuite) drainVariantMessages() {
+	for {
+		select {
+		case <-s.variantMessages:
+		default:
+			return
+		}
+	}
+}
+
 func (s *UploadSuite) configureUploadEnv() {
 	_ = os.Setenv("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
 	_ = os.Setenv("MESSAGING_ENABLED", "true")
@@ -169,7 +212,10 @@ func (s *UploadSuite) seedUploadStorageConfig() {
 		Scan(&sellerConfigID).Error
 	s.Require().NoError(err)
 
-	err = s.container.DB.Exec(`DELETE FROM seller_storage_binding WHERE seller_id = ?`, uploadTestSellerID).Error
+	err = s.container.DB.Exec(
+		`DELETE FROM seller_storage_binding WHERE seller_id = ?`,
+		uploadTestSellerID,
+	).Error
 	s.Require().NoError(err)
 
 	err = s.container.DB.Exec(`
@@ -251,7 +297,9 @@ func (s *UploadSuite) assertFileStatus(fileID string, status entity.FileStatus) 
 		Status string
 	}
 	var r row
-	err := s.container.DB.Raw("SELECT status FROM file_object WHERE file_id = ?", fileID).Scan(&r).Error
+	err := s.container.DB.Raw("SELECT status FROM file_object WHERE file_id = ?", fileID).
+		Scan(&r).
+		Error
 	s.Require().NoError(err)
 	s.Require().Equal(string(status), r.Status)
 }

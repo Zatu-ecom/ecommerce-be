@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -70,6 +71,15 @@ type initUploadArtifacts struct {
 	objectKey         string
 	uploadExpiresAt   time.Time
 	expiryMinutes     int
+}
+
+type initUploadIdempotencyRecord struct {
+	FileID      string            `json:"fileId"`
+	Fingerprint string            `json:"fingerprint"`
+	UploadURL   string            `json:"uploadUrl"`
+	Headers     map[string]string `json:"headers"`
+	ObjectKey   string            `json:"objectKey"`
+	ExpiresAt   string            `json:"expiresAt"`
 }
 
 func applyInitUploadDefaults(req *model.InitUploadRequest) {
@@ -184,6 +194,222 @@ func (s *fileUploadService) finalizeInitUploadInTx(
 	), nil
 }
 
+func (s *fileUploadService) initIdempotencyTTL(expiryMinutes int) time.Duration {
+	return time.Duration(expiryMinutes)*time.Minute + constant.CacheBufferDuration
+}
+
+func (s *fileUploadService) marshalInitIdempotencyRecord(
+	data *model.InitUploadData,
+	fingerprint string,
+) ([]byte, error) {
+	return json.Marshal(initUploadIdempotencyRecord{
+		FileID:      data.FileID,
+		Fingerprint: fingerprint,
+		UploadURL:   data.UploadURL,
+		Headers:     data.UploadHeaders,
+		ObjectKey:   data.ObjectKey,
+		ExpiresAt:   data.ExpiresAt,
+	})
+}
+
+func (s *fileUploadService) cacheInitIdempotencyRecord(
+	ctx context.Context,
+	redisKey string,
+	fingerprint string,
+	data *model.InitUploadData,
+	expiryMinutes int,
+) error {
+	raw, err := s.marshalInitIdempotencyRecord(data, fingerprint)
+	if err != nil {
+		return err
+	}
+	return s.redisClient.Set(ctx, redisKey, raw, s.initIdempotencyTTL(expiryMinutes)).Err()
+}
+
+func (s *fileUploadService) replayInitUploadFromIdempotency(
+	ctx context.Context,
+	caller utils.Principal,
+	redisKey string,
+	fingerprint string,
+	expiryMinutes int,
+) (*model.InitUploadData, error) {
+	if s.redisClient == nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+
+	raw, err := s.redisClient.Get(ctx, redisKey).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, fileError.ErrFileUploadConflict
+		}
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+
+	var record initUploadIdempotencyRecord
+	if err := json.Unmarshal(raw, &record); err != nil {
+		return nil, fileError.ErrFileUploadConflict
+	}
+	if record.Fingerprint != fingerprint {
+		return nil, fileError.ErrFileUploadConflict
+	}
+
+	row, err := s.repo.FindByFileIDScoped(
+		ctx,
+		record.FileID,
+		caller.OwnerType,
+		ownerIDForCaller(caller),
+		caller.SellerID,
+	)
+	if err != nil {
+		return nil, fileError.ErrFileUploadInternal.WithMessage("failed to fetch upload state")
+	}
+	if row == nil || row.Status != entity.FileStatusUploading {
+		return nil, fileError.ErrFileUploadConflict
+	}
+
+	expiresAt, parseErr := time.Parse(time.RFC3339, record.ExpiresAt)
+	if parseErr == nil && expiresAt.After(time.Now().UTC()) && record.UploadURL != "" {
+		return &model.InitUploadData{
+			FileID:        row.FileID,
+			Status:        string(entity.FileStatusUploading),
+			UploadURL:     record.UploadURL,
+			UploadMethod:  "PUT",
+			UploadHeaders: record.Headers,
+			ObjectKey:     row.ObjectKey,
+			ExpiresAt:     record.ExpiresAt,
+			Replayed:      true,
+		}, nil
+	}
+
+	cfg, err := s.configRepo.GetConfigByID(ctx, uint(row.StorageConfigID))
+	if err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	if err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	presigned, err := adapter.PresignUpload(ctx, model.BlobPresignUploadInput{
+		Bucket:             row.BucketOrContainer,
+		Key:                row.ObjectKey,
+		ContentType:        row.MimeType,
+		ContentLengthLimit: row.SizeBytes,
+		TTL:                time.Duration(expiryMinutes) * time.Minute,
+	})
+	if err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+
+	data := factory.BuildInitUploadData(row.FileID, row.MimeType, row.ObjectKey, presigned)
+	data.Replayed = true
+	ttl, ttlErr := s.redisClient.TTL(ctx, redisKey).Result()
+	if ttlErr != nil || ttl <= 0 {
+		ttl = s.initIdempotencyTTL(expiryMinutes)
+	}
+	raw, err = s.marshalInitIdempotencyRecord(data, fingerprint)
+	if err != nil {
+		return nil, fileError.ErrFileUploadInternal
+	}
+	if err := s.redisClient.Set(ctx, redisKey, raw, ttl).Err(); err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	return data, nil
+}
+
+func (s *fileUploadService) initUploadWithIdempotency(
+	ctx context.Context,
+	caller utils.Principal,
+	req model.InitUploadRequest,
+	key string,
+	expiryMinutes int,
+) (*model.InitUploadData, error) {
+	if s.redisClient == nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	if !utils.ValidateIdempotencyKey(key) {
+		return nil, fileError.ErrFileUploadInvalidInput.WithMessage("Idempotency-Key is invalid")
+	}
+
+	fingerprint, err := utils.InitUploadFingerprint(req, expiryMinutes)
+	if err != nil {
+		return nil, fileError.ErrFileUploadInternal
+	}
+	redisKey := utils.BuildInitIdempotencyRedisKey(caller, key)
+
+	cfg, appErr := s.resolveStorageConfig(ctx, caller)
+	if appErr != nil {
+		return nil, appErr
+	}
+	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	if err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	artifacts, err := prepareInitUploadArtifacts(caller, req, expiryMinutes)
+	if err != nil {
+		return nil, err
+	}
+
+	reservation := initUploadIdempotencyRecord{
+		FileID:      artifacts.fileID,
+		Fingerprint: fingerprint,
+	}
+	rawReservation, err := json.Marshal(reservation)
+	if err != nil {
+		return nil, fileError.ErrFileUploadInternal
+	}
+	claimed, err := s.redisClient.SetNX(
+		ctx,
+		redisKey,
+		rawReservation,
+		s.initIdempotencyTTL(expiryMinutes),
+	).Result()
+	if err != nil {
+		return nil, fileError.ErrFileUploadStorageUnavailable
+	}
+	if !claimed {
+		return s.replayInitUploadFromIdempotency(ctx, caller, redisKey, fingerprint, expiryMinutes)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = s.redisClient.Del(context.Background(), redisKey).Err()
+		}
+	}()
+
+	data, err := db.WithTransactionResult(
+		ctx,
+		func(txCtx context.Context) (*model.InitUploadData, error) {
+			data, txErr := s.finalizeInitUploadInTx(
+				txCtx,
+				caller,
+				req,
+				cfg,
+				adapter,
+				artifacts,
+			)
+			if txErr != nil {
+				return nil, txErr
+			}
+			if cacheErr := s.cacheInitIdempotencyRecord(
+				txCtx,
+				redisKey,
+				fingerprint,
+				data,
+				expiryMinutes,
+			); cacheErr != nil {
+				return nil, fileError.ErrFileUploadStorageUnavailable
+			}
+			return data, nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	committed = true
+	return data, nil
+}
+
 // InitUpload initializes a new file upload, returning a presigned URL.
 func (s *fileUploadService) InitUpload(
 	ctx context.Context,
@@ -191,8 +417,6 @@ func (s *fileUploadService) InitUpload(
 	req model.InitUploadRequest,
 	idempotencyKey *string,
 ) (*model.InitUploadData, error) {
-	_ = idempotencyKey // implemented in US5a
-
 	applyInitUploadDefaults(&req)
 
 	expiryMinutes, appErr := resolveInitUploadExpiryMinutes(req)
@@ -203,6 +427,10 @@ func (s *fileUploadService) InitUpload(
 	// Policy check must run before config resolution and DB writes (US3 guard).
 	if appErr := validateInitUploadPolicy(req); appErr != nil {
 		return nil, appErr
+	}
+
+	if idempotencyKey != nil {
+		return s.initUploadWithIdempotency(ctx, caller, req, *idempotencyKey, expiryMinutes)
 	}
 
 	cfg, appErr := s.resolveStorageConfig(ctx, caller)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	baseHandler "ecommerce-be/common/handler"
@@ -60,6 +61,21 @@ func (h *FileUploadHandler) InitUpload(c *gin.Context) {
 	idemKey := c.GetHeader("Idempotency-Key")
 	var idempotencyKey *string
 	if idemKey != "" {
+		if !utils.ValidateIdempotencyKey(idemKey) {
+			common.ErrorWithValidation(
+				c,
+				http.StatusBadRequest,
+				constants.VALIDATION_FAILED_MSG,
+				[]common.ValidationError{
+					{
+						Field:   "Idempotency-Key",
+						Message: "Idempotency-Key must be 8..128 characters and contain only A-Z, a-z, 0-9, '.', '_', '~', or '-'",
+					},
+				},
+				constants.VALIDATION_ERROR_CODE,
+			)
+			return
+		}
 		idempotencyKey = &idemKey
 	}
 
@@ -94,7 +110,11 @@ func (h *FileUploadHandler) InitUpload(c *gin.Context) {
 			" objectKey="+res.ObjectKey,
 	)
 
-	h.Success(c, http.StatusCreated, "Upload initialised", res)
+	status := http.StatusCreated
+	if res.Replayed {
+		status = http.StatusOK
+	}
+	h.Success(c, status, "Upload initialised", res)
 }
 
 // CompleteUpload handles POST /complete-upload

@@ -117,7 +117,7 @@ Platform `storage_config.id` = 1; Seller A binding → `storage_config.id` = 2; 
 | US4 Tenant isolation (P2) | `upload_tenant_isolation_test.go` | Seller B complete → 404; admin cross-seller → 404; DB row untouched |
 | US5 Complete-before-object (P3) | `upload_complete_test.go` | 409 `OBJECT_MISSING`, row stays `UPLOADING`, scheduler job still present |
 | US5a Idempotency (P2) | `upload_idempotency_test.go` | Same key + same fingerprint → same `fileId`; same key + different fingerprint → 409; no header → new `fileId` |
-| US6 Storage outage (P3) | `upload_outage_test.go` | Simulate MinIO pause → 503 on init; no DB row; no scheduler job |
+| US6 Storage outage (P3) | `upload_outage_test.go` | Non-existent bucket → 503 on complete; no DB row; no scheduler job |
 | US6a Abandoned cleanup (P2) | `upload_expiry_test.go` | Init with `uploadExpiryMinutes=5` + jump Redis clock via `scheduler.RunDueNow(t)` test hook → row `FAILED`, stray object deleted best-effort |
 | Perf SC-001 | `upload_performance_test.go` (build tag `perf`) | 1 MB round trip < 3 s p95 |
 

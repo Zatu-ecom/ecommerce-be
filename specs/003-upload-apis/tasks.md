@@ -142,18 +142,18 @@
 
 ### Tests for User Story 5
 
-- [ ] T043 [P] [US5] Extend `test/integration/file/upload_complete_test.go` with `TestCompleteUpload_ObjectMissing` (US5 #1): init without PUT → 409, row `UPLOADING`, scheduler job still present, no variant message.
-- [ ] T044 [P] [US5] Add `TestCompleteUpload_SizeMismatch` (US5 #2): PUT body whose byte-length differs from init `sizeBytes` → 422 `FILE_UPLOAD_OBJECT_MISMATCH`, row `FAILED`, no variant message.
-- [ ] T045 [P] [US5] Add `TestCompleteUpload_Idempotent_OnActive` (US5 #3): init → PUT → complete (success) → complete again → idempotent 200, exactly one RabbitMQ message across both calls.
-- [ ] T046 [P] [US5] Add `TestCompleteUpload_RabbitMQOutage_Still200` (TR-005, edge case): stop RabbitMQ container (or toggle flaky publisher via test double env var), complete succeeds with 200 and `file_job{status=FAILED_TO_PUBLISH}`.
+- [X] T043 [P] [US5] Extend `test/integration/file/upload_complete_test.go` with `TestCompleteUpload_ObjectMissing` (US5 #1): init without PUT → 409, row `UPLOADING`, scheduler job still present, no variant message.
+- [X] T044 [P] [US5] Add `TestCompleteUpload_SizeMismatch` (US5 #2): PUT body whose byte-length differs from init `sizeBytes` → 422 `FILE_UPLOAD_OBJECT_MISMATCH`, row `FAILED`, no variant message.
+- [X] T045 [P] [US5] Add `TestCompleteUpload_Idempotent_OnActive` (US5 #3): init → PUT → complete (success) → complete again → idempotent 200, exactly one RabbitMQ message across both calls.
+- [X] T046 [P] [US5] Add `TestCompleteUpload_RabbitMQOutage_Still200` (TR-005, edge case): stop RabbitMQ container (or toggle flaky publisher via test double env var), complete succeeds with 200 and `file_job{status=FAILED_TO_PUBLISH}`.
 
 ### Implementation for User Story 5
 
-- [ ] T047 [US5] [REVIEW] Code-review gate: verify `FileUploadService.CompleteUpload` (T030) covers all mismatch branches — `ErrBlobNotFound` (→ `ErrFileUploadObjectMissing`, 409, no status change), size mismatch, mime ContentType mismatch, `clientEtag` hint mismatch (all three → `MarkFailed` + `ErrFileUploadObjectMismatch` 422). Confirm every `MarkFailed` path carries `reason=OBJECT_MISMATCH` and does NOT call `VariantPublisher.Publish`. No new production code; integration tests T044/T065/T066 provide executable coverage.
-- [ ] T048 [US5] [REVIEW] Code-review gate: verify the idempotent path in `FileUploadService.CompleteUpload` (T030) re-reads `file_job` to populate `variantsQueued` without calling `VariantPublisher.Publish` a second time (FR-012), and that the publish-failure path sets `file_job{status=FAILED_TO_PUBLISH}` but still returns HTTP 200 (FR-019). No new production code; T045/T046 provide executable coverage.
-- [ ] T065 [P] [US5] Add `TestCompleteUpload_EtagHintMismatch` (C1 / FR-016): PUT the correct bytes, then call complete-upload with a `clientEtag` value that does NOT match the provider-returned ETag; assert `422 FILE_UPLOAD_OBJECT_MISMATCH`, row transitions to `FAILED`, no variant message published (`AssertNoVariantMessage`). Add this subtest to `test/integration/file/upload_complete_test.go`.
-- [ ] T066 [P] [US5] Add `TestCompleteUpload_MimeMismatch` (C2 / FR-015): init with `mimeType=image/jpeg`; PUT bytes that are actually a PDF (so `HeadObject.ContentType` returns `application/pdf`); call complete-upload; assert `422 FILE_UPLOAD_OBJECT_MISMATCH`, row `FAILED`, no variant message. Add to `test/integration/file/upload_complete_test.go`.
-- [ ] T067 [P] [US5] Add `TestCompleteUpload_ConcurrentCalls_SingleVariantMessage` (C3 / SC-004): after init+PUT, fire two complete-upload calls in parallel via `errgroup`; assert both return 200, the row is `ACTIVE`, and exactly one `file.image.process.requested` message was published (use `AssertNoVariantMessage` with a 500ms window after consuming the first). Add to `test/integration/file/upload_complete_test.go`.
+- [X] T047 [US5] [REVIEW] Code-review gate: verify `FileUploadService.CompleteUpload` (T030) covers all mismatch branches — `ErrBlobNotFound` (→ `ErrFileUploadObjectMissing`, 409, no status change), size mismatch, mime ContentType mismatch, `clientEtag` hint mismatch (all three → `MarkFailed` + `ErrFileUploadObjectMismatch` 422). Confirm every `MarkFailed` path carries `reason=OBJECT_MISMATCH` and does NOT call `VariantPublisher.Publish`. No new production code; integration tests T044/T065/T066 provide executable coverage.
+- [X] T048 [US5] [REVIEW] Code-review gate: verify the idempotent path in `FileUploadService.CompleteUpload` (T030) re-reads `file_job` to populate `variantsQueued` without calling `VariantPublisher.Publish` a second time (FR-012), and that the publish-failure path sets `file_job{status=FAILED_TO_PUBLISH}` but still returns HTTP 200 (FR-019). No new production code; T045/T046 provide executable coverage.
+- [X] T065 [P] [US5] Add `TestCompleteUpload_EtagHintMismatch` (C1 / FR-016): PUT the correct bytes, then call complete-upload with a `clientEtag` value that does NOT match the provider-returned ETag; assert `422 FILE_UPLOAD_OBJECT_MISMATCH`, row transitions to `FAILED`, no variant message published (`AssertNoVariantMessage`). Add this subtest to `test/integration/file/upload_us5_test.go`.
+- [X] T066 [P] [US5] Add `TestCompleteUpload_MimeMismatch` (C2 / FR-015): init with `mimeType=image/jpeg`; PUT bytes that are actually a PDF (so `HeadObject.ContentType` returns `application/pdf`); call complete-upload; assert `422 FILE_UPLOAD_OBJECT_MISMATCH`, row `FAILED`, no variant message. Add to `test/integration/file/upload_us5_test.go`.
+- [X] T067 [P] [US5] Add `TestCompleteUpload_ConcurrentCalls_SingleVariantMessage` (C3 / SC-004): after init+PUT, fire two complete-upload calls in parallel via goroutines; assert both return 200, the row is `ACTIVE`, and exactly one `file.image.process.requested` message was published (use `assertNoVariantMessage` with a 500ms window after consuming the first). Add to `test/integration/file/upload_us5_test.go`.
 
 **Checkpoint**: US5 tests pass. Retry and outage semantics are correct.
 
@@ -167,12 +167,12 @@
 
 ### Tests for User Story 5a
 
-- [ ] T049 [P] [US5a] Create `test/integration/file/upload_idempotency_test.go` with subtests per US5a Acceptance: `SameKey_SameBody_ReturnsSameFileId` (#1), `SameKey_AfterUploadUrlExpired_ReissuesUrl` (#2), `SameKey_AfterActive_Returns409Conflict` (#3), `MalformedKey_Returns400` (#4), `DifferentSellers_SameKey_Distinct` (#5 / FR-035).
+- [X] T049 [P] [US5a] Create `test/integration/file/upload_idempotency_test.go` with subtests per US5a Acceptance: `SameKey_SameBody_ReturnsSameFileId` (#1), `SameKey_AfterUploadUrlExpired_ReissuesUrl` (#2), `SameKey_AfterActive_Returns409Conflict` (#3), `MalformedKey_Returns400` (#4), `DifferentSellers_SameKey_Distinct` (#5 / FR-035).
 
 ### Implementation for User Story 5a
 
-- [ ] T050 [US5a] Implement `Idempotency-Key` handling in `FileUploadService.InitUpload` (`file/service/upload_service.go`): validate regex `^[A-Za-z0-9._~-]+$` and length 8..128, SHA-256 hash, `SETNX` on Redis key `file:init:idem:{ownerType}:{ownerId}:{sha256(key)}` with value `{fileId, fingerprint, uploadUrl, headers, expiresAt}`, TTL = `uploadExpiryMinutes*60 + cacheBufferDuration`. If key exists: fetch record, if fingerprint matches and row still `UPLOADING` reuse `fileId` (re-issue presigned URL if cached `expiresAt <= now`), else if row status moved on → `ErrFileUploadConflict` (409, code `FILE_UPLOAD_CONFLICT`), else if fingerprint mismatches → `ErrFileUploadConflict`.
-- [ ] T051 [US5a] Ensure handler passes `c.GetHeader("Idempotency-Key")` (`*string`, nil when absent) into the service call and maps malformed key → `VALIDATION_ERROR` with field `Idempotency-Key` via validator.
+- [X] T050 [US5a] Implement `Idempotency-Key` handling in `FileUploadService.InitUpload` (`file/service/upload_service.go`): validate regex `^[A-Za-z0-9._~-]+$` and length 8..128, SHA-256 hash, `SETNX` on Redis key `file:init:idem:{ownerType}:{ownerId}:{sha256(key)}` with value `{fileId, fingerprint, uploadUrl, headers, expiresAt}`, TTL = `uploadExpiryMinutes*60 + cacheBufferDuration`. If key exists: fetch record, if fingerprint matches and row still `UPLOADING` reuse `fileId` (re-issue presigned URL if cached `expiresAt <= now`), else if row status moved on → `ErrFileUploadConflict` (409, code `FILE_UPLOAD_CONFLICT`), else if fingerprint mismatches → `ErrFileUploadConflict`.
+- [X] T051 [US5a] Ensure handler passes `c.GetHeader("Idempotency-Key")` (`*string`, nil when absent) into the service call and maps malformed key → `VALIDATION_ERROR` with field `Idempotency-Key` via validator.
 
 **Checkpoint**: US5a tests pass. Client retries are safe.
 
@@ -186,13 +186,13 @@
 
 ### Tests for User Story 6a
 
-- [ ] T052 [P] [US6a] Create `test/integration/file/upload_expiry_test.go` with subtests: `ExpiryHandler_TransitionsToFailed` (US6a #1 + TR-009) using `FastForwardExpiry` helper, `CompleteCancelsExpiryJob` (US6a #2 + TR-010), `ExpiryFires_AfterActive_IsNoOp` (FR-029), `Reject_UploadExpiryOutOfRange` (US6a #3: values 0 and 61 → 400 `VALIDATION_ERROR`), `ReCompleteAfterExpiry_Returns409Expired` (US6a #4 → 410 `FILE_UPLOAD_EXPIRED`). **CA3**: in `ExpiryHandler_TransitionsToFailed`, capture the structured log output from `UploadExpiryHandler` and assert it contains a `correlationId` field matching the value stored in the scheduled job payload (verifying Constitution §VI end-to-end propagation through the scheduler).
+- [X] T052 [P] [US6a] Create `test/integration/file/upload_expiry_test.go` with subtests: `ExpiryHandler_TransitionsToFailed` (US6a #1 + TR-009) using `FastForwardExpiry` helper, `CompleteCancelsExpiryJob` (US6a #2 + TR-010), `ExpiryFires_AfterActive_IsNoOp` (FR-029), `Reject_UploadExpiryOutOfRange` (US6a #3: values 0 and 61 → 400 `VALIDATION_ERROR`), `ReCompleteAfterExpiry_Returns409Expired` (US6a #4 → 410 `FILE_UPLOAD_EXPIRED`). **CA3**: in `ExpiryHandler_TransitionsToFailed`, capture the structured log output from `UploadExpiryHandler` and assert it contains a `correlationId` field matching the value stored in the scheduled job payload (verifying Constitution §VI end-to-end propagation through the scheduler).
 
 ### Implementation for User Story 6a
 
-- [ ] T053 [US6a] Verify `UploadExpiryHandler.Handle` (`file/service/upload_expiry_handler.go`, from T012) matches pseudocode in contract: idempotent guard, best-effort delete, conditional `MarkFailed`. Add logging per contract §Observability.
-- [ ] T054 [US6a] Verify `InitUpload` validates `UploadExpiryMinutes ∈ [5,60]` (default 15) via DTO validator in `file/model/upload_model.go`; out-of-range → 400 `VALIDATION_ERROR` with detail code `UPLOAD_EXPIRY_OUT_OF_RANGE`.
-- [ ] T055 [US6a] Verify `CompleteUpload` returns `ErrFileUploadExpired` (410) when row is already `FAILED` with reason `UPLOAD_EXPIRED` (FR-028), distinct from generic `FILE_STATE_INVALID`.
+- [X] T053 [US6a] Verify `UploadExpiryHandler.Handle` (`file/service/upload_expiry_handler.go`, from T012) matches pseudocode in contract: idempotent guard, best-effort delete, conditional `MarkFailed`. Add logging per contract §Observability.
+- [X] T054 [US6a] Verify `InitUpload` validates `UploadExpiryMinutes ∈ [5,60]` (default 15) via DTO validator in `file/model/upload_model.go`; out-of-range → 400 `VALIDATION_ERROR` with detail code `UPLOAD_EXPIRY_OUT_OF_RANGE`.
+- [X] T055 [US6a] Verify `CompleteUpload` returns `ErrFileUploadExpired` (410) when row is already `FAILED` with reason `UPLOAD_EXPIRED` (FR-028), distinct from generic `FILE_STATE_INVALID`.
 
 **Checkpoint**: US6a tests pass. No row lingers in `UPLOADING` past its deadline.
 
@@ -206,12 +206,12 @@
 
 ### Tests for User Story 6
 
-- [ ] T056 [P] [US6] Create `test/integration/file/upload_outage_test.go` with subtests: `NonexistentBucket_Returns503_NoDbRow` (US6 #1), `InvalidCredentials_Returns502_NoSecretInMessage` (US6 #2 — also cover SC-006 by scanning response body for known secret substrings), `NoStorageConfig_Returns412_NoDbRow` (C5 — seed a seller with no active binding and disable the platform default, call init, assert `412 FILE_UPLOAD_NO_STORAGE_CONFIG`, no `file_object` row inserted).
+- [X] T056 [P] [US6] Create `test/integration/file/upload_outage_test.go` with subtests: `NonexistentBucket_Returns503_NoDbRow` (US6 #1), `InvalidCredentials_Returns502_NoSecretInMessage` (US6 #2 — also cover SC-006 by scanning response body for known secret substrings), `NoStorageConfig_Returns412_NoDbRow` (C5 — seed a seller with no active binding and disable the platform default, call init, assert `412 FILE_UPLOAD_NO_STORAGE_CONFIG`, no `file_object` row inserted).
 
 ### Implementation for User Story 6
 
-- [ ] T057 [US6] Verify `InitUpload` single-transaction rollback path (T029): any non-nil error from `PresignUpload` or `scheduler.Schedule` rolls back the `file_object` insert (FR-009); provider errors map to `ErrFileUploadStorageUnavailable` (or distinct codes if research R11 mandates separate) and never echo provider error bodies. Error-message sanitiser lives in `file/error/upload_errors.go`.
-- [ ] T058 [US6] Add integration subtest `RedisUnavailable_InitUpload_Returns503_NoDbRow` (C6) to `upload_outage_test.go`: pause the Redis container via `tc.Container.Stop(ctx)` before calling init-upload; assert `503 FILE_UPLOAD_STORAGE_UNAVAILABLE`, no `file_object` row inserted (SC-003), then restart Redis for teardown. This replaces the earlier "verify" stub and provides concrete evidence of the rollback guarantee under FR-009.
+- [X] T057 [US6] Verify `InitUpload` single-transaction rollback path (T029): any non-nil error from `PresignUpload` or `scheduler.Schedule` rolls back the `file_object` insert (FR-009); provider errors map to `ErrFileUploadStorageUnavailable` (or distinct codes if research R11 mandates separate) and never echo provider error bodies. Error-message sanitiser lives in `file/error/upload_errors.go`.
+- [X] T058 [US6] Add integration subtest `RedisUnavailable_InitUpload_Returns503_NoDbRow` (C6) to `upload_outage_test.go`: pause the Redis container via `tc.Container.Stop(ctx)` before calling init-upload; assert `503 FILE_UPLOAD_STORAGE_UNAVAILABLE`, no `file_object` row inserted (SC-003), then restart Redis for teardown. This replaces the earlier "verify" stub and provides concrete evidence of the rollback guarantee under FR-009.
 
 **Checkpoint**: US6 tests pass. Provider outages do not create orphan state.
 
@@ -219,12 +219,12 @@
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T059 [P] Run `.specify/scripts/bash/update-agent-context.sh codex` to patch `AGENTS.md` with the new upload surface area per plan §Phase 1 step 4.
-- [ ] T060 [P] Create `test/integration/file/upload_performance_test.go` (build tag `//go:build perf`) executing a 1 MB JPEG round-trip and asserting p95 ≤ 3 s (SC-001).
-- [ ] T061 [P] Add a response-body scanning helper in `test/integration/helpers/assertions.go` (`AssertNoSecretsInBody(t, body)`) and invoke it across all `4xx`/`5xx` error assertions to enforce SC-006.
+- [x] T059 [P] Run `.specify/scripts/bash/update-agent-context.sh codex` to patch `AGENTS.md` with the new upload surface area per plan §Phase 1 step 4.
+- [x] T060 [P] Create `test/integration/file/upload_performance_test.go` (build tag `//go:build perf`) executing a 1 MB JPEG round-trip and asserting p95 ≤ 3 s (SC-001).
+- [x] T061 [P] Add a response-body scanning helper in `test/integration/helpers/assertions.go` (`AssertNoSecretsInBody(t, body)`) and invoke it across all `4xx`/`5xx` error assertions to enforce SC-006.
 - [ ] T062 Run the full test suite and verify SC-002 and SC-008. Use the exact commands below: (1) `go test ./file/... ./test/integration/file/...` — all tests must pass (SC-002). (2) Generate a coverage profile and enforce the ≥ 85% threshold (SC-008): `go test -coverprofile=coverage.out -covermode=count ./file/handler/... ./file/service/... ./file/repository/...` then `go tool cover -func=coverage.out | awk '/^total:/{val=strtonum($3); if (val < 85.0) {printf "FAIL: coverage %.1f%% < 85%%\n", val; exit 1} else {printf "OK: coverage %.1f%%\n", val}}'`. Build fails if the threshold is not met. Fix uncovered lines before merging.
-- [ ] T063 Run the quickstart playbook commands (`quickstart.md §1`) end-to-end on a clean workspace to validate no undocumented setup steps remain.
-- [ ] T064 [P] Review logs emitted by `FileUploadService` / `UploadExpiryHandler` / `VariantPublisher` to ensure FR-020 audit fields are present and FR-021 redaction holds (no `endpoint`, `accessKey`, or stack trace content).
+- [x] T063 Run the quickstart playbook commands (`quickstart.md §1`) end-to-end on a clean workspace to validate no undocumented setup steps remain.
+- [x] T064 [P] Review logs emitted by `FileUploadService` / `UploadExpiryHandler` / `VariantPublisher` to ensure FR-020 audit fields are present and FR-021 redaction holds (no `endpoint`, `accessKey`, or stack trace content).
 
 ---
 

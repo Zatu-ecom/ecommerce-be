@@ -24,7 +24,15 @@ func (s *ConfigTestSuite) TestListConfigs_SellerScope() {
 	// Ensure at least one seller config exists.
 	s.createConfigAndGetID(
 		s.sellerToken,
-		s.buildCreateConfigRequest(s.providerID, "Seller List Config", "seller-list-bucket", "", "AKSL", "SKSL", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Seller List Config",
+			"seller-list-bucket",
+			"",
+			"AKSL",
+			"SKSL",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.sellerToken)
@@ -49,7 +57,15 @@ func (s *ConfigTestSuite) TestListConfigs_PlatformScope() {
 	// Ensure at least one platform config exists.
 	s.createConfigAndGetID(
 		s.adminToken,
-		s.buildCreateConfigRequest(s.providerID, "Platform List Config", "plat-list-bucket", "", "AKPL", "SKPL", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Platform List Config",
+			"plat-list-bucket",
+			"",
+			"AKPL",
+			"SKPL",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.adminToken)
@@ -123,7 +139,15 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByValidationStatuses() {
 	// New configs get PENDING status by default; ensure at least one exists.
 	s.createConfigAndGetID(
 		s.sellerToken,
-		s.buildCreateConfigRequest(s.providerID, "Pending Status Config", "pending-bucket", "", "AKPND", "SKPND", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Pending Status Config",
+			"pending-bucket",
+			"",
+			"AKPND",
+			"SKPND",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.sellerToken)
@@ -143,7 +167,15 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByValidationStatuses() {
 func (s *ConfigTestSuite) TestListConfigs_FilterByIDs() {
 	configID := s.createConfigAndGetID(
 		s.sellerToken,
-		s.buildCreateConfigRequest(s.providerID, "Filter By IDs Config", "filter-ids-bucket", "", "AKFI", "SKFI", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Filter By IDs Config",
+			"filter-ids-bucket",
+			"",
+			"AKFI",
+			"SKFI",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.sellerToken)
@@ -162,7 +194,15 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByProviderIDs() {
 	// Ensure at least one config with this provider exists.
 	s.createConfigAndGetID(
 		s.sellerToken,
-		s.buildCreateConfigRequest(s.providerID, "Provider Filter Config", "provider-filter-bucket", "", "AKPF", "SKPF", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Provider Filter Config",
+			"provider-filter-bucket",
+			"",
+			"AKPF",
+			"SKPF",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.sellerToken)
@@ -234,7 +274,11 @@ func (s *ConfigTestSuite) TestListConfigs_PageSizeClamped() {
 // Validates: success=false, non-empty message, non-empty code.
 func (s *ConfigTestSuite) TestErrorSchema_ActivateInvalidID() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), FileAPIBase+"/storage-config/not-a-number/activate", map[string]interface{}{})
+	w := s.client.Post(
+		s.T(),
+		FileAPIBase+"/storage-config/not-a-number/activate",
+		map[string]interface{}{},
+	)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	assert.NotEmpty(s.T(), resp["code"])
 }
@@ -279,7 +323,15 @@ func (s *ConfigTestSuite) TestErrorSchema_ListUnauthenticated() {
 func (s *ConfigTestSuite) TestErrorSchema_ActivateCrossTenantForbidden() {
 	configID := s.createConfigAndGetID(
 		s.seller2Token,
-		s.buildCreateConfigRequest(s.providerID, "Schema Cross Tenant", "schema-ct-bucket", "", "AKS2", "SKS2", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Schema Cross Tenant",
+			"schema-ct-bucket",
+			"",
+			"AKS2",
+			"SKS2",
+			false,
+		),
 	)
 
 	s.client.SetToken(s.sellerToken)

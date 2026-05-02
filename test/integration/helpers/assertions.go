@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,12 +46,41 @@ func AssertErrorResponse(
 		w.Code,
 	)
 
-	response := ParseResponse(t, w.Body)
+	body := w.Body.String()
+	AssertNoSecretsInBody(t, body)
+
+	response := ParseResponse(t, strings.NewReader(body))
 	log.Println("Error Response:", response)
 
 	assert.False(t, response["success"].(bool), "Response should not be successful")
 
 	return response
+}
+
+// AssertNoSecretsInBody guards error responses against leaking storage credentials,
+// provider endpoints, or runtime stack details.
+func AssertNoSecretsInBody(t *testing.T, body string) {
+	t.Helper()
+
+	forbidden := []string{
+		"access_key_id",
+		"secret_access_key",
+		"accessKey",
+		"secretAccessKey",
+		"minioadmin",
+		"wrong-access-key",
+		"definitely-wrong-secret",
+		"0123456789abcdef0123456789abcdef",
+		"http://127.0.0.1:",
+		"http://localhost:",
+		"goroutine ",
+		"panic:",
+		".go:",
+	}
+
+	for _, token := range forbidden {
+		assert.NotContains(t, body, token, "error body should not leak sensitive token %q", token)
+	}
 }
 
 // GetResponseData extracts the data field from response
@@ -93,6 +123,9 @@ func AssertSellerCategory(t *testing.T, category map[string]interface{}, expecte
 func AssertStatusCodeOneOf(t *testing.T, w *httptest.ResponseRecorder, expectedCodes ...int) {
 	for _, code := range expectedCodes {
 		if w.Code == code {
+			if code >= 400 {
+				AssertNoSecretsInBody(t, w.Body.String())
+			}
 			return
 		}
 	}

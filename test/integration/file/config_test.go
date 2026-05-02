@@ -168,7 +168,13 @@ func (s *ConfigTestSuite) TestGetProvidersSuccess() {
 // Validates: Seller ownership is enforced and default flag is forced to false.
 func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Seller Storage", "seller-bucket", "ap-south-1", "SELLER_KEY", "SELLER_SECRET", true,
+		s.providerID,
+		"Seller Storage",
+		"seller-bucket",
+		"ap-south-1",
+		"SELLER_KEY",
+		"SELLER_SECRET",
+		true,
 	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
@@ -183,7 +189,13 @@ func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
 // Validates: Platform ownership and default flag are persisted for admin requests.
 func (s *ConfigTestSuite) TestSaveConfig_AdminSuccessPlatformDefault() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Platform Storage", "platform-bucket", "us-east-1", "ADMIN_KEY", "ADMIN_SECRET", true,
+		s.providerID,
+		"Platform Storage",
+		"platform-bucket",
+		"us-east-1",
+		"ADMIN_KEY",
+		"ADMIN_SECRET",
+		true,
 	)
 	s.client.SetToken(s.adminToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
@@ -233,7 +245,15 @@ func (s *ConfigTestSuite) TestSaveConfig_MalformedPayload() {
 // Scenario: Request references a non-existent provider.
 // Validates: Service rejects unknown provider IDs with 400.
 func (s *ConfigTestSuite) TestSaveConfig_UnknownProvider() {
-	reqBody := s.buildCreateConfigRequest(999999, "Unknown provider", "bucket", "", "AK", "SK", false)
+	reqBody := s.buildCreateConfigRequest(
+		999999,
+		"Unknown provider",
+		"bucket",
+		"",
+		"AK",
+		"SK",
+		false,
+	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
@@ -242,7 +262,15 @@ func (s *ConfigTestSuite) TestSaveConfig_UnknownProvider() {
 // Scenario: Request references an inactive provider.
 // Validates: Service rejects inactive providers with 400.
 func (s *ConfigTestSuite) TestSaveConfig_InactiveProvider() {
-	reqBody := s.buildCreateConfigRequest(s.inactiveProvider, "Inactive provider", "bucket", "", "AK", "SK", false)
+	reqBody := s.buildCreateConfigRequest(
+		s.inactiveProvider,
+		"Inactive provider",
+		"bucket",
+		"",
+		"AK",
+		"SK",
+		false,
+	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
@@ -253,7 +281,15 @@ func (s *ConfigTestSuite) TestSaveConfig_InactiveProvider() {
 func (s *ConfigTestSuite) TestSaveConfig_CrossTenantUpdateForbidden() {
 	configID := s.createConfigAndGetID(
 		s.seller2Token,
-		s.buildCreateConfigRequest(s.providerID, "Seller 2 Config", "seller2-bucket", "", "AK2", "SK2", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Seller 2 Config",
+			"seller2-bucket",
+			"",
+			"AK2",
+			"SK2",
+			false,
+		),
 	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
@@ -267,11 +303,24 @@ func (s *ConfigTestSuite) TestSaveConfig_CrossTenantUpdateForbidden() {
 func (s *ConfigTestSuite) TestSaveConfig_SellerCannotManagePlatformConfig() {
 	platformConfigID := s.createConfigAndGetID(
 		s.adminToken,
-		s.buildCreateConfigRequest(s.providerID, "Platform Config For Auth Test", "platform-auth-bucket", "", "AKA", "SKA", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Platform Config For Auth Test",
+			"platform-auth-bucket",
+			"",
+			"AKA",
+			"SKA",
+			false,
+		),
 	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
-		platformConfigID, s.providerID, "Seller Attempt Platform Update", "seller-bucket", "AKS", "SKS",
+		platformConfigID,
+		s.providerID,
+		"Seller Attempt Platform Update",
+		"seller-bucket",
+		"AKS",
+		"SKS",
 	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
 }
@@ -279,7 +328,14 @@ func (s *ConfigTestSuite) TestSaveConfig_SellerCannotManagePlatformConfig() {
 // Scenario: Request updates a config ID that does not exist.
 // Validates: Unknown config updates return 404.
 func (s *ConfigTestSuite) TestSaveConfig_UnknownConfigID() {
-	reqBody := s.buildUpdateConfigRequest(999999, s.providerID, "Unknown Config", "bucket", "AK", "SK")
+	reqBody := s.buildUpdateConfigRequest(
+		999999,
+		s.providerID,
+		"Unknown Config",
+		"bucket",
+		"AK",
+		"SK",
+	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
@@ -300,7 +356,13 @@ func (s *ConfigTestSuite) TestCorrelationIDRequired() {
 // Validates: Legacy clients can still create configs without contract changes.
 func (s *ConfigTestSuite) TestSaveConfig_BackwardCompatible() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Legacy Payload Config", "legacy-bucket", "eu-west-1", "LEGACY_AK", "LEGACY_SK", false,
+		s.providerID,
+		"Legacy Payload Config",
+		"legacy-bucket",
+		"eu-west-1",
+		"LEGACY_AK",
+		"LEGACY_SK",
+		false,
 	)
 	reqBody["configJson"] = map[string]interface{}{
 		"customEndpoint": "https://s3.example.com",

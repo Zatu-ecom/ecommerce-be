@@ -228,6 +228,12 @@ func (a *s3CompatibleAdapter) PresignUpload(
 		return model.BlobPresignOutput{}, err
 	}
 
+	if _, err := a.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(in.Bucket),
+	}); err != nil {
+		return model.BlobPresignOutput{}, a.mapErr("presign_upload_head_bucket", err, "bucket check failed")
+	}
+
 	p, err := a.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(in.Bucket),
 		Key:         aws.String(in.Key),

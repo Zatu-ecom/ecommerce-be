@@ -83,6 +83,9 @@ type InitUploadData struct {
 
 	// ExpiresAt is the UTC timestamp after which the presigned URL and the upload window expire.
 	ExpiresAt string `json:"expiresAt"` // RFC3339 UTC
+
+	// Replayed is true when this payload came from an Idempotency-Key replay.
+	Replayed bool `json:"-"`
 }
 
 // ─── Complete-Upload Response ─────────────────────────────────────────────────

@@ -65,8 +65,8 @@ func (v *variantPublisher) Publish(
 		constants.ROUTING_KEY_FILE_IMAGE_PROCESS_REQUESTED,
 		env,
 	); err != nil {
-		// Do NOT include raw provider error details in the wrapped message (SC-006).
-		log.ErrorWithContext(ctx, "variant publisher: publish failed", err)
+		// Do NOT include raw broker details in logs or responses (SC-006/FR-021).
+		log.WarnWithContext(ctx, "variant publisher: publish failed")
 		return fmt.Errorf(
 			"variant publisher: publish to %s exchange failed; check logs for details",
 			constants.DEFAULT_COMMANDS_EXCHANGE,
