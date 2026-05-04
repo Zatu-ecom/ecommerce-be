@@ -3,6 +3,7 @@ package blobAdapter
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -17,19 +18,97 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 
+	"ecommerce-be/common/helper"
+	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
 )
 
-// S3CompatibleOptions contains all parameters needed to initialise an S3-compatible adapter.
-// Endpoint is mandatory (e.g. http://minio:9000). Region defaults to us-east-1 if empty.
-type S3CompatibleOptions struct {
-	Endpoint        string
-	Region          string
-	ForcePathStyle  bool
-	AccessKeyID     string
-	SecretAccessKey string
-	SessionToken    string
+// ─── S3Config — typed config struct ───────────────────────────────────────────
+
+// S3Config is the typed configuration for an S3-compatible blob adapter.
+// Works with AWS S3, MinIO, Cloudflare R2, Backblaze B2, and any S3-protocol store.
+type S3Config struct {
+	// AccessKeyID is the access key (required, sensitive).
+	AccessKeyID string `json:"access_key_id"     validate:"required"`
+	// SecretAccessKey is the secret key (required, sensitive).
+	SecretAccessKey string `json:"secret_access_key" validate:"required"`
+	// SessionToken is an optional temporary STS token (sensitive).
+	SessionToken string `json:"session_token"`
+	// Bucket is the S3 bucket name. Required.
+	Bucket string `json:"bucket"            validate:"required"`
+	// Region defaults to "us-east-1" when empty.
+	Region string `json:"region"`
+	// Endpoint is required for non-AWS S3-compatible stores (e.g. http://minio:9000).
+	Endpoint string `json:"endpoint"`
+	// ForcePathStyle uses path-style URLs (required for MinIO and most compatible stores).
+	ForcePathStyle bool `json:"force_path_style"`
+}
+
+func (s *S3Config) Encrypt() error {
+	key := ResolveEncryptionKey()
+
+	encryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if _, err := helper.Decrypt(val, key); err == nil {
+			return val, nil
+		}
+		return helper.Encrypt(val, key)
+	}
+
+	var err error
+	if s.AccessKeyID, err = encryptField(s.AccessKeyID); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef(
+			"[s3_compatible] encrypt access_key_id: %v",
+			err,
+		)
+	}
+	if s.SecretAccessKey, err = encryptField(s.SecretAccessKey); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef(
+			"[s3_compatible] encrypt secret_access_key: %v",
+			err,
+		)
+	}
+	if s.SessionToken, err = encryptField(s.SessionToken); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef(
+			"[s3_compatible] encrypt session_token: %v",
+			err,
+		)
+	}
+	return nil
+}
+
+func (s *S3Config) ToMap() map[string]any {
+	return map[string]any{
+		"access_key_id":     s.AccessKeyID,
+		"secret_access_key": s.SecretAccessKey,
+		"session_token":     s.SessionToken,
+		"bucket":            s.Bucket,
+		"region":            s.Region,
+		"endpoint":          s.Endpoint,
+		"force_path_style":  s.ForcePathStyle,
+	}
+}
+
+func (s *S3Config) Decrypt() error {
+	key := ResolveEncryptionKey()
+
+	decryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if dec, err := helper.Decrypt(val, key); err == nil {
+			return dec, nil
+		}
+		return val, nil
+	}
+
+	s.AccessKeyID, _ = decryptField(s.AccessKeyID)
+	s.SecretAccessKey, _ = decryptField(s.SecretAccessKey)
+	s.SessionToken, _ = decryptField(s.SessionToken)
+	return nil
 }
 
 type s3CompatibleAdapter struct {
@@ -40,10 +119,19 @@ type s3CompatibleAdapter struct {
 // Compile-time assertion: s3CompatibleAdapter satisfies BlobAdapter.
 var _ BlobAdapter = (*s3CompatibleAdapter)(nil)
 
-// NewS3CompatibleAdapter constructs an S3-compatible BlobAdapter from the supplied options.
+// NewS3CompatibleAdapterFromMap constructs an S3-compatible BlobAdapter from a raw config map.
+func NewS3CompatibleAdapterFromMap(ctx context.Context, raw map[string]any) (BlobAdapter, error) {
+	cfg, err := ParseAndValidateConfig[S3Config](raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewS3CompatibleAdapter(ctx, cfg)
+}
+
+// NewS3CompatibleAdapter constructs an S3-compatible BlobAdapter from the supplied config.
 // Returns ErrBlobValidation if required fields are missing or the endpoint is unparseable.
-func NewS3CompatibleAdapter(ctx context.Context, opts S3CompatibleOptions) (BlobAdapter, error) {
-	endpoint := strings.TrimSpace(opts.Endpoint)
+func NewS3CompatibleAdapter(ctx context.Context, cfg *S3Config) (BlobAdapter, error) {
+	endpoint := strings.TrimSpace(cfg.Endpoint)
 	if endpoint == "" {
 		return nil, fileError.ErrBlobValidation.WithMessagef("[s3_compatible] missing endpoint")
 	}
@@ -53,11 +141,11 @@ func NewS3CompatibleAdapter(ctx context.Context, opts S3CompatibleOptions) (Blob
 			err,
 		)
 	}
-	region := strings.TrimSpace(opts.Region)
+	region := strings.TrimSpace(cfg.Region)
 	if region == "" {
 		region = "us-east-1"
 	}
-	if strings.TrimSpace(opts.AccessKeyID) == "" || strings.TrimSpace(opts.SecretAccessKey) == "" {
+	if strings.TrimSpace(cfg.AccessKeyID) == "" || strings.TrimSpace(cfg.SecretAccessKey) == "" {
 		return nil, fileError.ErrBlobValidation.WithMessagef(
 			"[s3_compatible] missing access_key_id or secret_access_key",
 		)
@@ -68,9 +156,9 @@ func NewS3CompatibleAdapter(ctx context.Context, opts S3CompatibleOptions) (Blob
 		config.WithRegion(region),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				opts.AccessKeyID,
-				opts.SecretAccessKey,
-				opts.SessionToken,
+				cfg.AccessKeyID,
+				cfg.SecretAccessKey,
+				cfg.SessionToken,
 			),
 		),
 		config.WithEndpointResolverWithOptions(
@@ -96,13 +184,41 @@ func NewS3CompatibleAdapter(ctx context.Context, opts S3CompatibleOptions) (Blob
 	}
 
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.UsePathStyle = opts.ForcePathStyle
+		o.UsePathStyle = cfg.ForcePathStyle
 	})
 
 	return &s3CompatibleAdapter{
 		client:    client,
 		presigner: s3.NewPresignClient(client),
 	}, nil
+}
+
+// ParseS3Config parses and validates a raw config map into a typed S3Config.
+// Returns ErrBlobValidation when required fields are missing.
+func (a *s3CompatibleAdapter) ParseAndValidateConfig(
+	raw map[string]any,
+) (BlobConfig, error) {
+	return ParseAndValidateConfig[S3Config](raw)
+}
+
+// PingStorage checks bucket access via HeadBucket (S3-compatible API).
+func (a *s3CompatibleAdapter) PingStorage(ctx context.Context, bucketOrContainer string) error {
+	name := strings.TrimSpace(bucketOrContainer)
+	if name == "" {
+		return fileError.ErrBlobValidation.WithMessagef(
+			"[s3_compatible] ping_storage: bucket is required",
+		)
+	}
+	if err := ctx.Err(); err != nil {
+		return a.mapErr("ping_storage", err, "context cancelled")
+	}
+	_, err := a.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(name),
+	})
+	if err != nil {
+		return a.mapErr("ping_storage", err, "could not access bucket")
+	}
+	return nil
 }
 
 // PutObject uploads an object to the specified bucket and key.
@@ -231,7 +347,11 @@ func (a *s3CompatibleAdapter) PresignUpload(
 	if _, err := a.client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(in.Bucket),
 	}); err != nil {
-		return model.BlobPresignOutput{}, a.mapErr("presign_upload_head_bucket", err, "bucket check failed")
+		return model.BlobPresignOutput{}, a.mapErr(
+			"presign_upload_head_bucket",
+			err,
+			"bucket check failed",
+		)
 	}
 
 	p, err := a.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
@@ -361,8 +481,43 @@ func validatePresignDownloadInput(in model.BlobPresignDownloadInput) error {
 
 // ─── Error mapping ────────────────────────────────────────────────────────────
 
+// s3ProviderErrorDetail extracts the provider-facing message from AWS SDK errors
+// (typed API errors, operation wrappers, HTTP response errors). Safe to return to API clients.
+func s3ProviderErrorDetail(err error) string {
+	if err == nil {
+		return ""
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		if m := strings.TrimSpace(apiErr.ErrorMessage()); m != "" {
+			return m
+		}
+		if c := strings.TrimSpace(apiErr.ErrorCode()); c != "" {
+			return c
+		}
+	}
+	var opErr *smithy.OperationError
+	if errors.As(err, &opErr) && opErr.Unwrap() != nil {
+		if d := s3ProviderErrorDetail(opErr.Unwrap()); d != "" {
+			return d
+		}
+	}
+	var re *awshttp.ResponseError
+	if errors.As(err, &re) {
+		if re.Unwrap() != nil {
+			if d := s3ProviderErrorDetail(re.Unwrap()); d != "" {
+				return d
+			}
+		}
+		if s := strings.TrimSpace(re.Error()); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 // mapErr translates provider SDK errors into categorised *AppError values.
-// op is an operation label for contextual messages; no credentials are included.
+// op is an operation label for contextual messages; provider details are included for debugging.
 func (a *s3CompatibleAdapter) mapErr(op string, err error, msg string) error {
 	if err == nil {
 		return nil
@@ -375,60 +530,94 @@ func (a *s3CompatibleAdapter) mapErr(op string, err error, msg string) error {
 		)
 	}
 
+	detail := s3ProviderErrorDetail(err)
+
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		code := apiErr.ErrorCode()
 		switch {
 		case isS3NotFoundCode(code):
+			if detail == "" {
+				detail = code
+			}
 			return fileError.ErrBlobNotFound.WithMessagef(
 				"[s3_compatible/%s] %s: %s",
 				op,
 				msg,
-				code,
+				detail,
 			)
 		case isS3PermissionCode(code):
+			if detail == "" {
+				detail = "access denied"
+			}
 			return fileError.ErrBlobPermissionDenied.WithMessagef(
-				"[s3_compatible/%s] %s: access denied",
+				"[s3_compatible/%s] %s: %s",
 				op,
 				msg,
+				detail,
 			)
 		}
-		// Fall through to HTTP-status inspection for APIError values with
-		// an empty / unrecognised ErrorCode (e.g. HeadObject 403 with no body).
 	}
 
-	// HEAD requests return no response body, so the SDK cannot extract an
-	// ErrorCode. Inspect the underlying HTTP status instead.
 	var respErr *awshttp.ResponseError
 	if errors.As(err, &respErr) {
 		switch respErr.HTTPStatusCode() {
 		case 404:
+			if detail == "" {
+				detail = "not found"
+			}
 			return fileError.ErrBlobNotFound.WithMessagef(
-				"[s3_compatible/%s] %s: not found",
+				"[s3_compatible/%s] %s: %s",
 				op,
 				msg,
+				detail,
 			)
 		case 401, 403:
+			if detail == "" {
+				detail = "access denied"
+			}
 			return fileError.ErrBlobPermissionDenied.WithMessagef(
-				"[s3_compatible/%s] %s: access denied",
+				"[s3_compatible/%s] %s: %s",
 				op,
 				msg,
+				detail,
+			)
+		default:
+			if detail == "" {
+				detail = fmt.Sprintf("HTTP %d", respErr.HTTPStatusCode())
+			}
+			return fileError.ErrBlobInternal.WithMessagef(
+				"[s3_compatible/%s] %s: %s",
+				op,
+				msg,
+				detail,
 			)
 		}
 	}
 
 	if apiErr != nil {
+		if detail == "" {
+			detail = apiErr.ErrorCode()
+		}
 		return fileError.ErrBlobInternal.WithMessagef(
-			"[s3_compatible/%s] %s: provider error %s",
+			"[s3_compatible/%s] %s: %s",
 			op,
 			msg,
-			apiErr.ErrorCode(),
+			detail,
 		)
 	}
 
 	var nsk *s3types.NoSuchKey
 	if errors.As(err, &nsk) {
-		return fileError.ErrBlobNotFound.WithMessagef("[s3_compatible/%s] %s: no such key", op, msg)
+		if detail == "" {
+			detail = "no such key"
+		}
+		return fileError.ErrBlobNotFound.WithMessagef(
+			"[s3_compatible/%s] %s: %s",
+			op,
+			msg,
+			detail,
+		)
 	}
 
 	var opErr *smithy.OperationError
@@ -445,10 +634,14 @@ func (a *s3CompatibleAdapter) mapErr(op string, err error, msg string) error {
 		)
 	}
 
+	if detail == "" {
+		detail = "unexpected error"
+	}
 	return fileError.ErrBlobInternal.WithMessagef(
-		"[s3_compatible/%s] %s: unexpected error",
+		"[s3_compatible/%s] %s: %s",
 		op,
 		msg,
+		detail,
 	)
 }
 
@@ -467,5 +660,74 @@ func isS3PermissionCode(code string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// S3Schema returns the field descriptor schema for the s3_compatible adapter.
+func S3Schema() model.AdapterConfigSchema {
+	return model.AdapterConfigSchema{
+		AdapterType: entity.AdapterTypeS3Compatible,
+		Fields: []model.FieldDescriptor{
+			{
+				Key:         "access_key_id",
+				Label:       "Access Key ID",
+				Type:        model.FieldTypeString,
+				Required:    true,
+				Sensitive:   true,
+				Description: "AWS Access Key ID or equivalent for S3-compatible providers.",
+				Placeholder: "AKIAIOSFODNN7EXAMPLE",
+			},
+			{
+				Key:         "secret_access_key",
+				Label:       "Secret Access Key",
+				Type:        model.FieldTypePassword,
+				Required:    true,
+				Sensitive:   true,
+				Description: "AWS Secret Access Key or equivalent.",
+			},
+			{
+				Key:         "session_token",
+				Label:       "Session Token",
+				Type:        model.FieldTypePassword,
+				Required:    false,
+				Sensitive:   true,
+				Description: "Temporary STS session token. Only required when using short-lived assumed-role credentials.",
+			},
+			{
+				Key:         "bucket",
+				Label:       "Bucket Name",
+				Type:        model.FieldTypeString,
+				Required:    true,
+				Sensitive:   false,
+				Description: "The S3 bucket where files will be stored.",
+				Placeholder: "my-ecommerce-bucket",
+			},
+			{
+				Key:         "region",
+				Label:       "Region",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "AWS region (e.g. us-east-1). Defaults to us-east-1 if not set.",
+				Placeholder: "us-east-1",
+			},
+			{
+				Key:         "endpoint",
+				Label:       "Custom Endpoint",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "Required for non-AWS stores (e.g. http://minio:9000 or https://s3.us-west-1.example.com).",
+				Placeholder: "https://s3.us-east-1.amazonaws.com",
+			},
+			{
+				Key:         "force_path_style",
+				Label:       "Force Path Style",
+				Type:        model.FieldTypeBoolean,
+				Required:    false,
+				Sensitive:   false,
+				Description: "Use path-style URLs (/bucket/key) instead of virtual-hosted style. Required for MinIO and most non-AWS stores.",
+			},
+		},
 	}
 }

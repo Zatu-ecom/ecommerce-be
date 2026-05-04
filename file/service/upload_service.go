@@ -285,7 +285,7 @@ func (s *fileUploadService) replayInitUploadFromIdempotency(
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
-	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	adapter, err := blobAdapter.GetAdapterFromStoredConfig(ctx, cfg.Provider.AdapterType, cfg.ConfigData)
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
@@ -340,7 +340,7 @@ func (s *fileUploadService) initUploadWithIdempotency(
 	if appErr != nil {
 		return nil, appErr
 	}
-	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	adapter, err := blobAdapter.GetAdapterFromStoredConfig(ctx, cfg.Provider.AdapterType, cfg.ConfigData)
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
@@ -438,7 +438,7 @@ func (s *fileUploadService) InitUpload(
 		return nil, appErr
 	}
 
-	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	adapter, err := blobAdapter.GetAdapterFromStoredConfig(ctx, cfg.Provider.AdapterType, cfg.ConfigData)
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
@@ -630,7 +630,7 @@ func (s *fileUploadService) CompleteUpload(
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
-	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	adapter, err := blobAdapter.GetAdapterFromStoredConfig(ctx, cfg.Provider.AdapterType, cfg.ConfigData)
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}

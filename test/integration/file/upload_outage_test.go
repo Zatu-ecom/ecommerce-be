@@ -2,17 +2,17 @@ package file_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	"ecommerce-be/common/constants"
-	"ecommerce-be/common/helper"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/file/entity"
 	fileSingleton "ecommerce-be/file/factory/singleton"
+	"ecommerce-be/file/service/blobAdapter"
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
@@ -172,12 +172,21 @@ func (s *UploadSuite) bindSellerStorageConfig(
 		First(&provider).Error
 	s.Require().NoError(err)
 
-	rawCreds := fmt.Sprintf(
-		`{"access_key_id":%q,"secret_access_key":%q}`,
-		accessKey,
-		secretKey,
-	)
-	encrypted, err := helper.Encrypt(rawCreds, os.Getenv("ENCRYPTION_KEY"))
+	// Match production: typed S3 map, field-level Encrypt(), JSON for config_data (see seedUploadStorageConfig).
+	raw := map[string]any{
+		"access_key_id":     accessKey,
+		"secret_access_key": secretKey,
+		"bucket":            bucket,
+		"region":            s.minio.Region,
+		"endpoint":          s.minio.Endpoint,
+		"force_path_style":  forcePathStyle,
+	}
+	parser, err := blobAdapter.GetBlobConfigParser(entity.AdapterTypeS3Compatible)
+	s.Require().NoError(err)
+	blobCfg, err := parser.ParseAndValidateConfig(raw)
+	s.Require().NoError(err)
+	s.Require().NoError(blobCfg.Encrypt())
+	configJSON, err := json.Marshal(blobCfg.ToMap())
 	s.Require().NoError(err)
 
 	err = s.container.DB.Exec(
@@ -189,13 +198,13 @@ func (s *UploadSuite) bindSellerStorageConfig(
 	var configID uint
 	err = s.container.DB.Raw(`
 		INSERT INTO storage_config (
-			owner_type, owner_id, provider_id, display_name, bucket_or_container, region, endpoint,
-			base_path, force_path_style, credentials_encrypted, config_json, is_default, is_active,
-			validation_status, created_at, updated_at
+			owner_type, owner_id, provider_id, display_name, bucket_or_container,
+			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
-			'SELLER', ?, ?, ?, ?, ?, ?, '', ?, ?, '{}'::jsonb, false, true, 'SUCCESS', NOW(), NOW()
+			'SELLER', ?, ?, ?, ?,
+			?, false, true, NOW(), NOW()
 		) RETURNING id
-	`, uploadTestSellerID, provider.ID, displayName, bucket, s.minio.Region, s.minio.Endpoint, forcePathStyle, []byte(encrypted)).
+	`, uploadTestSellerID, provider.ID, displayName, bucket, configJSON).
 		Scan(&configID).Error
 	s.Require().NoError(err)
 
@@ -219,6 +228,7 @@ func (s *UploadSuite) bindSellerStorageConfig(
 		}
 	}
 }
+
 
 func (s *UploadSuite) disableStorageResolution() func() {
 	var platformDefaultIDs []uint

@@ -15,20 +15,141 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
+	"ecommerce-be/common/helper"
+	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
 )
 
-// GCSOptions contains all parameters needed to initialise a GCS adapter.
-// ServiceAccountJSON is mandatory (JSON-encoded service account credential blob).
-// Endpoint is optional; when set, all API calls are routed to that host instead
-// of storage.googleapis.com (used with fake-gcs-server in integration tests).
-type GCSOptions struct {
-	ServiceAccountJSON string
-	ProjectID          string
-	Endpoint           string
+// ─── GCSConfig — typed config struct ──────────────────────────────────────────
+
+// GCSConfig is the typed configuration for a GCS blob adapter.
+// The decrypted config_data JSON is unmarshalled into this struct.
+type GCSConfig struct {
+	// ServiceAccountJSON is the raw JSON string of a Google Cloud Service Account key.
+	// Required and sensitive — always stored encrypted.
+	ServiceAccountJSON string `json:"service_account_json" validate:"required"`
+
+	// ProjectID is the GCP project identifier. Optional — usually embedded in
+	// ServiceAccountJSON but can be overridden here.
+	ProjectID string `json:"project_id"`
+
+	// Bucket is the GCS bucket name to upload files into.
+	// Required — also mirrored in storage_config.bucket_or_container for display.
+	Bucket string `json:"bucket" validate:"required"`
+
+	// Endpoint is an optional custom API endpoint (e.g. fake-gcs-server for tests).
+	// Leave empty for real GCS.
+	Endpoint string `json:"endpoint"`
+
+	// PublicURLPrefix is an optional CDN / public URL base for serving objects.
+	// e.g. "https://cdn.example.com/". Not used by the adapter itself.
+	PublicURLPrefix string `json:"public_url_prefix"`
 }
 
+func (s *GCSConfig) Encrypt() error {
+	key := ResolveEncryptionKey()
+
+	encryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if _, err := helper.Decrypt(val, key); err == nil {
+			return val, nil
+		}
+		return helper.Encrypt(val, key)
+	}
+
+	var err error
+	if s.ServiceAccountJSON, err = encryptField(s.ServiceAccountJSON); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef(
+			"[gcs] encrypt service_account_json: %v",
+			err,
+		)
+	}
+	return nil
+}
+
+func (s *GCSConfig) ToMap() map[string]any {
+	return map[string]any{
+		"service_account_json": s.ServiceAccountJSON,
+		"project_id":           s.ProjectID,
+		"bucket":               s.Bucket,
+		"endpoint":             s.Endpoint,
+		"public_url_prefix":    s.PublicURLPrefix,
+	}
+}
+
+func (s *GCSConfig) Decrypt() error {
+	key := ResolveEncryptionKey()
+
+	decryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if dec, err := helper.Decrypt(val, key); err == nil {
+			return dec, nil
+		}
+		return val, nil
+	}
+
+	s.ServiceAccountJSON, _ = decryptField(s.ServiceAccountJSON)
+	return nil
+}
+
+// GCSSchema returns the field descriptor schema for the GCS adapter.
+// Called once at startup to populate the schema registry.
+func GCSSchema() model.AdapterConfigSchema {
+	return model.AdapterConfigSchema{
+		AdapterType: entity.AdapterTypeGCS,
+		Fields: []model.FieldDescriptor{
+			{
+				Key:         "service_account_json",
+				Label:       "Service Account JSON",
+				Type:        model.FieldTypeText,
+				Required:    true,
+				Sensitive:   true,
+				Description: "The full JSON key file for a Google Cloud Service Account with Storage Object Admin permissions.",
+				Placeholder: `{"type":"service_account","project_id":"..."}`,
+			},
+			{
+				Key:         "project_id",
+				Label:       "Project ID",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "GCP project ID. Usually embedded in the service account JSON — only override if needed.",
+			},
+			{
+				Key:         "bucket",
+				Label:       "Bucket Name",
+				Type:        model.FieldTypeString,
+				Required:    true,
+				Sensitive:   false,
+				Description: "The GCS bucket where files will be stored.",
+				Placeholder: "my-ecommerce-bucket",
+			},
+			{
+				Key:         "endpoint",
+				Label:       "Custom Endpoint",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "Override the GCS API endpoint (e.g. http://localhost:4443 for fake-gcs-server). Leave empty for production.",
+			},
+			{
+				Key:         "public_url_prefix",
+				Label:       "Public URL Prefix",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "Optional CDN or public base URL for serving objects (e.g. https://cdn.example.com/).",
+			},
+		},
+	}
+}
+
+// ─── gcsAdapter — internal adapter struct ─────────────────────────────────────
 type gcsAdapter struct {
 	client     *storage.Client
 	accessID   string
@@ -45,16 +166,25 @@ type serviceAccountFields struct {
 	PrivateKey  string `json:"private_key"`
 }
 
-// NewGCSAdapter constructs a GCS BlobAdapter from the supplied options.
+// NewGCSAdapterFromMap constructs a GCS BlobAdapter from a raw config map.
+func NewGCSAdapterFromMap(ctx context.Context, raw map[string]any) (BlobAdapter, error) {
+	cfg, err := ParseAndValidateConfig[GCSConfig](raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewGCSAdapter(ctx, cfg)
+}
+
+// NewGCSAdapter constructs a GCS BlobAdapter from the supplied config.
 // Returns ErrBlobValidation when ServiceAccountJSON is malformed or missing required fields.
 // Returns ErrBlobFactoryInit when the underlying GCS client cannot be created.
-func NewGCSAdapter(ctx context.Context, opts GCSOptions) (BlobAdapter, error) {
-	if strings.TrimSpace(opts.ServiceAccountJSON) == "" {
+func NewGCSAdapter(ctx context.Context, cfg *GCSConfig) (BlobAdapter, error) {
+	if strings.TrimSpace(cfg.ServiceAccountJSON) == "" {
 		return nil, fileError.ErrBlobValidation.WithMessagef("[gcs] missing service_account_json")
 	}
 
 	var sa serviceAccountFields
-	if err := json.Unmarshal([]byte(opts.ServiceAccountJSON), &sa); err != nil {
+	if err := json.Unmarshal([]byte(cfg.ServiceAccountJSON), &sa); err != nil {
 		return nil, fileError.ErrBlobValidation.WithMessagef(
 			"[gcs] invalid service_account_json: %v",
 			err,
@@ -71,7 +201,7 @@ func NewGCSAdapter(ctx context.Context, opts GCSOptions) (BlobAdapter, error) {
 		)
 	}
 
-	clientOpts := buildGCSClientOptions(opts)
+	clientOpts := buildGCSClientOptions(cfg)
 	client, err := storage.NewClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fileError.ErrBlobFactoryInit.WithMessagef(
@@ -84,26 +214,91 @@ func NewGCSAdapter(ctx context.Context, opts GCSOptions) (BlobAdapter, error) {
 		client:     client,
 		accessID:   sa.ClientEmail,
 		privateKey: []byte(sa.PrivateKey),
-		endpoint:   opts.Endpoint,
+		endpoint:   cfg.Endpoint,
 	}, nil
 }
 
-func buildGCSClientOptions(opts GCSOptions) []option.ClientOption {
-	if opts.Endpoint != "" {
+func buildGCSClientOptions(cfg *GCSConfig) []option.ClientOption {
+	if cfg.Endpoint != "" {
 		// Test / custom-endpoint mode: route JSON API calls to fake-gcs-server.
 		// Use plain HTTP transport and skip authentication. WithJSONReads keeps
 		// Reader traffic on the JSON API because fake-gcs-server doesn't serve
 		// the XML read path that the SDK uses by default.
 		return []option.ClientOption{
 			option.WithHTTPClient(&http.Client{}),
-			option.WithEndpoint(opts.Endpoint + "/storage/v1/"),
+			option.WithEndpoint(cfg.Endpoint + "/storage/v1/"),
 			option.WithoutAuthentication(),
 			storage.WithJSONReads(),
 		}
 	}
 	return []option.ClientOption{
-		option.WithCredentialsJSON([]byte(opts.ServiceAccountJSON)),
+		option.WithCredentialsJSON([]byte(cfg.ServiceAccountJSON)),
 	}
+}
+
+const gcsServiceAccountJSONKey = "service_account_json"
+
+// normalizeGCSConfigMap shallow-clones raw and coerces service_account_json from a nested
+// JSON object (map) into a JSON string so GCSConfig.ServiceAccountJSON unmarshaling matches SaveConfig API payloads.
+func normalizeGCSConfigMap(raw map[string]any) (map[string]any, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	out := make(map[string]any, len(raw))
+	for k, v := range raw {
+		out[k] = v
+	}
+	v, ok := out[gcsServiceAccountJSONKey]
+	if !ok || v == nil {
+		return out, nil
+	}
+	switch t := v.(type) {
+	case string:
+		return out, nil
+	case map[string]any:
+		b, err := json.Marshal(t)
+		if err != nil {
+			return nil, fileError.ErrBlobValidation.WithMessagef(
+				"[gcs] service_account_json object could not be serialized: %v",
+				err,
+			)
+		}
+		out[gcsServiceAccountJSONKey] = string(b)
+		return out, nil
+	default:
+		return nil, fileError.ErrBlobValidation.WithMessagef(
+			"[gcs] service_account_json must be a JSON string or object, got %T",
+			v,
+		)
+	}
+}
+
+// ParseAndValidateConfig parses and validates a raw config map into a typed GCSConfig.
+// Returns ErrBlobValidation when required fields are missing.
+func (a *gcsAdapter) ParseAndValidateConfig(
+	raw map[string]any,
+) (BlobConfig, error) {
+	normalized, err := normalizeGCSConfigMap(raw)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAndValidateConfig[GCSConfig](normalized)
+}
+
+// PingStorage checks bucket access via the JSON API bucket metadata call.
+func (a *gcsAdapter) PingStorage(ctx context.Context, bucketOrContainer string) error {
+	name := strings.TrimSpace(bucketOrContainer)
+	if name == "" {
+		return fileError.ErrBlobValidation.WithMessagef("[gcs] ping_storage: bucket is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return a.mapErr("ping_storage", err, "context cancelled")
+	}
+	_, err := a.client.Bucket(name).Attrs(ctx)
+	if err != nil {
+		return a.mapErr("ping_storage", err, "could not access bucket")
+	}
+	return nil
 }
 
 // PutObject uploads an object to the specified bucket and key.
@@ -353,6 +548,21 @@ func gcsValidatePresignDownloadInput(in model.BlobPresignDownloadInput) error {
 
 // ─── Error mapping ────────────────────────────────────────────────────────────
 
+// gcsDetailFromGoogleError returns the provider-facing text from a googleapi.Error.
+// GCS JSON API errors are surfaced to API clients to aid debugging (no raw credentials in these payloads).
+func gcsDetailFromGoogleError(gErr *googleapi.Error) string {
+	if gErr == nil {
+		return ""
+	}
+	if s := strings.TrimSpace(gErr.Message); s != "" {
+		return s
+	}
+	if len(gErr.Errors) > 0 {
+		return strings.TrimSpace(gErr.Errors[0].Message)
+	}
+	return ""
+}
+
 func (a *gcsAdapter) mapErr(op string, err error, msg string) error {
 	if err == nil {
 		return nil
@@ -370,22 +580,46 @@ func (a *gcsAdapter) mapErr(op string, err error, msg string) error {
 
 	var gErr *googleapi.Error
 	if errors.As(err, &gErr) {
+		detail := gcsDetailFromGoogleError(gErr)
 		switch gErr.Code {
 		case http.StatusNotFound:
+			if detail != "" {
+				return fileError.ErrBlobNotFound.WithMessagef("[gcs/%s] %s: %s", op, msg, detail)
+			}
 			return fileError.ErrBlobNotFound.WithMessagef(
 				"[gcs/%s] %s: not found (HTTP 404)",
 				op,
 				msg,
 			)
 		case http.StatusForbidden, http.StatusUnauthorized:
+			if detail != "" {
+				return fileError.ErrBlobPermissionDenied.WithMessagef(
+					"[gcs/%s] %s: %s",
+					op,
+					msg,
+					detail,
+				)
+			}
 			return fileError.ErrBlobPermissionDenied.WithMessagef(
 				"[gcs/%s] %s: access denied",
 				op,
 				msg,
 			)
 		case http.StatusBadRequest:
+			if detail != "" {
+				return fileError.ErrBlobValidation.WithMessagef("[gcs/%s] %s: %s", op, msg, detail)
+			}
 			return fileError.ErrBlobValidation.WithMessagef("[gcs/%s] %s: bad request", op, msg)
 		default:
+			if detail != "" {
+				return fileError.ErrBlobInternal.WithMessagef(
+					"[gcs/%s] %s: %s (HTTP %d)",
+					op,
+					msg,
+					detail,
+					gErr.Code,
+				)
+			}
 			return fileError.ErrBlobInternal.WithMessagef(
 				"[gcs/%s] %s: provider error HTTP %d",
 				op,

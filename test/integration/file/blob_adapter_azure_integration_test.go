@@ -31,9 +31,10 @@ func (s *BlobAdapterAzureSuite) SetupSuite() {
 	s.bucket = "blob-adapter-az-it-" + RandomHex(6)
 	s.az = SetupAzurite(s.T(), s.bucket)
 
-	a, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
+	a, err := blobAdapter.NewAzureBlobAdapter(&blobAdapter.AzureConfig{
 		AccountName: s.az.AccountName,
 		AccountKey:  s.az.AccountKey,
+		Container:   s.bucket,
 		Endpoint:    s.az.BlobEndpoint,
 	})
 	if err != nil {
@@ -210,9 +211,10 @@ func (s *BlobAdapterAzureSuite) TestDeleteObject_Success() {
 
 // Scenario: Constructor rejects empty account name.
 func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountName() {
-	_, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
+	_, err := blobAdapter.NewAzureBlobAdapter(&blobAdapter.AzureConfig{
 		AccountName: "",
 		AccountKey:  s.az.AccountKey,
+		Container:   s.bucket,
 		Endpoint:    s.az.BlobEndpoint,
 	})
 	assert.Error(s.T(), err)
@@ -222,9 +224,10 @@ func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountName() {
 
 // Scenario: Constructor rejects empty account key.
 func (s *BlobAdapterAzureSuite) TestInvalidCredentials_MissingAccountKey() {
-	_, err := blobAdapter.NewAzureBlobAdapter(blobAdapter.AzureOptions{
+	_, err := blobAdapter.NewAzureBlobAdapter(&blobAdapter.AzureConfig{
 		AccountName: s.az.AccountName,
 		AccountKey:  "",
+		Container:   s.bucket,
 		Endpoint:    s.az.BlobEndpoint,
 	})
 	assert.Error(s.T(), err)

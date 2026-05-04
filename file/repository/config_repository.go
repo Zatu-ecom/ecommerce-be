@@ -191,9 +191,6 @@ func (r *configRepository) ListConfigs(
 	if len(filter.ProviderIDs) > 0 {
 		query = query.Where("provider_id IN ?", filter.ProviderIDs)
 	}
-	if len(filter.ValidationStatuses) > 0 {
-		query = query.Where("validation_status IN ?", filter.ValidationStatuses)
-	}
 
 	// Single-value filters
 	if filter.IsActive != nil {
@@ -242,8 +239,6 @@ func resolveSortColumn(sortBy string) string {
 	switch sortBy {
 	case "displayName":
 		return "display_name"
-	case "validationStatus":
-		return "validation_status"
 	case "updatedAt":
 		return "updated_at"
 	default:

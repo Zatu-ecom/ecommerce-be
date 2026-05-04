@@ -133,35 +133,6 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByIsDefault() {
 	}
 }
 
-// Scenario: Filter by validationStatuses=PENDING.
-// Validates: All returned configs have validationStatus=PENDING.
-func (s *ConfigTestSuite) TestListConfigs_FilterByValidationStatuses() {
-	// New configs get PENDING status by default; ensure at least one exists.
-	s.createConfigAndGetID(
-		s.sellerToken,
-		s.buildCreateConfigRequest(
-			s.providerID,
-			"Pending Status Config",
-			"pending-bucket",
-			"",
-			"AKPND",
-			"SKPND",
-			false,
-		),
-	)
-
-	s.client.SetToken(s.sellerToken)
-	w := s.client.Get(s.T(), StorageConfigEndpoint+"?validationStatuses=PENDING")
-	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
-
-	data := resp["data"].(map[string]any)
-	items := data["configs"].([]any)
-	assert.NotEmpty(s.T(), items)
-	for _, item := range items {
-		assert.Equal(s.T(), "PENDING", item.(map[string]any)["validationStatus"])
-	}
-}
-
 // Scenario: Filter by specific config IDs.
 // Validates: Only the config matching the given ID is returned.
 func (s *ConfigTestSuite) TestListConfigs_FilterByIDs() {
@@ -217,11 +188,11 @@ func (s *ConfigTestSuite) TestListConfigs_FilterByProviderIDs() {
 	}
 }
 
-// Scenario: Combine isActive and validationStatuses filters.
+// Scenario: Combine isActive and isDefault filters.
 // Validates: Compound filter returns 200 within the caller's scope.
 func (s *ConfigTestSuite) TestListConfigs_CombinedFilters() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Get(s.T(), StorageConfigEndpoint+"?isActive=true&validationStatuses=PENDING")
+	w := s.client.Get(s.T(), StorageConfigEndpoint+"?isActive=true&isDefault=false")
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 }
 

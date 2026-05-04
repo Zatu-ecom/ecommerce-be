@@ -31,12 +31,13 @@ func (s *BlobAdapterS3Suite) SetupSuite() {
 
 	a, err := blobAdapter.NewS3CompatibleAdapter(
 		context.Background(),
-		blobAdapter.S3CompatibleOptions{
+		&blobAdapter.S3Config{
 			Endpoint:        s.minio.Endpoint,
 			Region:          s.minio.Region,
 			ForcePathStyle:  true,
 			AccessKeyID:     s.minio.AccessKey,
 			SecretAccessKey: s.minio.SecretKey,
+			Bucket:          s.bucket,
 		},
 	)
 	if err != nil {
@@ -229,12 +230,13 @@ func (s *BlobAdapterS3Suite) TestDeleteObject_Success() {
 func (s *BlobAdapterS3Suite) TestInvalidCredentials_ReturnsPermissionDenied() {
 	a, err := blobAdapter.NewS3CompatibleAdapter(
 		context.Background(),
-		blobAdapter.S3CompatibleOptions{
+		&blobAdapter.S3Config{
 			Endpoint:        s.minio.Endpoint,
 			Region:          s.minio.Region,
 			ForcePathStyle:  true,
 			AccessKeyID:     s.minio.AccessKey,
 			SecretAccessKey: "WRONG_SECRET",
+			Bucket:          s.bucket,
 		},
 	)
 	assert.NoError(s.T(), err)

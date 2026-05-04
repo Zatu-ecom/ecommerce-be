@@ -126,7 +126,7 @@ func (h *UploadExpiryHandler) tryDeleteObject(ctx context.Context, row *entity.F
 		)
 		return false
 	}
-	adapter, err := blobAdapter.NewAdapterFromConfig(ctx, *cfg)
+	adapter, err := blobAdapter.GetAdapterFromStoredConfig(ctx, cfg.Provider.AdapterType, cfg.ConfigData)
 	if err != nil {
 		log.InfoWithContext(
 			ctx,

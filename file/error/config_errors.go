@@ -53,4 +53,14 @@ var (
 		constant.FILE_CONFIG_LIST_ERR_MSG,
 		http.StatusInternalServerError,
 	)
+	ErrInvalidCredentials = commonError.NewAppError(
+		constant.FILE_CONFIG_INVALID_CREDENTIALS_CODE,
+		constant.FILE_CONFIG_INVALID_CREDENTIALS_MSG,
+		http.StatusUnprocessableEntity,
+	)
+	ErrAdapterSchemaNotFound = commonError.NewAppError(
+		constant.FILE_ADAPTER_SCHEMA_NOT_FOUND_CODE,
+		constant.FILE_ADAPTER_SCHEMA_NOT_FOUND_MSG,
+		http.StatusBadRequest,
+	)
 )

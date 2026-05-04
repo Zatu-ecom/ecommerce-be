@@ -1,15 +1,12 @@
 package singleton
 
 import (
-	"context"
 	"sync"
 
 	"ecommerce-be/common/cache"
 	msgFactory "ecommerce-be/common/messaging/factory"
 	"ecommerce-be/common/scheduler"
-	"ecommerce-be/file/entity"
 	"ecommerce-be/file/service"
-	"ecommerce-be/file/service/blobAdapter"
 )
 
 // ServiceFactory manages all service singleton instances
@@ -97,15 +94,4 @@ func (f *ServiceFactory) GetVariantPublisher() service.VariantPublisher {
 func (f *ServiceFactory) GetConfigService() service.ConfigService {
 	f.initialize()
 	return f.configService
-}
-
-// GetBlobAdapter constructs a BlobAdapter from the supplied StorageConfig.
-// cfg.Provider must be preloaded (GORM Preload or equivalent) so that
-// cfg.Provider.AdapterType is populated before this method is called.
-// Returns a categorised error from file/error on decryption or init failure.
-func (f *ServiceFactory) GetBlobAdapter(
-	ctx context.Context,
-	cfg entity.StorageConfig,
-) (blobAdapter.BlobAdapter, error) {
-	return blobAdapter.NewAdapterFromConfig(ctx, cfg)
 }

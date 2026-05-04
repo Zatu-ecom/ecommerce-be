@@ -80,12 +80,36 @@ func (h *ConfigHandler) SaveConfig(c *gin.Context) {
 
 // TestConfig handles POST /storage-config/test
 func (h *ConfigHandler) TestConfig(c *gin.Context) {
-	common.ErrorWithCode(
-		c,
-		http.StatusNotImplemented,
-		constant.FILE_CONFIG_NOT_IMPLEMENTED_MSG,
-		constant.FILE_NOT_IMPLEMENTED_CODE,
-	)
+	var req model.SaveConfigRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	res, err := h.configService.TestStorageConfig(c, req)
+	if err != nil {
+		h.HandleError(c, err, constant.FAILED_TO_TEST_CONFIG_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, constant.FILE_CONFIG_TEST_SUCCEEDED_MSG, res)
+}
+
+// GetAdapterSchema handles GET /storage-config/schema
+// Optional query: adapterType — when omitted, returns every registered adapter schema (gcs, s3_compatible, azure).
+// When set, returns a single schema in a one-element list.
+func (h *ConfigHandler) GetAdapterSchema(c *gin.Context) {
+	adapterType := entity.AdapterType(c.Query(constant.FILE_ADAPTER_TYPE_QUERY_PARAM))
+	schemas, err := service.GetAdapterSchemas(adapterType)
+	if err != nil {
+		h.HandleError(
+			c,
+			err,
+			constant.FILE_ADAPTER_SCHEMA_NOT_FOUND_MSG,
+		)
+		return
+	}
+	h.Success(c, http.StatusOK, constant.FILE_ADAPTER_SCHEMA_FETCHED_MSG, schemas)
 }
 
 // ActivateConfig handles POST /storage-config/{id}/activate

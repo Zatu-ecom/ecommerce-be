@@ -68,9 +68,10 @@ func (s *BlobAdapterGCSSuite) SetupSuite() {
 	s.gcs = SetupFakeGCS(s.T(), "test-project", s.bucket)
 	s.saJSON = generateGCSServiceAccountJSON(s.T())
 
-	a, err := blobAdapter.NewGCSAdapter(context.Background(), blobAdapter.GCSOptions{
+	a, err := blobAdapter.NewGCSAdapter(context.Background(), &blobAdapter.GCSConfig{
 		ServiceAccountJSON: s.saJSON,
 		ProjectID:          "test-project",
+		Bucket:             s.bucket,
 		Endpoint:           s.gcs.Endpoint,
 	})
 	if err != nil {
@@ -243,8 +244,9 @@ func (s *BlobAdapterGCSSuite) TestDeleteObject_Success() {
 
 // Scenario: Adapter constructed with invalid service account JSON returns validation error.
 func (s *BlobAdapterGCSSuite) TestInvalidCredentials_ConstructorValidation() {
-	_, err := blobAdapter.NewGCSAdapter(context.Background(), blobAdapter.GCSOptions{
+	_, err := blobAdapter.NewGCSAdapter(context.Background(), &blobAdapter.GCSConfig{
 		ServiceAccountJSON: `{"type":"service_account"}`, // missing client_email + private_key
+		Bucket:             s.bucket,
 		Endpoint:           s.gcs.Endpoint,
 	})
 	assert.Error(s.T(), err)

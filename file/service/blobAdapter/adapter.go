@@ -7,6 +7,12 @@ import (
 	"ecommerce-be/file/model"
 )
 
+type BlobConfigParser interface {
+	ParseAndValidateConfig(
+		raw map[string]any,
+	) (BlobConfig, error)
+}
+
 // BlobAdapter defines the provider-agnostic blob storage interface used by file services.
 //
 // Contract rules:
@@ -66,4 +72,14 @@ type BlobAdapter interface {
 		ctx context.Context,
 		in model.BlobCopyObjectInput,
 	) error
+
+	// PingStorage verifies that credentials can access the bucket or container
+	// named by storage_config.bucket_or_container (same value upload uses).
+	PingStorage(ctx context.Context, bucketOrContainer string) error
+}
+
+type BlobConfig interface {
+	Encrypt() error
+	ToMap() map[string]any
+	Decrypt() error
 }

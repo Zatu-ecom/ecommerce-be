@@ -83,7 +83,7 @@ func (s *UploadSuite) TestCompleteUpload_TenantIsolation() {
 		client.SetToken(s.adminToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "tenant-isolation-admin")
 
-		w := client.Post(s.T(), "/api/admin/files/complete-upload", map[string]any{
+		w := client.Post(s.T(), "/api/file/complete-upload", map[string]any{
 			"fileId": fileID,
 		})
 		resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)

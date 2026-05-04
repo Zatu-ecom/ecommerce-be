@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS storage_provider (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- storage_config matches file/entity.StorageConfig:
+-- bucket_or_container + provider_id identify routing; all provider-specific settings
+-- (credentials, region, endpoint, etc.) live in config_data as JSON (field-level AES in app).
 CREATE TABLE IF NOT EXISTS storage_config (
     id BIGSERIAL PRIMARY KEY,
     owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('PLATFORM', 'SELLER')),
@@ -19,18 +22,10 @@ CREATE TABLE IF NOT EXISTS storage_config (
     display_name VARCHAR(150) NOT NULL,
 
     bucket_or_container VARCHAR(255) NOT NULL,
-    region VARCHAR(100),
-    endpoint VARCHAR(500),
-    base_path VARCHAR(500),
-    force_path_style BOOLEAN NOT NULL DEFAULT false,
-
-    credentials_encrypted BYTEA NOT NULL,
-    config_json JSONB,
+    config_data JSONB NOT NULL,
 
     is_default BOOLEAN NOT NULL DEFAULT false,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    last_validated_at TIMESTAMPTZ,
-    validation_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

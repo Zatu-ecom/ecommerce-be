@@ -12,11 +12,11 @@ import (
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
-	"ecommerce-be/common/helper"
 	"ecommerce-be/common/messaging"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/file/entity"
 	fileSingleton "ecommerce-be/file/factory/singleton"
+	"ecommerce-be/file/service/blobAdapter"
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
@@ -27,9 +27,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+
 const (
-	uploadInitEndpoint            = "/api/files/init-upload"
-	uploadCompleteEndpoint        = "/api/files/complete-upload"
+	uploadInitEndpoint            = "/api/file/init-upload"
+	uploadCompleteEndpoint        = "/api/file/complete-upload"
 	uploadVariantQueueName        = "file.image.process.requested.q"
 	uploadTestBucket              = "upload-suite-bucket"
 	uploadTestSellerID     uint64 = 3 // jane.merchant@example.com
@@ -167,9 +168,21 @@ func (s *UploadSuite) configureUploadEnv() {
 }
 
 func (s *UploadSuite) seedUploadStorageConfig() {
-	key := os.Getenv("ENCRYPTION_KEY")
-	rawCreds := `{"access_key_id":"` + s.minio.AccessKey + `","secret_access_key":"` + s.minio.SecretKey + `"}`
-	encrypted, err := helper.Encrypt(rawCreds, key)
+	// Build the typed S3 config and encrypt only the sensitive fields (ENCRYPTION_KEY set in configureUploadEnv).
+	raw := map[string]any{
+		"access_key_id":     s.minio.AccessKey,
+		"secret_access_key": s.minio.SecretKey,
+		"bucket":            uploadTestBucket,
+		"region":            s.minio.Region,
+		"endpoint":          s.minio.Endpoint,
+		"force_path_style":  true,
+	}
+	parser, err := blobAdapter.GetBlobConfigParser(entity.AdapterTypeS3Compatible)
+	s.Require().NoError(err)
+	blobCfg, err := parser.ParseAndValidateConfig(raw)
+	s.Require().NoError(err)
+	s.Require().NoError(blobCfg.Encrypt())
+	encryptedData, err := json.Marshal(blobCfg.ToMap())
 	s.Require().NoError(err)
 
 	type providerRow struct {
@@ -184,17 +197,23 @@ func (s *UploadSuite) seedUploadStorageConfig() {
 		First(&provider).Error
 	s.Require().NoError(err)
 
+	// Clear existing configs to prevent duplicate key conflicts with seeds.
+	err = s.container.DB.Exec(`DELETE FROM seller_storage_binding`).Error
+	s.Require().NoError(err)
+	err = s.container.DB.Exec(`DELETE FROM storage_config`).Error
+	s.Require().NoError(err)
+
 	// Platform default.
 	var platformConfigID uint
 	err = s.container.DB.Raw(`
 		INSERT INTO storage_config (
-			owner_type, owner_id, provider_id, display_name, bucket_or_container, region, endpoint,
-			base_path, force_path_style, credentials_encrypted, config_json, is_default, is_active,
-			validation_status, created_at, updated_at
+			owner_type, owner_id, provider_id, display_name, bucket_or_container,
+			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
-			'PLATFORM', NULL, ?, 'Upload Platform Default', ?, ?, ?, '', true, ?, '{}'::jsonb, true, true, 'SUCCESS', NOW(), NOW()
+			'PLATFORM', NULL, ?, 'Upload Platform Default', ?,
+			?, true, true, NOW(), NOW()
 		) RETURNING id
-	`, provider.ID, uploadTestBucket, s.minio.Region, s.minio.Endpoint, []byte(encrypted)).
+	`, provider.ID, uploadTestBucket, encryptedData).
 		Scan(&platformConfigID).Error
 	s.Require().NoError(err)
 
@@ -202,20 +221,14 @@ func (s *UploadSuite) seedUploadStorageConfig() {
 	var sellerConfigID uint
 	err = s.container.DB.Raw(`
 		INSERT INTO storage_config (
-			owner_type, owner_id, provider_id, display_name, bucket_or_container, region, endpoint,
-			base_path, force_path_style, credentials_encrypted, config_json, is_default, is_active,
-			validation_status, created_at, updated_at
+			owner_type, owner_id, provider_id, display_name, bucket_or_container,
+			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
-			'SELLER', ?, ?, 'Upload Seller Config', ?, ?, ?, '', true, ?, '{}'::jsonb, false, true, 'SUCCESS', NOW(), NOW()
+			'SELLER', ?, ?, 'Upload Seller Config', ?,
+			?, false, true, NOW(), NOW()
 		) RETURNING id
-	`, uploadTestSellerID, provider.ID, uploadTestBucket, s.minio.Region, s.minio.Endpoint, []byte(encrypted)).
+	`, uploadTestSellerID, provider.ID, uploadTestBucket, encryptedData).
 		Scan(&sellerConfigID).Error
-	s.Require().NoError(err)
-
-	err = s.container.DB.Exec(
-		`DELETE FROM seller_storage_binding WHERE seller_id = ?`,
-		uploadTestSellerID,
-	).Error
 	s.Require().NoError(err)
 
 	err = s.container.DB.Exec(`
@@ -225,6 +238,8 @@ func (s *UploadSuite) seedUploadStorageConfig() {
 	`, uploadTestSellerID, sellerConfigID).Error
 	s.Require().NoError(err)
 }
+
+
 
 func (s *UploadSuite) setupVariantQueueConsumer() {
 	ch, err := s.rabbit.Connection.Channel()
