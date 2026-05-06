@@ -27,12 +27,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-
 const (
 	uploadInitEndpoint            = "/api/file/init-upload"
 	uploadCompleteEndpoint        = "/api/file/complete-upload"
 	uploadVariantQueueName        = "file.image.process.requested.q"
 	uploadTestBucket              = "upload-suite-bucket"
+	uploadTestAdminID      uint64 = 1 // admin@ecommerce.com (mock seed)
 	uploadTestSellerID     uint64 = 3 // jane.merchant@example.com
 )
 
@@ -198,48 +198,33 @@ func (s *UploadSuite) seedUploadStorageConfig() {
 	s.Require().NoError(err)
 
 	// Clear existing configs to prevent duplicate key conflicts with seeds.
-	err = s.container.DB.Exec(`DELETE FROM seller_storage_binding`).Error
-	s.Require().NoError(err)
 	err = s.container.DB.Exec(`DELETE FROM storage_config`).Error
 	s.Require().NoError(err)
 
 	// Platform default.
-	var platformConfigID uint
-	err = s.container.DB.Raw(`
+	err = s.container.DB.Exec(`
 		INSERT INTO storage_config (
 			owner_type, owner_id, provider_id, display_name, bucket_or_container,
 			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
-			'PLATFORM', NULL, ?, 'Upload Platform Default', ?,
+			'PLATFORM', ?, ?, 'Upload Platform Default', ?,
 			?, true, true, NOW(), NOW()
-		) RETURNING id
-	`, provider.ID, uploadTestBucket, encryptedData).
-		Scan(&platformConfigID).Error
+		)
+	`, uploadTestAdminID, provider.ID, uploadTestBucket, encryptedData).Error
 	s.Require().NoError(err)
 
-	// Seller config + active binding.
-	var sellerConfigID uint
-	err = s.container.DB.Raw(`
+	// Seller default config (resolved via storage_config.is_default).
+	err = s.container.DB.Exec(`
 		INSERT INTO storage_config (
 			owner_type, owner_id, provider_id, display_name, bucket_or_container,
 			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
 			'SELLER', ?, ?, 'Upload Seller Config', ?,
-			?, false, true, NOW(), NOW()
-		) RETURNING id
-	`, uploadTestSellerID, provider.ID, uploadTestBucket, encryptedData).
-		Scan(&sellerConfigID).Error
-	s.Require().NoError(err)
-
-	err = s.container.DB.Exec(`
-		INSERT INTO seller_storage_binding (
-			seller_id, storage_config_id, is_active, created_at, updated_at
-		) VALUES (?, ?, true, NOW(), NOW())
-	`, uploadTestSellerID, sellerConfigID).Error
+			?, true, true, NOW(), NOW()
+		)
+	`, uploadTestSellerID, provider.ID, uploadTestBucket, encryptedData).Error
 	s.Require().NoError(err)
 }
-
-
 
 func (s *UploadSuite) setupVariantQueueConsumer() {
 	ch, err := s.rabbit.Connection.Channel()

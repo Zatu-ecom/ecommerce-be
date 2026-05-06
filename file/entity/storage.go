@@ -55,17 +55,3 @@ type StorageConfig struct {
 func (StorageConfig) TableName() string {
 	return "storage_config"
 }
-
-// SellerStorageBinding represents the binding table to choose which seller config is active
-type SellerStorageBinding struct {
-	db.BaseEntity
-	SellerID        uint `gorm:"column:seller_id;not null;uniqueIndex:idx_seller_storage_binding_seller_active"`
-	StorageConfigID uint `gorm:"column:storage_config_id;not null"`
-	IsActive        bool `gorm:"column:is_active;not null;default:true;uniqueIndex:idx_seller_storage_binding_seller_active"`
-
-	StorageConfig StorageConfig `gorm:"foreignKey:StorageConfigID"`
-}
-
-func (SellerStorageBinding) TableName() string {
-	return "seller_storage_binding"
-}

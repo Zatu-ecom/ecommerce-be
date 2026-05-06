@@ -16,11 +16,10 @@ import (
 )
 
 const (
-	FileAPIBase                      = "/api/file"
-	StorageProvidersEndpoint         = FileAPIBase + "/storage/providers"
-	StorageConfigEndpoint            = FileAPIBase + "/storage-config"
-	StorageConfigTestEndpoint        = FileAPIBase + "/storage-config/test"
-	StorageConfigActivateEndpointTpl = FileAPIBase + "/storage-config/%d/activate"
+	FileAPIBase               = "/api/file"
+	StorageProvidersEndpoint  = FileAPIBase + "/storage/providers"
+	StorageConfigEndpoint     = FileAPIBase + "/storage-config"
+	StorageConfigTestEndpoint = FileAPIBase + "/storage-config/test"
 )
 
 // ConfigTestSuite holds shared state for all file storage config integration tests.
@@ -124,21 +123,6 @@ func (s *ConfigTestSuite) buildCreateConfigRequest(
 	}
 }
 
-func (s *ConfigTestSuite) buildUpdateConfigRequest(
-	configID uint,
-	providerID uint,
-	displayName string,
-	bucket string,
-	accessKey string,
-	secretKey string,
-) map[string]any {
-	reqBody := s.buildCreateConfigRequest(
-		providerID, displayName, bucket, "", accessKey, secretKey, false,
-	)
-	reqBody["id"] = configID
-	return reqBody
-}
-
 // createConfigAndGetID creates a storage config via the real API and returns its ID.
 // Uses the standard POST /storage-config endpoint — no direct DB insertion.
 func (s *ConfigTestSuite) createConfigAndGetID(
@@ -152,9 +136,28 @@ func (s *ConfigTestSuite) createConfigAndGetID(
 	return uint(data["id"].(float64))
 }
 
-// activateURL formats the activate endpoint URL.
-func (s *ConfigTestSuite) activateURL(configID uint) string {
-	return fmt.Sprintf(StorageConfigActivateEndpointTpl, configID)
+func (s *ConfigTestSuite) storageConfigURL(configID uint) string {
+	return fmt.Sprintf("%s/%d", StorageConfigEndpoint, configID)
+}
+
+// buildUpdateConfigBody builds the JSON body for PUT /storage-config/:id.
+func (s *ConfigTestSuite) buildUpdateConfigBody(
+	providerID uint,
+	displayName string,
+	bucket string,
+	accessKey string,
+	secretKey string,
+	isActive bool,
+	isDefault bool,
+) map[string]any {
+	return map[string]any{
+		"providerId":        providerID,
+		"displayName":       displayName,
+		"bucketOrContainer": bucket,
+		"config":            s.buildS3Config(accessKey, secretKey, bucket, ""),
+		"isActive":          isActive,
+		"isDefault":         isDefault,
+	}
 }
 
 // ============================================================================
@@ -174,9 +177,9 @@ func (s *ConfigTestSuite) TestGetProvidersSuccess() {
 // SAVE / CREATE CONFIG TESTS
 // ============================================================================
 
-// Scenario: Seller creates a storage config while passing isDefault=true.
-// Validates: Seller ownership is enforced and default flag is forced to false.
-func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
+// Scenario: Seller creates a storage config with isDefault=true.
+// Validates: Seller-scoped default flag is persisted.
+func (s *ConfigTestSuite) TestSaveConfig_SellerPersistsExplicitDefault() {
 	reqBody := s.buildCreateConfigRequest(
 		s.providerID,
 		"Seller Storage",
@@ -192,7 +195,24 @@ func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
 
 	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), "SELLER", data["ownerType"])
-	assert.Equal(s.T(), false, data["isDefault"])
+	assert.Equal(s.T(), true, data["isDefault"])
+}
+
+// Scenario: Create request omits isActive and isDefault.
+// Validates: Both default to true for new configs.
+func (s *ConfigTestSuite) TestSaveConfig_OmittedActiveAndDefaultFlags() {
+	reqBody := map[string]any{
+		"providerId":        s.providerID,
+		"displayName":       "Omitted flags",
+		"bucketOrContainer": "omit-flags-bucket",
+		"config":            s.buildS3Config("OMIT_AK", "OMIT_SK", "omit-flags-bucket", "us-east-1"),
+	}
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+	data := resp["data"].(map[string]any)
+	assert.Equal(s.T(), true, data["isActive"])
+	assert.Equal(s.T(), true, data["isDefault"])
 }
 
 // Scenario: Admin creates a platform default configuration.
@@ -331,8 +351,8 @@ func (s *ConfigTestSuite) TestSaveConfig_CrossTenantUpdateForbidden() {
 		),
 	)
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
-		configID, s.providerID, "Attempt Cross Tenant Update", "seller1-bucket", "AK1", "SK1",
+	w := s.client.Put(s.T(), s.storageConfigURL(configID), s.buildUpdateConfigBody(
+		s.providerID, "Attempt Cross Tenant Update", "seller1-bucket", "AK1", "SK1", true, false,
 	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
 }
@@ -353,30 +373,31 @@ func (s *ConfigTestSuite) TestSaveConfig_SellerCannotManagePlatformConfig() {
 		),
 	)
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
-		platformConfigID,
+	w := s.client.Put(s.T(), s.storageConfigURL(platformConfigID), s.buildUpdateConfigBody(
 		s.providerID,
 		"Seller Attempt Platform Update",
 		"seller-bucket",
 		"AKS",
 		"SKS",
+		true,
+		false,
 	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
 }
 
-// Scenario: Request updates a config ID that does not exist.
+// Scenario: PUT updates a config ID that does not exist.
 // Validates: Unknown config updates return 404.
-func (s *ConfigTestSuite) TestSaveConfig_UnknownConfigID() {
-	reqBody := s.buildUpdateConfigRequest(
-		999999,
+func (s *ConfigTestSuite) TestUpdateConfig_UnknownConfigID() {
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Put(s.T(), s.storageConfigURL(999999), s.buildUpdateConfigBody(
 		s.providerID,
 		"Unknown Config",
 		"bucket",
 		"AK",
 		"SK",
-	)
-	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
+		true,
+		false,
+	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
 }
 
@@ -399,6 +420,37 @@ func (s *ConfigTestSuite) TestSaveConfig_MissingRequiredConfigField() {
 	// Expect a 4xx — config validation must catch the missing required field.
 	assert.True(s.T(), w.Code >= 400 && w.Code < 500,
 		"expected 4xx for incomplete config, got %d", w.Code)
+}
+
+// Scenario: PUT with an s3_compatible config missing required "bucket" returns 4xx.
+func (s *ConfigTestSuite) TestUpdateConfig_MissingRequiredConfigField() {
+	configID := s.createConfigAndGetID(
+		s.sellerToken,
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Update validation base",
+			"upd-val-bucket",
+			"",
+			"AK0",
+			"SK0",
+			false,
+		),
+	)
+	s.client.SetToken(s.sellerToken)
+	body := map[string]any{
+		"providerId":        s.providerID,
+		"displayName":       "Incomplete update",
+		"bucketOrContainer": "upd-val-bucket",
+		"isActive":          true,
+		"isDefault":         false,
+		"config": map[string]any{
+			"access_key_id":     "AK",
+			"secret_access_key": "SK",
+		},
+	}
+	w := s.client.Put(s.T(), s.storageConfigURL(configID), body)
+	assert.True(s.T(), w.Code >= 400 && w.Code < 500,
+		"expected 4xx for incomplete config on update, got %d", w.Code)
 }
 
 // Scenario: Authenticated request omits X-Correlation-ID header.

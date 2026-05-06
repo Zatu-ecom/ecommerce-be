@@ -78,6 +78,34 @@ func (h *ConfigHandler) SaveConfig(c *gin.Context) {
 	h.Success(c, http.StatusOK, constant.FILE_CONFIG_SAVED_MSG, res)
 }
 
+// UpdateConfig handles PUT /storage-config/:id
+func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
+	configID, err := h.ParseUintParam(c, "id")
+	if err != nil {
+		h.HandleError(c, err, constant.FILE_CONFIG_INVALID_ID_MSG)
+		return
+	}
+
+	var req model.UpdateStorageConfigRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	userID, roleName, ok := h.resolveAuthContext(c)
+	if !ok {
+		return
+	}
+
+	res, err := h.configService.UpdateConfig(c, userID, roleName, configID, req)
+	if err != nil {
+		h.HandleError(c, err, constant.FAILED_TO_UPDATE_CONFIG_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, constant.FILE_CONFIG_UPDATED_MSG, res)
+}
+
 // TestConfig handles POST /storage-config/test
 func (h *ConfigHandler) TestConfig(c *gin.Context) {
 	var req model.SaveConfigRequest
@@ -110,28 +138,6 @@ func (h *ConfigHandler) GetAdapterSchema(c *gin.Context) {
 		return
 	}
 	h.Success(c, http.StatusOK, constant.FILE_ADAPTER_SCHEMA_FETCHED_MSG, schemas)
-}
-
-// ActivateConfig handles POST /storage-config/{id}/activate
-func (h *ConfigHandler) ActivateConfig(c *gin.Context) {
-	configID, err := h.ParseUintParam(c, "id")
-	if err != nil {
-		h.HandleError(c, err, constant.FILE_CONFIG_INVALID_ID_MSG)
-		return
-	}
-
-	userID, roleName, ok := h.resolveAuthContext(c)
-	if !ok {
-		return
-	}
-
-	res, err := h.configService.ActivateConfig(c, userID, roleName, configID)
-	if err != nil {
-		h.HandleError(c, err, constant.FILE_CONFIG_ACTIVATION_ERR_MSG)
-		return
-	}
-
-	h.Success(c, http.StatusOK, constant.FILE_CONFIG_ACTIVATED_MSG, res)
 }
 
 // ListConfigs handles GET /storage-config
@@ -167,7 +173,6 @@ func (h *ConfigHandler) ListConfigs(c *gin.Context) {
 	switch roleName {
 	case constants.SELLER_ROLE_NAME:
 		filter.OwnerType = entity.OwnerTypeSeller
-		filter.OwnerID = &userID
 	case constants.ADMIN_ROLE_NAME:
 		filter.OwnerType = entity.OwnerTypePlatform
 	default:
@@ -178,7 +183,7 @@ func (h *ConfigHandler) ListConfigs(c *gin.Context) {
 		)
 		return
 	}
-
+	filter.OwnerID = &userID
 	res, err := h.configService.ListConfigs(c, filter)
 	if err != nil {
 		h.HandleError(c, err, constant.FILE_CONFIG_LIST_ERR_MSG)

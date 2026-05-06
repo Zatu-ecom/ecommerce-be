@@ -32,8 +32,8 @@ func (m *FileStorageConfigModule) RegisterRoutes(router *gin.Engine) {
 		fileRoutes.GET("/storage-config/schema", sellerAuth, m.configHandler.GetAdapterSchema)
 		fileRoutes.POST("/storage-config/test", sellerAuth, m.configHandler.TestConfig)
 		fileRoutes.POST("/storage-config", sellerAuth, m.configHandler.SaveConfig)
+		fileRoutes.PUT("/storage-config/:id", sellerAuth, m.configHandler.UpdateConfig)
 		fileRoutes.GET("/storage-config", sellerAuth, m.configHandler.ListConfigs)
-		fileRoutes.POST("/storage-config/:id/activate", sellerAuth, m.configHandler.ActivateConfig)
 	}
 
 }

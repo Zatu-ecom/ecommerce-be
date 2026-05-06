@@ -155,11 +155,11 @@ func (s *UploadSuite) bindSellerStorageConfig(
 	secretKey string,
 	forcePathStyle bool,
 ) func() {
-	var previousBindingIDs []uint
+	var previousDefaultIDs []uint
 	err := s.container.DB.
-		Table("seller_storage_binding").
-		Where("seller_id = ? AND is_active = ?", uploadTestSellerID, true).
-		Pluck("id", &previousBindingIDs).
+		Table("storage_config").
+		Where("owner_type = ? AND owner_id = ? AND is_default = ?", entity.OwnerTypeSeller, uploadTestSellerID, true).
+		Pluck("id", &previousDefaultIDs).
 		Error
 	s.Require().NoError(err)
 
@@ -190,7 +190,8 @@ func (s *UploadSuite) bindSellerStorageConfig(
 	s.Require().NoError(err)
 
 	err = s.container.DB.Exec(
-		`UPDATE seller_storage_binding SET is_active = false WHERE seller_id = ? AND is_active = true`,
+		`UPDATE storage_config SET is_default = false WHERE owner_type = ? AND owner_id = ? AND is_default = true`,
+		entity.OwnerTypeSeller,
 		uploadTestSellerID,
 	).Error
 	s.Require().NoError(err)
@@ -202,33 +203,22 @@ func (s *UploadSuite) bindSellerStorageConfig(
 			config_data, is_default, is_active, created_at, updated_at
 		) VALUES (
 			'SELLER', ?, ?, ?, ?,
-			?, false, true, NOW(), NOW()
+			?, true, true, NOW(), NOW()
 		) RETURNING id
 	`, uploadTestSellerID, provider.ID, displayName, bucket, configJSON).
 		Scan(&configID).Error
 	s.Require().NoError(err)
 
-	var bindingID uint
-	err = s.container.DB.Raw(`
-		INSERT INTO seller_storage_binding (
-			seller_id, storage_config_id, is_active, created_at, updated_at
-		) VALUES (?, ?, true, NOW(), NOW())
-		RETURNING id
-	`, uploadTestSellerID, configID).Scan(&bindingID).Error
-	s.Require().NoError(err)
-
 	return func() {
-		_ = s.container.DB.Exec(`DELETE FROM seller_storage_binding WHERE id = ?`, bindingID).Error
 		_ = s.container.DB.Exec(`DELETE FROM storage_config WHERE id = ?`, configID).Error
-		if len(previousBindingIDs) > 0 {
+		if len(previousDefaultIDs) > 0 {
 			_ = s.container.DB.Exec(
-				`UPDATE seller_storage_binding SET is_active = true WHERE id IN ?`,
-				previousBindingIDs,
+				`UPDATE storage_config SET is_default = true WHERE id IN ?`,
+				previousDefaultIDs,
 			).Error
 		}
 	}
 }
-
 
 func (s *UploadSuite) disableStorageResolution() func() {
 	var platformDefaultIDs []uint

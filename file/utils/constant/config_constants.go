@@ -12,7 +12,6 @@ const (
 	FILE_CONFIG_SERIALIZATION_ERR_CODE = "FILE_CONFIG_SERIALIZATION_FAILED"
 	FILE_CONFIG_ENCRYPTION_ERR_CODE    = "FILE_CONFIG_ENCRYPTION_FAILED"
 	FILE_CONFIG_PERSISTENCE_ERR_CODE   = "FILE_CONFIG_PERSISTENCE_FAILED"
-	FILE_CONFIG_ACTIVATION_ERR_CODE        = "FILE_CONFIG_ACTIVATION_FAILED"
 	FILE_CONFIG_LIST_ERR_CODE              = "FILE_CONFIG_LIST_FAILED"
 	FILE_LIST_VALIDATION_ERR_CODE          = "VALIDATION_ERROR"
 	FILE_CONFIG_INVALID_CREDENTIALS_CODE   = "FILE_CONFIG_INVALID_CREDENTIALS"
@@ -31,7 +30,6 @@ const (
 	FILE_CONFIG_SERIALIZATION_ERR_MSG = "Failed to process configuration data"
 	FILE_CONFIG_ENCRYPTION_ERR_MSG    = "Failed to encrypt credentials"
 	FILE_CONFIG_PERSISTENCE_ERR_MSG   = "Failed to persist storage configuration"
-	FILE_CONFIG_ACTIVATION_ERR_MSG    = "Failed to activate storage configuration"
 	FILE_CONFIG_LIST_ERR_MSG          = "Failed to list storage configurations"
 	FILE_ACTIVATE_NOT_IMPLEMENTED_MSG = "Activate storage config endpoint is not implemented yet"
 	FILE_ACTIVE_NOT_IMPLEMENTED_MSG   = "Get active storage config endpoint is not implemented yet"
@@ -55,7 +53,7 @@ const (
 const (
 	FILE_PROVIDERS_FETCHED_MSG = "Storage providers fetched successfully"
 	FILE_CONFIG_SAVED_MSG      = "Storage config saved successfully"
-	FILE_CONFIG_ACTIVATED_MSG  = "Storage config activated successfully"
+	FILE_CONFIG_UPDATED_MSG    = "Storage config updated successfully"
 	FILE_CONFIG_LISTED_MSG     = "Storage configs retrieved successfully"
 	FILE_CONFIG_TEST_SUCCEEDED_MSG = "Storage configuration is reachable"
 )
@@ -93,11 +91,11 @@ const (
 const (
 	FAILED_TO_FETCH_PROVIDERS_MSG        = "Failed to fetch storage providers"
 	FAILED_TO_SAVE_CONFIG_MSG            = "Failed to save storage config"
+	FAILED_TO_UPDATE_CONFIG_MSG          = "Failed to update storage config"
 	FAILED_TO_TEST_CONFIG_MSG            = "Storage configuration test failed"
 	FILE_PROVIDER_LOOKUP_FAILED_FMT      = "Provider lookup failed: %v"
 	FILE_INVALID_CREDENTIALS_PAYLOAD_FMT = "Invalid credentials payload: %v"
 	FILE_SAVE_CONFIG_FAILED_FMT          = "Failed to save config: %v"
-	FILE_ACTIVATE_CONFIG_FAILED_FMT      = "Failed to activate config: %v"
 	FILE_LIST_CONFIG_FAILED_FMT          = "Failed to list configs: %v"
 	FILE_CONFIG_LOOKUP_FAILED_FMT        = "Config lookup failed: %v"
 )

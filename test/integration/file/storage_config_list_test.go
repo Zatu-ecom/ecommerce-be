@@ -241,23 +241,20 @@ func (s *ConfigTestSuite) TestListConfigs_PageSizeClamped() {
 
 // ── Error-schema contract tests ─────────────────────────────────────────────
 
-// Scenario: Activation with non-numeric ID — standardised 400 error schema.
-// Validates: success=false, non-empty message, non-empty code.
-func (s *ConfigTestSuite) TestErrorSchema_ActivateInvalidID() {
+// Scenario: PUT with non-numeric ID — standardised 400 error schema.
+func (s *ConfigTestSuite) TestErrorSchema_UpdateInvalidID() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(
-		s.T(),
-		FileAPIBase+"/storage-config/not-a-number/activate",
-		map[string]any{},
-	)
+	body := s.buildUpdateConfigBody(s.providerID, "x", "b", "ak", "sk", true, false)
+	w := s.client.Put(s.T(), FileAPIBase+"/storage-config/not-a-number", body)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
 	assert.NotEmpty(s.T(), resp["code"])
 }
 
-// Scenario: Activation of a non-existent config — standardised 404 error schema.
-func (s *ConfigTestSuite) TestErrorSchema_ActivateNotFound() {
+// Scenario: PUT for a non-existent config — standardised 404 error schema.
+func (s *ConfigTestSuite) TestErrorSchema_UpdateNotFound() {
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(999999997), map[string]any{})
+	body := s.buildUpdateConfigBody(s.providerID, "x", "b", "ak", "sk", true, false)
+	w := s.client.Put(s.T(), s.storageConfigURL(999999997), body)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
 	assert.NotEmpty(s.T(), resp["code"])
 }
@@ -274,10 +271,11 @@ func (s *ConfigTestSuite) TestErrorSchema_ListForbiddenSellerID() {
 	assert.NotEmpty(s.T(), errs)
 }
 
-// Scenario: Unauthenticated activate — standardised 401.
-func (s *ConfigTestSuite) TestErrorSchema_ActivateUnauthenticated() {
+// Scenario: Unauthenticated PUT — standardised 401.
+func (s *ConfigTestSuite) TestErrorSchema_UpdateUnauthenticated() {
 	s.client.SetToken("")
-	w := s.client.Post(s.T(), s.activateURL(1), map[string]any{})
+	body := s.buildUpdateConfigBody(s.providerID, "x", "b", "ak", "sk", true, false)
+	w := s.client.Put(s.T(), s.storageConfigURL(1), body)
 	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 	assert.NotEmpty(s.T(), resp["message"])
 }
@@ -290,8 +288,8 @@ func (s *ConfigTestSuite) TestErrorSchema_ListUnauthenticated() {
 	assert.NotEmpty(s.T(), resp["message"])
 }
 
-// Scenario: Cross-tenant activation — 403 or 404 with proper error schema.
-func (s *ConfigTestSuite) TestErrorSchema_ActivateCrossTenantForbidden() {
+// Scenario: Cross-tenant PUT — 403 or 404 with proper error schema.
+func (s *ConfigTestSuite) TestErrorSchema_UpdateCrossTenantForbidden() {
 	configID := s.createConfigAndGetID(
 		s.seller2Token,
 		s.buildCreateConfigRequest(
@@ -306,7 +304,16 @@ func (s *ConfigTestSuite) TestErrorSchema_ActivateCrossTenantForbidden() {
 	)
 
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), s.activateURL(configID), map[string]any{})
+	body := s.buildUpdateConfigBody(
+		s.providerID,
+		"Hijack",
+		"schema-ct-bucket",
+		"AK",
+		"SK",
+		true,
+		false,
+	)
+	w := s.client.Put(s.T(), s.storageConfigURL(configID), body)
 	helpers.AssertStatusCodeOneOf(s.T(), w, http.StatusForbidden, http.StatusNotFound)
 
 	resp := helpers.ParseResponse(s.T(), w.Body)

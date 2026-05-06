@@ -14,6 +14,8 @@ import (
 	"ecommerce-be/file/utils/constant"
 )
 
+const expirySkewTolerance = 2 * time.Second
+
 // UploadExpiryHandler implements the scheduler.Handler interface for the
 // "file.upload.expiry" command (research R4, contract/file.upload.expiry.job.md).
 //
@@ -81,7 +83,11 @@ func (h *UploadExpiryHandler) Handle(ctx context.Context, rawPayload json.RawMes
 	// Race guard: if somehow the row is UPLOADING but not yet past expiry
 	// (e.g. scheduler fired slightly early), do nothing. The scheduler will
 	// not re-fire, so this is a best-effort safety check.
-	if row.UploadExpiresAt.After(time.Now()) {
+	//
+	// In practice the Redis scheduler can dispatch slightly early due to time
+	// granularity and clock skew, so we allow a small tolerance window.
+	now := time.Now()
+	if row.UploadExpiresAt.After(now.Add(expirySkewTolerance)) {
 		log.InfoWithContext(
 			ctx,
 			fmt.Sprintf(

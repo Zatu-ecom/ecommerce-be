@@ -6,12 +6,12 @@ import (
 	"ecommerce-be/file/entity"
 )
 
-// SaveConfigRequest represents the incoming payload for saving a storage config.
+// SaveConfigRequest represents the incoming payload for creating a storage config.
 // All provider-specific settings (credentials + routing) are unified in Config.
 // The adapter schema API (GET /storage-config/schema, optional ?adapterType=) describes
 // what fields each provider requires.
+// Omitted isActive / isDefault default to true on create.
 type SaveConfigRequest struct {
-	ID                *uint  `json:"id"`
 	ProviderID        uint   `json:"providerId"        binding:"required"`
 	DisplayName       string `json:"displayName"       binding:"required,max=150"`
 	BucketOrContainer string `json:"bucketOrContainer" binding:"required,max=255"`
@@ -20,7 +20,18 @@ type SaveConfigRequest struct {
 	// For GCS, config.service_account_json may be a JSON string (the key file) or a nested
 	// JSON object with the same fields; both are accepted and stored as an encrypted string.
 	Config    map[string]any `json:"config"            binding:"required"`
-	IsDefault bool           `json:"isDefault"`
+	IsActive  *bool          `json:"isActive,omitempty"`
+	IsDefault *bool          `json:"isDefault,omitempty"`
+}
+
+// UpdateStorageConfigRequest is the body for PUT /storage-config/:id.
+type UpdateStorageConfigRequest struct {
+	ProviderID        uint           `json:"providerId"        binding:"required"`
+	DisplayName       string         `json:"displayName"       binding:"required,max=150"`
+	BucketOrContainer string         `json:"bucketOrContainer" binding:"required,max=255"`
+	Config            map[string]any `json:"config"            binding:"required"`
+	IsActive          bool           `json:"isActive"`
+	IsDefault         bool           `json:"isDefault"`
 }
 
 // ConfigResponse represents the outgoing storage configuration (without secrets)
@@ -83,13 +94,14 @@ type ListStorageConfigFilter struct {
 // Routing details (region, endpoint, etc.) are not returned because they now
 // live inside the encrypted config_data blob.
 type StorageConfigListItem struct {
-	ID                uint   `json:"id"`
-	ProviderID        uint   `json:"providerId"`
-	OwnerType         string `json:"ownerType"`
-	DisplayName       string `json:"displayName"`
-	BucketOrContainer string `json:"bucketOrContainer"`
-	IsActive          bool   `json:"isActive"`
-	IsDefault         bool   `json:"isDefault"`
+	ID                uint           `json:"id"`
+	ProviderID        uint           `json:"providerId"`
+	OwnerType         string         `json:"ownerType"`
+	DisplayName       string         `json:"displayName"`
+	BucketOrContainer string         `json:"bucketOrContainer"`
+	IsActive          bool           `json:"isActive"`
+	ConfigData        map[string]any `json:"configData"`
+	IsDefault         bool           `json:"isDefault"`
 }
 
 // ListStorageConfigsResponse represents the paginated response
@@ -101,14 +113,6 @@ type ListStorageConfigsResponse struct {
 // TestStorageConfigResponse is returned when a dry-run connectivity check succeeds.
 type TestStorageConfigResponse struct {
 	OK bool `json:"ok"`
-}
-
-// ActivateStorageConfigResponse represents the activation success data
-type ActivateStorageConfigResponse struct {
-	ID        uint   `json:"id"`
-	IsActive  bool   `json:"isActive"`
-	OwnerType string `json:"ownerType"`
-	OwnerID   *uint  `json:"ownerId,omitempty"`
 }
 
 // MapConfigToResponse maps the db entity to the API response
@@ -135,7 +139,10 @@ func MapProviderToResponse(provider entity.StorageProvider) ProviderResponse {
 }
 
 // MapConfigToListItem maps the db entity to a list item response
-func MapConfigToListItem(config entity.StorageConfig) StorageConfigListItem {
+func MapConfigToListItem(
+	config entity.StorageConfig,
+	cnf map[string]any,
+) StorageConfigListItem {
 	return StorageConfigListItem{
 		ID:                config.ID,
 		ProviderID:        config.ProviderID,
@@ -144,15 +151,6 @@ func MapConfigToListItem(config entity.StorageConfig) StorageConfigListItem {
 		BucketOrContainer: config.BucketOrContainer,
 		IsActive:          config.IsActive,
 		IsDefault:         config.IsDefault,
-	}
-}
-
-// MapConfigToActivateResponse maps the db entity to the activation response
-func MapConfigToActivateResponse(config entity.StorageConfig) ActivateStorageConfigResponse {
-	return ActivateStorageConfigResponse{
-		ID:        config.ID,
-		IsActive:  config.IsActive,
-		OwnerType: string(config.OwnerType),
-		OwnerID:   config.OwnerID,
+		ConfigData:        cnf,
 	}
 }

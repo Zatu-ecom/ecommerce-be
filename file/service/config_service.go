@@ -28,6 +28,13 @@ type ConfigService interface {
 		role string,
 		req model.SaveConfigRequest,
 	) (*model.ConfigResponse, error)
+	UpdateConfig(
+		ctx context.Context,
+		userID uint,
+		role string,
+		configID uint,
+		req model.UpdateStorageConfigRequest,
+	) (*model.ConfigResponse, error)
 	TestStorageConfig(
 		ctx context.Context,
 		req model.SaveConfigRequest,
@@ -36,12 +43,6 @@ type ConfigService interface {
 		ctx context.Context,
 		filter model.ListStorageConfigFilter,
 	) (*model.ListStorageConfigsResponse, error)
-	ActivateConfig(
-		ctx context.Context,
-		userID uint,
-		role string,
-		configID uint,
-	) (*model.ActivateStorageConfigResponse, error)
 }
 
 type configService struct {
@@ -96,20 +97,19 @@ func (s *configService) SaveConfig(
 		return nil, err
 	}
 
-	cfg, err := s.resolveTargetConfig(ctx, req.ID, userID, isSeller)
-	if err != nil {
-		return nil, err
-	}
+	cfg := &entity.StorageConfig{}
+	isActive := boolPtrOrDefault(req.IsActive, true)
+	isDefault := boolPtrOrDefault(req.IsDefault, true)
+	cfg.IsActive = isActive
 
-	s.applyRequestFields(cfg, req)
-	s.applyOwnership(cfg, userID, isSeller, req.IsDefault)
+	s.applyCoreConfigFields(cfg, req.ProviderID, req.DisplayName, req.BucketOrContainer)
+	s.applyOwnership(cfg, userID, isSeller, isDefault)
 
 	cfg.ConfigData = encryptedData
 
 	s.applyTimestamps(cfg)
 
-	clearPlatformDefaults := !isSeller && cfg.IsDefault
-	if err := s.saveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+	if err := s.saveConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
 
@@ -153,6 +153,55 @@ func (s *configService) TestStorageConfig(
 	}
 
 	return &model.TestStorageConfigResponse{OK: true}, nil
+}
+
+func (s *configService) UpdateConfig(
+	ctx context.Context,
+	userID uint,
+	role string,
+	configID uint,
+	req model.UpdateStorageConfigRequest,
+) (*model.ConfigResponse, error) {
+	isSeller, err := s.resolveRole(role)
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := s.ensureProviderIsActive(ctx, req.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedData, err := s.validateAndEncryptConfig(provider.AdapterType, req.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := s.resolveTargetConfig(ctx, &configID, userID, isSeller)
+	if err != nil {
+		return nil, err
+	}
+
+	s.applyCoreConfigFields(cfg, req.ProviderID, req.DisplayName, req.BucketOrContainer)
+	cfg.IsActive = req.IsActive
+	cfg.IsDefault = req.IsDefault
+	cfg.ConfigData = encryptedData
+
+	s.applyTimestamps(cfg)
+
+	if err := s.saveConfig(ctx, cfg); err != nil {
+		return nil, err
+	}
+
+	res := model.MapConfigToResponse(*cfg)
+	return &res, nil
+}
+
+func boolPtrOrDefault(p *bool, def bool) bool {
+	if p == nil {
+		return def
+	}
+	return *p
 }
 
 func ensureConfigBucketMatchesRequest(
@@ -235,13 +284,15 @@ func (s *configService) ensureProviderIsActive(
 	return provider, nil
 }
 
-func (s *configService) applyRequestFields(
+func (s *configService) applyCoreConfigFields(
 	cfg *entity.StorageConfig,
-	req model.SaveConfigRequest,
+	providerID uint,
+	displayName string,
+	bucketOrContainer string,
 ) {
-	cfg.ProviderID = req.ProviderID
-	cfg.DisplayName = req.DisplayName
-	cfg.BucketOrContainer = req.BucketOrContainer
+	cfg.ProviderID = providerID
+	cfg.DisplayName = displayName
+	cfg.BucketOrContainer = bucketOrContainer
 }
 
 func (s *configService) applyOwnership(
@@ -250,22 +301,19 @@ func (s *configService) applyOwnership(
 	isSeller bool,
 	isDefault bool,
 ) {
+	cfg.OwnerID = &userID
+	cfg.IsDefault = isDefault
 	if isSeller {
 		cfg.OwnerType = entity.OwnerTypeSeller
-		cfg.OwnerID = &userID
-		cfg.IsDefault = false
 		return
 	}
 
 	cfg.OwnerType = entity.OwnerTypePlatform
-	cfg.OwnerID = nil
-	cfg.IsDefault = isDefault
 }
 
 func (s *configService) applyTimestamps(cfg *entity.StorageConfig) {
 	now := time.Now()
 	if cfg.ID == 0 {
-		cfg.IsActive = true
 		cfg.CreatedAt = now
 	}
 	cfg.UpdatedAt = now
@@ -274,9 +322,8 @@ func (s *configService) applyTimestamps(cfg *entity.StorageConfig) {
 func (s *configService) saveConfig(
 	ctx context.Context,
 	cfg *entity.StorageConfig,
-	clearPlatformDefaults bool,
 ) error {
-	if err := s.configRepo.SaveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+	if err := s.configRepo.SaveConfig(ctx, cfg); err != nil {
 		return fileError.ErrPersistenceFailed.WithMessagef(
 			constant.FILE_SAVE_CONFIG_FAILED_FMT,
 			err,
@@ -364,59 +411,28 @@ func (s *configService) ListConfigs(
 
 	items := make([]model.StorageConfigListItem, len(configs))
 	for i, c := range configs {
-		items[i] = model.MapConfigToListItem(c)
+		parser, err := blobAdapter.GetBlobConfigParser(c.Provider.AdapterType)
+		if err != nil {
+			return nil, fileError.ErrPersistenceFailed.WithMessagef(
+				constant.FILE_LIST_CONFIG_FAILED_FMT,
+				err,
+			)
+		}
+		cfg, err := parser.ParseAndValidateConfig(c.ConfigData)
+		if err != nil {
+			return nil, fileError.ErrPersistenceFailed.WithMessagef(
+				constant.FILE_LIST_CONFIG_FAILED_FMT,
+				err,
+			)
+		}
+		if err := cfg.Decrypt(); err != nil {
+			return nil, err
+		}
+		items[i] = model.MapConfigToListItem(c, cfg.ToMap())
 	}
 
 	return &model.ListStorageConfigsResponse{
 		Configs:    items,
 		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
-}
-
-func (s *configService) ActivateConfig(
-	ctx context.Context,
-	userID uint,
-	role string,
-	configID uint,
-) (*model.ActivateStorageConfigResponse, error) {
-	isSeller, err := s.resolveRole(role)
-	if err != nil {
-		return nil, err
-	}
-
-	// Verify config exists and caller is in-scope
-	var cfg *entity.StorageConfig
-	if isSeller {
-		cfg, err = s.configRepo.GetSellerOwnedConfigByID(ctx, configID, userID)
-	} else {
-		cfg, err = s.configRepo.GetPlatformConfigByID(ctx, configID)
-	}
-	if err != nil {
-		return nil, s.mapScopedLookupError(ctx, configID, err)
-	}
-
-	// Determine scope params for activation transaction
-	var ownerID *uint
-	if isSeller {
-		ownerID = &userID
-	}
-
-	if err := s.configRepo.ActivateConfig(ctx, configID, cfg.OwnerType, ownerID); err != nil {
-		return nil, fileError.ErrActivationFailed.WithMessagef(
-			constant.FILE_ACTIVATE_CONFIG_FAILED_FMT,
-			err,
-		)
-	}
-
-	// Re-fetch to return current state
-	updatedCfg, err := s.configRepo.GetConfigByID(ctx, configID)
-	if err != nil {
-		return nil, fileError.ErrPersistenceFailed.WithMessagef(
-			constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
-			err,
-		)
-	}
-
-	res := model.MapConfigToActivateResponse(*updatedCfg)
-	return &res, nil
 }
