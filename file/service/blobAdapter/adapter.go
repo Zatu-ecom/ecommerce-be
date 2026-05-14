@@ -1,4 +1,4 @@
-package blob_adapter
+package blobAdapter
 
 import (
 	"context"
@@ -6,6 +6,12 @@ import (
 
 	"ecommerce-be/file/model"
 )
+
+type BlobConfigParser interface {
+	ParseAndValidateConfig(
+		raw map[string]any,
+	) (BlobConfig, error)
+}
 
 // BlobAdapter defines the provider-agnostic blob storage interface used by file services.
 //
@@ -17,32 +23,63 @@ import (
 type BlobAdapter interface {
 	// PutObject uploads the object described by in to the provider.
 	// Returns the assigned ETag and the canonical key on success.
-	PutObject(ctx context.Context, in model.BlobPutObjectInput) (model.BlobPutObjectOutput, error)
+	PutObject(
+		ctx context.Context,
+		in model.BlobPutObjectInput,
+	) (model.BlobPutObjectOutput, error)
 
 	// DeleteObject removes the object at key inside bucket.
 	// Returns nil when the object does not exist (idempotent).
-	DeleteObject(ctx context.Context, bucket, key string) error
+	DeleteObject(
+		ctx context.Context,
+		bucket, key string,
+	) error
 
 	// HeadObject returns normalised metadata for an existing object
 	// without downloading its body. Returns ErrBlobNotFound when the
 	// object or bucket does not exist.
-	HeadObject(ctx context.Context, bucket, key string) (model.BlobObjectMeta, error)
+	HeadObject(
+		ctx context.Context,
+		bucket, key string,
+	) (model.BlobObjectMeta, error)
 
 	// GetObjectStream opens a streaming reader for an existing object.
 	// The caller must close the returned io.ReadCloser regardless of error.
 	// Returns ErrBlobNotFound when the object or bucket does not exist.
-	GetObjectStream(ctx context.Context, bucket, key string) (io.ReadCloser, model.BlobObjectMeta, error)
+	GetObjectStream(
+		ctx context.Context,
+		bucket, key string,
+	) (io.ReadCloser, model.BlobObjectMeta, error)
 
 	// PresignUpload returns a time-limited URL that allows an unauthenticated
 	// client to upload directly to the provider. in.TTL must be > 0.
-	PresignUpload(ctx context.Context, in model.BlobPresignUploadInput) (model.BlobPresignOutput, error)
+	PresignUpload(
+		ctx context.Context,
+		in model.BlobPresignUploadInput,
+	) (model.BlobPresignOutput, error)
 
 	// PresignDownload returns a time-limited URL that allows an unauthenticated
 	// client to download an existing object directly from the provider.
 	// in.TTL must be > 0.
-	PresignDownload(ctx context.Context, in model.BlobPresignDownloadInput) (model.BlobPresignOutput, error)
+	PresignDownload(
+		ctx context.Context,
+		in model.BlobPresignDownloadInput,
+	) (model.BlobPresignOutput, error)
 
 	// CopyObject copies an existing object from source to destination within
 	// the same provider account. Cross-provider copy is out of scope.
-	CopyObject(ctx context.Context, in model.BlobCopyObjectInput) error
+	CopyObject(
+		ctx context.Context,
+		in model.BlobCopyObjectInput,
+	) error
+
+	// PingStorage verifies that credentials can access the bucket or container
+	// named by storage_config.bucket_or_container (same value upload uses).
+	PingStorage(ctx context.Context, bucketOrContainer string) error
+}
+
+type BlobConfig interface {
+	Encrypt() error
+	ToMap() map[string]any
+	Decrypt() error
 }

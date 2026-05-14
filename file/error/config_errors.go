@@ -43,14 +43,19 @@ var (
 		constant.FILE_CONFIG_PERSISTENCE_ERR_MSG,
 		http.StatusInternalServerError,
 	)
-	ErrActivationFailed = commonError.NewAppError(
-		constant.FILE_CONFIG_ACTIVATION_ERR_CODE,
-		constant.FILE_CONFIG_ACTIVATION_ERR_MSG,
-		http.StatusInternalServerError,
-	)
 	ErrListFailed = commonError.NewAppError(
 		constant.FILE_CONFIG_LIST_ERR_CODE,
 		constant.FILE_CONFIG_LIST_ERR_MSG,
 		http.StatusInternalServerError,
+	)
+	ErrInvalidCredentials = commonError.NewAppError(
+		constant.FILE_CONFIG_INVALID_CREDENTIALS_CODE,
+		constant.FILE_CONFIG_INVALID_CREDENTIALS_MSG,
+		http.StatusUnprocessableEntity,
+	)
+	ErrAdapterSchemaNotFound = commonError.NewAppError(
+		constant.FILE_ADAPTER_SCHEMA_NOT_FOUND_CODE,
+		constant.FILE_ADAPTER_SCHEMA_NOT_FOUND_MSG,
+		http.StatusBadRequest,
 	)
 )

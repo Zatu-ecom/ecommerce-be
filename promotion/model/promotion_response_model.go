@@ -20,7 +20,7 @@ type PromotionResponse struct {
 
 	// Promotion Mechanics
 	PromotionType  entity.PromotionType   `json:"promotionType"`
-	DiscountConfig map[string]interface{} `json:"discountConfig"`
+	DiscountConfig map[string]any `json:"discountConfig"`
 
 	// Scope
 	AppliesTo entity.ScopeType `json:"appliesTo"`
@@ -63,7 +63,7 @@ type PromotionResponse struct {
 	Priority int `json:"priority"`
 
 	// Metadata
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 
 	// Sale
 	SaleID *uint `json:"saleId,omitempty"`

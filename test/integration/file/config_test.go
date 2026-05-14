@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -15,11 +16,10 @@ import (
 )
 
 const (
-	FileAPIBase                      = "/api/file"
-	StorageProvidersEndpoint         = FileAPIBase + "/storage/providers"
-	StorageConfigEndpoint            = FileAPIBase + "/storage-config"
-	StorageConfigTestEndpoint        = FileAPIBase + "/storage-config/test"
-	StorageConfigActivateEndpointTpl = FileAPIBase + "/storage-config/%d/activate"
+	FileAPIBase               = "/api/file"
+	StorageProvidersEndpoint  = FileAPIBase + "/storage/providers"
+	StorageConfigEndpoint     = FileAPIBase + "/storage-config"
+	StorageConfigTestEndpoint = FileAPIBase + "/storage-config/test"
 )
 
 // ConfigTestSuite holds shared state for all file storage config integration tests.
@@ -30,6 +30,7 @@ type ConfigTestSuite struct {
 	client    *helpers.APIClient
 
 	providerID       uint
+	gcsProviderID    uint
 	inactiveProvider uint
 	sellerToken      string
 	seller2Token     string
@@ -54,6 +55,11 @@ func (s *ConfigTestSuite) SetupSuite() {
 	err := s.container.DB.Where("code = ?", "aws_s3").First(&provider).Error
 	assert.NoError(s.T(), err)
 	s.providerID = provider.ID
+
+	var gcsProvider entity.StorageProvider
+	err = s.container.DB.Where("code = ?", "gcs").First(&gcsProvider).Error
+	assert.NoError(s.T(), err)
+	s.gcsProviderID = gcsProvider.ID
 
 	inactive := entity.StorageProvider{
 		Code:        "aws_s3_inactive",
@@ -85,11 +91,18 @@ func TestConfigSuite(t *testing.T) {
 // Helpers — shared across all config test files in this package
 // ============================================================================
 
-func (s *ConfigTestSuite) buildCredentials(accessKey, secretKey string) map[string]string {
-	return map[string]string{
+// buildS3Config builds a unified config map for an s3_compatible provider.
+func (s *ConfigTestSuite) buildS3Config(accessKey, secretKey, bucket, region string) map[string]any {
+	cfg := map[string]any{
 		"access_key_id":     accessKey,
 		"secret_access_key": secretKey,
+		"bucket":            bucket,
+		"force_path_style":  false,
 	}
+	if region != "" {
+		cfg["region"] = region
+	}
+	return cfg
 }
 
 func (s *ConfigTestSuite) buildCreateConfigRequest(
@@ -100,51 +113,51 @@ func (s *ConfigTestSuite) buildCreateConfigRequest(
 	accessKey string,
 	secretKey string,
 	isDefault bool,
-) map[string]interface{} {
-	reqBody := map[string]interface{}{
+) map[string]any {
+	return map[string]any{
 		"providerId":        providerID,
 		"displayName":       displayName,
 		"bucketOrContainer": bucket,
-		"credentials":       s.buildCredentials(accessKey, secretKey),
+		"config":            s.buildS3Config(accessKey, secretKey, bucket, region),
 		"isDefault":         isDefault,
 	}
-	if region != "" {
-		reqBody["region"] = region
-	}
-	return reqBody
-}
-
-func (s *ConfigTestSuite) buildUpdateConfigRequest(
-	configID uint,
-	providerID uint,
-	displayName string,
-	bucket string,
-	accessKey string,
-	secretKey string,
-) map[string]interface{} {
-	reqBody := s.buildCreateConfigRequest(
-		providerID, displayName, bucket, "", accessKey, secretKey, false,
-	)
-	reqBody["id"] = configID
-	return reqBody
 }
 
 // createConfigAndGetID creates a storage config via the real API and returns its ID.
 // Uses the standard POST /storage-config endpoint — no direct DB insertion.
 func (s *ConfigTestSuite) createConfigAndGetID(
 	token string,
-	reqBody map[string]interface{},
+	reqBody map[string]any,
 ) uint {
 	s.client.SetToken(token)
 	resp := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	assert.Equal(s.T(), http.StatusOK, resp.Code)
-	data := helpers.ParseResponse(s.T(), resp.Body)["data"].(map[string]interface{})
+	data := helpers.ParseResponse(s.T(), resp.Body)["data"].(map[string]any)
 	return uint(data["id"].(float64))
 }
 
-// activateURL formats the activate endpoint URL.
-func (s *ConfigTestSuite) activateURL(configID uint) string {
-	return fmt.Sprintf(StorageConfigActivateEndpointTpl, configID)
+func (s *ConfigTestSuite) storageConfigURL(configID uint) string {
+	return fmt.Sprintf("%s/%d", StorageConfigEndpoint, configID)
+}
+
+// buildUpdateConfigBody builds the JSON body for PUT /storage-config/:id.
+func (s *ConfigTestSuite) buildUpdateConfigBody(
+	providerID uint,
+	displayName string,
+	bucket string,
+	accessKey string,
+	secretKey string,
+	isActive bool,
+	isDefault bool,
+) map[string]any {
+	return map[string]any{
+		"providerId":        providerID,
+		"displayName":       displayName,
+		"bucketOrContainer": bucket,
+		"config":            s.buildS3Config(accessKey, secretKey, bucket, ""),
+		"isActive":          isActive,
+		"isDefault":         isDefault,
+	}
 }
 
 // ============================================================================
@@ -164,41 +177,99 @@ func (s *ConfigTestSuite) TestGetProvidersSuccess() {
 // SAVE / CREATE CONFIG TESTS
 // ============================================================================
 
-// Scenario: Seller creates a storage config while passing isDefault=true.
-// Validates: Seller ownership is enforced and default flag is forced to false.
-func (s *ConfigTestSuite) TestSaveConfig_SellerSuccessForcesNotDefault() {
+// Scenario: Seller creates a storage config with isDefault=true.
+// Validates: Seller-scoped default flag is persisted.
+func (s *ConfigTestSuite) TestSaveConfig_SellerPersistsExplicitDefault() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Seller Storage", "seller-bucket", "ap-south-1", "SELLER_KEY", "SELLER_SECRET", true,
+		s.providerID,
+		"Seller Storage",
+		"seller-bucket",
+		"ap-south-1",
+		"SELLER_KEY",
+		"SELLER_SECRET",
+		true,
 	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), "SELLER", data["ownerType"])
-	assert.Equal(s.T(), false, data["isDefault"])
+	assert.Equal(s.T(), true, data["isDefault"])
+}
+
+// Scenario: Create request omits isActive and isDefault.
+// Validates: Both default to true for new configs.
+func (s *ConfigTestSuite) TestSaveConfig_OmittedActiveAndDefaultFlags() {
+	reqBody := map[string]any{
+		"providerId":        s.providerID,
+		"displayName":       "Omitted flags",
+		"bucketOrContainer": "omit-flags-bucket",
+		"config":            s.buildS3Config("OMIT_AK", "OMIT_SK", "omit-flags-bucket", "us-east-1"),
+	}
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+	data := resp["data"].(map[string]any)
+	assert.Equal(s.T(), true, data["isActive"])
+	assert.Equal(s.T(), true, data["isDefault"])
 }
 
 // Scenario: Admin creates a platform default configuration.
 // Validates: Platform ownership and default flag are persisted for admin requests.
 func (s *ConfigTestSuite) TestSaveConfig_AdminSuccessPlatformDefault() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Platform Storage", "platform-bucket", "us-east-1", "ADMIN_KEY", "ADMIN_SECRET", true,
+		s.providerID,
+		"Platform Storage",
+		"platform-bucket",
+		"us-east-1",
+		"ADMIN_KEY",
+		"ADMIN_SECRET",
+		true,
 	)
 	s.client.SetToken(s.adminToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	data := resp["data"].(map[string]interface{})
+	data := resp["data"].(map[string]any)
 	assert.Equal(s.T(), "PLATFORM", data["ownerType"])
 	assert.Equal(s.T(), true, data["isDefault"])
+}
+
+// Scenario: Seller saves GCS config with service_account_json as a nested JSON object (API UX shape).
+func (s *ConfigTestSuite) TestSaveConfig_GCS_ServiceAccountJSONAsObject_Succeeds() {
+	saStr := generateGCSServiceAccountJSON(s.T())
+	var saObj map[string]any
+	s.Require().NoError(json.Unmarshal([]byte(saStr), &saObj))
+
+	bucket := "gcs-api-object-sa-bucket"
+	reqBody := map[string]any{
+		"providerId":        s.gcsProviderID,
+		"displayName":       "Seller GCS nested SA",
+		"bucketOrContainer": bucket,
+		"config": map[string]any{
+			"service_account_json": saObj,
+			"project_id":           "test-project",
+			"bucket":               bucket,
+			"endpoint":             "",
+			"public_url_prefix":    "",
+		},
+		"isDefault": false,
+	}
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
+	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+
+	data := resp["data"].(map[string]any)
+	assert.Equal(s.T(), "SELLER", data["ownerType"])
+	assert.NotZero(s.T(), data["id"])
 }
 
 // Scenario: Request is sent without a bearer token.
 // Validates: Middleware rejects unauthenticated access with 401.
 func (s *ConfigTestSuite) TestSaveConfig_FailsWithoutAuth() {
 	s.client.SetToken("")
-	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]interface{}{})
+	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
@@ -206,16 +277,16 @@ func (s *ConfigTestSuite) TestSaveConfig_FailsWithoutAuth() {
 // Validates: Middleware rejects invalid JWT with 401.
 func (s *ConfigTestSuite) TestSaveConfig_FailsWithInvalidToken() {
 	s.client.SetToken("invalid-token")
-	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]interface{}{})
+	w := s.client.Post(s.T(), StorageConfigEndpoint, map[string]any{})
 	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
 
 // Scenario: Request body omits required fields.
 // Validates: Binding/validation errors return 400.
 func (s *ConfigTestSuite) TestSaveConfig_ValidationFailure() {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"displayName": "Missing provider and bucket",
-		"credentials": map[string]string{"foo": "bar"},
+		"config":      map[string]string{"foo": "bar"},
 	}
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
@@ -233,7 +304,15 @@ func (s *ConfigTestSuite) TestSaveConfig_MalformedPayload() {
 // Scenario: Request references a non-existent provider.
 // Validates: Service rejects unknown provider IDs with 400.
 func (s *ConfigTestSuite) TestSaveConfig_UnknownProvider() {
-	reqBody := s.buildCreateConfigRequest(999999, "Unknown provider", "bucket", "", "AK", "SK", false)
+	reqBody := s.buildCreateConfigRequest(
+		999999,
+		"Unknown provider",
+		"bucket",
+		"",
+		"AK",
+		"SK",
+		false,
+	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
@@ -242,7 +321,15 @@ func (s *ConfigTestSuite) TestSaveConfig_UnknownProvider() {
 // Scenario: Request references an inactive provider.
 // Validates: Service rejects inactive providers with 400.
 func (s *ConfigTestSuite) TestSaveConfig_InactiveProvider() {
-	reqBody := s.buildCreateConfigRequest(s.inactiveProvider, "Inactive provider", "bucket", "", "AK", "SK", false)
+	reqBody := s.buildCreateConfigRequest(
+		s.inactiveProvider,
+		"Inactive provider",
+		"bucket",
+		"",
+		"AK",
+		"SK",
+		false,
+	)
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
@@ -253,11 +340,19 @@ func (s *ConfigTestSuite) TestSaveConfig_InactiveProvider() {
 func (s *ConfigTestSuite) TestSaveConfig_CrossTenantUpdateForbidden() {
 	configID := s.createConfigAndGetID(
 		s.seller2Token,
-		s.buildCreateConfigRequest(s.providerID, "Seller 2 Config", "seller2-bucket", "", "AK2", "SK2", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Seller 2 Config",
+			"seller2-bucket",
+			"",
+			"AK2",
+			"SK2",
+			false,
+		),
 	)
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
-		configID, s.providerID, "Attempt Cross Tenant Update", "seller1-bucket", "AK1", "SK1",
+	w := s.client.Put(s.T(), s.storageConfigURL(configID), s.buildUpdateConfigBody(
+		s.providerID, "Attempt Cross Tenant Update", "seller1-bucket", "AK1", "SK1", true, false,
 	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
 }
@@ -267,22 +362,95 @@ func (s *ConfigTestSuite) TestSaveConfig_CrossTenantUpdateForbidden() {
 func (s *ConfigTestSuite) TestSaveConfig_SellerCannotManagePlatformConfig() {
 	platformConfigID := s.createConfigAndGetID(
 		s.adminToken,
-		s.buildCreateConfigRequest(s.providerID, "Platform Config For Auth Test", "platform-auth-bucket", "", "AKA", "SKA", false),
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Platform Config For Auth Test",
+			"platform-auth-bucket",
+			"",
+			"AKA",
+			"SKA",
+			false,
+		),
 	)
 	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigEndpoint, s.buildUpdateConfigRequest(
-		platformConfigID, s.providerID, "Seller Attempt Platform Update", "seller-bucket", "AKS", "SKS",
+	w := s.client.Put(s.T(), s.storageConfigURL(platformConfigID), s.buildUpdateConfigBody(
+		s.providerID,
+		"Seller Attempt Platform Update",
+		"seller-bucket",
+		"AKS",
+		"SKS",
+		true,
+		false,
 	))
 	helpers.AssertErrorResponse(s.T(), w, http.StatusForbidden)
 }
 
-// Scenario: Request updates a config ID that does not exist.
+// Scenario: PUT updates a config ID that does not exist.
 // Validates: Unknown config updates return 404.
-func (s *ConfigTestSuite) TestSaveConfig_UnknownConfigID() {
-	reqBody := s.buildUpdateConfigRequest(999999, s.providerID, "Unknown Config", "bucket", "AK", "SK")
+func (s *ConfigTestSuite) TestUpdateConfig_UnknownConfigID() {
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Put(s.T(), s.storageConfigURL(999999), s.buildUpdateConfigBody(
+		s.providerID,
+		"Unknown Config",
+		"bucket",
+		"AK",
+		"SK",
+		true,
+		false,
+	))
+	helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
+}
+
+// Scenario: Request sends an s3_compatible config missing required "bucket" field.
+// Validates: Service-layer config validation returns an error for incomplete configs.
+func (s *ConfigTestSuite) TestSaveConfig_MissingRequiredConfigField() {
+	reqBody := map[string]any{
+		"providerId":        s.providerID,
+		"displayName":       "Incomplete Config",
+		"bucketOrContainer": "my-bucket",
+		"isDefault":         false,
+		"config": map[string]any{
+			"access_key_id":     "AK",
+			"secret_access_key": "SK",
+			// deliberately omitting "bucket"
+		},
+	}
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
-	helpers.AssertErrorResponse(s.T(), w, http.StatusNotFound)
+	// Expect a 4xx — config validation must catch the missing required field.
+	assert.True(s.T(), w.Code >= 400 && w.Code < 500,
+		"expected 4xx for incomplete config, got %d", w.Code)
+}
+
+// Scenario: PUT with an s3_compatible config missing required "bucket" returns 4xx.
+func (s *ConfigTestSuite) TestUpdateConfig_MissingRequiredConfigField() {
+	configID := s.createConfigAndGetID(
+		s.sellerToken,
+		s.buildCreateConfigRequest(
+			s.providerID,
+			"Update validation base",
+			"upd-val-bucket",
+			"",
+			"AK0",
+			"SK0",
+			false,
+		),
+	)
+	s.client.SetToken(s.sellerToken)
+	body := map[string]any{
+		"providerId":        s.providerID,
+		"displayName":       "Incomplete update",
+		"bucketOrContainer": "upd-val-bucket",
+		"isActive":          true,
+		"isDefault":         false,
+		"config": map[string]any{
+			"access_key_id":     "AK",
+			"secret_access_key": "SK",
+		},
+	}
+	w := s.client.Put(s.T(), s.storageConfigURL(configID), body)
+	assert.True(s.T(), w.Code >= 400 && w.Code < 500,
+		"expected 4xx for incomplete config on update, got %d", w.Code)
 }
 
 // Scenario: Authenticated request omits X-Correlation-ID header.
@@ -296,23 +464,57 @@ func (s *ConfigTestSuite) TestCorrelationIDRequired() {
 	s.client.SetHeader("X-Correlation-ID", "test-correlation-id-file-config")
 }
 
-// Scenario: Existing request shape for save-config is used (legacy-compatible payload).
-// Validates: Legacy clients can still create configs without contract changes.
+// Scenario: Request sends a valid s3_compatible config with all required fields.
+// Validates: Full config roundtrip works correctly through the new unified config field.
 func (s *ConfigTestSuite) TestSaveConfig_BackwardCompatible() {
 	reqBody := s.buildCreateConfigRequest(
-		s.providerID, "Legacy Payload Config", "legacy-bucket", "eu-west-1", "LEGACY_AK", "LEGACY_SK", false,
+		s.providerID,
+		"Full Config Test",
+		"full-config-bucket",
+		"eu-west-1",
+		"FULL_AK",
+		"FULL_SK",
+		false,
 	)
-	reqBody["configJson"] = map[string]interface{}{
-		"customEndpoint": "https://s3.example.com",
-	}
 	s.client.SetToken(s.sellerToken)
 	w := s.client.Post(s.T(), StorageConfigEndpoint, reqBody)
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 }
 
-// Scenario: TestConfig stub endpoint returns 501.
-func (s *ConfigTestSuite) TestStubTestConfigEndpointReturnsNotImplemented() {
-	s.client.SetToken(s.sellerToken)
-	w := s.client.Post(s.T(), StorageConfigTestEndpoint, map[string]interface{}{})
-	assert.Equal(s.T(), http.StatusNotImplemented, w.Code)
+// Scenario: POST /storage-config/test without auth returns 401.
+func (s *ConfigTestSuite) TestTestConfig_FailsWithoutAuth() {
+	s.client.SetToken("")
+	w := s.client.Post(s.T(), StorageConfigTestEndpoint, map[string]any{})
+	helpers.AssertErrorResponse(s.T(), w, http.StatusUnauthorized)
 }
+
+// Scenario: POST /storage-config/test with mismatched bucket vs config.bucket returns 400.
+func (s *ConfigTestSuite) TestTestConfig_BucketMismatchReturnsBadRequest() {
+	reqBody := s.buildCreateConfigRequest(
+		s.providerID,
+		"Test connectivity",
+		"top-level-bucket",
+		"us-east-1",
+		"AK",
+		"SK",
+		false,
+	)
+	cfg := reqBody["config"].(map[string]any)
+	cfg["bucket"] = "inner-bucket-differs"
+
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Post(s.T(), StorageConfigTestEndpoint, reqBody)
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+
+// Scenario: POST /storage-config/test with invalid body returns 400.
+func (s *ConfigTestSuite) TestTestConfig_ValidationFailure() {
+	reqBody := map[string]any{
+		"displayName": "missing provider",
+		"config":      map[string]string{"foo": "bar"},
+	}
+	s.client.SetToken(s.sellerToken)
+	w := s.client.Post(s.T(), StorageConfigTestEndpoint, reqBody)
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+

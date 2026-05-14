@@ -44,8 +44,8 @@ func TestGetProductFilters(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify filters object exists
-		data := response["data"].(map[string]interface{})
-		filters, ok := data["filters"].(map[string]interface{})
+		data := response["data"].(map[string]any)
+		filters, ok := data["filters"].(map[string]any)
 		assert.True(t, ok, "Should have filters object")
 
 		// Verify all filter categories are present
@@ -57,34 +57,34 @@ func TestGetProductFilters(t *testing.T) {
 		assert.NotNil(t, filters["stockStatus"], "Should have stockStatus")
 
 		// Verify categories structure
-		categories, ok := filters["categories"].([]interface{})
+		categories, ok := filters["categories"].([]any)
 		assert.True(t, ok, "Categories should be an array")
 		assert.NotEmpty(t, categories, "Should have at least one category")
 
 		// Verify brands structure
-		brands, ok := filters["brands"].([]interface{})
+		brands, ok := filters["brands"].([]any)
 		assert.True(t, ok, "Brands should be an array")
 		assert.NotEmpty(t, brands, "Should have at least one brand")
 
 		// Verify attributes structure
-		attributes, ok := filters["attributes"].([]interface{})
+		attributes, ok := filters["attributes"].([]any)
 		assert.True(t, ok, "Attributes should be an array")
 		assert.NotNil(t, attributes, "Attributes should not be nil")
 
 		// Verify price range structure
-		priceRange, ok := filters["priceRange"].(map[string]interface{})
+		priceRange, ok := filters["priceRange"].(map[string]any)
 		assert.True(t, ok, "Price range should be an object")
 		assert.NotNil(t, priceRange["min"], "Should have min")
 		assert.NotNil(t, priceRange["max"], "Should have max")
 		assert.NotNil(t, priceRange["productCount"], "Should have productCount")
 
 		// Verify variant types structure
-		variantTypes, ok := filters["variantTypes"].([]interface{})
+		variantTypes, ok := filters["variantTypes"].([]any)
 		assert.True(t, ok, "Variant types should be an array")
 		assert.NotNil(t, variantTypes, "Variant types should not be nil")
 
 		// Verify stock status structure
-		stockStatus, ok := filters["stockStatus"].(map[string]interface{})
+		stockStatus, ok := filters["stockStatus"].(map[string]any)
 		assert.True(t, ok, "Stock status should be an object")
 		assert.NotNil(t, stockStatus["inStock"], "Should have inStock count")
 		assert.NotNil(t, stockStatus["outOfStock"], "Should have outOfStock count")
@@ -98,14 +98,14 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		categories := filters["categories"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		categories := filters["categories"].([]any)
 
 		// Verify at least one category exists
 		assert.NotEmpty(t, categories, "Should have categories")
 
 		// Check first category structure
-		firstCategory := categories[0].(map[string]interface{})
+		firstCategory := categories[0].(map[string]any)
 		assert.NotNil(t, firstCategory["id"], "Category should have ID")
 		assert.NotNil(t, firstCategory["name"], "Category should have name")
 		assert.NotNil(t, firstCategory["productCount"], "Category should have product count")
@@ -119,8 +119,8 @@ func TestGetProductFilters(t *testing.T) {
 		assert.True(t, hasChildren, "Category should have children field")
 
 		// If children is not nil and is an array, verify structure
-		if children, ok := firstCategory["children"].([]interface{}); ok && len(children) > 0 {
-			firstChild := children[0].(map[string]interface{})
+		if children, ok := firstCategory["children"].([]any); ok && len(children) > 0 {
+			firstChild := children[0].(map[string]any)
 			assert.NotNil(t, firstChild["id"], "Child category should have ID")
 			assert.NotNil(t, firstChild["name"], "Child category should have name")
 			assert.NotNil(t, firstChild["productCount"], "Child category should have product count")
@@ -135,13 +135,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		assert.NotEmpty(t, brands, "Should have brands")
 
 		// Check first brand structure
-		firstBrand := brands[0].(map[string]interface{})
+		firstBrand := brands[0].(map[string]any)
 		assert.NotNil(t, firstBrand["brand"], "Brand should have name")
 		assert.NotNil(t, firstBrand["productCount"], "Brand should have product count")
 
@@ -156,7 +156,7 @@ func TestGetProductFilters(t *testing.T) {
 		// Verify seller 2 has expected brands (Apple, Samsung, Sony)
 		brandNames := make(map[string]bool)
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandNames[b["brand"].(string)] = true
 		}
 
@@ -172,8 +172,8 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		priceRange := filters["priceRange"].(map[string]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		priceRange := filters["priceRange"].(map[string]any)
 
 		// Verify price range fields
 		assert.NotNil(t, priceRange["min"], "Should have min")
@@ -198,23 +198,23 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		variantTypes, ok := filters["variantTypes"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		variantTypes, ok := filters["variantTypes"].([]any)
 		assert.True(t, ok, "Variant types should be an array")
 
 		// If variant types exist, verify structure
 		if len(variantTypes) > 0 {
-			firstType := variantTypes[0].(map[string]interface{})
+			firstType := variantTypes[0].(map[string]any)
 			assert.NotNil(t, firstType["name"], "Variant type should have name")
 			assert.NotNil(t, firstType["values"], "Variant type should have values array")
 
 			// Verify values is an array
-			values, ok := firstType["values"].([]interface{})
+			values, ok := firstType["values"].([]any)
 			assert.True(t, ok, "Values should be an array")
 			assert.NotEmpty(t, values, "Values should not be empty")
 
 			// Verify first value is an object with required fields
-			firstValue := values[0].(map[string]interface{})
+			firstValue := values[0].(map[string]any)
 			assert.NotNil(t, firstValue["value"], "Value should have value field")
 			assert.NotNil(t, firstValue["displayName"], "Value should have displayName")
 			assert.NotNil(t, firstValue["productCount"], "Value should have productCount")
@@ -228,8 +228,8 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		stockStatus := filters["stockStatus"].(map[string]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		stockStatus := filters["stockStatus"].(map[string]any)
 
 		// Verify stock status fields
 		assert.NotNil(t, stockStatus["inStock"], "Should have inStock count")
@@ -253,13 +253,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		attributes, ok := filters["attributes"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		attributes, ok := filters["attributes"].([]any)
 		assert.True(t, ok, "Attributes should be an array")
 
 		// If attributes exist, verify structure
 		if len(attributes) > 0 {
-			firstAttr := attributes[0].(map[string]interface{})
+			firstAttr := attributes[0].(map[string]any)
 			assert.NotNil(t, firstAttr["key"], "Attribute should have key")
 			assert.NotNil(t, firstAttr["name"], "Attribute should have name")
 			assert.NotNil(t, firstAttr["productCount"], "Attribute should have productCount")
@@ -279,32 +279,32 @@ func TestGetProductFilters(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "2")
 		w2 := client.Get(t, "/api/product/filters")
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		filters2 := response2["data"].(map[string]interface{})["filters"].(map[string]interface{})
+		filters2 := response2["data"].(map[string]any)["filters"].(map[string]any)
 
 		// Get filters for seller 3 (Fashion - T-Shirt, Dress, Shoes)
 		client.SetHeader("X-Seller-ID", "3")
 		w3 := client.Get(t, "/api/product/filters")
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
-		filters3 := response3["data"].(map[string]interface{})["filters"].(map[string]interface{})
+		filters3 := response3["data"].(map[string]any)["filters"].(map[string]any)
 
 		// Verify both have filters but they are different
 		assert.NotNil(t, filters2, "Seller 2 should have filters")
 		assert.NotNil(t, filters3, "Seller 3 should have filters")
 
 		// Get brand names for comparison
-		brands2 := filters2["brands"].([]interface{})
-		brands3 := filters3["brands"].([]interface{})
+		brands2 := filters2["brands"].([]any)
+		brands3 := filters3["brands"].([]any)
 
 		// Create brand name sets
 		brandNames2 := make(map[string]bool)
 		for _, brand := range brands2 {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandNames2[b["brand"].(string)] = true
 		}
 
 		brandNames3 := make(map[string]bool)
 		for _, brand := range brands3 {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandNames3[b["brand"].(string)] = true
 		}
 
@@ -326,13 +326,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		// Seller 2 should only have their brands: Apple, Samsung, Sony
 		expectedBrands := map[string]bool{"Apple": true, "Samsung": true, "Sony": true}
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandName := b["brand"].(string)
 			assert.True(t, expectedBrands[brandName],
 				"Seller 2 should only have brands: Apple, Samsung, or Sony, got: %s", brandName)
@@ -346,13 +346,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		// Seller 3 should only have their brands: Nike, Zara, Adidas
 		expectedBrands := map[string]bool{"Nike": true, "Zara": true, "Adidas": true}
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandName := b["brand"].(string)
 			assert.True(t, expectedBrands[brandName],
 				"Seller 3 should only have brands: Nike, Zara, or Adidas, got: %s", brandName)
@@ -366,13 +366,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		// Seller 4 should only have their brands: IKEA, Casper
 		expectedBrands := map[string]bool{"IKEA": true, "Casper": true}
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandName := b["brand"].(string)
 			assert.True(t, expectedBrands[brandName],
 				"Seller 4 should only have brands: IKEA or Casper, got: %s", brandName)
@@ -387,14 +387,14 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		categories := filters["categories"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		categories := filters["categories"].([]any)
 
 		// Check that category names are Fashion-related
 		if len(categories) > 0 {
 			categoryNames := make(map[string]bool)
 			for _, cat := range categories {
-				c := cat.(map[string]interface{})
+				c := cat.(map[string]any)
 				categoryNames[c["name"].(string)] = true
 			}
 
@@ -459,18 +459,18 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
 
 		// Verify arrays exist and are properly formatted (even if small)
-		categories, ok := filters["categories"].([]interface{})
+		categories, ok := filters["categories"].([]any)
 		assert.True(t, ok, "Categories should be an array")
 		assert.NotNil(t, categories, "Categories should not be nil")
 
-		brands, ok := filters["brands"].([]interface{})
+		brands, ok := filters["brands"].([]any)
 		assert.True(t, ok, "Brands should be an array")
 		assert.NotNil(t, brands, "Brands should not be nil")
 
-		attributes, ok := filters["attributes"].([]interface{})
+		attributes, ok := filters["attributes"].([]any)
 		assert.True(t, ok, "Attributes should be an array")
 		assert.NotNil(t, attributes, "Attributes should not be nil")
 	})
@@ -490,7 +490,7 @@ func TestGetProductFilters(t *testing.T) {
 		assert.True(t, response["success"].(bool), "Success should be true")
 
 		// Verify data contains filters
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.NotNil(t, data["filters"], "Data should contain filters")
 	})
 
@@ -505,13 +505,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		// Calculate total product count from brands
 		totalFromBrands := 0
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			count := int(b["productCount"].(float64))
 			totalFromBrands += count
 			assert.Greater(t, count, 0, "Each brand should have at least one product")
@@ -529,8 +529,8 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		priceRange := filters["priceRange"].(map[string]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		priceRange := filters["priceRange"].(map[string]any)
 
 		minPrice := priceRange["min"].(float64)
 		maxPrice := priceRange["max"].(float64)
@@ -548,13 +548,13 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		brands := filters["brands"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		brands := filters["brands"].([]any)
 
 		// Check for duplicates
 		brandNames := make(map[string]int)
 		for _, brand := range brands {
-			b := brand.(map[string]interface{})
+			b := brand.(map[string]any)
 			brandName := b["brand"].(string)
 			brandNames[brandName]++
 		}
@@ -572,19 +572,19 @@ func TestGetProductFilters(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
-		variantTypes, ok := filters["variantTypes"].([]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
+		variantTypes, ok := filters["variantTypes"].([]any)
 		assert.True(t, ok, "Variant types should be an array")
 
 		// Check each variant type for unique values
 		for _, vt := range variantTypes {
-			variantType := vt.(map[string]interface{})
-			values := variantType["values"].([]interface{})
+			variantType := vt.(map[string]any)
+			values := variantType["values"].([]any)
 
 			// Check for duplicates by value field
 			valueSet := make(map[string]int)
 			for _, val := range values {
-				valObj := val.(map[string]interface{})
+				valObj := val.(map[string]any)
 				valStr := valObj["value"].(string)
 				valueSet[valStr]++
 			}
@@ -643,7 +643,7 @@ func TestGetProductFilters(t *testing.T) {
 		assert.Less(t, bodySize, 1024*1024, "Response should be less than 1MB")
 
 		// Verify filters are present
-		filters := response["data"].(map[string]interface{})["filters"].(map[string]interface{})
+		filters := response["data"].(map[string]any)["filters"].(map[string]any)
 		assert.NotNil(t, filters, "Filters should be present")
 	})
 }

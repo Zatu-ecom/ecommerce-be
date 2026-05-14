@@ -8,14 +8,14 @@ import (
 type Response struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Data    any `json:"data,omitempty"`
 }
 
 // ErrorResponse includes additional error details
 type ErrorResponse struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message"`
-	Errors  interface{} `json:"errors,omitempty"`
+	Errors  any `json:"errors,omitempty"`
 	Code    string      `json:"code,omitempty"`
 }
 
@@ -84,7 +84,7 @@ func NewPaginationResponse(page, pageSize int, total int64) PaginationResponse {
 }
 
 // SuccessResponse sends a successful API response
-func SuccessResponse(c *gin.Context, statusCode int, message string, data interface{}) {
+func SuccessResponse(c *gin.Context, statusCode int, message string, data any) {
 	c.JSON(statusCode, Response{
 		Success: true,
 		Message: message,

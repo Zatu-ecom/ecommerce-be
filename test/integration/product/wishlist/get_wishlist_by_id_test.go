@@ -47,7 +47,7 @@ func TestGetWishlistByID(t *testing.T) {
 	client.SetToken(aliceToken)
 
 	// Create first wishlist (will be default)
-	createReq := map[string]interface{}{
+	createReq := map[string]any{
 		"name": "Alice Tech Wishlist",
 	}
 	w := client.Post(t, "/api/product/wishlist", createReq)
@@ -56,7 +56,7 @@ func TestGetWishlistByID(t *testing.T) {
 	aliceWishlistID := uint(aliceWishlist["id"].(float64))
 
 	// Create second wishlist (non-default)
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Fashion Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -69,24 +69,24 @@ func TestGetWishlistByID(t *testing.T) {
 	client.SetHeader("X-Seller-ID", "2")
 	w = client.Get(t, "/api/product?page=1&pageSize=5")
 	response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	// Add first 3 product variants to wishlist
 	// Note: We track added variants for verification in HP-001 test
 	addedVariantIDs := make([]uint, 0, 3)
 	if resultsRaw, ok := data["results"]; ok && resultsRaw != nil {
-		products := resultsRaw.([]interface{})
+		products := resultsRaw.([]any)
 		for i := 0; i < 3 && i < len(products); i++ {
-			product := products[i].(map[string]interface{})
+			product := products[i].(map[string]any)
 			if variantsRaw, ok := product["variants"]; ok && variantsRaw != nil {
-				variants := variantsRaw.([]interface{})
+				variants := variantsRaw.([]any)
 				if len(variants) > 0 {
-					variant := variants[0].(map[string]interface{})
+					variant := variants[0].(map[string]any)
 					variantID := uint(variant["id"].(float64))
 					addedVariantIDs = append(addedVariantIDs, variantID)
 
 					// Add to wishlist
-					addReq := map[string]interface{}{
+					addReq := map[string]any{
 						"variantId": variantID,
 					}
 					w = client.Post(
@@ -104,7 +104,7 @@ func TestGetWishlistByID(t *testing.T) {
 	michaelToken := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 	client.SetToken(michaelToken)
 
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Michael Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -137,14 +137,14 @@ func TestGetWishlistByID(t *testing.T) {
 		assert.NotNil(t, wishlist["updatedAt"], "Should have updatedAt")
 
 		// Validate products - handle the case where products may be a struct or map
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
 			assert.NotNil(t, productsData["products"], "Should have products array")
 			assert.NotNil(t, productsData["pagination"], "Should have pagination")
 
 			// Validate pagination
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.NotNil(t, paginationRaw["currentPage"], "Should have currentPage")
 				assert.NotNil(t, paginationRaw["totalItems"], "Should have totalItems")
 				assert.NotNil(t, paginationRaw["itemsPerPage"], "Should have itemsPerPage")
@@ -169,17 +169,17 @@ func TestGetWishlistByID(t *testing.T) {
 		assert.False(t, wishlist["isDefault"].(bool), "Second wishlist should not be default")
 
 		// Validate empty products
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
 			// Products array may be nil or empty
 			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]interface{})
+				productsList := productsListRaw.([]any)
 				assert.Equal(t, 0, len(productsList), "Products array should be empty")
 			}
 
 			// Validate pagination for empty state
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.Equal(
 					t,
 					float64(0),
@@ -246,10 +246,10 @@ func TestGetWishlistByID(t *testing.T) {
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
 		// Validate pagination
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			pagination, pOk := productsData["pagination"].(map[string]interface{})
+			pagination, pOk := productsData["pagination"].(map[string]any)
 			assert.True(t, pOk, "Pagination should be a map")
 			if pOk {
 				assert.Equal(
@@ -281,10 +281,10 @@ func TestGetWishlistByID(t *testing.T) {
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
 		// Validate default pagination
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			pagination, pOk := productsData["pagination"].(map[string]interface{})
+			pagination, pOk := productsData["pagination"].(map[string]any)
 			assert.True(t, pOk, "Pagination should be a map")
 			if pOk {
 				assert.Equal(
@@ -448,11 +448,11 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
 			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]interface{})
+				productsList := productsListRaw.([]any)
 				assert.Equal(
 					t,
 					0,
@@ -461,7 +461,7 @@ func TestGetWishlistByID(t *testing.T) {
 				)
 			}
 
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.Equal(
 					t,
 					float64(100),
@@ -485,10 +485,10 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.Equal(
 					t,
 					float64(100),
@@ -510,10 +510,10 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.Equal(
 					t,
 					float64(20),
@@ -535,10 +535,10 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				assert.Equal(
 					t,
 					float64(1),
@@ -625,10 +625,10 @@ func TestGetWishlistByID(t *testing.T) {
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
 		itemCount := int(wishlist["itemCount"].(float64))
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]interface{}); pOk {
+			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
 				totalItems := int(paginationRaw["totalItems"].(float64))
 				// itemCount should equal totalItems in pagination
 				assert.Equal(
@@ -651,13 +651,13 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]interface{})
+		productsData, ok := wishlist["products"].(map[string]any)
 		assert.True(t, ok, "Products field should be a map")
 		if ok {
 			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]interface{})
+				productsList := productsListRaw.([]any)
 				if len(productsList) > 0 {
-					product := productsList[0].(map[string]interface{})
+					product := productsList[0].(map[string]any)
 
 					// Verify product has required fields
 					assert.NotNil(t, product["id"], "Product should have id")
@@ -704,20 +704,20 @@ func TestGetWishlistByID(t *testing.T) {
 		client.SetHeader("X-Seller-ID", "3")
 		w = client.Get(t, "/api/product?page=1&pageSize=1")
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		if resultsRaw, ok := data["results"]; ok && resultsRaw != nil {
-			products := resultsRaw.([]interface{})
+			products := resultsRaw.([]any)
 			if len(products) > 0 {
-				product := products[0].(map[string]interface{})
+				product := products[0].(map[string]any)
 				if variantsRaw, vOk := product["variants"]; vOk && variantsRaw != nil {
-					variants := variantsRaw.([]interface{})
+					variants := variantsRaw.([]any)
 					if len(variants) > 0 {
-						variant := variants[0].(map[string]interface{})
+						variant := variants[0].(map[string]any)
 						variantID := uint(variant["id"].(float64))
 
 						// Add item to wishlist
-						addReq := map[string]interface{}{
+						addReq := map[string]any{
 							"variantId": variantID,
 						}
 						w = client.Post(

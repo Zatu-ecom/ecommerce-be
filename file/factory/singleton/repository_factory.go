@@ -7,8 +7,8 @@ import (
 
 // RepositoryFactory manages all repository singleton instances
 type RepositoryFactory struct {
-	fileRepo   repository.FileRepository
-	configRepo repository.ConfigRepository
+	fileUploadRepo repository.FileUploadRepository
+	configRepo     repository.ConfigRepository
 
 	once sync.Once
 }
@@ -21,15 +21,15 @@ func NewRepositoryFactory() *RepositoryFactory {
 // initialize creates all repository instances (lazy loading)
 func (f *RepositoryFactory) initialize() {
 	f.once.Do(func() {
-		f.fileRepo = repository.NewFileRepository()
+		f.fileUploadRepo = repository.NewFileRepository()
 		f.configRepo = repository.NewConfigRepository()
 	})
 }
 
-// GetFileRepository returns the singleton file repository
-func (f *RepositoryFactory) GetFileRepository() repository.FileRepository {
+// GetFileUploadRepository returns the singleton file upload repository
+func (f *RepositoryFactory) GetFileUploadRepository() repository.FileUploadRepository {
 	f.initialize()
-	return f.fileRepo
+	return f.fileUploadRepo
 }
 
 // GetConfigRepository returns the singleton config repository

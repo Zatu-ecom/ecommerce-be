@@ -32,7 +32,7 @@ func (a StringArray) Value() (driver.Value, error) {
 
 // Scan implements the sql.Scanner interface.
 // This method scans a value from the database and converts it to a StringArray.
-func (a *StringArray) Scan(value interface{}) error {
+func (a *StringArray) Scan(value any) error {
 	if value == nil {
 		*a = []string{}
 		return nil
@@ -93,7 +93,7 @@ func (a Int64Array) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface for bigint[]
-func (a *Int64Array) Scan(value interface{}) error {
+func (a *Int64Array) Scan(value any) error {
 	if value == nil {
 		*a = []int64{}
 		return nil

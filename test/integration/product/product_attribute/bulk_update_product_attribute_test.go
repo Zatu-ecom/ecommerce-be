@@ -29,8 +29,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an attribute
-	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]any {
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 value,
 			"sortOrder":             sortOrder,
@@ -63,8 +63,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attr3ID := int(attr3["id"].(float64))
 
 		// Bulk update all three attributes
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attr1ID,
 					"value":       "Intel i7",
@@ -98,12 +98,12 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		assert.Equal(t, float64(3), result["updatedCount"])
 
 		// Assert updated attributes
-		attributes := result["attributes"].([]interface{})
+		attributes := result["attributes"].([]any)
 		assert.Equal(t, 3, len(attributes))
 
 		// Check each attribute was updated
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 
 			switch attrID {
@@ -135,8 +135,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attr2ID := int(attr2["id"].(float64))
 
 		// Bulk update - only change sort orders
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attr1ID,
 					"value":       "AMD Ryzen", // Keep same value
@@ -158,9 +158,9 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 
 		assert.Equal(t, float64(2), result["updatedCount"])
 
-		attributes := result["attributes"].([]interface{})
+		attributes := result["attributes"].([]any)
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 
 			switch attrID {
@@ -184,8 +184,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attrID := int(attr["id"].(float64))
 
 		// Bulk update single attribute
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID,
 					"value":       "750kg",
@@ -202,10 +202,10 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 
 		assert.Equal(t, float64(1), result["updatedCount"])
 
-		attributes := result["attributes"].([]interface{})
+		attributes := result["attributes"].([]any)
 		assert.Equal(t, 1, len(attributes))
 
-		firstAttr := attributes[0].(map[string]interface{})
+		firstAttr := attributes[0].(map[string]any)
 		assert.Equal(t, "750kg", firstAttr["value"])
 		assert.Equal(t, float64(5), firstAttr["sortOrder"])
 	})
@@ -226,8 +226,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID,
 					"value":       "7 inches",
@@ -255,8 +255,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		// Product 1 belongs to John (seller_id=1)
 		otherProductID := 1
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID,
 					"value":       "Blue",
@@ -292,8 +292,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID1,
 					"value":       "256",
@@ -311,10 +311,10 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok, "Response should have data field")
 		if ok && data != nil {
-			attributes, ok := data["productAttributes"].([]interface{})
+			attributes, ok := data["productAttributes"].([]any)
 			if ok {
 				assert.GreaterOrEqual(
 					t,
@@ -335,8 +335,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		// Attribute IDs 1, 2 from seed data
 		productID := 1
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": 1,
 					"value":       "Apple Inc.",
@@ -354,10 +354,10 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		w := client.Put(t, url, bulkUpdateBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok, "Response should have data field")
 		if ok && data != nil {
-			attributes, ok := data["productAttributes"].([]interface{})
+			attributes, ok := data["productAttributes"].([]any)
 			if ok {
 				assert.GreaterOrEqual(
 					t,
@@ -378,8 +378,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": 999,
 					"value":       "Test",
@@ -402,8 +402,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 
 		productID := 5
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{},
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{},
 		}
 
 		url := fmt.Sprintf("/api/product/%d/attribute/bulk", productID)
@@ -421,8 +421,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attr := createAttribute(productID, 11, "100x50x20", 0) // dimensions
 		attrID := int(attr["id"].(float64))
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID,
 					"value":       "", // Empty value
@@ -447,8 +447,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attr := createAttribute(productID, 1, "Red", 0)
 		attrID := int(attr["id"].(float64))
 
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attrID,
 					"value":       "Purple", // Not in allowed_values
@@ -471,8 +471,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		productID := 5
 
 		// Missing value field
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": 1,
 					"sortOrder":   1,
@@ -503,8 +503,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		validAttrID := int(attr["id"].(float64))
 
 		// Bulk update with mix of valid and invalid attribute IDs
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": validAttrID,
 					"value":       "750kg",
@@ -527,7 +527,7 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		// Only 1 attribute should be updated (the valid one)
 		assert.Equal(t, float64(1), result["updatedCount"])
 
-		attributes := result["attributes"].([]interface{})
+		attributes := result["attributes"].([]any)
 		assert.Equal(t, 1, len(attributes))
 	})
 
@@ -548,8 +548,8 @@ func TestBulkUpdateProductAttributes(t *testing.T) {
 		attr7ID := int(attr7["id"].(float64))
 
 		// Try to bulk update both using product 6's URL
-		bulkUpdateBody := map[string]interface{}{
-			"attributes": []map[string]interface{}{
+		bulkUpdateBody := map[string]any{
+			"attributes": []map[string]any{
 				{
 					"attributeId": attr6ID,
 					"value":       "6 inches",

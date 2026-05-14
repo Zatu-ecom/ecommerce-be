@@ -123,7 +123,7 @@ func (s *TieredStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
 }
 
 // ValidateConfig validates the tiered configuration
-func (s *TieredStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *TieredStrategy) ValidateConfig(config map[string]any) error {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid config format")

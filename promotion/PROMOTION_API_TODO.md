@@ -7,19 +7,19 @@
 
 ## ✅ Already Implemented
 
-| Area | Details |
-|---|---|
-| `POST /api/v1/promotion` | Create promotion (service implemented, **no HTTP handler/route yet** — see gap below) |
-| `POST /api/v1/promotion/scope/product` | Add products to promotion |
-| `DELETE /api/v1/promotion/scope/product` | Remove specific products |
-| `DELETE /api/v1/promotion/scope/:promotionId/product` | Remove all products |
-| `GET /api/v1/promotion/scope/:promotionId/product` | List products in scope |
-| Same 4 routes for `/variant`, `/category`, `/collection` | ✅ All scope handlers, services, repositories done |
-| `PromotionService.ApplyPromotionsToCart()` | Validation logic exists in `promotion_validator_service.go` |
-| Strategy Pattern — `ValidateConfig` | ✅ Already called in `CreatePromotion`. All 7 strategy files exist (`percentage`, `fixed_amount`, `buy_x_get_y`, `free_shipping`, `bundle`, `tiered`, `flash_sale`) |
-| Factory / Singleton | mapper, service factory, repo factory, handler factory |
-| Entity | `Promotion`, `PromotionProduct`, `PromotionCategory`, `PromotionCollection`, `PromotionVariant`, `sale.go`, `usage.go`, `discount_code.go` |
-| Error Package | `promotion/error/` |
+| Area                                                     | Details                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/promotion`                                 | Create promotion (service implemented, **no HTTP handler/route yet** — see gap below)                                                                               |
+| `POST /api/v1/promotion/scope/product`                   | Add products to promotion                                                                                                                                           |
+| `DELETE /api/v1/promotion/scope/product`                 | Remove specific products                                                                                                                                            |
+| `DELETE /api/v1/promotion/scope/:promotionId/product`    | Remove all products                                                                                                                                                 |
+| `GET /api/v1/promotion/scope/:promotionId/product`       | List products in scope                                                                                                                                              |
+| Same 4 routes for `/variant`, `/category`, `/collection` | ✅ All scope handlers, services, repositories done                                                                                                                  |
+| `PromotionService.ApplyPromotionsToCart()`               | Validation logic exists in `promotion_validator_service.go`                                                                                                         |
+| Strategy Pattern — `ValidateConfig`                      | ✅ Already called in `CreatePromotion`. All 7 strategy files exist (`percentage`, `fixed_amount`, `buy_x_get_y`, `free_shipping`, `bundle`, `tiered`, `flash_sale`) |
+| Factory / Singleton                                      | mapper, service factory, repo factory, handler factory                                                                                                              |
+| Entity                                                   | `Promotion`, `PromotionProduct`, `PromotionCategory`, `PromotionCollection`, `PromotionVariant`, `sale.go`, `usage.go`, `discount_code.go`                          |
+| Error Package                                            | `promotion/error/`                                                                                                                                                  |
 
 ---
 
@@ -37,6 +37,7 @@ type PromotionHandler struct {
 ```
 
 Methods to add:
+
 - [ ] `CreatePromotion` — POST body → `CreatePromotionRequest` → call `service.CreatePromotion`
 - [ ] `GetPromotion` — GET `/:promotionId` → call `service.GetPromotionByID`
 - [ ] `ListPromotions` — GET `/` (with query filters) → call `service.ListPromotions`
@@ -100,7 +101,7 @@ type UpdatePromotionRequest struct {
     Name           *string                `json:"name"           binding:"omitempty,min=3,max=255"`
     DisplayName    *string                `json:"displayName"    binding:"omitempty,max=255"`
     Description    *string                `json:"description"`
-    DiscountConfig map[string]interface{} `json:"discountConfig" binding:"omitempty"`
+    DiscountConfig map[string]any `json:"discountConfig" binding:"omitempty"`
     // ... same optional fields as CreatePromotionRequest
     StartsAt *string `json:"startsAt" binding:"omitempty"`
     EndsAt   *string `json:"endsAt"   binding:"omitempty"`
@@ -193,6 +194,7 @@ func ApplyUpdatePromotionRequest(existing *entity.Promotion, req model.UpdatePro
 ### 9. Strategy `CalculateDiscount` — wire it into `ApplyPromotionsToCart`
 
 The `PromotionStrategy` interface has two methods:
+
 - `ValidateConfig` ✅ — already called in `CreatePromotion` (and should also be called in `UpdatePromotion`)
 - `CalculateDiscount` ❌ — **not wired anywhere yet**
 

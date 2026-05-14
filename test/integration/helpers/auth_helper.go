@@ -31,7 +31,7 @@ func Login(t *testing.T, client *APIClient, email, password string) string {
 	response := ParseResponse(t, w.Body)
 	assert.True(t, response["success"].(bool), "Response should be successful")
 
-	data, ok := response["data"].(map[string]interface{})
+	data, ok := response["data"].(map[string]any)
 	assert.True(t, ok, "Response should contain data")
 
 	token, tokenOk := data["token"].(string)

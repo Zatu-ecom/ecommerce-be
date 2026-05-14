@@ -15,15 +15,19 @@ type ConfigRepository interface {
 	GetProviders(ctx context.Context) ([]entity.StorageProvider, error)
 	GetActiveProviderByID(ctx context.Context, id uint) (*entity.StorageProvider, error)
 	GetConfigByID(ctx context.Context, id uint) (*entity.StorageConfig, error)
+	GetActiveSellerStorageConfig(ctx context.Context, sellerID uint) (*entity.StorageConfig, error)
+	GetActivePlatformDefaultConfig(ctx context.Context) (*entity.StorageConfig, error)
 	GetSellerOwnedConfigByID(
 		ctx context.Context,
 		id uint,
 		sellerID uint,
 	) (*entity.StorageConfig, error)
 	GetPlatformConfigByID(ctx context.Context, id uint) (*entity.StorageConfig, error)
-	SaveConfig(ctx context.Context, config *entity.StorageConfig, clearPlatformDefaults bool) error
-	ListConfigs(ctx context.Context, filter model.ListStorageConfigFilter) ([]entity.StorageConfig, int64, error)
-	ActivateConfig(ctx context.Context, configID uint, ownerType entity.OwnerType, ownerID *uint) error
+	SaveConfig(ctx context.Context, config *entity.StorageConfig) error
+	ListConfigs(
+		ctx context.Context,
+		filter model.ListStorageConfigFilter,
+	) ([]entity.StorageConfig, int64, error)
 }
 
 type configRepository struct{}
@@ -58,11 +62,42 @@ func (r *configRepository) GetConfigByID(
 	id uint,
 ) (*entity.StorageConfig, error) {
 	var config entity.StorageConfig
-	err := db.DB(ctx).First(&config, id).Error
+	err := db.DB(ctx).Preload("Provider").First(&config, id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func (r *configRepository) GetActiveSellerStorageConfig(
+	ctx context.Context,
+	sellerID uint,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Preload("Provider").
+		Where("owner_type = ? AND owner_id = ? AND is_active = ? AND is_default = ?",
+			entity.OwnerTypeSeller, sellerID, true, true).First(&cfg).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *configRepository) GetActivePlatformDefaultConfig(
+	ctx context.Context,
+) (*entity.StorageConfig, error) {
+	var cfg entity.StorageConfig
+	err := db.DB(ctx).
+		Preload("Provider").
+		Where("owner_type = ? AND is_default = ? AND is_active = ?", entity.OwnerTypePlatform, true, true).
+		Order("updated_at DESC").
+		First(&cfg).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func (r *configRepository) GetSellerOwnedConfigByID(
@@ -104,15 +139,18 @@ func (r *configRepository) GetPlatformConfigByID(
 func (r *configRepository) SaveConfig(
 	ctx context.Context,
 	config *entity.StorageConfig,
-	clearPlatformDefaults bool,
 ) error {
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if clearPlatformDefaults {
-			if err := tx.
-				Model(&entity.StorageConfig{}).
-				Where("owner_type = ? AND id <> ?", entity.OwnerTypePlatform, config.ID).
-				Update("is_default", false).
-				Error; err != nil {
+		if config.IsDefault {
+			q := tx.Model(&entity.StorageConfig{}).Where("owner_type = ?", config.OwnerType)
+			if config.OwnerType == entity.OwnerTypeSeller && config.OwnerID != nil {
+				q = q.Where("owner_id = ?", *config.OwnerID)
+			}
+			// PLATFORM: single global default — clear is_default on all platform rows.
+			if config.ID != 0 {
+				q = q.Where("id <> ?", config.ID)
+			}
+			if err := q.Update("is_default", false).Error; err != nil {
 				return err
 			}
 		}
@@ -129,7 +167,7 @@ func (r *configRepository) ListConfigs(
 	ctx context.Context,
 	filter model.ListStorageConfigFilter,
 ) ([]entity.StorageConfig, int64, error) {
-	query := db.DB(ctx).Model(&entity.StorageConfig{}).
+	query := db.DB(ctx).Preload("Provider").Model(&entity.StorageConfig{}).
 		Where("owner_type = ?", filter.OwnerType)
 
 	// Seller scope — constrain to the owner's ID
@@ -143,9 +181,6 @@ func (r *configRepository) ListConfigs(
 	}
 	if len(filter.ProviderIDs) > 0 {
 		query = query.Where("provider_id IN ?", filter.ProviderIDs)
-	}
-	if len(filter.ValidationStatuses) > 0 {
-		query = query.Where("validation_status IN ?", filter.ValidationStatuses)
 	}
 
 	// Single-value filters
@@ -195,36 +230,9 @@ func resolveSortColumn(sortBy string) string {
 	switch sortBy {
 	case "displayName":
 		return "display_name"
-	case "validationStatus":
-		return "validation_status"
 	case "updatedAt":
 		return "updated_at"
 	default:
 		return "created_at"
 	}
-}
-
-func (r *configRepository) ActivateConfig(
-	ctx context.Context,
-	configID uint,
-	ownerType entity.OwnerType,
-	ownerID *uint,
-) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Deactivate all configs in the same scope
-		deactivate := tx.Model(&entity.StorageConfig{}).
-			Where("owner_type = ? AND id <> ?", ownerType, configID)
-		if ownerType == entity.OwnerTypeSeller && ownerID != nil {
-			deactivate = deactivate.Where("owner_id = ?", *ownerID)
-		}
-		if err := deactivate.Update("is_active", false).Error; err != nil {
-			return err
-		}
-
-		// Activate the target config
-		return tx.Model(&entity.StorageConfig{}).
-			Where("id = ? AND owner_type = ?", configID, ownerType).
-			Update("is_active", true).
-			Error
-	})
 }

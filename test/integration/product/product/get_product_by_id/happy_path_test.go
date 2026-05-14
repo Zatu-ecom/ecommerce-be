@@ -41,7 +41,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Extract product data
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify product basic fields
 		assert.Equal(t, float64(1), product["id"], "Product ID should be 1")
@@ -50,7 +50,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		assert.NotEmpty(t, product["sku"], "SKU should not be empty")
 
 		// Verify category hierarchy
-		category, ok := product["category"].(map[string]interface{})
+		category, ok := product["category"].(map[string]any)
 		assert.True(t, ok, "Category should be present")
 		assert.NotNil(t, category["id"], "Category ID should be present")
 		assert.NotNil(t, category["name"], "Category name should be present")
@@ -60,17 +60,17 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		assert.True(t, product["hasVariants"].(bool), "Product should have variants")
 
 		// Verify options array exists
-		options, ok := product["options"].([]interface{})
+		options, ok := product["options"].([]any)
 		assert.True(t, ok, "Options should be an array")
 		assert.NotEmpty(t, options, "Options array should not be empty")
 
 		// Verify variants array exists
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "Variants should be an array")
 		assert.NotEmpty(t, variants, "Variants array should not be empty")
 
 		// Verify price range
-		priceRange, ok := product["priceRange"].(map[string]interface{})
+		priceRange, ok := product["priceRange"].(map[string]any)
 		assert.True(t, ok, "Price range should be present")
 		assert.NotNil(t, priceRange["min"], "Price range min should be present")
 		assert.NotNil(t, priceRange["max"], "Price range max should be present")
@@ -94,7 +94,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Extract product data
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify product details are accessible to customer
 		assert.Equal(t, float64(1), product["id"], "Product ID should be 1")
@@ -119,7 +119,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Extract product data
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify product details
 		assert.Equal(t, float64(1), product["id"], "Product ID should be 1")
@@ -131,13 +131,13 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		)
 
 		// Verify all variant information is accessible
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "Variants should be present")
 		assert.NotEmpty(t, variants, "Variants should not be empty")
 
 		// Verify first variant has complete details
 		if len(variants) > 0 {
-			variant := variants[0].(map[string]interface{})
+			variant := variants[0].(map[string]any)
 			assert.NotNil(t, variant["id"], "Variant ID should be present")
 			assert.NotNil(t, variant["sku"], "Variant SKU should be present")
 			assert.NotNil(t, variant["price"], "Variant price should be present")
@@ -159,7 +159,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Extract product data
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify admin can access product from different seller
 		assert.Equal(t, float64(5), product["id"], "Product ID should be 5")
@@ -182,26 +182,26 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify options
-		options, ok := product["options"].([]interface{})
+		options, ok := product["options"].([]any)
 		assert.True(t, ok, "Options should be an array")
 		assert.Len(t, options, 2, "iPhone should have 2 options (Color, Storage)")
 
 		// Verify each option has values
 		for _, opt := range options {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			assert.NotNil(t, option["optionId"], "Option should have ID")
 			assert.NotNil(t, option["optionName"], "Option should have name")
 
-			values, ok := option["values"].([]interface{})
+			values, ok := option["values"].([]any)
 			assert.True(t, ok, "Option should have values array")
 			assert.NotEmpty(t, values, "Option should have at least one value")
 
 			// Verify each value has required fields
 			for _, val := range values {
-				value := val.(map[string]interface{})
+				value := val.(map[string]any)
 				assert.NotNil(t, value["valueId"], "Value should have ID")
 				assert.NotNil(t, value["value"], "Value should have value")
 				assert.NotNil(t, value["displayName"], "Value should have display name")
@@ -209,24 +209,24 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		}
 
 		// Verify variants
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "Variants should be an array")
 		assert.Len(t, variants, 4, "iPhone should have 4 variants")
 
 		// Verify each variant has selected options
 		for _, v := range variants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			assert.NotNil(t, variant["id"], "Variant should have ID")
 			assert.NotNil(t, variant["sku"], "Variant should have SKU")
 			assert.NotNil(t, variant["price"], "Variant should have price")
 
-			selectedOptions, ok := variant["selectedOptions"].([]interface{})
+			selectedOptions, ok := variant["selectedOptions"].([]any)
 			assert.True(t, ok, "Variant should have selectedOptions")
 			assert.NotEmpty(t, selectedOptions, "Variant should have at least one selected option")
 		}
 
 		// Verify price range
-		priceRange := product["priceRange"].(map[string]interface{})
+		priceRange := product["priceRange"].(map[string]any)
 		minPrice := priceRange["min"].(float64)
 		maxPrice := priceRange["max"].(float64)
 		assert.True(t, minPrice <= maxPrice, "Min price should be <= max price")
@@ -244,12 +244,12 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify attributes if present
-		if attributes, ok := product["attributes"].([]interface{}); ok && len(attributes) > 0 {
+		if attributes, ok := product["attributes"].([]any); ok && len(attributes) > 0 {
 			for _, attr := range attributes {
-				attribute := attr.(map[string]interface{})
+				attribute := attr.(map[string]any)
 				assert.NotNil(t, attribute["key"], "Attribute should have key")
 				assert.NotNil(t, attribute["name"], "Attribute should have name")
 				assert.NotNil(t, attribute["value"], "Attribute should have value")
@@ -257,10 +257,10 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		}
 
 		// Verify package options if present
-		if packageOptions, ok := product["packageOptions"].([]interface{}); ok &&
+		if packageOptions, ok := product["packageOptions"].([]any); ok &&
 			len(packageOptions) > 0 {
 			for _, pkg := range packageOptions {
-				packageOption := pkg.(map[string]interface{})
+				packageOption := pkg.(map[string]any)
 				assert.NotNil(t, packageOption["id"], "Package option should have ID")
 				assert.NotNil(t, packageOption["name"], "Package option should have name")
 				assert.NotNil(t, packageOption["price"], "Package option should have price")
@@ -285,16 +285,16 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		product := response["data"].(map[string]interface{})["product"].(map[string]interface{})
+		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		// Verify category
-		category, ok := product["category"].(map[string]interface{})
+		category, ok := product["category"].(map[string]any)
 		assert.True(t, ok, "Category should be present")
 		assert.Equal(t, float64(4), category["id"], "Category ID should be 4 (Smartphones)")
 		assert.Equal(t, "Smartphones", category["name"], "Category name should be Smartphones")
 
 		// Verify parent category
-		parent, ok := category["parent"].(map[string]interface{})
+		parent, ok := category["parent"].(map[string]any)
 		assert.True(t, ok, "Parent category should be present")
 		assert.Equal(t, float64(1), parent["id"], "Parent category ID should be 1 (Electronics)")
 		assert.Equal(t, "Electronics", parent["name"], "Parent category name should be Electronics")

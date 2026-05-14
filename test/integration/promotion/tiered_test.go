@@ -686,10 +686,10 @@ func (s *TieredPromotionTestSuite) createTieredPromotion(
 func (s *TieredPromotionTestSuite) createGenericPromotion(
 	name string,
 	promoType string,
-	discountConfig interface{},
+	discountConfig any,
 	opts promotionCreateOptions,
 ) uint {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           name,
 		"promotionType":  promoType,
 		"discountConfig": discountConfig,
@@ -709,12 +709,12 @@ func (s *TieredPromotionTestSuite) createGenericPromotion(
 	return s.createPromotionFromPayload(payload)
 }
 
-func (s *TieredPromotionTestSuite) createPromotionFromPayload(payload map[string]interface{}) uint {
+func (s *TieredPromotionTestSuite) createPromotionFromPayload(payload map[string]any) uint {
 	res := s.sellerClient.Post(s.T(), PromotionAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code, "promotion creation should succeed")
 
 	respData := helpers.ParseResponse(s.T(), res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -731,7 +731,7 @@ func (s *TieredPromotionTestSuite) linkPromotionProducts(promotionID uint, produ
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionProductsEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"productIds":  productIDs,
 		},
@@ -740,9 +740,9 @@ func (s *TieredPromotionTestSuite) linkPromotionProducts(promotionID uint, produ
 }
 
 func (s *TieredPromotionTestSuite) linkPromotionCategories(promotionID uint, categoryIDs ...uint) {
-	categories := make([]map[string]interface{}, 0, len(categoryIDs))
+	categories := make([]map[string]any, 0, len(categoryIDs))
 	for _, categoryID := range categoryIDs {
-		categories = append(categories, map[string]interface{}{
+		categories = append(categories, map[string]any{
 			"categoryId":           categoryID,
 			"includeSubcategories": false,
 		})
@@ -751,7 +751,7 @@ func (s *TieredPromotionTestSuite) linkPromotionCategories(promotionID uint, cat
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionCategoriesEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"categories":  categories,
 		},
@@ -759,12 +759,12 @@ func (s *TieredPromotionTestSuite) linkPromotionCategories(promotionID uint, cat
 	s.Require().Equal(http.StatusOK, res.Code, "category scope linking should succeed")
 }
 
-func buildTieredPayload(tierType model.TierType, tiers []model.TierConfig) map[string]interface{} {
+func buildTieredPayload(tierType model.TierType, tiers []model.TierConfig) map[string]any {
 	config := model.TieredConfig{
 		TierType: tierType,
 		Tiers:    tiers,
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"name":           "Tiered Test",
 		"promotionType":  promoTypeTiered,
 		"discountConfig": config,

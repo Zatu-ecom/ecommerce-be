@@ -1,4 +1,4 @@
-package blob_adapter
+package blobAdapter
 
 import (
 	"context"
@@ -15,18 +15,132 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 
+	"ecommerce-be/common/helper"
+	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
 )
 
-// AzureOptions contains parameters needed to initialise an Azure Blob adapter.
-// AccountName and AccountKey are required.
-// Endpoint is optional; when set, all API calls are routed to that host (used
-// with Azurite in integration tests). Example: "http://localhost:10000/devstoreaccount1".
-type AzureOptions struct {
-	AccountName string
-	AccountKey  string
-	Endpoint    string
+// ─── AzureConfig — typed config struct ────────────────────────────────────────
+
+// AzureConfig is the typed configuration for an Azure Blob Storage adapter.
+type AzureConfig struct {
+	// AccountName is the Azure Storage account name. Required and sensitive.
+	AccountName string `json:"account_name" validate:"required"`
+	// AccountKey is the primary/secondary access key. Either AccountKey or SAS is required.
+	AccountKey string `json:"account_key"  validate:"required_without=SAS"`
+	// SAS is a Shared Access Signature token. Either AccountKey or SAS is required.
+	SAS string `json:"sas"          validate:"required_without=AccountKey"`
+	// Container is the Azure Blob container name. Required.
+	Container string `json:"container"    validate:"required"`
+	// Endpoint is an optional custom base URL (e.g. http://localhost:10000/devstoreaccount1 for Azurite).
+	Endpoint string `json:"endpoint"`
+}
+
+func (s *AzureConfig) Encrypt() error {
+	key := ResolveEncryptionKey()
+
+	encryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if _, err := helper.Decrypt(val, key); err == nil {
+			return val, nil
+		}
+		return helper.Encrypt(val, key)
+	}
+
+	var err error
+	if s.AccountName, err = encryptField(s.AccountName); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef("[azure] encrypt account_name: %v", err)
+	}
+	if s.AccountKey, err = encryptField(s.AccountKey); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef("[azure] encrypt account_key: %v", err)
+	}
+	if s.SAS, err = encryptField(s.SAS); err != nil {
+		return fileError.ErrEncryptionFailed.WithMessagef("[azure] encrypt sas: %v", err)
+	}
+	return nil
+}
+
+func (s *AzureConfig) ToMap() map[string]any {
+	return map[string]any{
+		"account_name": s.AccountName,
+		"account_key":  s.AccountKey,
+		"sas":          s.SAS,
+		"container":    s.Container,
+		"endpoint":     s.Endpoint,
+	}
+}
+
+func (s *AzureConfig) Decrypt() error {
+	key := ResolveEncryptionKey()
+
+	decryptField := func(val string) (string, error) {
+		if val == "" {
+			return "", nil
+		}
+		if dec, err := helper.Decrypt(val, key); err == nil {
+			return dec, nil
+		}
+		return val, nil
+	}
+
+	s.AccountName, _ = decryptField(s.AccountName)
+	s.AccountKey, _ = decryptField(s.AccountKey)
+	s.SAS, _ = decryptField(s.SAS)
+	return nil
+}
+
+// AzureSchema returns the field descriptor schema for the Azure adapter.
+func AzureSchema() model.AdapterConfigSchema {
+	return model.AdapterConfigSchema{
+		AdapterType: entity.AdapterTypeAzure,
+		Fields: []model.FieldDescriptor{
+			{
+				Key:         "account_name",
+				Label:       "Storage Account Name",
+				Type:        model.FieldTypeString,
+				Required:    true,
+				Sensitive:   true,
+				Description: "The name of your Azure Storage account.",
+				Placeholder: "mystorageaccount",
+			},
+			{
+				Key:         "account_key",
+				Label:       "Account Key",
+				Type:        model.FieldTypePassword,
+				Required:    false,
+				Sensitive:   true,
+				Description: "Primary or secondary access key for the storage account. Required if SAS token is not provided.",
+			},
+			{
+				Key:         "sas",
+				Label:       "SAS Token",
+				Type:        model.FieldTypePassword,
+				Required:    false,
+				Sensitive:   true,
+				Description: "Shared Access Signature token. Required if Account Key is not provided.",
+			},
+			{
+				Key:         "container",
+				Label:       "Container Name",
+				Type:        model.FieldTypeString,
+				Required:    true,
+				Sensitive:   false,
+				Description: "The Azure Blob container where files will be stored.",
+				Placeholder: "my-ecommerce-container",
+			},
+			{
+				Key:         "endpoint",
+				Label:       "Custom Endpoint",
+				Type:        model.FieldTypeString,
+				Required:    false,
+				Sensitive:   false,
+				Description: "Override the Azure Blob endpoint (e.g. http://localhost:10000/devstoreaccount1 for Azurite). Leave empty for production.",
+			},
+		},
+	}
 }
 
 // azureBlobAdapter implements BlobAdapter against Azure Blob Storage.
@@ -39,18 +153,27 @@ type azureBlobAdapter struct {
 // Compile-time assertion: azureBlobAdapter satisfies BlobAdapter.
 var _ BlobAdapter = (*azureBlobAdapter)(nil)
 
-// NewAzureBlobAdapter constructs an Azure BlobAdapter from the supplied options.
+// NewAzureAdapterFromMap constructs an Azure BlobAdapter from a raw config map.
+func NewAzureAdapterFromMap(ctx context.Context, raw map[string]any) (BlobAdapter, error) {
+	cfg, err := ParseAndValidateConfig[AzureConfig](raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewAzureBlobAdapter(cfg)
+}
+
+// NewAzureBlobAdapter constructs an Azure BlobAdapter from the supplied config.
 // Returns ErrBlobValidation when credentials are missing or structurally invalid.
 // Returns ErrBlobFactoryInit when the underlying SDK client cannot be created.
-func NewAzureBlobAdapter(opts AzureOptions) (BlobAdapter, error) {
-	if strings.TrimSpace(opts.AccountName) == "" {
+func NewAzureBlobAdapter(cfg *AzureConfig) (BlobAdapter, error) {
+	if strings.TrimSpace(cfg.AccountName) == "" {
 		return nil, fileError.ErrBlobValidation.WithMessagef("[azure] account_name is required")
 	}
-	if strings.TrimSpace(opts.AccountKey) == "" {
+	if strings.TrimSpace(cfg.AccountKey) == "" {
 		return nil, fileError.ErrBlobValidation.WithMessagef("[azure] account_key is required")
 	}
 
-	cred, err := azblob.NewSharedKeyCredential(opts.AccountName, opts.AccountKey)
+	cred, err := azblob.NewSharedKeyCredential(cfg.AccountName, cfg.AccountKey)
 	if err != nil {
 		return nil, fileError.ErrBlobValidation.WithMessagef(
 			"[azure] invalid shared-key credential: %v", err,
@@ -62,15 +185,15 @@ func NewAzureBlobAdapter(opts AzureOptions) (BlobAdapter, error) {
 		serviceURL string
 	)
 
-	if strings.TrimSpace(opts.Endpoint) != "" {
-		serviceURL = strings.TrimRight(opts.Endpoint, "/")
+	if strings.TrimSpace(cfg.Endpoint) != "" {
+		serviceURL = strings.TrimRight(cfg.Endpoint, "/")
 		connStr := fmt.Sprintf(
 			"DefaultEndpointsProtocol=http;AccountName=%s;AccountKey=%s;BlobEndpoint=%s;",
-			opts.AccountName, opts.AccountKey, serviceURL,
+			cfg.AccountName, cfg.AccountKey, serviceURL,
 		)
 		client, err = azblob.NewClientFromConnectionString(connStr, nil)
 	} else {
-		serviceURL = fmt.Sprintf("https://%s.blob.core.windows.net", opts.AccountName)
+		serviceURL = fmt.Sprintf("https://%s.blob.core.windows.net", cfg.AccountName)
 		client, err = azblob.NewClientWithSharedKeyCredential(serviceURL+"/", cred, nil)
 	}
 
@@ -89,8 +212,37 @@ func NewAzureBlobAdapter(opts AzureOptions) (BlobAdapter, error) {
 
 // ─── BlobAdapter interface implementation ─────────────────────────────────────
 
+// ParseAzureConfig parses and validates a raw config map into a typed AzureConfig.
+// Returns ErrBlobValidation when required fields are missing.
+func (a *azureBlobAdapter) ParseAndValidateConfig(
+	raw map[string]any,
+) (BlobConfig, error) {
+	return ParseAndValidateConfig[AzureConfig](raw)
+}
+
+// PingStorage checks container access via GetProperties on the container client.
+func (a *azureBlobAdapter) PingStorage(ctx context.Context, bucketOrContainer string) error {
+	name := strings.TrimSpace(bucketOrContainer)
+	if name == "" {
+		return fileError.ErrBlobValidation.WithMessagef("[azure] ping_storage: container is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return a.mapErr("ping_storage", err)
+	}
+	_, err := a.client.ServiceClient().
+		NewContainerClient(name).
+		GetProperties(ctx, nil)
+	if err != nil {
+		return a.mapErr("ping_storage", err)
+	}
+	return nil
+}
+
 // PutObject uploads a blob to Azure Blob Storage.
-func (a *azureBlobAdapter) PutObject(ctx context.Context, in model.BlobPutObjectInput) (model.BlobPutObjectOutput, error) {
+func (a *azureBlobAdapter) PutObject(
+	ctx context.Context,
+	in model.BlobPutObjectInput,
+) (model.BlobPutObjectOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPutObjectOutput{}, a.mapErr("put_object", err)
 	}
@@ -119,7 +271,10 @@ func (a *azureBlobAdapter) DeleteObject(ctx context.Context, bucket, key string)
 }
 
 // HeadObject returns metadata for a blob without downloading its body.
-func (a *azureBlobAdapter) HeadObject(ctx context.Context, bucket, key string) (model.BlobObjectMeta, error) {
+func (a *azureBlobAdapter) HeadObject(
+	ctx context.Context,
+	bucket, key string,
+) (model.BlobObjectMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobObjectMeta{}, a.mapErr("head_object", err)
 	}
@@ -149,7 +304,10 @@ func (a *azureBlobAdapter) HeadObject(ctx context.Context, bucket, key string) (
 
 // GetObjectStream returns a streaming reader plus metadata for a blob.
 // Callers must close the returned io.ReadCloser.
-func (a *azureBlobAdapter) GetObjectStream(ctx context.Context, bucket, key string) (io.ReadCloser, model.BlobObjectMeta, error) {
+func (a *azureBlobAdapter) GetObjectStream(
+	ctx context.Context,
+	bucket, key string,
+) (io.ReadCloser, model.BlobObjectMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, model.BlobObjectMeta{}, a.mapErr("get_object_stream", err)
 	}
@@ -176,7 +334,10 @@ func (a *azureBlobAdapter) GetObjectStream(ctx context.Context, bucket, key stri
 
 // PresignUpload generates a short-lived SAS URL for direct client upload.
 // TTL must be positive. Requires the adapter to be initialised with an account key.
-func (a *azureBlobAdapter) PresignUpload(ctx context.Context, in model.BlobPresignUploadInput) (model.BlobPresignOutput, error) {
+func (a *azureBlobAdapter) PresignUpload(
+	ctx context.Context,
+	in model.BlobPresignUploadInput,
+) (model.BlobPresignOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPresignOutput{}, a.mapErr("presign_upload", err)
 	}
@@ -195,7 +356,10 @@ func (a *azureBlobAdapter) PresignUpload(ctx context.Context, in model.BlobPresi
 
 // PresignDownload generates a short-lived SAS URL for direct client download.
 // TTL must be positive. Requires the adapter to be initialised with an account key.
-func (a *azureBlobAdapter) PresignDownload(ctx context.Context, in model.BlobPresignDownloadInput) (model.BlobPresignOutput, error) {
+func (a *azureBlobAdapter) PresignDownload(
+	ctx context.Context,
+	in model.BlobPresignDownloadInput,
+) (model.BlobPresignOutput, error) {
 	if err := ctx.Err(); err != nil {
 		return model.BlobPresignOutput{}, a.mapErr("presign_download", err)
 	}
@@ -228,16 +392,26 @@ func (a *azureBlobAdapter) CopyObject(ctx context.Context, in model.BlobCopyObje
 	if dr.ContentType != nil {
 		ct = *dr.ContentType
 	}
-	_, err = a.client.UploadStream(ctx, in.DestinationBucket, in.DestinationKey, dr.Body, &azblob.UploadStreamOptions{
-		HTTPHeaders: &blob.HTTPHeaders{BlobContentType: &ct},
-	})
+	_, err = a.client.UploadStream(
+		ctx,
+		in.DestinationBucket,
+		in.DestinationKey,
+		dr.Body,
+		&azblob.UploadStreamOptions{
+			HTTPHeaders: &blob.HTTPHeaders{BlobContentType: &ct},
+		},
+	)
 	return a.mapErr("copy_object", err)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // buildSASURL generates a shared-access-signature URL for the given blob.
-func (a *azureBlobAdapter) buildSASURL(container, key string, ttl time.Duration, permissions string) (string, time.Time, error) {
+func (a *azureBlobAdapter) buildSASURL(
+	container, key string,
+	ttl time.Duration,
+	permissions string,
+) (string, time.Time, error) {
 	expiresAt := time.Now().UTC().Add(ttl)
 	sasParams, err := sas.BlobSignatureValues{
 		Protocol:      sas.ProtocolHTTPSandHTTP,
@@ -256,9 +430,7 @@ func (a *azureBlobAdapter) buildSASURL(container, key string, ttl time.Duration,
 }
 
 // mapErr translates Azure SDK errors into categorised fileError sentinels.
-// Context errors become ErrBlobNetwork; BlobNotFound/ContainerNotFound become
-// ErrBlobNotFound; HTTP 401/403 become ErrBlobPermissionDenied; all other SDK
-// errors become ErrBlobInternal. Never exposes raw credentials in the message.
+// Full *azcore.ResponseError text (status, code, response body) is included for debugging.
 func (a *azureBlobAdapter) mapErr(op string, err error) error {
 	if err == nil {
 		return nil
@@ -268,24 +440,46 @@ func (a *azureBlobAdapter) mapErr(op string, err error) error {
 			"[azure] %s: context cancelled or deadline exceeded", op,
 		)
 	}
-	if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
-		return fileError.ErrBlobNotFound.WithMessagef("[azure] %s: object not found", op)
-	}
+
 	var respErr *azcore.ResponseError
 	if errors.As(err, &respErr) {
+		detail := strings.TrimSpace(respErr.Error())
 		switch respErr.StatusCode {
 		case http.StatusNotFound:
+			if detail != "" {
+				return fileError.ErrBlobNotFound.WithMessagef("[azure] %s: %s", op, detail)
+			}
 			return fileError.ErrBlobNotFound.WithMessagef(
 				"[azure] %s: not found (HTTP %d)", op, respErr.StatusCode,
 			)
 		case http.StatusForbidden, http.StatusUnauthorized:
+			if detail != "" {
+				return fileError.ErrBlobPermissionDenied.WithMessagef("[azure] %s: %s", op, detail)
+			}
 			return fileError.ErrBlobPermissionDenied.WithMessagef(
 				"[azure] %s: permission denied (HTTP %d)", op, respErr.StatusCode,
 			)
+		default:
+			if detail != "" {
+				return fileError.ErrBlobInternal.WithMessagef("[azure] %s: %s", op, detail)
+			}
+			return fileError.ErrBlobInternal.WithMessagef(
+				"[azure] %s: provider error (HTTP %d)", op, respErr.StatusCode,
+			)
 		}
-		return fileError.ErrBlobInternal.WithMessagef(
-			"[azure] %s: provider error (HTTP %d)", op, respErr.StatusCode,
-		)
+	}
+
+	if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
+		detail := strings.TrimSpace(err.Error())
+		if detail != "" {
+			return fileError.ErrBlobNotFound.WithMessagef("[azure] %s: %s", op, detail)
+		}
+		return fileError.ErrBlobNotFound.WithMessagef("[azure] %s: object not found", op)
+	}
+
+	detail := strings.TrimSpace(err.Error())
+	if detail != "" {
+		return fileError.ErrBlobInternal.WithMessagef("[azure] %s: %s", op, detail)
 	}
 	return fileError.ErrBlobInternal.WithMessagef("[azure] %s: unexpected error", op)
 }

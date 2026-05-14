@@ -574,7 +574,7 @@ func (s *PercentageDiscountPromotionTestSuite) TestCreateInvalidPercentageNegati
 		Percentage:    15,
 		MinOrderCents: helpers.Int64Ptr(-1),
 	}
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           "Negative Min",
 		"promotionType":  promoTypePercentage,
 		"discountConfig": config,
@@ -627,10 +627,10 @@ func (s *PercentageDiscountPromotionTestSuite) createPercentagePromotion(
 func (s *PercentageDiscountPromotionTestSuite) createGenericPromotion(
 	name string,
 	promoType string,
-	discountConfig interface{},
+	discountConfig any,
 	opts promotionCreateOptions,
 ) uint {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           name,
 		"promotionType":  promoType,
 		"discountConfig": discountConfig,
@@ -651,13 +651,13 @@ func (s *PercentageDiscountPromotionTestSuite) createGenericPromotion(
 }
 
 func (s *PercentageDiscountPromotionTestSuite) createPromotionFromPayload(
-	payload map[string]interface{},
+	payload map[string]any,
 ) uint {
 	res := s.sellerClient.Post(s.T(), PromotionAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code, "promotion creation should succeed")
 
 	respData := helpers.ParseResponse(s.T(), res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -677,7 +677,7 @@ func (s *PercentageDiscountPromotionTestSuite) linkPromotionProducts(
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionProductsEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"productIds":  productIDs,
 		},
@@ -689,9 +689,9 @@ func (s *PercentageDiscountPromotionTestSuite) linkPromotionCategories(
 	promotionID uint,
 	categoryIDs ...uint,
 ) {
-	categories := make([]map[string]interface{}, 0, len(categoryIDs))
+	categories := make([]map[string]any, 0, len(categoryIDs))
 	for _, categoryID := range categoryIDs {
-		categories = append(categories, map[string]interface{}{
+		categories = append(categories, map[string]any{
 			"categoryId":           categoryID,
 			"includeSubcategories": false,
 		})
@@ -700,7 +700,7 @@ func (s *PercentageDiscountPromotionTestSuite) linkPromotionCategories(
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionCategoriesEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"categories":  categories,
 		},
@@ -713,13 +713,13 @@ func buildPercentagePayload(
 	percentage float64,
 	maxDiscountCents *int64,
 	minOrderCents *int64,
-) map[string]interface{} {
+) map[string]any {
 	config := model.PercentageDiscountConfig{
 		Percentage:       percentage,
 		MaxDiscountCents: maxDiscountCents,
 		MinOrderCents:    minOrderCents,
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"name":           name,
 		"promotionType":  promoTypePercentage,
 		"discountConfig": config,

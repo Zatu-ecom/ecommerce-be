@@ -43,7 +43,7 @@ func (c *APIClient) SetHeader(key, value string) {
 }
 
 // Post makes a POST request
-func (c *APIClient) Post(t *testing.T, url string, body interface{}) *httptest.ResponseRecorder {
+func (c *APIClient) Post(t *testing.T, url string, body any) *httptest.ResponseRecorder {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("failed to marshal request body: %v", err)
@@ -115,7 +115,7 @@ func (c *APIClient) Get(t *testing.T, url string) *httptest.ResponseRecorder {
 }
 
 // Put makes a PUT request
-func (c *APIClient) Put(t *testing.T, url string, body interface{}) *httptest.ResponseRecorder {
+func (c *APIClient) Put(t *testing.T, url string, body any) *httptest.ResponseRecorder {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("failed to marshal request body: %v", err)
@@ -143,7 +143,7 @@ func (c *APIClient) Put(t *testing.T, url string, body interface{}) *httptest.Re
 }
 
 // Patch makes a PATCH request with JSON body
-func (c *APIClient) Patch(t *testing.T, url string, body interface{}) *httptest.ResponseRecorder {
+func (c *APIClient) Patch(t *testing.T, url string, body any) *httptest.ResponseRecorder {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("failed to marshal request body: %v", err)

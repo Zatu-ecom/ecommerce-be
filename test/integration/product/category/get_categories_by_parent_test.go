@@ -29,12 +29,12 @@ func TestGetCategoriesByParent(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to safely get categories from response
-	getCategoriesFromResponse := func(response map[string]interface{}) []interface{} {
-		data := response["data"].(map[string]interface{})
+	getCategoriesFromResponse := func(response map[string]any) []any {
+		data := response["data"].(map[string]any)
 		if categories, ok := data["categories"]; ok && categories != nil {
-			return categories.([]interface{})
+			return categories.([]any)
 		}
-		return []interface{}{}
+		return []any{}
 	}
 
 	// ============================================================================
@@ -52,7 +52,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			client.SetToken(adminToken)
 
 			// Create global root category
-			globalReq := map[string]interface{}{
+			globalReq := map[string]any{
 				"name":        "Global Root Category",
 				"description": "Global root category",
 			}
@@ -60,7 +60,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 
 			// Create seller-specific root category
 			client.SetToken(sellerToken)
-			sellerReq := map[string]interface{}{
+			sellerReq := map[string]any{
 				"name":        "Seller Root Category",
 				"description": "Seller's root category",
 			}
@@ -85,7 +85,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			// Verify both global and seller categories are present
 			categoryNames := make(map[string]bool)
 			for _, cat := range categories {
-				catMap := cat.(map[string]interface{})
+				catMap := cat.(map[string]any)
 				categoryNames[catMap["name"].(string)] = true
 			}
 
@@ -104,7 +104,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent Category for Children Test",
 			"description": "Parent category",
 		}
@@ -118,14 +118,14 @@ func TestGetCategoriesByParent(t *testing.T) {
 		parentID := uint(parent["id"].(float64))
 
 		// Create child categories
-		child1Req := map[string]interface{}{
+		child1Req := map[string]any{
 			"name":        "Child Category 1",
 			"description": "First child",
 			"parentId":    parentID,
 		}
 		client.Post(t, "/api/product/category", child1Req)
 
-		child2Req := map[string]interface{}{
+		child2Req := map[string]any{
 			"name":        "Child Category 2",
 			"description": "Second child",
 			"parentId":    parentID,
@@ -151,7 +151,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		// Verify child names
 		childNames := make(map[string]bool)
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			childNames[catMap["name"].(string)] = true
 		}
 
@@ -166,7 +166,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			seller1Token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 			client.SetToken(seller1Token)
 
-			parentReq := map[string]interface{}{
+			parentReq := map[string]any{
 				"name":        "Seller1 Private Parent",
 				"description": "Seller1's private parent",
 			}
@@ -180,7 +180,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 			parentID := uint(parent["id"].(float64))
 
 			// Create child
-			childReq := map[string]interface{}{
+			childReq := map[string]any{
 				"name":        "Seller1 Private Child",
 				"description": "Seller1's private child",
 				"parentId":    parentID,
@@ -213,7 +213,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Global Parent Category",
 			"description": "Global parent accessible to all",
 		}
@@ -227,14 +227,14 @@ func TestGetCategoriesByParent(t *testing.T) {
 		parentID := uint(parent["id"].(float64))
 
 		// Create child categories
-		child1Req := map[string]interface{}{
+		child1Req := map[string]any{
 			"name":        "Global Child 1",
 			"description": "First global child",
 			"parentId":    parentID,
 		}
 		client.Post(t, "/api/product/category", child1Req)
 
-		child2Req := map[string]interface{}{
+		child2Req := map[string]any{
 			"name":        "Global Child 2",
 			"description": "Second global child",
 			"parentId":    parentID,
@@ -295,7 +295,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Auth Test Parent",
 			"description": "Parent for auth test",
 		}
@@ -308,7 +308,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
 
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Auth Test Child",
 			"description": "Child for auth test",
 			"parentId":    parentID,
@@ -337,7 +337,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Seller Specific for Admin Test",
 			"description": "Seller category",
 		}
@@ -350,7 +350,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		parent := helpers.GetResponseData(t, parentResponse, "category")
 		parentID := uint(parent["id"].(float64))
 
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Seller Child for Admin Test",
 			"description": "Seller child",
 			"parentId":    parentID,
@@ -396,7 +396,7 @@ func TestGetCategoriesByParent(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Childless Parent",
 			"description": "Parent with no children",
 		}

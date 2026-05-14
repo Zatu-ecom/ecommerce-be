@@ -35,7 +35,7 @@ func New(rdb *redis.Client) *Scheduler {
 //  5. Worker pool (StartRedisWorkerPool) picks up jobs when their execution time arrives
 //
 // Parameters:
-//   - ctx: Context for the Redis operation (must contain UserID, SellerID, CorrelationID)
+//   - ctx: Context for the Redis operation (must contain UserID, CorrelationID; SellerID optional — use 0 when absent for platform-scoped jobs)
 //   - job: The Job struct containing command and payload
 //   - after: Duration to wait before executing the job (e.g., 15*time.Minute)
 //
@@ -139,9 +139,12 @@ func (s *Scheduler) createScheduledJob(
 		// return "", fmt.Errorf("user ID missing in context")
 		return nil, commonErr.ErrUserDataMissing
 	}
-	sellerId, exist := auth.GetSellerIDFromContext(ctx)
-	if !exist {
-		return nil, commonErr.ErrSellerDataMissing
+	sellerId, sellerExists := auth.GetSellerIDFromContext(ctx)
+	if !sellerExists {
+		// Platform-scoped flows (e.g. admin init-upload) have no seller tenant in context.
+		// ScheduledJob.sellerId uses 0 as a sentinel; upload expiry cache keys use the
+		// platform branch when the live request had no seller ID.
+		sellerId = 0
 	}
 	correlationId, exist := auth.GetCorrelationIDFromContext(ctx)
 	if !exist {

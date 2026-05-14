@@ -2,41 +2,47 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"ecommerce-be/common"
-	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
-	"ecommerce-be/common/helper"
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
 	"ecommerce-be/file/repository"
+	"ecommerce-be/file/service/blobAdapter"
 	"ecommerce-be/file/utils/constant"
 
 	"gorm.io/gorm"
 )
 
 type ConfigService interface {
-	GetProviders(ctx context.Context) ([]model.ProviderResponse, error)
+	GetProviders(
+		ctx context.Context,
+	) ([]model.ProviderResponse, error)
 	SaveConfig(
 		ctx context.Context,
 		userID uint,
 		role string,
 		req model.SaveConfigRequest,
 	) (*model.ConfigResponse, error)
-	ListConfigs(
-		ctx context.Context,
-		filter model.ListStorageConfigFilter,
-	) (*model.ListStorageConfigsResponse, error)
-	ActivateConfig(
+	UpdateConfig(
 		ctx context.Context,
 		userID uint,
 		role string,
 		configID uint,
-	) (*model.ActivateStorageConfigResponse, error)
+		req model.UpdateStorageConfigRequest,
+	) (*model.ConfigResponse, error)
+	TestStorageConfig(
+		ctx context.Context,
+		req model.SaveConfigRequest,
+	) (*model.TestStorageConfigResponse, error)
+	ListConfigs(
+		ctx context.Context,
+		filter model.ListStorageConfigFilter,
+	) (*model.ListStorageConfigsResponse, error)
 }
 
 type configService struct {
@@ -79,33 +85,158 @@ func (s *configService) SaveConfig(
 		return nil, err
 	}
 
-	if err := s.ensureProviderIsActive(ctx, req.ProviderID); err != nil {
-		return nil, err
-	}
-
-	cfg, err := s.resolveTargetConfig(ctx, req.ID, userID, isSeller)
+	// Load the provider to get its adapter_type for validation routing.
+	provider, err := s.ensureProviderIsActive(ctx, req.ProviderID)
 	if err != nil {
 		return nil, err
 	}
 
-	s.applyRequestFields(cfg, req)
-	s.applyOwnership(cfg, userID, isSeller, req.IsDefault)
-
-	encryptedCredentials, err := s.encryptCredentials(req.Credentials)
+	// Parse and validate the config using the adapter's typed config struct.
+	encryptedData, err := s.validateAndEncryptConfig(provider.AdapterType, req.Config)
 	if err != nil {
 		return nil, err
 	}
-	cfg.CredentialsEncrypted = encryptedCredentials
+
+	cfg := &entity.StorageConfig{}
+	isActive := boolPtrOrDefault(req.IsActive, true)
+	isDefault := boolPtrOrDefault(req.IsDefault, true)
+	cfg.IsActive = isActive
+
+	s.applyCoreConfigFields(cfg, req.ProviderID, req.DisplayName, req.BucketOrContainer)
+	s.applyOwnership(cfg, userID, isSeller, isDefault)
+
+	cfg.ConfigData = encryptedData
 
 	s.applyTimestamps(cfg)
 
-	clearPlatformDefaults := !isSeller && cfg.IsDefault
-	if err := s.saveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+	if err := s.saveConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
 
 	res := model.MapConfigToResponse(*cfg)
 	return &res, nil
+}
+
+func (s *configService) TestStorageConfig(
+	ctx context.Context,
+	req model.SaveConfigRequest,
+) (*model.TestStorageConfigResponse, error) {
+	provider, err := s.ensureProviderIsActive(ctx, req.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+	parser, err := blobAdapter.GetBlobConfigParser(provider.AdapterType)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := parser.ParseAndValidateConfig(req.Config)
+	if err != nil {
+		return nil, err
+	}
+	if err := ensureConfigBucketMatchesRequest(
+		provider.AdapterType,
+		cfg,
+		req.BucketOrContainer,
+	); err != nil {
+		return nil, err
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	adapter, err := blobAdapter.GetAdapter(testCtx, provider.AdapterType, cfg.ToMap())
+	if err != nil {
+		return nil, err
+	}
+	if err := adapter.PingStorage(testCtx, req.BucketOrContainer); err != nil {
+		return nil, err
+	}
+
+	return &model.TestStorageConfigResponse{OK: true}, nil
+}
+
+func (s *configService) UpdateConfig(
+	ctx context.Context,
+	userID uint,
+	role string,
+	configID uint,
+	req model.UpdateStorageConfigRequest,
+) (*model.ConfigResponse, error) {
+	isSeller, err := s.resolveRole(role)
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := s.ensureProviderIsActive(ctx, req.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedData, err := s.validateAndEncryptConfig(provider.AdapterType, req.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := s.resolveTargetConfig(ctx, &configID, userID, isSeller)
+	if err != nil {
+		return nil, err
+	}
+
+	s.applyCoreConfigFields(cfg, req.ProviderID, req.DisplayName, req.BucketOrContainer)
+	cfg.IsActive = req.IsActive
+	cfg.IsDefault = req.IsDefault
+	cfg.ConfigData = encryptedData
+
+	s.applyTimestamps(cfg)
+
+	if err := s.saveConfig(ctx, cfg); err != nil {
+		return nil, err
+	}
+
+	res := model.MapConfigToResponse(*cfg)
+	return &res, nil
+}
+
+func boolPtrOrDefault(p *bool, def bool) bool {
+	if p == nil {
+		return def
+	}
+	return *p
+}
+
+func ensureConfigBucketMatchesRequest(
+	adapterType entity.AdapterType,
+	cfg blobAdapter.BlobConfig,
+	bucketOrContainer string,
+) error {
+	want := strings.TrimSpace(bucketOrContainer)
+	if want == "" {
+		return fileError.ErrBlobValidation.WithMessagef("bucket_or_container is required")
+	}
+
+	m := cfg.ToMap()
+	switch adapterType {
+	case entity.AdapterTypeS3Compatible, entity.AdapterTypeGCS:
+		got, _ := m["bucket"].(string)
+		if strings.TrimSpace(got) != want {
+			return fileError.ErrBlobValidation.WithMessagef(
+				"config.bucket must match bucketOrContainer",
+			)
+		}
+	case entity.AdapterTypeAzure:
+		got, _ := m["container"].(string)
+		if strings.TrimSpace(got) != want {
+			return fileError.ErrBlobValidation.WithMessagef(
+				"config.container must match bucketOrContainer",
+			)
+		}
+	default:
+		return fileError.ErrBlobValidation.WithMessagef(
+			"unsupported adapter type %q",
+			adapterType,
+		)
+	}
+	return nil
 }
 
 func (s *configService) resolveRole(role string) (bool, error) {
@@ -117,36 +248,51 @@ func (s *configService) resolveRole(role string) (bool, error) {
 	return isSeller, nil
 }
 
+// validateAndEncryptConfig parses the raw config map for adapterType,
+// validates all required fields, then returns a field-level encrypted JSON blob.
+func (s *configService) validateAndEncryptConfig(
+	adapterType entity.AdapterType,
+	raw map[string]any,
+) (map[string]any, error) {
+	parser, err := blobAdapter.GetBlobConfigParser(adapterType)
+	if err != nil {
+		return nil, err
+	}
+	config, err := parser.ParseAndValidateConfig(raw)
+	if err != nil {
+		return nil, err
+	}
+	config.Encrypt()
+
+	return config.ToMap(), nil
+}
+
 func (s *configService) ensureProviderIsActive(
 	ctx context.Context,
 	providerID uint,
-) error {
-	if _, err := s.configRepo.GetActiveProviderByID(ctx, providerID); err != nil {
+) (*entity.StorageProvider, error) {
+	provider, err := s.configRepo.GetActiveProviderByID(ctx, providerID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fileError.ErrProviderNotFound
+			return nil, fileError.ErrProviderNotFound
 		}
-		return fileError.ErrPersistenceFailed.WithMessagef(
+		return nil, fileError.ErrPersistenceFailed.WithMessagef(
 			constant.FILE_PROVIDER_LOOKUP_FAILED_FMT,
 			err,
 		)
 	}
-	return nil
+	return provider, nil
 }
 
-func (s *configService) applyRequestFields(
+func (s *configService) applyCoreConfigFields(
 	cfg *entity.StorageConfig,
-	req model.SaveConfigRequest,
+	providerID uint,
+	displayName string,
+	bucketOrContainer string,
 ) {
-	cfg.ProviderID = req.ProviderID
-	cfg.DisplayName = req.DisplayName
-	cfg.BucketOrContainer = req.BucketOrContainer
-	cfg.Region = req.Region
-	cfg.Endpoint = req.Endpoint
-	cfg.BasePath = req.BasePath
-	cfg.ForcePathStyle = req.ForcePathStyle
-	if req.ConfigJSON != nil {
-		cfg.ConfigJSON = req.ConfigJSON
-	}
+	cfg.ProviderID = providerID
+	cfg.DisplayName = displayName
+	cfg.BucketOrContainer = bucketOrContainer
 }
 
 func (s *configService) applyOwnership(
@@ -155,47 +301,19 @@ func (s *configService) applyOwnership(
 	isSeller bool,
 	isDefault bool,
 ) {
+	cfg.OwnerID = &userID
+	cfg.IsDefault = isDefault
 	if isSeller {
 		cfg.OwnerType = entity.OwnerTypeSeller
-		cfg.OwnerID = &userID
-		cfg.IsDefault = false
 		return
 	}
 
 	cfg.OwnerType = entity.OwnerTypePlatform
-	cfg.OwnerID = nil
-	cfg.IsDefault = isDefault
-}
-
-func (s *configService) encryptCredentials(
-	credentials map[string]any,
-) ([]byte, error) {
-	credBytes, err := json.Marshal(credentials)
-	if err != nil {
-		return nil, fileError.ErrSerializationFailed.WithMessagef(
-			constant.FILE_INVALID_CREDENTIALS_PAYLOAD_FMT,
-			err,
-		)
-	}
-
-	cfgSingleton := config.Get()
-	if cfgSingleton == nil {
-		return nil, fileError.ErrEncryptionFailed.WithMessage(constant.FILE_CONFIG_NOT_LOADED_MSG)
-	}
-
-	encrypted, err := helper.Encrypt(string(credBytes), cfgSingleton.App.EncryptionKey)
-	if err != nil {
-		return nil, fileError.ErrEncryptionFailed.WithMessage(err.Error())
-	}
-
-	return []byte(encrypted), nil
 }
 
 func (s *configService) applyTimestamps(cfg *entity.StorageConfig) {
 	now := time.Now()
 	if cfg.ID == 0 {
-		cfg.IsActive = true
-		cfg.ValidationStatus = constant.FILE_CONFIG_PENDING_STATUS
 		cfg.CreatedAt = now
 	}
 	cfg.UpdatedAt = now
@@ -204,9 +322,8 @@ func (s *configService) applyTimestamps(cfg *entity.StorageConfig) {
 func (s *configService) saveConfig(
 	ctx context.Context,
 	cfg *entity.StorageConfig,
-	clearPlatformDefaults bool,
 ) error {
-	if err := s.configRepo.SaveConfig(ctx, cfg, clearPlatformDefaults); err != nil {
+	if err := s.configRepo.SaveConfig(ctx, cfg); err != nil {
 		return fileError.ErrPersistenceFailed.WithMessagef(
 			constant.FILE_SAVE_CONFIG_FAILED_FMT,
 			err,
@@ -294,59 +411,28 @@ func (s *configService) ListConfigs(
 
 	items := make([]model.StorageConfigListItem, len(configs))
 	for i, c := range configs {
-		items[i] = model.MapConfigToListItem(c)
+		parser, err := blobAdapter.GetBlobConfigParser(c.Provider.AdapterType)
+		if err != nil {
+			return nil, fileError.ErrPersistenceFailed.WithMessagef(
+				constant.FILE_LIST_CONFIG_FAILED_FMT,
+				err,
+			)
+		}
+		cfg, err := parser.ParseAndValidateConfig(c.ConfigData)
+		if err != nil {
+			return nil, fileError.ErrPersistenceFailed.WithMessagef(
+				constant.FILE_LIST_CONFIG_FAILED_FMT,
+				err,
+			)
+		}
+		if err := cfg.Decrypt(); err != nil {
+			return nil, err
+		}
+		items[i] = model.MapConfigToListItem(c, cfg.ToMap())
 	}
 
 	return &model.ListStorageConfigsResponse{
 		Configs:    items,
 		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
-}
-
-func (s *configService) ActivateConfig(
-	ctx context.Context,
-	userID uint,
-	role string,
-	configID uint,
-) (*model.ActivateStorageConfigResponse, error) {
-	isSeller, err := s.resolveRole(role)
-	if err != nil {
-		return nil, err
-	}
-
-	// Verify config exists and caller is in-scope
-	var cfg *entity.StorageConfig
-	if isSeller {
-		cfg, err = s.configRepo.GetSellerOwnedConfigByID(ctx, configID, userID)
-	} else {
-		cfg, err = s.configRepo.GetPlatformConfigByID(ctx, configID)
-	}
-	if err != nil {
-		return nil, s.mapScopedLookupError(ctx, configID, err)
-	}
-
-	// Determine scope params for activation transaction
-	var ownerID *uint
-	if isSeller {
-		ownerID = &userID
-	}
-
-	if err := s.configRepo.ActivateConfig(ctx, configID, cfg.OwnerType, ownerID); err != nil {
-		return nil, fileError.ErrActivationFailed.WithMessagef(
-			constant.FILE_ACTIVATE_CONFIG_FAILED_FMT,
-			err,
-		)
-	}
-
-	// Re-fetch to return current state
-	updatedCfg, err := s.configRepo.GetConfigByID(ctx, configID)
-	if err != nil {
-		return nil, fileError.ErrPersistenceFailed.WithMessagef(
-			constant.FILE_CONFIG_LOOKUP_FAILED_FMT,
-			err,
-		)
-	}
-
-	res := model.MapConfigToActivateResponse(*updatedCfg)
-	return &res, nil
 }

@@ -30,7 +30,7 @@ type ProductQueryService interface {
 	SearchProducts(
 		ctx context.Context,
 		query string,
-		filters map[string]interface{},
+		filters map[string]any,
 		page, limit int,
 		userID *uint, // Optional: if provided, checks if products are wishlisted by this user
 	) (*model.SearchResponse, error)
@@ -249,7 +249,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 func (s *ProductQueryServiceImpl) SearchProducts(
 	ctx context.Context,
 	query string,
-	filters map[string]interface{},
+	filters map[string]any,
 	page, limit int,
 	userID *uint,
 ) (*model.SearchResponse, error) {

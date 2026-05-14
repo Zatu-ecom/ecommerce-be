@@ -16,7 +16,7 @@ func getAndVerifyVariant(
 	t *testing.T,
 	client *helpers.APIClient,
 	productID, variantID uint,
-) map[string]interface{} {
+) map[string]any {
 	url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 	w := client.Get(t, url)
 	response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -51,8 +51,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{
 					"id":    2,
 					"price": 1299.99,
@@ -67,12 +67,12 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
 
-		variants, ok := data["variants"].([]interface{})
+		variants, ok := data["variants"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, variants, 2)
 
@@ -95,8 +95,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1 // iPhone with 4 variants
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{
 					"id":    1,
 					"price": 1099.99,
@@ -116,7 +116,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(3), data["updatedCount"])
@@ -148,8 +148,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1 // iPhone with 4 variants
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 1199.99},
 				{"id": 2, "price": 1299.99},
 				{"id": 3, "price": 1399.99},
@@ -161,12 +161,12 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(4), data["updatedCount"])
 
-		variants, ok := data["variants"].([]interface{})
+		variants, ok := data["variants"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, variants, 4)
 
@@ -184,8 +184,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5 // T-Shirt
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{
 					"id":    9,
 					"price": 34.99,
@@ -197,7 +197,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(1), data["updatedCount"])
@@ -209,8 +209,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 10, "price": 29.99},
 				{"id": 11, "price": 31.99},
 			},
@@ -220,7 +220,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -239,8 +239,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 7 // Running Shoes
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{
 					"id":    14,
 					"price": 119.99,
@@ -267,7 +267,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -283,8 +283,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 8 // Sofa
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 16, "allowPurchase": false},
 				{"id": 17, "allowPurchase": true},
 			},
@@ -294,7 +294,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -313,8 +313,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 3 // MacBook Pro
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 7, "isPopular": true},
 				{"id": 8, "isPopular": false},
 			},
@@ -324,7 +324,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -343,8 +343,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 2 // Samsung
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 5, "isDefault": true},
 				{"id": 6, "isDefault": true}, // This should be the final default
 			},
@@ -354,7 +354,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -379,8 +379,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "isDefault": false}, // Unset current default
 				{"id": 10, "isDefault": true}, // Set new default
 			},
@@ -390,7 +390,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -406,8 +406,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 6
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{
 					"id": 12,
 					"images": []string{
@@ -430,7 +430,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -442,8 +442,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 2, "images": []string{}},
 				{"id": 3, "images": []string{}},
 			},
@@ -453,7 +453,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -465,8 +465,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 8
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 16, "images": []string{"https://example.com/sofa-new.jpg"}},
 				{"id": 17, "images": []string{}},
 			},
@@ -476,7 +476,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -492,8 +492,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{},
+		requestBody := map[string]any{
+			"variants": []map[string]any{},
 		}
 
 		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
@@ -513,8 +513,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 1199.99},
 				{"id": 2, "price": -100.00}, // Invalid
 			},
@@ -532,8 +532,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 1199.99},
 				{"id": 3, "price": 0}, // Invalid
 			},
@@ -551,8 +551,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 2
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 5, "price": -50.00},
 				{"id": 6, "price": 0},
 			},
@@ -577,8 +577,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 29.99},
 				{"id": 9999, "price": 39.99}, // Non-existent
 			},
@@ -598,8 +598,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 8888, "price": 29.99},
 				{"id": 9999, "price": 39.99},
 			},
@@ -617,8 +617,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 7777, "price": 1199.99},
 				{"id": 8888, "price": 1299.99},
 				{"id": 9999, "price": 1399.99},
@@ -638,8 +638,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 		productID := 5 // T-Shirt
 		// Trying to update variant 1 which belongs to product 1 (iPhone)
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 29.99},  // Belongs to product 5 - OK
 				{"id": 1, "price": 999.99}, // Belongs to product 1 - ERROR
 			},
@@ -661,8 +661,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 1199.99},
 				{"id": 1, "price": 1299.99}, // Duplicate - should fail
 			},
@@ -681,8 +681,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": "invalid", "price": 29.99},
 			},
 		}
@@ -703,7 +703,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
@@ -717,7 +717,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"variants": nil,
 		}
 
@@ -733,8 +733,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": "not-a-number"},
 			},
 		}
@@ -751,8 +751,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 3, "allowPurchase": "yes"},
 			},
 		}
@@ -769,8 +769,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 4, "images": "not-an-array"},
 			},
 		}
@@ -787,8 +787,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"price": 29.99}, // Missing id field
 			},
 		}
@@ -805,8 +805,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": "abc", "price": 29.99},
 			},
 		}
@@ -826,8 +826,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 999.99},
 			},
 		}
@@ -844,8 +844,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 999.99},
 			},
 		}
@@ -865,8 +865,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 			productID := 1 // Belongs to seller 2
 
-			requestBody := map[string]interface{}{
-				"variants": []map[string]interface{}{
+			requestBody := map[string]any{
+				"variants": []map[string]any{
 					{"id": 1, "price": 999.99},
 				},
 			}
@@ -884,8 +884,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 5 // Belongs to seller 3
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 32.99},
 				{"id": 10, "price": 33.99},
 			},
@@ -895,7 +895,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -907,8 +907,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1 // Belongs to seller 2
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 1149.99},
 				{"id": 2, "price": 1249.99},
 			},
@@ -918,7 +918,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -934,8 +934,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 9999
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "price": 99.99},
 			},
 		}
@@ -956,8 +956,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 1, "isDefault": true},
 				{"id": 2, "isDefault": true},
 				{"id": 3, "isDefault": true}, // Only this should remain default
@@ -968,7 +968,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(3), data["updatedCount"])
@@ -999,8 +999,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 6
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 12, "isDefault": false},
 				{"id": 13, "isDefault": false},
 			},
@@ -1010,7 +1010,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(2), data["updatedCount"])
@@ -1022,8 +1022,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		productID := 8
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 17, "isDefault": true}, // Was not default, now should be
 			},
 		}
@@ -1032,7 +1032,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok)
 
 		assert.Equal(t, float64(1), data["updatedCount"])
@@ -1055,8 +1055,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 29.99},
 			},
 		}
@@ -1071,8 +1071,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 29.99},
 			},
 		}
@@ -1087,8 +1087,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"variants": []map[string]interface{}{
+		requestBody := map[string]any{
+			"variants": []map[string]any{
 				{"id": 9, "price": 29.99},
 			},
 		}

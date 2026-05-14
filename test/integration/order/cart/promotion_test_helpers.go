@@ -27,11 +27,11 @@ const (
 )
 
 // postPromotion POSTs a promotion payload as the seller and returns the new promotion ID.
-func postPromotion(t *testing.T, seller *helpers.APIClient, payload map[string]interface{}) uint {
+func postPromotion(t *testing.T, seller *helpers.APIClient, payload map[string]any) uint {
 	res := seller.Post(t, PromotionAPIEndpoint, payload)
 	require.Equal(t, http.StatusCreated, res.Code)
 	respData := helpers.ParseResponse(t, res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -42,8 +42,8 @@ func buildBundlePayload(
 	discountValue *float64,
 	bundlePrice *int64,
 	bundleItems []model.BundleItemConfig,
-) map[string]interface{} {
-	return map[string]interface{}{
+) map[string]any {
+	return map[string]any{
 		"name":          name,
 		"promotionType": promoTypeBundle,
 		"discountConfig": model.BundleConfig{

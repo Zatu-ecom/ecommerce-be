@@ -37,7 +37,7 @@ func TestGetCategoryByID(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Global Test Category",
 			"description": "Global category for testing",
 		}
@@ -77,7 +77,7 @@ func TestGetCategoryByID(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller Specific GetByID Test",
 			"description": "Seller's own category",
 		}
@@ -117,7 +117,7 @@ func TestGetCategoryByID(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller1 Private Category",
 			"description": "Seller 1's private category",
 		}
@@ -163,7 +163,7 @@ func TestGetCategoryByID(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Global For Seller Auth Test",
 			"description": "Global category",
 		}
@@ -204,7 +204,7 @@ func TestGetCategoryByID(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Own Category Auth Test",
 			"description": "Seller's own category with auth",
 		}
@@ -241,7 +241,7 @@ func TestGetCategoryByID(t *testing.T) {
 		seller1Token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(seller1Token)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller1 Auth Private Category",
 			"description": "Seller 1's private category",
 		}
@@ -271,7 +271,7 @@ func TestGetCategoryByID(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller Category For Admin Test",
 			"description": "Seller's category that admin will access",
 		}
@@ -344,7 +344,7 @@ func TestGetCategoryByID(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Response Fields Validation Category",
 			"description": "Category for field validation",
 		}
@@ -394,7 +394,7 @@ func TestGetCategoryByID(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent For Reference Test",
 			"description": "Parent category",
 		}
@@ -408,7 +408,7 @@ func TestGetCategoryByID(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create child
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child For Reference Test",
 			"description": "Child category",
 			"parentId":    parentID,

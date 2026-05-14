@@ -141,7 +141,7 @@ func (h *BaseHandler) ParseUintParam(c *gin.Context, paramName string) (uint, er
 }
 
 // BindJSON binds JSON request body and handles validation errors
-func (h *BaseHandler) BindJSON(c *gin.Context, obj interface{}) error {
+func (h *BaseHandler) BindJSON(c *gin.Context, obj any) error {
 	if err := c.ShouldBindJSON(obj); err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (h *BaseHandler) BindJSON(c *gin.Context, obj interface{}) error {
 }
 
 // Success sends a success response
-func (h *BaseHandler) Success(c *gin.Context, statusCode int, message string, data interface{}) {
+func (h *BaseHandler) Success(c *gin.Context, statusCode int, message string, data any) {
 	common.SuccessResponse(c, statusCode, message, data)
 }
 
@@ -159,9 +159,9 @@ func (h *BaseHandler) SuccessWithData(
 	statusCode int,
 	message string,
 	dataKey string,
-	data interface{},
+	data any,
 ) {
-	common.SuccessResponse(c, statusCode, message, map[string]interface{}{
+	common.SuccessResponse(c, statusCode, message, map[string]any{
 		dataKey: data,
 	})
 }

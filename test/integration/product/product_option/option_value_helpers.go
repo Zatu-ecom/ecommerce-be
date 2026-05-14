@@ -7,7 +7,7 @@ import (
 )
 
 // assertOptionValueFields verifies option value response has all required fields
-func assertOptionValueFields(t *testing.T, valueData map[string]interface{}, expectedValue, expectedDisplayName string) {
+func assertOptionValueFields(t *testing.T, valueData map[string]any, expectedValue, expectedDisplayName string) {
 	assert.NotNil(t, valueData["id"], "Option value should have id")
 	assert.Equal(t, expectedValue, valueData["value"], "Option value mismatch")
 	assert.Equal(t, expectedDisplayName, valueData["displayName"], "Display name mismatch")
@@ -15,7 +15,7 @@ func assertOptionValueFields(t *testing.T, valueData map[string]interface{}, exp
 }
 
 // assertOptionValueFieldsWithColor verifies option value with color code
-func assertOptionValueFieldsWithColor(t *testing.T, valueData map[string]interface{}, expectedValue, expectedDisplayName, expectedColorCode string, expectedPosition int) {
+func assertOptionValueFieldsWithColor(t *testing.T, valueData map[string]any, expectedValue, expectedDisplayName, expectedColorCode string, expectedPosition int) {
 	assertOptionValueFields(t, valueData, expectedValue, expectedDisplayName)
 	assert.Equal(t, expectedColorCode, valueData["colorCode"], "Color code mismatch")
 	assert.Equal(t, float64(expectedPosition), valueData["position"], "Position mismatch")

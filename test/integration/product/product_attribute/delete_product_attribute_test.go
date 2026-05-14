@@ -29,8 +29,8 @@ func TestDeleteProductAttribute(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an attribute
-	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]any {
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 value,
 			"sortOrder":             sortOrder,
@@ -125,11 +125,11 @@ func TestDeleteProductAttribute(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Verify the deleted attribute is not in the list
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 			assert.NotEqual(t, attributeID, attrID, "Deleted attribute should not be in list")
 		}
@@ -363,7 +363,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Product 5 has 3 from seeds (brand, material, fit) + 2 remaining (attr1, attr3) = 5 total
 		assert.GreaterOrEqual(
@@ -379,7 +379,7 @@ func TestDeleteProductAttribute(t *testing.T) {
 		foundAttr3 := false
 
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 
 			if attrID == attr1ID {

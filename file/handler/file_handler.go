@@ -1,29 +1,19 @@
 package handler
 
 import (
-	"ecommerce-be/file/service"
-
 	"github.com/gin-gonic/gin"
 )
 
 // FileHandler handles file upload, download, and asynchronous file job requests.
-type FileHandler struct {
-	fileService service.FileService
-}
+type FileHandler struct{}
 
-func NewFileHandler(fileService service.FileService) *FileHandler {
-	return &FileHandler{
-		fileService: fileService,
-	}
+func NewFileHandler() *FileHandler {
+	return &FileHandler{}
 }
 
 // Bellow are the stub methods according to the API Design
 
-// InitUpload handles POST /init-upload
-func (h *FileHandler) InitUpload(c *gin.Context) {}
 
-// CompleteUpload handles POST /complete-upload
-func (h *FileHandler) CompleteUpload(c *gin.Context) {}
 
 // GetFile handles GET /{fileId}
 func (h *FileHandler) GetFile(c *gin.Context) {}
@@ -48,3 +38,5 @@ func (h *FileHandler) CreateExportJob(c *gin.Context) {}
 
 // GetExportJob handles GET /exports/{jobId}
 func (h *FileHandler) GetExportJob(c *gin.Context) {}
+
+

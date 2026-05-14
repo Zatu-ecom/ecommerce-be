@@ -52,7 +52,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create first wishlist
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "My First Wishlist",
 		}
 
@@ -82,7 +82,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create second wishlist
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Gift Ideas",
 		}
 
@@ -114,8 +114,8 @@ func TestCreateAndGetWishlist(t *testing.T) {
 
 		// Assert response
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		wishlists := data["wishlists"].([]interface{})
+		data := response["data"].(map[string]any)
+		wishlists := data["wishlists"].([]any)
 
 		// Should have at least 2 wishlists from previous tests
 		assert.GreaterOrEqual(t, len(wishlists), 2, "Should have at least 2 wishlists")
@@ -123,7 +123,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Verify exactly one is default
 		defaultCount := 0
 		for _, wl := range wishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if wishlist["isDefault"].(bool) {
 				defaultCount++
 			}
@@ -145,12 +145,12 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// First, get initial count
 		w := client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		initialWishlists := data["wishlists"].([]interface{})
+		data := response["data"].(map[string]any)
+		initialWishlists := data["wishlists"].([]any)
 		initialCount := len(initialWishlists)
 
 		// Create first wishlist for Michael
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Tech Gadgets",
 		}
 		w = client.Post(t, "/api/product/wishlist", requestBody)
@@ -159,7 +159,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		techWishlistID := techWishlist["id"]
 
 		// Create second wishlist
-		requestBody = map[string]interface{}{
+		requestBody = map[string]any{
 			"name": "Fashion Items",
 		}
 		w = client.Post(t, "/api/product/wishlist", requestBody)
@@ -170,8 +170,8 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Get all wishlists and verify both appear
 		w = client.Get(t, "/api/product/wishlist")
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data = response["data"].(map[string]interface{})
-		wishlists := data["wishlists"].([]interface{})
+		data = response["data"].(map[string]any)
+		wishlists := data["wishlists"].([]any)
 
 		// Should have 2 more than initial
 		assert.Equal(t, initialCount+2, len(wishlists), "Should have 2 more wishlists")
@@ -180,7 +180,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		foundTech := false
 		foundFashion := false
 		for _, wl := range wishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if wishlist["id"] == techWishlistID {
 				foundTech = true
 				assert.Equal(t, "Tech Gadgets", wishlist["name"])
@@ -202,7 +202,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Clear token (unauthenticated)
 		client.SetToken("")
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Unauthorized Wishlist",
 		}
 
@@ -225,7 +225,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Seller Wishlist",
 		}
 
@@ -254,7 +254,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Empty body
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		w := client.Post(t, "/api/product/wishlist", requestBody)
 
@@ -266,7 +266,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "",
 		}
 
@@ -284,7 +284,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 
 			// Create name with 101 characters (max is 100)
 			longName := strings.Repeat("a", 101)
-			requestBody := map[string]interface{}{
+			requestBody := map[string]any{
 				"name": longName,
 			}
 
@@ -303,7 +303,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "A",
 		}
 
@@ -321,7 +321,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 
 		// Create name with exactly 100 characters
 		maxName := strings.Repeat("b", 100)
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": maxName,
 		}
 
@@ -337,7 +337,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "🎁 Gift Ideas 礼物 هدايا",
 		}
 
@@ -358,7 +358,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Gift's & Ideas! (2024)",
 		}
 
@@ -384,7 +384,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		sqlInjection := "'; DROP TABLE wishlist; --"
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": sqlInjection,
 		}
 
@@ -407,7 +407,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		xssPayload := "<script>alert('XSS')</script>"
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": xssPayload,
 		}
 
@@ -425,7 +425,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		client.SetToken(tokenAlice)
 
 		// Create a wishlist for Alice
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Alice Private Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", requestBody)
@@ -434,8 +434,8 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Get Alice's wishlists and count them
 		w = client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		aliceWishlists := data["wishlists"].([]interface{})
+		data := response["data"].(map[string]any)
+		aliceWishlists := data["wishlists"].([]any)
 		aliceCount := len(aliceWishlists)
 
 		// Now login as customer B (Sarah - user 7)
@@ -445,12 +445,12 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Get Sarah's wishlists
 		w = client.Get(t, "/api/product/wishlist")
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data = response["data"].(map[string]interface{})
-		sarahWishlists := data["wishlists"].([]interface{})
+		data = response["data"].(map[string]any)
+		sarahWishlists := data["wishlists"].([]any)
 
 		// Sarah should NOT see Alice's wishlists
 		for _, wl := range sarahWishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			assert.NotEqual(t, "Alice Private Wishlist", wishlist["name"],
 				"Sarah should not see Alice's wishlist")
 		}
@@ -469,7 +469,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name": "Empty Wishlist Test",
 		}
 
@@ -488,7 +488,7 @@ func TestCreateAndGetWishlist(t *testing.T) {
 
 		// Create multiple wishlists
 		for i := 1; i <= 3; i++ {
-			requestBody := map[string]interface{}{
+			requestBody := map[string]any{
 				"name": "Sarah's Wishlist " + string(rune('0'+i)),
 			}
 			w := client.Post(t, "/api/product/wishlist", requestBody)
@@ -498,13 +498,13 @@ func TestCreateAndGetWishlist(t *testing.T) {
 		// Get all wishlists
 		w := client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		wishlists := data["wishlists"].([]interface{})
+		data := response["data"].(map[string]any)
+		wishlists := data["wishlists"].([]any)
 
 		// Count defaults
 		defaultCount := 0
 		for _, wl := range wishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if wishlist["isDefault"].(bool) {
 				defaultCount++
 			}
@@ -540,8 +540,8 @@ func TestGetEmptyWishlists(t *testing.T) {
 
 		// Assert response
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		wishlists := data["wishlists"].([]interface{})
+		data := response["data"].(map[string]any)
+		wishlists := data["wishlists"].([]any)
 
 		// Should be empty array (not null)
 		assert.NotNil(t, wishlists, "Wishlists should not be null")

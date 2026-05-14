@@ -9,8 +9,9 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	fileHandler   *handler.FileHandler
-	configHandler *handler.ConfigHandler
+	fileHandler       *handler.FileHandler
+	configHandler     *handler.ConfigHandler
+	fileUploadHandler *handler.FileUploadHandler
 
 	once sync.Once
 }
@@ -24,12 +25,13 @@ func NewHandlerFactory(serviceFactory *ServiceFactory) *HandlerFactory {
 func (f *HandlerFactory) initialize() {
 	f.once.Do(func() {
 		// Get services
-		fileService := f.serviceFactory.GetFileService()
 		configService := f.serviceFactory.GetConfigService()
+		fileUploadService := f.serviceFactory.GetFileUploadService()
 
 		// Initialize handlers
-		f.fileHandler = handler.NewFileHandler(fileService)
+		f.fileHandler = handler.NewFileHandler()
 		f.configHandler = handler.NewConfigHandler(configService)
+		f.fileUploadHandler = handler.NewFileUploadHandler(fileUploadService)
 	})
 }
 
@@ -43,4 +45,10 @@ func (f *HandlerFactory) GetFileHandler() *handler.FileHandler {
 func (f *HandlerFactory) GetConfigHandler() *handler.ConfigHandler {
 	f.initialize()
 	return f.configHandler
+}
+
+// GetFileUploadHandler returns the singleton file upload handler
+func (f *HandlerFactory) GetFileUploadHandler() *handler.FileUploadHandler {
+	f.initialize()
+	return f.fileUploadHandler
 }

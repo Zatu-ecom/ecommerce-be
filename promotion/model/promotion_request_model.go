@@ -15,7 +15,7 @@ type CreatePromotionRequest struct {
 
 	// Promotion Mechanics
 	PromotionType  entity.PromotionType   `json:"promotionType"  binding:"required,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
-	DiscountConfig map[string]interface{} `json:"discountConfig" binding:"required"`
+	DiscountConfig map[string]any `json:"discountConfig" binding:"required"`
 
 	// Scope
 	AppliesTo entity.ScopeType `json:"appliesTo" binding:"required,oneof=all_products specific_products specific_categories specific_collections"`
@@ -68,7 +68,7 @@ type UpdatePromotionRequest struct {
 	Description *string `json:"description" binding:"omitempty"`
 
 	PromotionType  *entity.PromotionType   `json:"promotionType"  binding:"omitempty,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
-	DiscountConfig *map[string]interface{} `json:"discountConfig" binding:"omitempty"`
+	DiscountConfig *map[string]any `json:"discountConfig" binding:"omitempty"`
 
 	AppliesTo *entity.ScopeType `json:"appliesTo" binding:"omitempty,oneof=all_products specific_products specific_categories specific_collections"`
 
