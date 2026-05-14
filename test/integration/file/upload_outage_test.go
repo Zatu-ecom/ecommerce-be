@@ -229,19 +229,40 @@ func (s *UploadSuite) disableStorageResolution() func() {
 		Error
 	s.Require().NoError(err)
 
+	seller2ID := uint64(s.lookupUserIDByEmail(helpers.Seller2Email))
+	var seller2ActiveIDs []uint
+	err = s.container.DB.
+		Table("storage_config").
+		Where("owner_type = ? AND owner_id = ? AND is_active = ?", entity.OwnerTypeSeller, seller2ID, true).
+		Pluck("id", &seller2ActiveIDs).
+		Error
+	s.Require().NoError(err)
+
 	err = s.container.DB.Exec(
 		`UPDATE storage_config SET is_active = false WHERE owner_type = ? AND is_default = true AND is_active = true`,
 		entity.OwnerTypePlatform,
 	).Error
 	s.Require().NoError(err)
 
+	err = s.container.DB.Exec(
+		`UPDATE storage_config SET is_active = false WHERE owner_type = ? AND owner_id = ? AND is_active = true`,
+		entity.OwnerTypeSeller,
+		seller2ID,
+	).Error
+	s.Require().NoError(err)
+
 	return func() {
-		if len(platformDefaultIDs) == 0 {
-			return
+		if len(platformDefaultIDs) > 0 {
+			s.Require().NoError(s.container.DB.Exec(
+				`UPDATE storage_config SET is_active = true WHERE id IN ?`,
+				platformDefaultIDs,
+			).Error)
 		}
-		_ = s.container.DB.Exec(
-			`UPDATE storage_config SET is_active = true WHERE id IN ?`,
-			platformDefaultIDs,
-		).Error
+		if len(seller2ActiveIDs) > 0 {
+			s.Require().NoError(s.container.DB.Exec(
+				`UPDATE storage_config SET is_active = true WHERE id IN ?`,
+				seller2ActiveIDs,
+			).Error)
+		}
 	}
 }

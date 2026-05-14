@@ -140,6 +140,8 @@ func (s *UploadSuite) cleanupUploadState() {
 		_ = s.container.DB.Exec(`DELETE FROM file_job`).Error
 		_ = s.container.DB.Exec(`DELETE FROM file_variant`).Error
 		_ = s.container.DB.Exec(`DELETE FROM file_object`).Error
+		// Reset storage_config so tests cannot leak rows across Test* methods (FK-safe after file rows).
+		s.seedUploadStorageConfig()
 	}
 }
 
