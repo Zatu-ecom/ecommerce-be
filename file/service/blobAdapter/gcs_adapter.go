@@ -453,6 +453,11 @@ func (a *gcsAdapter) PresignDownload(
 		Expires:        time.Now().Add(in.TTL),
 		Scheme:         storage.SigningSchemeV4,
 	}
+	if disposition := strings.TrimSpace(in.Disposition); disposition != "" {
+		opts.QueryParameters = url.Values{
+			"response-content-disposition": []string{disposition},
+		}
+	}
 	if h := gcsSigningHostname(a.endpoint); h != "" {
 		opts.Hostname = h
 	}

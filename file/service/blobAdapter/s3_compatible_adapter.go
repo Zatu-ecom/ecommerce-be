@@ -380,10 +380,15 @@ func (a *s3CompatibleAdapter) PresignDownload(
 		return model.BlobPresignOutput{}, err
 	}
 
-	p, err := a.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+	req := &s3.GetObjectInput{
 		Bucket: aws.String(in.Bucket),
 		Key:    aws.String(in.Key),
-	}, func(po *s3.PresignOptions) {
+	}
+	if disposition := strings.TrimSpace(in.Disposition); disposition != "" {
+		req.ResponseContentDisposition = aws.String(disposition)
+	}
+
+	p, err := a.presigner.PresignGetObject(ctx, req, func(po *s3.PresignOptions) {
 		po.Expires = in.TTL
 	})
 	if err != nil {

@@ -65,6 +65,14 @@ func (f *SingletonFactory) GetFileUploadService() service.FileUploadService {
 	return f.serviceFactory.GetFileUploadService()
 }
 
+func (f *SingletonFactory) GetFileReadService() service.FileReadService {
+	return f.serviceFactory.GetFileReadService()
+}
+
+func (f *SingletonFactory) GetFileDeleteService() service.FileDeleteService {
+	return f.serviceFactory.GetFileDeleteService()
+}
+
 func (f *SingletonFactory) GetUploadExpiryScheduler() service.UploadExpiryScheduler {
 	return f.serviceFactory.GetUploadExpiryScheduler()
 }

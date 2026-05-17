@@ -26,10 +26,12 @@ func (f *HandlerFactory) initialize() {
 	f.once.Do(func() {
 		// Get services
 		configService := f.serviceFactory.GetConfigService()
+		fileReadService := f.serviceFactory.GetFileReadService()
+		fileDeleteService := f.serviceFactory.GetFileDeleteService()
 		fileUploadService := f.serviceFactory.GetFileUploadService()
 
 		// Initialize handlers
-		f.fileHandler = handler.NewFileHandler()
+		f.fileHandler = handler.NewFileHandler(fileReadService, fileDeleteService)
 		f.configHandler = handler.NewConfigHandler(configService)
 		f.fileUploadHandler = handler.NewFileUploadHandler(fileUploadService)
 	})

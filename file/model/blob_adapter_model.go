@@ -50,9 +50,10 @@ type BlobPresignUploadInput struct {
 // BlobPresignDownloadInput carries parameters for generating a time-limited download URL.
 // TTL must be > 0 or the adapter returns a validation error before any SDK call.
 type BlobPresignDownloadInput struct {
-	Bucket string
-	Key    string
-	TTL    time.Duration
+	Bucket      string
+	Key         string
+	Disposition string
+	TTL         time.Duration
 }
 
 // BlobPresignOutput is returned by PresignUpload and PresignDownload.
