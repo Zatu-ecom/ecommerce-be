@@ -347,7 +347,13 @@ func (a *azureBlobAdapter) PresignUpload(
 		)
 	}
 	uploadPerms := sas.BlobPermissions{Write: true, Create: true}
-	url, expiresAt, err := a.buildSASURL(in.Bucket, in.Key, in.TTL, uploadPerms.String())
+	url, expiresAt, err := a.buildSASURL(
+		in.Bucket,
+		in.Key,
+		in.TTL,
+		uploadPerms.String(),
+		"",
+	)
 	if err != nil {
 		return model.BlobPresignOutput{}, err
 	}
@@ -369,7 +375,13 @@ func (a *azureBlobAdapter) PresignDownload(
 		)
 	}
 	downloadPerms := sas.BlobPermissions{Read: true}
-	url, expiresAt, err := a.buildSASURL(in.Bucket, in.Key, in.TTL, downloadPerms.String())
+	url, expiresAt, err := a.buildSASURL(
+		in.Bucket,
+		in.Key,
+		in.TTL,
+		downloadPerms.String(),
+		strings.TrimSpace(in.Disposition),
+	)
 	if err != nil {
 		return model.BlobPresignOutput{}, err
 	}
@@ -411,6 +423,7 @@ func (a *azureBlobAdapter) buildSASURL(
 	container, key string,
 	ttl time.Duration,
 	permissions string,
+	contentDisposition string,
 ) (string, time.Time, error) {
 	expiresAt := time.Now().UTC().Add(ttl)
 	sasParams, err := sas.BlobSignatureValues{
@@ -419,6 +432,7 @@ func (a *azureBlobAdapter) buildSASURL(
 		ContainerName: container,
 		BlobName:      key,
 		Permissions:   permissions,
+		ContentDisposition: contentDisposition,
 	}.SignWithSharedKey(a.sharedKeyCred)
 	if err != nil {
 		return "", time.Time{}, fileError.ErrBlobInternal.WithMessagef(

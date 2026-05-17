@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -87,8 +86,7 @@ func (h *FileUploadHandler) InitUpload(c *gin.Context) {
 			" mimeType="+req.MimeType,
 	)
 
-	ctx := h.withPrincipalContext(c, principal)
-	res, svcErr := h.uploadService.InitUpload(ctx, principal, req, idempotencyKey)
+	res, svcErr := h.uploadService.InitUpload(c, principal, req, idempotencyKey)
 	if svcErr != nil {
 		h.HandleError(c, svcErr, constant.FILE_UPLOAD_INTERNAL_MSG)
 		return
@@ -139,8 +137,7 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 			" fileId="+req.FileID,
 	)
 
-	ctx := h.withPrincipalContext(c, principal)
-	res, svcErr := h.uploadService.CompleteUpload(ctx, principal, req)
+	res, svcErr := h.uploadService.CompleteUpload(c, principal, req)
 	if svcErr != nil {
 		h.HandleError(c, svcErr, constant.FILE_UPLOAD_INTERNAL_MSG)
 		return
@@ -156,22 +153,4 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 	)
 
 	h.Success(c, http.StatusOK, "Upload completed", res)
-}
-
-func (h *FileUploadHandler) withPrincipalContext(
-	c *gin.Context,
-	principal utils.Principal,
-) context.Context {
-	ctx := c.Request.Context()
-	ctx = context.WithValue(
-		ctx,
-		constants.CORRELATION_ID_KEY,
-		c.GetHeader(constants.CORRELATION_ID_HEADER),
-	)
-	ctx = context.WithValue(ctx, constants.USER_ID_KEY, uint(principal.UserID))
-	ctx = context.WithValue(ctx, constants.ROLE_NAME_KEY, principal.Role)
-	if principal.SellerID != nil {
-		ctx = context.WithValue(ctx, constants.SELLER_ID_KEY, uint(*principal.SellerID))
-	}
-	return ctx
 }

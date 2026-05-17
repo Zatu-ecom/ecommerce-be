@@ -15,6 +15,8 @@ type ServiceFactory struct {
 
 	configService service.ConfigService
 
+	fileReadService   service.FileReadService
+	fileDeleteService service.FileDeleteService
 	fileUploadService     service.FileUploadService
 	uploadExpiryScheduler service.UploadExpiryScheduler
 	uploadExpiryHandler   *service.UploadExpiryHandler
@@ -37,12 +39,18 @@ func (f *ServiceFactory) initialize() {
 
 		// Initialize services
 		f.configService = service.NewConfigService(configRepo)
+		f.fileReadService = service.NewFileReadService(fileUploadRepo, configRepo)
 
 		// Create infrastructure dependencies for upload
 		redisClient, _ := cache.GetRedisClient()
 		sched := scheduler.New(redisClient)
 
 		f.uploadExpiryScheduler = service.NewUploadExpiryScheduler(sched)
+		f.fileDeleteService = service.NewFileDeleteService(
+			fileUploadRepo,
+			configRepo,
+			f.uploadExpiryScheduler,
+		)
 
 		mf, err := msgFactory.New("")
 		if err == nil {
@@ -64,6 +72,18 @@ func (f *ServiceFactory) initialize() {
 			configRepo,
 		)
 	})
+}
+
+// GetFileReadService returns the singleton file read service.
+func (f *ServiceFactory) GetFileReadService() service.FileReadService {
+	f.initialize()
+	return f.fileReadService
+}
+
+// GetFileDeleteService returns the singleton file delete service.
+func (f *ServiceFactory) GetFileDeleteService() service.FileDeleteService {
+	f.initialize()
+	return f.fileDeleteService
 }
 
 // GetFileUploadService returns the singleton file upload service

@@ -32,6 +32,7 @@ func (m *FileOperationModule) RegisterRoutes(router *gin.Engine) {
 	// Seller endpoints for generic file operations
 	fileRoutes := router.Group(constants.APIBaseFile)
 	{
+		fileRoutes.GET("", sellerAuth, m.fileHandler.GetAllFiles)
 		fileRoutes.GET("/:fileId", sellerAuth, m.fileHandler.GetFile)
 		fileRoutes.GET("/:fileId/download-url", sellerAuth, m.fileHandler.GetDownloadURL)
 		fileRoutes.DELETE("/:fileId", sellerAuth, m.fileHandler.DeleteFile)
@@ -40,11 +41,4 @@ func (m *FileOperationModule) RegisterRoutes(router *gin.Engine) {
 		fileRoutes.POST("/init-upload", sellerAuth, m.uploadHandler.InitUpload)
 		fileRoutes.POST("/complete-upload", sellerAuth, m.uploadHandler.CompleteUpload)
 	}
-
-	// (b) Admin Auth Upload routes (/api/admin/files)
-	// adminUploadRoutes := router.Group("/api/admin/files")
-	// {
-	// 	adminUploadRoutes.POST("/init-upload", adminAuth, m.uploadHandler.InitUpload)
-	// 	adminUploadRoutes.POST("/complete-upload", adminAuth, m.uploadHandler.CompleteUpload)
-	// }
 }

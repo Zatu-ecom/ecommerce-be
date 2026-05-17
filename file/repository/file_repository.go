@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"ecommerce-be/file/entity"
+	"ecommerce-be/file/model"
 )
 
-// FileUploadRepository defines the data-access operations required by the upload feature.
+// FileUploadRepository defines the data-access operations required by the file module.
 // All status comparisons use entity constants (CA4 — never inline string literals).
 type FileUploadRepository interface {
 	// InsertUploading inserts a new file_object row with status=UPLOADING.
@@ -51,4 +52,21 @@ type FileUploadRepository interface {
 	// FindFileJobByFileObjectID retrieves the most recent file_job for the given file_object.
 	// Returns nil, nil when no row matches.
 	FindFileJobByFileObjectID(ctx context.Context, fileObjectID uint64) (*entity.FileJob, error)
+
+	// FindManyScoped returns a paginated, tenant-scoped list of file objects.
+	FindManyScoped(
+		ctx context.Context,
+		ownerType entity.OwnerType,
+		ownerID *uint64,
+		filter model.GetFilesFilter,
+	) ([]entity.FileObject, int64, error)
+
+	// FindVariantsByFileObjectIDs fetches variants for a batch of file object IDs.
+	FindVariantsByFileObjectIDs(ctx context.Context, fileObjectIDs []uint64) ([]entity.FileVariant, error)
+
+	// FindVariantByCode returns a file variant for a given parent object and variant code.
+	FindVariantByCode(ctx context.Context, fileObjectID uint64, variantCode string) (*entity.FileVariant, error)
+
+	// DeleteFileObject hard-deletes a file_object row by primary key.
+	DeleteFileObject(ctx context.Context, id uint64) error
 }
