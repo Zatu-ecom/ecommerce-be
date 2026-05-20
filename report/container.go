@@ -1,0 +1,29 @@
+package report
+
+import (
+	"ecommerce-be/common"
+	routes "ecommerce-be/report/route"
+
+	"github.com/gin-gonic/gin"
+)
+
+// NewContainer initializes dependencies dynamically
+func NewContainer(router *gin.Engine) *common.Container {
+	// Initialize Container
+	c := &common.Container{}
+
+	// Register all modules
+	addModules(c)
+
+	// Register routes for each module
+	for _, module := range c.Modules {
+		module.RegisterRoutes(router)
+	}
+
+	return c
+}
+
+// addModules registers all report-related modules
+func addModules(c *common.Container) {
+	c.RegisterModule(routes.NewReportModule())
+}

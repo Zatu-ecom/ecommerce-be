@@ -120,7 +120,7 @@ func (s *FlashSaleStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
 }
 
 // ValidateConfig validates the flash sale configuration
-func (s *FlashSaleStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *FlashSaleStrategy) ValidateConfig(config map[string]any) error {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid config format")

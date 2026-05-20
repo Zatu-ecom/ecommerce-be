@@ -1,0 +1,314 @@
+openapi: 3.0.3
+info:
+  title: File Storage Config API Contract
+  version: 1.0.0
+  description: Contract for storage config activation and listing.
+
+paths:
+  /api/files/storage-config:
+    get:
+      summary: List storage configurations within token-derived scope
+      tags: [FileStorageConfig]
+      parameters:
+        - in: query
+          name: ids
+          schema:
+            type: string
+          description: Comma-separated storage config IDs.
+        - in: query
+          name: providerIds
+          schema:
+            type: string
+          description: Comma-separated provider IDs.
+        - in: query
+          name: validationStatuses
+          schema:
+            type: string
+          description: Comma-separated validation statuses.
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+        - in: query
+          name: isDefault
+          schema:
+            type: boolean
+        - in: query
+          name: adapterType
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, displayName, validationStatus]
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Storage configs fetched successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListStorageConfigSuccess'
+              example:
+                success: true
+                message: "Storage configs retrieved successfully"
+                data:
+                  configs:
+                    - id: 1
+                      providerId: 1
+                      ownerType: "SELLER"
+                      displayName: "My S3 Bucket"
+                      bucketOrContainer: "my-bucket"
+                      region: "ap-south-1"
+                      isActive: true
+                      isDefault: false
+                      validationStatus: "PENDING"
+                  pagination:
+                    currentPage: 1
+                    totalPages: 1
+                    totalItems: 1
+                    itemsPerPage: 20
+                    hasNext: false
+                    hasPrev: false
+        '400':
+          description: Validation error (including forbidden filter keys such as sellerId).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                success: false
+                message: "Validation failed"
+                code: "VALIDATION_ERROR"
+                errors:
+                  - field: "sellerId"
+                    message: "sellerId is not an allowed filter"
+        '401':
+          description: Authentication required or token invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Role below seller or out-of-scope access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/storage-config/{id}/activate:
+    post:
+      summary: Activate a storage configuration within token-derived scope
+      tags: [FileStorageConfig]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Storage config activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivateStorageConfigSuccess'
+              example:
+                success: true
+                message: "Storage config activated successfully"
+                data:
+                  id: 3
+                  ownerType: "SELLER"
+                  ownerId: 42
+                  isActive: true
+        '400':
+          description: Invalid path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                success: false
+                message: "Invalid id"
+                code: "INVALID_ID"
+        '401':
+          description: Authentication required or token invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Role below seller or out-of-scope activation target.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "You are not authorized to manage this storage config"
+                code: "FILE_CONFIG_FORBIDDEN"
+        '404':
+          description: Config not found in resolved scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "Storage config not found"
+                code: "FILE_CONFIG_NOT_FOUND"
+        '500':
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ListStorageConfigSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Storage configs fetched successfully
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/StorageConfigListItem'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+      required: [success, message, data]
+
+    ActivateStorageConfigSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Storage config activated successfully
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            ownerType:
+              type: string
+              enum: [PLATFORM, SELLER]
+            ownerId:
+              type: integer
+              nullable: true
+            isActive:
+              type: boolean
+              example: true
+      required: [success, message, data]
+
+    StorageConfigListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        ownerType:
+          type: string
+          enum: [PLATFORM, SELLER]
+        displayName:
+          type: string
+        bucketOrContainer:
+          type: string
+        isActive:
+          type: boolean
+        isDefault:
+          type: boolean
+        validationStatus:
+          type: string
+      required:
+        [id, providerId, ownerType, displayName, bucketOrContainer, isActive, isDefault, validationStatus]
+
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+        totalPages:
+          type: integer
+        totalItems:
+          type: integer
+        itemsPerPage:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    ValidationError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        code:
+          type: string
+      required: [success, message]

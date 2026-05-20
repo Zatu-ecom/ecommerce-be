@@ -20,13 +20,14 @@ import (
 const reservationExpiresInMinutes = 5
 
 // CreateOrder executes checkout->order conversion.
+//
 // Steps:
-// 1. Validate fulfillment and status preconditions.
-// 2. Read enriched cart snapshot from cart service (items + promo breakdown).
-// 3. Lock cart (active -> checkout).
-// 4. In one transaction: create order graph, reserve inventory, convert cart, create fresh active cart.
-// 5. If order status is confirmed, update reservation status to confirmed.
-// 6. On failure, unlock cart back to active.
+//  1. Validate fulfillment and status preconditions.
+//  2. Read enriched cart snapshot from cart service (items + promo breakdown).
+//  3. Lock cart (active -> checkout).
+//  4. In one transaction: create order graph, reserve inventory, convert cart, create fresh active cart.
+//  5. If order status is confirmed, update reservation status to confirmed.
+//  6. On failure, unlock cart back to active.
 func (s *OrderServiceImpl) CreateOrder(
 	ctx context.Context,
 	userID, sellerID uint,
@@ -41,7 +42,10 @@ func (s *OrderServiceImpl) CreateOrder(
 	converted := false
 	defer func() {
 		if !converted {
-			_ = s.cartSvc.UnlockCheckoutCart(context.Background(), createCtx.lockedCart.ID)
+			_ = s.cartSvc.UnlockCheckoutCart(
+				context.Background(),
+				createCtx.lockedCart.ID,
+			)
 		}
 	}()
 
@@ -221,8 +225,8 @@ func (s *OrderServiceImpl) buildCreateOrderEntity(
 	)
 }
 
-// handleCreateOrderReservation creates reservation for reservable statuses and confirms it immediately
-// when order is directly created as confirmed.
+// handleCreateOrderReservation creates reservation for reservable statuses and
+// confirms it immediately when order is directly created as confirmed.
 func (s *OrderServiceImpl) handleCreateOrderReservation(
 	txCtx context.Context,
 	sellerID, orderID uint,

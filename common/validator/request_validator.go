@@ -8,7 +8,7 @@ import (
 
 // RequireAtLeastOneField checks if a struct has at least one non-zero/non-nil field
 // Works with any struct type containing pointers, strings, ints, bools, etc.
-func RequireAtLeastOneField(s interface{}) error {
+func RequireAtLeastOneField(s any) error {
 	v := reflect.ValueOf(s)
 
 	// Handle pointer to struct
@@ -69,7 +69,7 @@ func isZeroValue(v reflect.Value) bool {
 
 // RequireAtLeastOneNonNilPointer checks if a struct has at least one non-nil pointer field
 // Specifically for update requests where all fields are pointers
-func RequireAtLeastOneNonNilPointer(s interface{}) error {
+func RequireAtLeastOneNonNilPointer(s any) error {
 	v := reflect.ValueOf(s)
 
 	// Handle pointer to struct
@@ -105,7 +105,7 @@ func RequireAtLeastOneNonNilPointer(s interface{}) error {
 
 // RequireAtLeastOneWithTag checks if a struct has at least one non-zero field with a specific tag
 // Example: RequireAtLeastOneWithTag(req, "updateable", "true")
-func RequireAtLeastOneWithTag(s interface{}, tagKey, tagValue string) error {
+func RequireAtLeastOneWithTag(s any, tagKey, tagValue string) error {
 	v := reflect.ValueOf(s)
 
 	// Handle pointer to struct

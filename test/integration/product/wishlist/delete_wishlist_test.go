@@ -51,7 +51,7 @@ func TestDeleteWishlist(t *testing.T) {
 	client.SetToken(aliceToken)
 
 	// Create first wishlist (will be default)
-	createReq := map[string]interface{}{
+	createReq := map[string]any{
 		"name": "Alice Default Wishlist",
 	}
 	w := client.Post(t, "/api/product/wishlist", createReq)
@@ -60,7 +60,7 @@ func TestDeleteWishlist(t *testing.T) {
 	aliceDefaultWishlistID := uint(aliceDefaultWishlist["id"].(float64))
 
 	// Create second wishlist (non-default) for deletion tests
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Secondary Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -69,7 +69,7 @@ func TestDeleteWishlist(t *testing.T) {
 	aliceWishlistID2 := uint(aliceWishlist2["id"].(float64))
 
 	// Create third wishlist for additional tests
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Third Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -78,7 +78,7 @@ func TestDeleteWishlist(t *testing.T) {
 	aliceWishlistID3 := uint(aliceWishlist3["id"].(float64))
 
 	// Create fourth wishlist with items for testing cascade delete
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Wishlist With Items",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -90,19 +90,19 @@ func TestDeleteWishlist(t *testing.T) {
 	client.SetHeader("X-Seller-ID", "2")
 	w = client.Get(t, "/api/product?page=1&pageSize=3")
 	response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	if resultsRaw, ok := data["results"]; ok && resultsRaw != nil {
-		products := resultsRaw.([]interface{})
+		products := resultsRaw.([]any)
 		for i := 0; i < 2 && i < len(products); i++ {
-			product := products[i].(map[string]interface{})
+			product := products[i].(map[string]any)
 			if variantsRaw, vOk := product["variants"]; vOk && variantsRaw != nil {
-				variants := variantsRaw.([]interface{})
+				variants := variantsRaw.([]any)
 				if len(variants) > 0 {
-					variant := variants[0].(map[string]interface{})
+					variant := variants[0].(map[string]any)
 					variantID := uint(variant["id"].(float64))
 
-					addReq := map[string]interface{}{
+					addReq := map[string]any{
 						"variantId": variantID,
 					}
 					w = client.Post(
@@ -121,7 +121,7 @@ func TestDeleteWishlist(t *testing.T) {
 	client.SetToken(michaelToken)
 
 	// Create default wishlist for Michael
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Michael Default Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -130,7 +130,7 @@ func TestDeleteWishlist(t *testing.T) {
 	michaelWishlistID := uint(michaelWishlist["id"].(float64))
 
 	// Create non-default wishlist for Michael
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Michael Secondary Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -191,7 +191,7 @@ func TestDeleteWishlist(t *testing.T) {
 		// Get all wishlists count before
 		w := client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		wishlistsBefore := response["data"].(map[string]interface{})["wishlists"].([]interface{})
+		wishlistsBefore := response["data"].(map[string]any)["wishlists"].([]any)
 		countBefore := len(wishlistsBefore)
 
 		// Delete third wishlist
@@ -201,7 +201,7 @@ func TestDeleteWishlist(t *testing.T) {
 		// Get all wishlists count after
 		w = client.Get(t, "/api/product/wishlist")
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		wishlistsAfter := response["data"].(map[string]interface{})["wishlists"].([]interface{})
+		wishlistsAfter := response["data"].(map[string]any)["wishlists"].([]any)
 		countAfter := len(wishlistsAfter)
 
 		// Verify count decreased by 1
@@ -209,7 +209,7 @@ func TestDeleteWishlist(t *testing.T) {
 
 		// Verify deleted wishlist is not in the list
 		for _, wl := range wishlistsAfter {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			assert.NotEqual(
 				t,
 				float64(aliceWishlistID3),
@@ -351,7 +351,7 @@ func TestDeleteWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create a new wishlist specifically for this test
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Alice Idempotent Test Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -399,7 +399,7 @@ func TestDeleteWishlist(t *testing.T) {
 		michaelToken := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 		client.SetToken(michaelToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Michael Protected Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -436,7 +436,7 @@ func TestDeleteWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create a non-default wishlist
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Alice Temp Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -462,11 +462,11 @@ func TestDeleteWishlist(t *testing.T) {
 		// Get all wishlists
 		w := client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		wishlists := response["data"].(map[string]interface{})["wishlists"].([]interface{})
+		wishlists := response["data"].(map[string]any)["wishlists"].([]any)
 
 		// Delete all non-default wishlists
 		for _, wl := range wishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if !wishlist["isDefault"].(bool) {
 				wishlistID := uint(wishlist["id"].(float64))
 				w = client.Delete(t, fmt.Sprintf("/api/product/wishlist/%d", wishlistID))
@@ -482,7 +482,7 @@ func TestDeleteWishlist(t *testing.T) {
 		// Verify only default wishlist remains
 		w = client.Get(t, "/api/product/wishlist")
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		wishlistsAfter := response["data"].(map[string]interface{})["wishlists"].([]interface{})
+		wishlistsAfter := response["data"].(map[string]any)["wishlists"].([]any)
 
 		// Should have at least the default wishlist
 		assert.GreaterOrEqual(
@@ -495,7 +495,7 @@ func TestDeleteWishlist(t *testing.T) {
 		// Verify the remaining wishlist is default
 		hasDefault := false
 		for _, wl := range wishlistsAfter {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if wishlist["isDefault"].(bool) {
 				hasDefault = true
 				break
@@ -511,7 +511,7 @@ func TestDeleteWishlist(t *testing.T) {
 			client.SetToken(token)
 
 			// Create a new wishlist
-			createReq := map[string]interface{}{
+			createReq := map[string]any{
 				"name": "Alice New Default Candidate",
 			}
 			w := client.Post(t, "/api/product/wishlist", createReq)
@@ -520,7 +520,7 @@ func TestDeleteWishlist(t *testing.T) {
 			newWishlistID := uint(newWishlist["id"].(float64))
 
 			// Make it default
-			updateReq := map[string]interface{}{
+			updateReq := map[string]any{
 				"isDefault": true,
 			}
 			w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", newWishlistID), updateReq)
@@ -541,7 +541,7 @@ func TestDeleteWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create a new wishlist
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Alice Cascade Delete Test Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -638,7 +638,7 @@ func TestDeleteWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create two wishlists
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Alice Keep Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -646,7 +646,7 @@ func TestDeleteWishlist(t *testing.T) {
 		keepWishlist := helpers.GetResponseData(t, response, "wishlist")
 		keepWishlistID := uint(keepWishlist["id"].(float64))
 
-		createReq = map[string]interface{}{
+		createReq = map[string]any{
 			"name": "Alice Delete Wishlist",
 		}
 		w = client.Post(t, "/api/product/wishlist", createReq)

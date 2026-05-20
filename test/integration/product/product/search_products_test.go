@@ -56,7 +56,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should return empty results for whitespace query
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.Empty(t, results, "Should return no results for whitespace query")
 	})
@@ -72,7 +72,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should not crash, even if no results found
-		_, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		_, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 	})
 
@@ -92,7 +92,7 @@ func TestSearchProducts(t *testing.T) {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 			// Should handle special characters gracefully
-			_, ok := response["data"].(map[string]interface{})["results"]
+			_, ok := response["data"].(map[string]any)["results"]
 			assert.True(t, ok, "Should have results field for query: "+query)
 		}
 	})
@@ -111,7 +111,7 @@ func TestSearchProducts(t *testing.T) {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 			// Should safely handle SQL injection attempts
-			results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+			results, ok := response["data"].(map[string]any)["results"].([]any)
 			assert.True(t, ok, "results should be an array")
 			assert.Empty(t, results, "Should return no results for SQL injection attempt")
 		}
@@ -127,15 +127,15 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify search response structure
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, "iPhone 15 Pro", data["query"], "Query should be returned in response")
 
-		results, ok := data["results"].([]interface{})
+		results, ok := data["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.NotEmpty(t, results, "Should find iPhone 15 Pro")
 
 		// Verify first result contains iPhone
-		firstResult := results[0].(map[string]interface{})
+		firstResult := results[0].(map[string]any)
 		productName := firstResult["name"].(string)
 		assert.Contains(t, productName, "iPhone", "Product name should contain iPhone")
 
@@ -149,14 +149,14 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.NotEmpty(t, results, "Should find products with 'iphone' (case insensitive)")
 
 		// Verify at least one result contains iPhone
 		found := false
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			productName := result["name"].(string)
 			if productName == "iPhone 15 Pro" {
 				found = true
@@ -171,13 +171,13 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.NotEmpty(t, results, "Should find Apple products")
 
 		// Verify all results are Apple products (iPhone or MacBook for seller 2)
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			brand := result["brand"].(string)
 			assert.Equal(t, "Apple", brand, "All results should be Apple brand")
 		}
@@ -188,14 +188,14 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.NotEmpty(t, results, "Should find products with 'smartphone' in description")
 
 		// At least iPhone or Samsung should be found (both are smartphones)
 		foundSmartphone := false
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			description := result["shortDescription"].(string)
 			if description != "" {
 				foundSmartphone = true
@@ -210,13 +210,13 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.NotEmpty(t, results, "Should find products with 'flagship' tag")
 
 		// Verify tags are included in response
-		firstResult := results[0].(map[string]interface{})
-		tags, ok := firstResult["tags"].([]interface{})
+		firstResult := results[0].(map[string]any)
+		tags, ok := firstResult["tags"].([]any)
 		assert.True(t, ok, "tags should be an array")
 		assert.NotEmpty(t, tags, "Product should have tags")
 	})
@@ -226,7 +226,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		// Could match multiple products (iPhone Pro, MacBook Pro, Sony headphones)
 		// Just verify structure is correct
@@ -238,12 +238,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.Empty(t, results, "Should return empty results for non-matching query")
 
 		// Verify pagination shows 0 total
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		totalItems := int(pagination["totalItems"].(float64))
 		assert.Equal(t, 0, totalItems, "Total items should be 0")
 	})
@@ -253,11 +253,11 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		// Could match iPhone 15 Pro
 		if len(results) > 0 {
-			firstResult := results[0].(map[string]interface{})
+			firstResult := results[0].(map[string]any)
 			assert.NotNil(t, firstResult["name"], "Product should have name")
 		}
 	})
@@ -272,12 +272,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// Verify all results are in category 4
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			categoryID := uint(result["categoryId"].(float64))
 			assert.Equal(t, uint(4), categoryID, "All results should be in category 4")
 		}
@@ -288,12 +288,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// All results should be Apple brand
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			brand := result["brand"].(string)
 			assert.Equal(t, "Apple", brand, "All results should be Apple brand")
 		}
@@ -304,13 +304,13 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// Verify products have variants with price >= 1000
 		for _, item := range results {
-			result := item.(map[string]interface{})
-			variantPreview := result["variantPreview"].(map[string]interface{})
+			result := item.(map[string]any)
+			variantPreview := result["variantPreview"].(map[string]any)
 			assert.NotNil(t, variantPreview, "Should have variant preview")
 		}
 	})
@@ -320,13 +320,13 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// Should return products with variants <= 50000
 		// Just verify structure is correct
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			assert.NotNil(t, result["variantPreview"], "Should have variant preview")
 		}
 	})
@@ -336,12 +336,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// Verify response structure
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			assert.NotNil(t, result["name"], "Product should have name")
 			assert.NotNil(t, result["variantPreview"], "Should have variant preview")
 		}
@@ -352,12 +352,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// If results exist, verify they match all filters
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			brand := result["brand"].(string)
 			categoryID := uint(result["categoryId"].(float64))
 			assert.Equal(t, "Apple", brand, "Should be Apple brand")
@@ -370,7 +370,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.Empty(t, results, "Should return no results for non-existent category")
 	})
@@ -381,7 +381,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Invalid price filters should be ignored, search should still work
-		_, ok := response["data"].(map[string]interface{})["results"]
+		_, ok := response["data"].(map[string]any)["results"]
 		assert.True(t, ok, "Should have results field even with invalid price filters")
 	})
 
@@ -391,7 +391,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Negative price should be ignored or handled gracefully
-		_, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		_, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 	})
 
@@ -400,7 +400,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		_, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		_, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		// Zero price filters should be ignored (minPrice > 0 check in handler)
 	})
@@ -415,7 +415,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify pagination structure
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		assert.Equal(t, float64(1), pagination["currentPage"], "Default page should be 1")
 		assert.Equal(t, float64(10), pagination["itemsPerPage"], "Default limit should be 10")
 		assert.NotNil(t, pagination["totalPages"], "Should have totalPages")
@@ -429,11 +429,11 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.LessOrEqual(t, len(results), 2, "Should return at most 2 results")
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		assert.Equal(t, float64(1), pagination["currentPage"], "Page should be 1")
 		assert.Equal(t, float64(2), pagination["itemsPerPage"], "Limit should be 2")
 	})
@@ -443,7 +443,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		assert.Equal(t, float64(2), pagination["currentPage"], "Page should be 2")
 		assert.Equal(t, true, pagination["hasPrev"], "Should have previous page")
 	})
@@ -453,7 +453,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		// Service caps limit at 100
 		itemsPerPage := int(pagination["itemsPerPage"].(float64))
 		assert.LessOrEqual(t, itemsPerPage, 100, "Limit should be capped at 100")
@@ -464,11 +464,11 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.Empty(t, results, "Should return empty results for page beyond total")
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		assert.Equal(t, false, pagination["hasNext"], "Should not have next page")
 	})
 
@@ -477,7 +477,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		// Service defaults page < 1 to 1
 		currentPage := int(pagination["currentPage"].(float64))
 		assert.GreaterOrEqual(t, currentPage, 1, "Page should default to 1")
@@ -488,7 +488,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		currentPage := int(pagination["currentPage"].(float64))
 		assert.GreaterOrEqual(t, currentPage, 1, "Page should default to 1")
 	})
@@ -498,7 +498,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 		// Service defaults limit < 1 to 20
 		itemsPerPage := int(pagination["itemsPerPage"].(float64))
 		assert.GreaterOrEqual(t, itemsPerPage, 1, "Limit should default to valid value")
@@ -552,12 +552,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// All results should belong to seller 2
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			sellerID := uint(result["sellerId"].(float64))
 			assert.Equal(t, uint(2), sellerID, "All products should belong to seller 2")
 		}
@@ -571,12 +571,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// All results should belong to seller 3
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			sellerID := uint(result["sellerId"].(float64))
 			assert.Equal(t, uint(3), sellerID, "All products should belong to seller 3")
 		}
@@ -590,7 +590,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		assert.Empty(t, results, "Seller 3 should not find iPhone (belongs to seller 2)")
 	})
@@ -603,12 +603,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// All results should belong to seller 4
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			sellerID := uint(result["sellerId"].(float64))
 			assert.Equal(t, uint(4), sellerID, "All products should belong to seller 4")
 		}
@@ -622,14 +622,14 @@ func TestSearchProducts(t *testing.T) {
 			client2.SetHeader("X-Seller-ID", "2")
 			w2 := client2.Get(t, "/api/product/search?q=pro")
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-			results2, _ := response2["data"].(map[string]interface{})["results"].([]interface{})
+			results2, _ := response2["data"].(map[string]any)["results"].([]any)
 
 			// Seller 3 searches for "pro"
 			client3 := helpers.NewAPIClient(server)
 			client3.SetHeader("X-Seller-ID", "3")
 			w3 := client3.Get(t, "/api/product/search?q=pro")
 			response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
-			results3, _ := response3["data"].(map[string]interface{})["results"].([]interface{})
+			results3, _ := response3["data"].(map[string]any)["results"].([]any)
 
 			// Results should be different (or empty for one seller)
 			// Seller 2 has iPhone Pro, MacBook Pro
@@ -648,7 +648,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Top-level fields
 		assert.NotNil(t, data["query"], "Response should include query")
@@ -660,7 +660,7 @@ func TestSearchProducts(t *testing.T) {
 		assert.Equal(t, "iPhone", data["query"].(string), "Query should match request")
 
 		// Verify pagination structure
-		pagination := data["pagination"].(map[string]interface{})
+		pagination := data["pagination"].(map[string]any)
 		assert.NotNil(t, pagination["currentPage"], "Pagination should include currentPage")
 		assert.NotNil(t, pagination["totalPages"], "Pagination should include totalPages")
 		assert.NotNil(t, pagination["totalItems"], "Pagination should include totalItems")
@@ -674,11 +674,11 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results := response["data"].(map[string]interface{})["results"].([]interface{})
+		results := response["data"].(map[string]any)["results"].([]any)
 		assert.NotEmpty(t, results, "Should have at least one result")
 
 		// Check first result structure
-		firstResult := results[0].(map[string]interface{})
+		firstResult := results[0].(map[string]any)
 
 		// Search-specific fields
 		assert.NotNil(t, firstResult["relevanceScore"], "Result should include relevanceScore")
@@ -697,7 +697,7 @@ func TestSearchProducts(t *testing.T) {
 		// Variant preview (should be present in search results like GetAll)
 		assert.NotNil(t, firstResult["variantPreview"], "Result should include variantPreview")
 
-		variantPreview := firstResult["variantPreview"].(map[string]interface{})
+		variantPreview := firstResult["variantPreview"].(map[string]any)
 		assert.NotNil(
 			t,
 			variantPreview["totalVariants"],
@@ -711,11 +711,11 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results := response["data"].(map[string]interface{})["results"].([]interface{})
+		results := response["data"].(map[string]any)["results"].([]any)
 		assert.NotEmpty(t, results, "Should have at least one result")
 
 		// Check first result
-		firstResult := results[0].(map[string]interface{})
+		firstResult := results[0].(map[string]any)
 
 		// Full variants array should NOT be present in search results (listing view)
 		_, hasVariants := firstResult["variants"]
@@ -733,22 +733,22 @@ func TestSearchProducts(t *testing.T) {
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-			results := response["data"].(map[string]interface{})["results"].([]interface{})
+			results := response["data"].(map[string]any)["results"].([]any)
 			assert.NotEmpty(t, results, "Should have at least one result")
 
-			firstResult := results[0].(map[string]interface{})
-			variantPreview := firstResult["variantPreview"].(map[string]interface{})
+			firstResult := results[0].(map[string]any)
+			variantPreview := firstResult["variantPreview"].(map[string]any)
 
 			// Verify variantPreview structure
 			totalVariants := int(variantPreview["totalVariants"].(float64))
 			assert.Greater(t, totalVariants, 0, "Product should have at least one variant")
 
-			options, ok := variantPreview["options"].([]interface{})
+			options, ok := variantPreview["options"].([]any)
 			assert.True(t, ok, "Options should be an array")
 			assert.NotEmpty(t, options, "Product should have at least one option")
 
 			// Verify option structure
-			firstOption := options[0].(map[string]interface{})
+			firstOption := options[0].(map[string]any)
 			assert.NotNil(t, firstOption["name"], "Option should have name")
 			assert.NotNil(t, firstOption["displayName"], "Option should have displayName")
 			assert.NotNil(
@@ -769,7 +769,7 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		// Query should be decoded
 		query := data["query"].(string)
 		assert.Contains(t, query, "MacBook", "Query should be decoded correctly")
@@ -781,7 +781,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should handle Unicode gracefully (may not find results)
-		_, ok := response["data"].(map[string]interface{})["results"]
+		_, ok := response["data"].(map[string]any)["results"]
 		assert.True(t, ok, "Should handle Unicode query gracefully")
 	})
 
@@ -791,7 +791,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should handle multiple spaces gracefully
-		_, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		_, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		// Should still find iPhone 15 Pro despite extra spaces
 	})
@@ -802,7 +802,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should search for "1000" in product names/descriptions
-		_, ok := response["data"].(map[string]interface{})["results"]
+		_, ok := response["data"].(map[string]any)["results"]
 		assert.True(t, ok, "Should handle numeric query")
 	})
 
@@ -812,7 +812,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should return empty results or handle gracefully
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 		// No products can satisfy minPrice > maxPrice
 		assert.Empty(t, results, "Should return no results when minPrice > maxPrice")
@@ -824,12 +824,12 @@ func TestSearchProducts(t *testing.T) {
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		results, ok := response["data"].(map[string]interface{})["results"].([]interface{})
+		results, ok := response["data"].(map[string]any)["results"].([]any)
 		assert.True(t, ok, "results should be an array")
 
 		// If results exist, they should match both query and filter
 		for _, item := range results {
-			result := item.(map[string]interface{})
+			result := item.(map[string]any)
 			brand := result["brand"].(string)
 			assert.Equal(t, "Apple", brand, "Result should match brand filter")
 			// Should also contain "phone" in name/description/tags
@@ -843,7 +843,7 @@ func TestSearchProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify searchTime is present (performance indicator)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		searchTime := data["searchTime"].(string)
 		assert.NotEmpty(t, searchTime, "Should include search time")
 	})

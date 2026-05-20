@@ -75,32 +75,32 @@ CREATE TABLE payment_gateway (
     description TEXT,
     logo_url VARCHAR(500),
     is_active BOOLEAN DEFAULT true,
-    
+
     -- Supported countries (ISO 3166-1 alpha-2 codes)
     -- NULL = supports all countries
     supported_countries VARCHAR(2)[],        -- ['IN', 'US', 'GB', 'BR']
-    
+
     -- Supported currencies (ISO 4217 codes)
     supported_currencies VARCHAR(3)[],       -- ['USD', 'EUR', 'INR', 'BRL']
-    
+
     -- Supported payment methods
     supported_payment_methods TEXT[],        -- ['card', 'upi', 'wallet', 'bank_transfer', 'emi']
-    
+
     webhook_url VARCHAR(500),                -- Our endpoint for this gateway
-    
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
 
 -- GIN indexes for efficient array queries
-CREATE INDEX idx_payment_gateway_supported_countries 
+CREATE INDEX idx_payment_gateway_supported_countries
     ON payment_gateway USING GIN (supported_countries);
-CREATE INDEX idx_payment_gateway_supported_currencies 
+CREATE INDEX idx_payment_gateway_supported_currencies
     ON payment_gateway USING GIN (supported_currencies);
-CREATE INDEX idx_payment_gateway_supported_payment_methods 
+CREATE INDEX idx_payment_gateway_supported_payment_methods
     ON payment_gateway USING GIN (supported_payment_methods);
-CREATE INDEX idx_payment_gateway_code 
+CREATE INDEX idx_payment_gateway_code
     ON payment_gateway(code) WHERE deleted_at IS NULL;
 ```
 
@@ -108,7 +108,7 @@ CREATE INDEX idx_payment_gateway_code
 
 ```sql
 -- PayU - India and LATAM
-INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods) 
+INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods)
 VALUES (
     'payu',
     'PayU',
@@ -119,7 +119,7 @@ VALUES (
 );
 
 -- Razorpay - India only
-INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods) 
+INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods)
 VALUES (
     'razorpay',
     'Razorpay',
@@ -130,7 +130,7 @@ VALUES (
 );
 
 -- Stripe - Global
-INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods) 
+INSERT INTO payment_gateway (code, name, description, supported_countries, supported_currencies, supported_payment_methods)
 VALUES (
     'stripe',
     'Stripe',
@@ -151,37 +151,37 @@ Defines what configuration fields each gateway requires from sellers.
 CREATE TABLE payment_gateway_field (
     id BIGSERIAL PRIMARY KEY,
     gateway_id BIGINT NOT NULL REFERENCES payment_gateway(id) ON DELETE CASCADE,
-    
+
     -- Field identification
     field_name VARCHAR(100) NOT NULL,        -- 'merchant_key', 'auth_token', 'key_id'
     display_name VARCHAR(200) NOT NULL,      -- 'Merchant Key', 'Auth Token'
-    
+
     -- Field properties
     field_type VARCHAR(50) NOT NULL,         -- 'string', 'number', 'boolean', 'url', 'email'
     description TEXT,                        -- Help text for sellers
     placeholder VARCHAR(200),                -- Placeholder text for input
-    
+
     -- Field behavior
     is_required BOOLEAN DEFAULT true,        -- Is this field mandatory?
     is_sensitive BOOLEAN DEFAULT false,      -- Should this be encrypted/masked?
-    
+
     -- Display order
     display_order INT DEFAULT 0,             -- Order to show fields in UI
-    
+
     -- Validation rules (stored as JSONB for flexibility)
     validation_rules JSONB,                  -- {"min_length": 10, "pattern": "^[a-z]+$"}
-    
+
     -- Metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
-    
+
     -- Ensure unique field names per gateway
     UNIQUE(gateway_id, field_name)
 );
 
 -- Index for faster lookups
-CREATE INDEX idx_payment_gateway_field_gateway_id 
+CREATE INDEX idx_payment_gateway_field_gateway_id
     ON payment_gateway_field(gateway_id) WHERE deleted_at IS NULL;
 ```
 
@@ -232,28 +232,28 @@ CREATE TABLE payment_gateway_config (
     id BIGSERIAL PRIMARY KEY,
     seller_id BIGINT NOT NULL REFERENCES "user"(id),
     gateway_id BIGINT NOT NULL REFERENCES payment_gateway(id),
-    
+
     environment VARCHAR(20) NOT NULL,        -- 'sandbox', 'production'
-    
+
     -- Actual configuration values (encrypted at application level)
     credentials JSONB NOT NULL,              -- {"merchant_key": "xxx", "auth_token": "yyy"}
-    
+
     is_active BOOLEAN DEFAULT true,
     priority INT DEFAULT 0,                  -- Higher = preferred (for fallback)
-    
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
-    
+
     UNIQUE(seller_id, gateway_id, environment)
 );
 
 -- Indexes
-CREATE INDEX idx_payment_gateway_config_seller_id 
+CREATE INDEX idx_payment_gateway_config_seller_id
     ON payment_gateway_config(seller_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_gateway_config_gateway_id 
+CREATE INDEX idx_payment_gateway_config_gateway_id
     ON payment_gateway_config(gateway_id);
-CREATE INDEX idx_payment_gateway_config_active 
+CREATE INDEX idx_payment_gateway_config_active
     ON payment_gateway_config(seller_id, is_active) WHERE deleted_at IS NULL;
 ```
 
@@ -322,11 +322,11 @@ CREATE TABLE payment_method (
 );
 
 -- Indexes
-CREATE INDEX idx_payment_method_user_id 
+CREATE INDEX idx_payment_method_user_id
     ON payment_method(user_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_method_gateway_id 
+CREATE INDEX idx_payment_method_gateway_id
     ON payment_method(gateway_id);
-CREATE INDEX idx_payment_method_gateway_payment_method_id 
+CREATE INDEX idx_payment_method_gateway_payment_method_id
     ON payment_method(gateway_payment_method_id);
 ```
 
@@ -387,19 +387,19 @@ CREATE TABLE payment_transaction (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_payment_transaction_order_id 
+CREATE INDEX idx_payment_transaction_order_id
     ON payment_transaction(order_id);
-CREATE INDEX idx_payment_transaction_user_id 
+CREATE INDEX idx_payment_transaction_user_id
     ON payment_transaction(user_id);
-CREATE INDEX idx_payment_transaction_seller_id 
+CREATE INDEX idx_payment_transaction_seller_id
     ON payment_transaction(seller_id);
-CREATE INDEX idx_payment_transaction_status 
+CREATE INDEX idx_payment_transaction_status
     ON payment_transaction(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_transaction_gateway_payment_id 
+CREATE INDEX idx_payment_transaction_gateway_payment_id
     ON payment_transaction(gateway_payment_id);
-CREATE INDEX idx_payment_transaction_created_at 
+CREATE INDEX idx_payment_transaction_created_at
     ON payment_transaction(created_at DESC);
-CREATE INDEX idx_payment_transaction_gateway_id 
+CREATE INDEX idx_payment_transaction_gateway_id
     ON payment_transaction(gateway_id);
 ```
 
@@ -463,13 +463,13 @@ CREATE TABLE payment_refund (
 );
 
 -- Indexes
-CREATE INDEX idx_payment_refund_transaction_id 
+CREATE INDEX idx_payment_refund_transaction_id
     ON payment_refund(transaction_id);
-CREATE INDEX idx_payment_refund_order_id 
+CREATE INDEX idx_payment_refund_order_id
     ON payment_refund(order_id);
-CREATE INDEX idx_payment_refund_status 
+CREATE INDEX idx_payment_refund_status
     ON payment_refund(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_payment_refund_gateway_refund_id 
+CREATE INDEX idx_payment_refund_gateway_refund_id
     ON payment_refund(gateway_refund_id);
 ```
 
@@ -506,13 +506,13 @@ CREATE TABLE payment_webhook_log (
 );
 
 -- Indexes
-CREATE INDEX idx_payment_webhook_log_gateway_id 
+CREATE INDEX idx_payment_webhook_log_gateway_id
     ON payment_webhook_log(gateway_id);
-CREATE INDEX idx_payment_webhook_log_event_id 
+CREATE INDEX idx_payment_webhook_log_event_id
     ON payment_webhook_log(event_id);
-CREATE INDEX idx_payment_webhook_log_status 
+CREATE INDEX idx_payment_webhook_log_status
     ON payment_webhook_log(status);
-CREATE INDEX idx_payment_webhook_log_created_at 
+CREATE INDEX idx_payment_webhook_log_created_at
     ON payment_webhook_log(created_at DESC);
 ```
 
@@ -569,8 +569,8 @@ INITIATED → PENDING → AUTHORIZED → CAPTURED → COMPLETED
 type PaymentGateway interface {
     // Configuration
     GetConfigSchema() GatewayConfigSchema
-    ValidateCredentials(credentials map[string]interface{}) error
-    
+    ValidateCredentials(credentials map[string]any) error
+
     // Core payment operations
     InitiatePayment(ctx context.Context, req InitiatePaymentRequest) (*PaymentSession, error)
     CapturePayment(ctx context.Context, transactionID string) (*Transaction, error)
@@ -647,8 +647,8 @@ type FieldValidation struct {
 
 ```go
 func (s *PaymentService) SelectGateway(
-    sellerID uint, 
-    country string, 
+    sellerID uint,
+    country string,
     currency string,
 ) (PaymentGateway, *PaymentGatewayConfig, error) {
     // 1. Get all active gateway configs for seller
@@ -661,18 +661,18 @@ func (s *PaymentService) SelectGateway(
     var validConfigs []*PaymentGatewayConfig
     for _, config := range configs {
         gateway := config.Gateway
-        
+
         // Check country support
-        if gateway.SupportedCountries != nil && 
+        if gateway.SupportedCountries != nil &&
            !contains(gateway.SupportedCountries, country) {
             continue
         }
-        
+
         // Check currency support
         if !contains(gateway.SupportedCurrencies, currency) {
             continue
         }
-        
+
         validConfigs = append(validConfigs, config)
     }
 
@@ -691,7 +691,7 @@ func (s *PaymentService) SelectGateway(
         selectedConfig.Gateway.Code,
         selectedConfig.Credentials,
     )
-    
+
     return gateway, selectedConfig, err
 }
 ```
@@ -705,11 +705,11 @@ func (s *PaymentService) SelectGateway(
 ```sql
 -- 1. Insert PayU gateway
 INSERT INTO payment_gateway (
-    code, 
-    name, 
-    description, 
+    code,
+    name,
+    description,
     supported_countries,
-    supported_currencies, 
+    supported_currencies,
     supported_payment_methods,
     logo_url
 ) VALUES (
@@ -724,39 +724,39 @@ INSERT INTO payment_gateway (
 
 -- 2. Define PayU configuration fields
 INSERT INTO payment_gateway_field (
-    gateway_id, 
-    field_name, 
-    display_name, 
-    field_type, 
-    description, 
-    placeholder, 
-    is_required, 
-    is_sensitive, 
-    display_order, 
+    gateway_id,
+    field_name,
+    display_name,
+    field_type,
+    description,
+    placeholder,
+    is_required,
+    is_sensitive,
+    display_order,
     validation_rules
 ) VALUES
-    (1, 'merchant_key', 'Merchant Key', 'string', 
-     'Your PayU merchant key provided during onboarding', 
-     'Enter your merchant key', 
-     true, false, 1, 
+    (1, 'merchant_key', 'Merchant Key', 'string',
+     'Your PayU merchant key provided during onboarding',
+     'Enter your merchant key',
+     true, false, 1,
      '{"min_length": 10, "max_length": 100, "pattern": "^[a-zA-Z0-9]+$"}'::jsonb),
-    
-    (1, 'merchant_salt', 'Merchant Salt', 'string', 
-     'Secret salt used for hash generation and transaction verification', 
-     'Enter your merchant salt', 
-     true, true, 2, 
+
+    (1, 'merchant_salt', 'Merchant Salt', 'string',
+     'Secret salt used for hash generation and transaction verification',
+     'Enter your merchant salt',
+     true, true, 2,
      '{"min_length": 10, "max_length": 100}'::jsonb),
-    
-    (1, 'auth_token', 'Auth Token', 'string', 
-     'API authentication token for server-to-server calls', 
-     'Enter your auth token', 
-     true, true, 3, 
+
+    (1, 'auth_token', 'Auth Token', 'string',
+     'API authentication token for server-to-server calls',
+     'Enter your auth token',
+     true, true, 3,
      '{"min_length": 20}'::jsonb),
-    
-    (1, 'webhook_secret', 'Webhook Secret', 'string', 
-     'Secret for verifying webhook signatures (optional but recommended)', 
-     'Enter webhook secret', 
-     false, true, 4, 
+
+    (1, 'webhook_secret', 'Webhook Secret', 'string',
+     'Secret for verifying webhook signatures (optional but recommended)',
+     'Enter webhook secret',
+     false, true, 4,
      '{"min_length": 16}'::jsonb);
 
 -- 3. Seller configures PayU (example)
@@ -782,11 +782,11 @@ INSERT INTO payment_gateway_config (
 ```sql
 -- 1. Insert Razorpay gateway
 INSERT INTO payment_gateway (
-    code, 
-    name, 
-    description, 
+    code,
+    name,
+    description,
     supported_countries,
-    supported_currencies, 
+    supported_currencies,
     supported_payment_methods,
     logo_url
 ) VALUES (
@@ -801,39 +801,39 @@ INSERT INTO payment_gateway (
 
 -- 2. Define Razorpay configuration fields
 INSERT INTO payment_gateway_field (
-    gateway_id, 
-    field_name, 
-    display_name, 
-    field_type, 
-    description, 
-    placeholder, 
-    is_required, 
-    is_sensitive, 
-    display_order, 
+    gateway_id,
+    field_name,
+    display_name,
+    field_type,
+    description,
+    placeholder,
+    is_required,
+    is_sensitive,
+    display_order,
     validation_rules
 ) VALUES
-    (2, 'key_id', 'Key ID', 'string', 
-     'Your Razorpay Key ID (starts with rzp_test_ or rzp_live_)', 
-     'rzp_live_xxxxxxxxx', 
-     true, false, 1, 
+    (2, 'key_id', 'Key ID', 'string',
+     'Your Razorpay Key ID (starts with rzp_test_ or rzp_live_)',
+     'rzp_live_xxxxxxxxx',
+     true, false, 1,
      '{"pattern": "^rzp_(test|live)_[a-zA-Z0-9]+$", "custom_error_message": "Must be a valid Razorpay key ID"}'::jsonb),
-    
-    (2, 'key_secret', 'Key Secret', 'string', 
-     'Your Razorpay Key Secret (keep this confidential)', 
-     'Enter your key secret', 
-     true, true, 2, 
+
+    (2, 'key_secret', 'Key Secret', 'string',
+     'Your Razorpay Key Secret (keep this confidential)',
+     'Enter your key secret',
+     true, true, 2,
      '{"min_length": 20}'::jsonb),
-    
-    (2, 'webhook_secret', 'Webhook Secret', 'string', 
-     'Webhook signature secret for verifying webhook authenticity', 
-     'Enter webhook secret', 
-     true, true, 3, 
+
+    (2, 'webhook_secret', 'Webhook Secret', 'string',
+     'Webhook signature secret for verifying webhook authenticity',
+     'Enter webhook secret',
+     true, true, 3,
      '{"min_length": 16}'::jsonb),
-    
-    (2, 'account_id', 'Account ID', 'string', 
-     'Razorpay Account ID (optional, required only for route/transfer features)', 
-     'acc_xxxxx', 
-     false, false, 4, 
+
+    (2, 'account_id', 'Account ID', 'string',
+     'Razorpay Account ID (optional, required only for route/transfer features)',
+     'acc_xxxxx',
+     false, false, 4,
      '{"pattern": "^acc_[a-zA-Z0-9]+$"}'::jsonb);
 
 -- 3. Seller configures Razorpay (example)
@@ -859,11 +859,11 @@ INSERT INTO payment_gateway_config (
 ```sql
 -- 1. Insert Stripe gateway
 INSERT INTO payment_gateway (
-    code, 
-    name, 
-    description, 
+    code,
+    name,
+    description,
     supported_countries,
-    supported_currencies, 
+    supported_currencies,
     supported_payment_methods,
     logo_url
 ) VALUES (
@@ -878,33 +878,33 @@ INSERT INTO payment_gateway (
 
 -- 2. Define Stripe configuration fields
 INSERT INTO payment_gateway_field (
-    gateway_id, 
-    field_name, 
-    display_name, 
-    field_type, 
-    description, 
-    placeholder, 
-    is_required, 
-    is_sensitive, 
-    display_order, 
+    gateway_id,
+    field_name,
+    display_name,
+    field_type,
+    description,
+    placeholder,
+    is_required,
+    is_sensitive,
+    display_order,
     validation_rules
 ) VALUES
-    (3, 'publishable_key', 'Publishable Key', 'string', 
-     'Your Stripe publishable key (safe to expose in frontend)', 
-     'pk_live_xxxxxxxxx', 
-     true, false, 1, 
+    (3, 'publishable_key', 'Publishable Key', 'string',
+     'Your Stripe publishable key (safe to expose in frontend)',
+     'pk_live_xxxxxxxxx',
+     true, false, 1,
      '{"pattern": "^pk_(test|live)_[a-zA-Z0-9]+$"}'::jsonb),
-    
-    (3, 'secret_key', 'Secret Key', 'string', 
-     'Your Stripe secret key (keep this confidential)', 
-     'sk_live_xxxxxxxxx', 
-     true, true, 2, 
+
+    (3, 'secret_key', 'Secret Key', 'string',
+     'Your Stripe secret key (keep this confidential)',
+     'sk_live_xxxxxxxxx',
+     true, true, 2,
      '{"pattern": "^sk_(test|live)_[a-zA-Z0-9]+$"}'::jsonb),
-    
-    (3, 'webhook_secret', 'Webhook Secret', 'string', 
-     'Webhook signing secret for verifying webhook events', 
-     'whsec_xxxxxxxxx', 
-     true, true, 3, 
+
+    (3, 'webhook_secret', 'Webhook Secret', 'string',
+     'Webhook signing secret for verifying webhook events',
+     'whsec_xxxxxxxxx',
+     true, true, 3,
      '{"pattern": "^whsec_[a-zA-Z0-9]+$"}'::jsonb);
 ```
 
@@ -916,13 +916,13 @@ INSERT INTO payment_gateway_field (
 
 ```sql
 -- Find all gateways supporting India
-SELECT 
+SELECT
     code,
     name,
     supported_currencies,
     supported_payment_methods
 FROM payment_gateway
-WHERE 
+WHERE
     (supported_countries IS NULL OR 'IN' = ANY(supported_countries))
     AND is_active = true
     AND deleted_at IS NULL;
@@ -932,13 +932,13 @@ WHERE
 
 ```sql
 -- Find all gateways supporting INR
-SELECT 
+SELECT
     code,
     name,
     supported_countries,
     supported_payment_methods
 FROM payment_gateway
-WHERE 
+WHERE
     'INR' = ANY(supported_currencies)
     AND is_active = true
     AND deleted_at IS NULL;
@@ -948,12 +948,12 @@ WHERE
 
 ```sql
 -- Find gateways for India + INR
-SELECT 
+SELECT
     pg.code,
     pg.name,
     pg.supported_payment_methods
 FROM payment_gateway pg
-WHERE 
+WHERE
     (pg.supported_countries IS NULL OR 'IN' = ANY(pg.supported_countries))
     AND 'INR' = ANY(pg.supported_currencies)
     AND pg.is_active = true
@@ -964,7 +964,7 @@ WHERE
 
 ```sql
 -- Get all gateways configured by seller for India/INR, ordered by priority
-SELECT 
+SELECT
     pg.code,
     pg.name,
     pgc.environment,
@@ -972,7 +972,7 @@ SELECT
     pgc.priority
 FROM payment_gateway_config pgc
 JOIN payment_gateway pg ON pgc.gateway_id = pg.id
-WHERE 
+WHERE
     pgc.seller_id = 123
     AND (pg.supported_countries IS NULL OR 'IN' = ANY(pg.supported_countries))
     AND 'INR' = ANY(pg.supported_currencies)
@@ -985,7 +985,7 @@ ORDER BY pgc.priority DESC;
 
 ```sql
 -- Get all configuration fields for PayU
-SELECT 
+SELECT
     field_name,
     display_name,
     field_type,
@@ -996,7 +996,7 @@ SELECT
     validation_rules
 FROM payment_gateway_field pgf
 JOIN payment_gateway pg ON pgf.gateway_id = pg.id
-WHERE 
+WHERE
     pg.code = 'payu'
     AND pgf.deleted_at IS NULL
 ORDER BY pgf.display_order;
@@ -1006,20 +1006,20 @@ ORDER BY pgf.display_order;
 
 ```sql
 -- Check if seller has provided all required fields for a gateway
-SELECT 
+SELECT
     pgf.field_name,
     pgf.display_name,
     pgf.is_required,
-    CASE 
-        WHEN pgc.credentials ? pgf.field_name THEN true 
-        ELSE false 
+    CASE
+        WHEN pgc.credentials ? pgf.field_name THEN true
+        ELSE false
     END as is_configured
 FROM payment_gateway_field pgf
-LEFT JOIN payment_gateway_config pgc 
-    ON pgf.gateway_id = pgc.gateway_id 
+LEFT JOIN payment_gateway_config pgc
+    ON pgf.gateway_id = pgc.gateway_id
     AND pgc.seller_id = 123
     AND pgc.environment = 'production'
-WHERE 
+WHERE
     pgf.gateway_id = 1  -- PayU
     AND pgf.is_required = true
     AND pgf.deleted_at IS NULL;
@@ -1029,7 +1029,7 @@ WHERE
 
 ```sql
 -- Get recent transactions with gateway information
-SELECT 
+SELECT
     pt.transaction_id,
     pt.amount_cents,
     pt.currency,
@@ -1040,7 +1040,7 @@ SELECT
     pt.created_at
 FROM payment_transaction pt
 JOIN payment_gateway pg ON pt.gateway_id = pg.id
-WHERE 
+WHERE
     pt.seller_id = 123
     AND pt.deleted_at IS NULL
 ORDER BY pt.created_at DESC
@@ -1051,7 +1051,7 @@ LIMIT 50;
 
 ```sql
 -- Get all refunds for a transaction
-SELECT 
+SELECT
     pr.refund_id,
     pr.amount_cents,
     pr.currency,
@@ -1061,7 +1061,7 @@ SELECT
     pr.initiated_at,
     pr.completed_at
 FROM payment_refund pr
-WHERE 
+WHERE
     pr.transaction_id = 12345
     AND pr.deleted_at IS NULL
 ORDER BY pr.created_at DESC;
@@ -1123,25 +1123,25 @@ ORDER BY pr.created_at DESC;
 
 ### Seller APIs
 
-| Method | Endpoint                          | Description               |
-| ------ | --------------------------------- | ------------------------- |
-| `GET`  | `/api/seller/payments`            | List all transactions     |
-| `GET`  | `/api/seller/payments/:id`        | Get transaction details   |
-| `POST` | `/api/seller/payments/:id/refund` | Initiate a refund         |
-| `GET`  | `/api/seller/payments/summary`    | Payment summary/analytics |
-| `GET`  | `/api/seller/payment-gateways`    | List available gateways   |
-| `POST` | `/api/seller/payment-gateways`    | Configure a gateway       |
-| `PUT`  | `/api/seller/payment-gateways/:id`| Update gateway config     |
+| Method | Endpoint                           | Description               |
+| ------ | ---------------------------------- | ------------------------- |
+| `GET`  | `/api/seller/payments`             | List all transactions     |
+| `GET`  | `/api/seller/payments/:id`         | Get transaction details   |
+| `POST` | `/api/seller/payments/:id/refund`  | Initiate a refund         |
+| `GET`  | `/api/seller/payments/summary`     | Payment summary/analytics |
+| `GET`  | `/api/seller/payment-gateways`     | List available gateways   |
+| `POST` | `/api/seller/payment-gateways`     | Configure a gateway       |
+| `PUT`  | `/api/seller/payment-gateways/:id` | Update gateway config     |
 
 ### Admin APIs
 
-| Method | Endpoint                                      | Description                    |
-| ------ | --------------------------------------------- | ------------------------------ |
-| `GET`  | `/api/admin/payment-gateways`                 | List all gateways              |
-| `POST` | `/api/admin/payment-gateways`                 | Add a new gateway              |
-| `PUT`  | `/api/admin/payment-gateways/:id`             | Update gateway                 |
-| `GET`  | `/api/admin/payment-gateways/:code/schema`    | Get gateway configuration schema|
-| `GET`  | `/api/admin/payment-gateway-configs`          | List all seller configs        |
+| Method | Endpoint                                   | Description                      |
+| ------ | ------------------------------------------ | -------------------------------- |
+| `GET`  | `/api/admin/payment-gateways`              | List all gateways                |
+| `POST` | `/api/admin/payment-gateways`              | Add a new gateway                |
+| `PUT`  | `/api/admin/payment-gateways/:id`          | Update gateway                   |
+| `GET`  | `/api/admin/payment-gateways/:code/schema` | Get gateway configuration schema |
+| `GET`  | `/api/admin/payment-gateway-configs`       | List all seller configs          |
 
 ### Webhook Endpoints
 
@@ -1187,14 +1187,15 @@ ORDER BY pr.created_at DESC;
 
 ## 📝 Change Log
 
-| Date       | Version | Changes                                                      |
-| ---------- | ------- | ------------------------------------------------------------ |
+| Date       | Version | Changes                                                                                                                                                               |
+| ---------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-01-09 | 2.0     | Removed `country_code` from `payment_gateway_config`, removed `payment_gateway_field_mapping`, moved country/currency support to `payment_gateway` table using arrays |
-| 2025-12-28 | 1.0     | Initial design document                                       |
+| 2025-12-28 | 1.0     | Initial design document                                                                                                                                               |
 
 ---
 
-**Next Steps**: 
+**Next Steps**:
+
 1. Review and approve this design
 2. Create database migrations
 3. Implement entities and repositories

@@ -72,7 +72,7 @@ func (s *FreeShippingStrategy) DescribeConfig() model.PromotionStrategyDescripto
 }
 
 // ValidateConfig validates the free shipping configuration
-func (s *FreeShippingStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *FreeShippingStrategy) ValidateConfig(config map[string]any) error {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid config format")

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"strconv"
+
+	"ecommerce-be/common/messaging"
 )
 
 // Load reads environment variables and initializes the singleton Config.
@@ -20,6 +22,7 @@ func Load() (*Config, error) {
 			App:       loadAppConfig(),
 			Log:       loadLogConfig(),
 			Scheduler: loadSchedulerConfig(),
+			Messaging: loadMessagingConfig(),
 		}
 
 		if err := cfg.Validate(); err != nil {
@@ -61,6 +64,18 @@ func (c *Config) Validate() error {
 	// Auth validation
 	if c.Auth.JWTSecret == "" {
 		return errors.New("JWT_SECRET is required")
+	}
+
+	// Messaging validation
+	if c.Messaging.Enabled {
+		switch c.Messaging.QueueType {
+		case messaging.QueueTypeRabbitMQ:
+			// Queue-specific config (URL/credentials) is validated in RabbitMQ module factory.
+		case messaging.QueueTypeKafka:
+			return errors.New("kafka queue type is not supported yet")
+		default:
+			return errors.New("unsupported MESSAGING_QUEUE_TYPE")
+		}
 	}
 
 	return nil

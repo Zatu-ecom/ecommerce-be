@@ -48,10 +48,10 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
-		relatedProducts := data["relatedProducts"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		relatedProducts := data["relatedProducts"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		// Default limit is 10
 		assert.LessOrEqual(
@@ -85,10 +85,10 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
-		relatedProducts := data["relatedProducts"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		relatedProducts := data["relatedProducts"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		assert.LessOrEqual(t, len(relatedProducts), 25, "Should return at most 25 products")
 		assert.Equal(t, float64(25), pagination["itemsPerPage"], "Items per page should be 25")
@@ -105,9 +105,9 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		url1 := fmt.Sprintf("/api/product/%d/related?page=1&limit=10", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
-		data1 := response1["data"].(map[string]interface{})
-		products1 := data1["relatedProducts"].([]interface{})
-		pagination1 := data1["pagination"].(map[string]interface{})
+		data1 := response1["data"].(map[string]any)
+		products1 := data1["relatedProducts"].([]any)
+		pagination1 := data1["pagination"].(map[string]any)
 
 		assert.Equal(t, float64(1), pagination1["currentPage"], "Should be page 1")
 		assert.Equal(t, false, pagination1["hasPrev"], "Page 1 should not have previous")
@@ -117,17 +117,17 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 			url2 := fmt.Sprintf("/api/product/%d/related?page=2&limit=10", productID)
 			w2 := client.Get(t, url2)
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-			data2 := response2["data"].(map[string]interface{})
-			products2 := data2["relatedProducts"].([]interface{})
-			pagination2 := data2["pagination"].(map[string]interface{})
+			data2 := response2["data"].(map[string]any)
+			products2 := data2["relatedProducts"].([]any)
+			pagination2 := data2["pagination"].(map[string]any)
 
 			assert.Equal(t, float64(2), pagination2["currentPage"], "Should be page 2")
 			assert.Equal(t, true, pagination2["hasPrev"], "Page 2 should have previous")
 
 			// Verify different products
 			if len(products1) > 0 && len(products2) > 0 {
-				firstProduct1 := products1[0].(map[string]interface{})
-				firstProduct2 := products2[0].(map[string]interface{})
+				firstProduct1 := products1[0].(map[string]any)
+				firstProduct2 := products2[0].(map[string]any)
 				assert.NotEqual(t, firstProduct1["id"], firstProduct2["id"],
 					"Different pages should have different products")
 			}
@@ -145,8 +145,8 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		url1 := fmt.Sprintf("/api/product/%d/related?limit=10", productID)
 		w1 := client.Get(t, url1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
-		data1 := response1["data"].(map[string]interface{})
-		pagination1 := data1["pagination"].(map[string]interface{})
+		data1 := response1["data"].(map[string]any)
+		pagination1 := data1["pagination"].(map[string]any)
 		totalPages := int(pagination1["totalPages"].(float64))
 
 		if totalPages > 1 {
@@ -158,8 +158,8 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 			)
 			wLast := client.Get(t, urlLast)
 			responseLast := helpers.AssertSuccessResponse(t, wLast, http.StatusOK)
-			dataLast := responseLast["data"].(map[string]interface{})
-			paginationLast := dataLast["pagination"].(map[string]interface{})
+			dataLast := responseLast["data"].(map[string]any)
+			paginationLast := dataLast["pagination"].(map[string]any)
 
 			assert.Equal(
 				t,
@@ -211,9 +211,9 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		// Should return empty array but valid response
 		assert.Empty(t, relatedProducts, "Should return empty array for out-of-range page")
@@ -239,12 +239,12 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
-		meta := data["meta"].(map[string]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
+		meta := data["meta"].(map[string]any)
 
 		// Verify only requested strategies are used
-		strategiesUsed := meta["strategiesUsed"].([]interface{})
+		strategiesUsed := meta["strategiesUsed"].([]any)
 		for _, strategy := range strategiesUsed {
 			strategyName := strategy.(string)
 			assert.Contains(t, []string{"same_category", "same_brand"}, strategyName,
@@ -253,7 +253,7 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 
 		// Verify products match requested strategies
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			strategyUsed := product["strategyUsed"].(string)
 			assert.Contains(t, []string{"same_category", "same_brand"}, strategyUsed,
 				"Product strategy should match filter")
@@ -271,12 +271,12 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// All products should use tag_matching strategy
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			strategyUsed := product["strategyUsed"].(string)
 			assert.Equal(t, "tag_matching", strategyUsed, "Should only use tag_matching strategy")
 		}
@@ -307,8 +307,8 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		meta := data["meta"].(map[string]interface{})
+		data := response["data"].(map[string]any)
+		meta := data["meta"].(map[string]any)
 
 		totalStrategies := meta["totalStrategies"].(float64)
 		assert.Equal(t, float64(8), totalStrategies, "Should have 8 total strategies available")
@@ -329,12 +329,12 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// All returned products should belong to Seller 2
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			sellerID := product["sellerId"].(float64)
 			assert.Equal(t, float64(2), sellerID,
 				"All products should belong to Seller 2 (sellerId=2)")
@@ -373,9 +373,9 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 			w := client.Get(t, url)
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-			data := response["data"].(map[string]interface{})
-			relatedProducts := data["relatedProducts"].([]interface{})
-			pagination := data["pagination"].(map[string]interface{})
+			data := response["data"].(map[string]any)
+			relatedProducts := data["relatedProducts"].([]any)
+			pagination := data["pagination"].(map[string]any)
 
 			// May be empty if seller has only one product
 			// Verify response structure is valid
@@ -452,8 +452,8 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// Should return empty or products without tag_matching if source has no tags
 		// This validates the strategy handles missing tags gracefully
@@ -472,15 +472,15 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// Should handle extreme prices without errors
 		assert.NotNil(t, relatedProducts, "Should handle extreme price products")
 
 		// Verify no math errors occurred
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			score := product["score"].(float64)
 			assert.Greater(t, score, float64(0), "Score should be positive")
 			assert.Less(t, score, float64(1000), "Score should be reasonable")
@@ -498,9 +498,9 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		// Should return empty array without error
 		assert.Empty(t, relatedProducts, "Should return empty array for out-of-range page")
@@ -524,13 +524,13 @@ func TestGetRelatedProductsFeatures(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// Verify no duplicate products
 		seenIDs := make(map[float64]bool)
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			productID := product["id"].(float64)
 
 			assert.False(t, seenIDs[productID],

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func AssertSuccessResponse(
 	t *testing.T,
 	w *httptest.ResponseRecorder,
 	expectedStatus int,
-) map[string]interface{} {
+) map[string]any {
 	assert.Equal(
 		t,
 		expectedStatus,
@@ -35,7 +36,7 @@ func AssertErrorResponse(
 	t *testing.T,
 	w *httptest.ResponseRecorder,
 	expectedStatus int,
-) map[string]interface{} {
+) map[string]any {
 	assert.Equal(
 		t,
 		expectedStatus,
@@ -45,7 +46,10 @@ func AssertErrorResponse(
 		w.Code,
 	)
 
-	response := ParseResponse(t, w.Body)
+	body := w.Body.String()
+	AssertNoSecretsInBody(t, body)
+
+	response := ParseResponse(t, strings.NewReader(body))
 	log.Println("Error Response:", response)
 
 	assert.False(t, response["success"].(bool), "Response should not be successful")
@@ -53,23 +57,49 @@ func AssertErrorResponse(
 	return response
 }
 
+// AssertNoSecretsInBody guards error responses against leaking storage credentials,
+// provider endpoints, or runtime stack details.
+func AssertNoSecretsInBody(t *testing.T, body string) {
+	t.Helper()
+
+	forbidden := []string{
+		"access_key_id",
+		"secret_access_key",
+		"accessKey",
+		"secretAccessKey",
+		"minioadmin",
+		"wrong-access-key",
+		"definitely-wrong-secret",
+		"0123456789abcdef0123456789abcdef",
+		"http://127.0.0.1:",
+		"http://localhost:",
+		"goroutine ",
+		"panic:",
+		".go:",
+	}
+
+	for _, token := range forbidden {
+		assert.NotContains(t, body, token, "error body should not leak sensitive token %q", token)
+	}
+}
+
 // GetResponseData extracts the data field from response
 func GetResponseData(
 	t *testing.T,
-	response map[string]interface{},
+	response map[string]any,
 	dataKey string,
-) map[string]interface{} {
-	data, ok := response["data"].(map[string]interface{})
+) map[string]any {
+	data, ok := response["data"].(map[string]any)
 	assert.True(t, ok, "Response should contain data field")
 
-	result, ok := data[dataKey].(map[string]interface{})
+	result, ok := data[dataKey].(map[string]any)
 	assert.True(t, ok, fmt.Sprintf("Data should contain %s field", dataKey))
 
 	return result
 }
 
 // AssertCategoryFields verifies category response has all required fields
-func AssertCategoryFields(t *testing.T, category map[string]interface{}, expectedName string) {
+func AssertCategoryFields(t *testing.T, category map[string]any, expectedName string) {
 	assert.NotNil(t, category["id"], "Category should have id")
 	assert.Equal(t, expectedName, category["name"], "Category name mismatch")
 	assert.NotNil(t, category["createdAt"], "Category should have createdAt")
@@ -77,13 +107,13 @@ func AssertCategoryFields(t *testing.T, category map[string]interface{}, expecte
 }
 
 // AssertGlobalCategory verifies that a category is global (admin-created)
-func AssertGlobalCategory(t *testing.T, category map[string]interface{}) {
+func AssertGlobalCategory(t *testing.T, category map[string]any) {
 	assert.True(t, category["isGlobal"].(bool), "Category should be global")
 	assert.Nil(t, category["sellerId"], "Global category should not have sellerId")
 }
 
 // AssertSellerCategory verifies that a category is seller-specific
-func AssertSellerCategory(t *testing.T, category map[string]interface{}, expectedSellerID uint) {
+func AssertSellerCategory(t *testing.T, category map[string]any, expectedSellerID uint) {
 	assert.False(t, category["isGlobal"].(bool), "Category should not be global")
 	assert.NotNil(t, category["sellerId"], "Seller category should have sellerId")
 	assert.Equal(t, float64(expectedSellerID), category["sellerId"].(float64), "Seller ID mismatch")
@@ -93,6 +123,9 @@ func AssertSellerCategory(t *testing.T, category map[string]interface{}, expecte
 func AssertStatusCodeOneOf(t *testing.T, w *httptest.ResponseRecorder, expectedCodes ...int) {
 	for _, code := range expectedCodes {
 		if w.Code == code {
+			if code >= 400 {
+				AssertNoSecretsInBody(t, w.Body.String())
+			}
 			return
 		}
 	}
@@ -100,7 +133,7 @@ func AssertStatusCodeOneOf(t *testing.T, w *httptest.ResponseRecorder, expectedC
 }
 
 // AssertResponseStructure verifies response has proper error structure
-func AssertResponseStructure(t *testing.T, response map[string]interface{}, expectedSuccess bool) {
+func AssertResponseStructure(t *testing.T, response map[string]any, expectedSuccess bool) {
 	assert.NotNil(t, response["success"], "Response should have success field")
 	assert.Equal(t, expectedSuccess, response["success"], "Success field mismatch")
 	assert.NotNil(t, response["message"], "Response should have message field")

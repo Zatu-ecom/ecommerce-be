@@ -30,8 +30,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an option
-	createOption := func(productID int, name string, displayName string, position int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createOption := func(productID int, name string, displayName string, position int) map[string]any {
+		requestBody := map[string]any{
 			"name":        name,
 			"displayName": displayName,
 			"position":    position,
@@ -44,7 +44,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 	}
 
 	// Helper function to get options for a product
-	getOptions := func(productID int) []interface{} {
+	getOptions := func(productID int) []any {
 		url := fmt.Sprintf("/api/product/%d/option", productID)
 		w := client.Get(t, url)
 		// Check response status
@@ -59,17 +59,17 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		}
 
 		// Extract options data
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		if !ok {
 			t.Fatal("Invalid data structure in GetOptions response")
 		}
 
-		optionsObj, ok := data["options"].(map[string]interface{})
+		optionsObj, ok := data["options"].(map[string]any)
 		if !ok {
 			t.Fatal("Invalid options structure")
 		}
 
-		optionsArray, ok := optionsObj["options"].([]interface{})
+		optionsArray, ok := optionsObj["options"].([]any)
 		if !ok {
 			t.Fatal("Options is not an array")
 		}
@@ -99,8 +99,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		option3ID := int(option3["id"].(float64))
 
 		// Bulk update all 3 options
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    option1ID,
 					"displayName": "Fabric Material",
@@ -125,13 +125,13 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify response contains updatedCount
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"], "Should update 3 options")
 
 		// Verify options are actually updated
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] == nil {
 				continue
 			}
@@ -169,8 +169,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		originalDisplayName2 := option2["displayName"].(string)
 
 		// Update only positions (empty displayName should keep existing)
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId": option1ID,
 					"position": 100,
@@ -190,7 +190,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Verify positions changed but displayNames remained
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] == nil {
 				continue
 			}
@@ -235,8 +235,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		originalPosition2 := int(option2["position"].(float64))
 
 		// Update only display names
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    option1ID,
 					"displayName": "Cushion Type",
@@ -258,7 +258,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Verify display names changed
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] == nil {
 				continue
 			}
@@ -299,8 +299,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Bulk update with single option
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "Material Weight",
@@ -315,7 +315,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify updatedCount is 1
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"], "Should update 1 option")
 
 		// The bulk update should have worked, so we're done
@@ -336,8 +336,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		originalDisplayName := option["displayName"].(string)
 
 		// Update with empty displayName
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "", // Empty string
@@ -354,7 +354,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Verify displayName unchanged, position updated
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] != nil && int(optMap["id"].(float64)) == optionID {
 				assert.Equal(
 					t,
@@ -386,7 +386,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		option3ID := int(option3["id"].(float64))
 
 		// Create bulk update request for all options
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{
 				"optionId":    option1ID,
 				"displayName": "Updated All Option 1",
@@ -404,7 +404,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 			},
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"options": updates,
 		}
 
@@ -414,7 +414,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify all options were updated
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"], "Should update all 3 options")
 	})
 
@@ -436,8 +436,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "New Name",
@@ -466,8 +466,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Set invalid token
 		client.SetToken("invalid.token.here")
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "New Name",
@@ -497,8 +497,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "New Name",
@@ -527,8 +527,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Try to update using product 1 which doesn't belong to Jane (belongs to seller_id 2)
 		otherProductID := 1
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "New Name",
@@ -565,8 +565,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID1,
 					"displayName": "Admin Updated Option 1",
@@ -584,7 +584,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -597,8 +597,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Options 1, 2 from seed data
 		productID := 1
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    1,
 					"displayName": "Color Selection - Admin",
@@ -616,7 +616,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		w := client.Put(t, url, requestBody)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -629,8 +629,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    1,
 					"displayName": "New Name",
@@ -650,8 +650,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    1,
 					"displayName": "New Name",
@@ -674,8 +674,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{},
+		requestBody := map[string]any{
+			"options": []map[string]any{},
 		}
 
 		url := fmt.Sprintf("/api/product/%d/option/bulk-update", productID)
@@ -692,8 +692,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					// Missing optionId
 					"displayName": "New Name",
@@ -719,8 +719,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		option := createOption(productID, "test_short", "Test Short", 1)
 		optionID := int(option["id"].(float64))
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "ab", // Only 2 characters (min is 3)
@@ -749,8 +749,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Create string longer than 100 characters
 		longName := strings.Repeat("a", 101)
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": longName,
@@ -773,8 +773,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    99999, // Non-existent option ID
 					"displayName": "New Name",
@@ -802,8 +802,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Try to update it using product 6's URL
 		productID2 := 6
 
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "New Name",
@@ -830,8 +830,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Same option ID appears twice
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "First Update",
@@ -853,7 +853,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		if w.Code == http.StatusOK {
 			// If it succeeds, verify the last update was applied
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-			data := response["data"].(map[string]interface{})
+			data := response["data"].(map[string]any)
 			// updatedCount could be 1 or 2 depending on implementation
 			assert.NotNil(t, data["updatedCount"])
 		} else {
@@ -871,7 +871,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		productID := 5
 
 		// Invalid structure - options is not an array
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"options": "not an array",
 		}
 
@@ -889,7 +889,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Use product 5 (Jane's product)
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			// Missing "options" field
 			"something": "else",
 		}
@@ -913,7 +913,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		productID := 5
 
 		// Create 10 options
-		updates := []map[string]interface{}{}
+		updates := []map[string]any{}
 		for i := 1; i <= 10; i++ {
 			option := createOption(
 				productID,
@@ -922,14 +922,14 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 				i,
 			)
 			optionID := int(option["id"].(float64))
-			updates = append(updates, map[string]interface{}{
+			updates = append(updates, map[string]any{
 				"optionId":    optionID,
 				"displayName": fmt.Sprintf("Updated Option %d", i),
 				"position":    i * 10,
 			})
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"options": updates,
 		}
 
@@ -939,7 +939,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify all 10 were updated
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(10), data["updatedCount"], "Should update 10 options")
 	})
 
@@ -958,8 +958,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		position := int(option["position"].(float64))
 
 		// Update with same values
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": displayName,
@@ -974,7 +974,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should still return updatedCount = 1 even though values didn't change
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"], "Should report 1 update")
 	})
 
@@ -991,8 +991,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		validOptionID := int(validOption["id"].(float64))
 
 		// Mix valid and invalid option IDs
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    validOptionID,
 					"displayName": "Valid Update",
@@ -1015,7 +1015,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		// Verify the valid option was NOT updated (no partial updates)
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] != nil && int(optMap["id"].(float64)) == validOptionID {
 				// Should still have original display name
 				assert.Equal(
@@ -1052,8 +1052,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		}
 
 		for _, displayName := range testCases {
-			requestBody := map[string]interface{}{
-				"options": []map[string]interface{}{
+			requestBody := map[string]any{
+				"options": []map[string]any{
 					{
 						"optionId":    optionID,
 						"displayName": displayName,
@@ -1070,7 +1070,7 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 			// Verify the special characters are preserved
 			options := getOptions(productID)
 			for _, opt := range options {
-				optMap := opt.(map[string]interface{})
+				optMap := opt.(map[string]any)
 				if optMap["id"] != nil && int(optMap["id"].(float64)) == optionID {
 					assert.Equal(
 						t,
@@ -1102,8 +1102,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		option3ID := int(option3["id"].(float64))
 
 		// Assign same position to all
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    option1ID,
 					"displayName": "Conflict One",
@@ -1128,13 +1128,13 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should succeed - database allows duplicate positions
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"], "Should update all 3 options")
 
 		// Verify all have position 10
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] == nil {
 				continue
 			}
@@ -1158,8 +1158,8 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Set position to 0
-		requestBody := map[string]interface{}{
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"options": []map[string]any{
 				{
 					"optionId":    optionID,
 					"displayName": "Zero Pos",
@@ -1174,13 +1174,13 @@ func TestBulkUpdateProductOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Should succeed
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"], "Should update 1 option")
 
 		// Verify position is 0
 		options := getOptions(productID)
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] != nil && int(optMap["id"].(float64)) == optionID {
 				assert.Equal(t, float64(0), optMap["position"], "Position should be 0")
 				assert.Equal(t, "Zero Pos", optMap["displayName"])

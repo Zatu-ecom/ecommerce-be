@@ -31,8 +31,8 @@ func TestAddOptionValue(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an option
-	createOption := func(productID int, name string, displayName string, position int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createOption := func(productID int, name string, displayName string, position int) map[string]any {
+		requestBody := map[string]any{
 			"name":        name,
 			"displayName": displayName,
 			"position":    position,
@@ -46,7 +46,7 @@ func TestAddOptionValue(t *testing.T) {
 
 	// Helper function to add an option value
 	addOptionValue := func(productID int, optionID int, value string, displayName string, colorCode string, position int) *httptest.ResponseRecorder {
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       value,
 			"displayName": displayName,
 			"position":    position,
@@ -97,7 +97,7 @@ func TestAddOptionValue(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Add value without colorCode
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "small",
 			"displayName": "Small",
 			"position":    1,
@@ -125,7 +125,7 @@ func TestAddOptionValue(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Add value without position
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "leather",
 			"displayName": "Leather",
 			"colorCode":   "#8B4513",
@@ -367,7 +367,7 @@ func TestAddOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "test",
 			"displayName": "Test",
 			"position":    1,
@@ -383,7 +383,7 @@ func TestAddOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "test",
 			"displayName": "Test",
 			"position":    1,
@@ -399,7 +399,7 @@ func TestAddOptionValue(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "test",
 			"displayName": "Test",
 			"position":    1,
@@ -418,7 +418,7 @@ func TestAddOptionValue(t *testing.T) {
 		// Use product 5 (Jane's T-Shirt)
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       "test",
 			"displayName": "Test",
 			"position":    1,
@@ -458,7 +458,7 @@ func TestAddOptionValue(t *testing.T) {
 		option := createOption(productID, "test_no_value", "Test No Value", 1)
 		optionID := int(option["id"].(float64))
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			// Missing "value" field
 			"displayName": "Test",
 			"position":    1,
@@ -480,7 +480,7 @@ func TestAddOptionValue(t *testing.T) {
 		option := createOption(productID, "test_no_display", "Test No Display", 1)
 		optionID := int(option["id"].(float64))
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value": "test",
 			// Missing "displayName" field
 			"position": 1,
@@ -671,7 +671,7 @@ func TestAddOptionValue(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Invalid structure - value is not a string
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":       123, // Should be string
 			"displayName": "Test",
 			"position":    1,
@@ -693,7 +693,7 @@ func TestAddOptionValue(t *testing.T) {
 		option := createOption(productID, "test_empty_body", "Test Empty Body", 1)
 		optionID := int(option["id"].(float64))
 
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		url := fmt.Sprintf("/api/product/%d/option/%d/value", productID, optionID)
 		w := client.Post(t, url, requestBody)

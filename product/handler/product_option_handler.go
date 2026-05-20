@@ -196,7 +196,7 @@ func (h *ProductOptionHandler) BulkUpdateOptions(c *gin.Context) {
 		return
 	}
 
-	h.Success(c, http.StatusOK, response.Message, map[string]interface{}{
+	h.Success(c, http.StatusOK, response.Message, map[string]any{
 		"updatedCount": response.UpdatedCount,
 	})
 }

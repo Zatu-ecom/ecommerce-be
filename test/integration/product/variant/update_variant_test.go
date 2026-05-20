@@ -40,7 +40,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 1
 		variantID := 2 // Use variant 2 of iPhone 15 Pro
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku": "IPHONE-15-PRO-512GB-UPDATED",
 		}
 
@@ -61,7 +61,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 1
 		variantID := 3 // Use variant 3
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 1399.99,
 		}
 
@@ -86,7 +86,7 @@ func TestUpdateVariant(t *testing.T) {
 			"https://example.com/samsung-new-2.jpg",
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"images": newImages,
 		}
 
@@ -96,7 +96,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, images, 2)
 	})
@@ -108,7 +108,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 2
 		variantID := 6 // Use variant 6
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"allowPurchase": false,
 		}
 
@@ -128,7 +128,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 3 // MacBook Pro
 		variantID := 7 // Use variant 7
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"isPopular": true,
 		}
 
@@ -148,7 +148,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 3
 		variantID := 8 // Use variant 8
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":           "MBP-16-M3-UPDATED",
 			"price":         2799.99,
 			"allowPurchase": true,
@@ -175,7 +175,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5 // T-Shirt
 		variantID := 9 // Use variant 9 (default variant)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "NIKE-TSHIRT-COMPLETE-UPDATE",
 			"price": 39.99,
 			"images": []string{
@@ -200,7 +200,7 @@ func TestUpdateVariant(t *testing.T) {
 		assert.False(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, images, 3)
 	})
@@ -212,7 +212,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5
 		variantID := 11 // Use variant 11
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"images": []string{},
 		}
 
@@ -222,7 +222,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, images, 0)
 	})
@@ -240,7 +240,7 @@ func TestUpdateVariant(t *testing.T) {
 			productID := 6  // Summer Dress
 			variantID := 13 // Non-default variant
 
-			requestBody := map[string]interface{}{
+			requestBody := map[string]any{
 				"isDefault": true,
 			}
 
@@ -262,7 +262,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 7  // Running Shoes
 		variantID := 14 // Default variant
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"isDefault": false,
 		}
 
@@ -286,7 +286,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 7
 		variantID := 15 // Use variant 15
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": -10.99,
 		}
 
@@ -303,7 +303,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 7
 		variantID := 15
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 0,
 		}
 
@@ -327,7 +327,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 1
 		variantID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 999.99,
 		}
 
@@ -344,7 +344,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 1
 		variantID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 999.99,
 		}
 
@@ -364,7 +364,7 @@ func TestUpdateVariant(t *testing.T) {
 			productID := 1 // Belongs to seller 2
 			variantID := 1
 
-			requestBody := map[string]interface{}{
+			requestBody := map[string]any{
 				"price": 999.99,
 			}
 
@@ -382,7 +382,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 1 // Belongs to seller 2
 		variantID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 1149.99,
 		}
 
@@ -406,7 +406,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 9999 // Non-existent product
 		variantID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -423,7 +423,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5    // Valid product owned by seller
 		variantID := 9999 // Non-existent variant
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -440,7 +440,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5 // T-Shirt (seller 3)
 		variantID := 1 // Belongs to product 1 (iPhone), not product 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -461,7 +461,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 3
 		variantID := 7
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 999999.99,
 		}
 
@@ -483,7 +483,7 @@ func TestUpdateVariant(t *testing.T) {
 
 		longSKU := "ZARA-DRESS-FLORAL-SUMMER-COLLECTION-2024-LIMITED-EDITION-PREMIUM-FABRIC-SIZE-M-COLOR-BLUE-PATTERN-001"
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku": longSKU,
 		}
 
@@ -514,7 +514,7 @@ func TestUpdateVariant(t *testing.T) {
 			"https://example.com/img8.jpg",
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"images": manyImages,
 		}
 
@@ -524,7 +524,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, images, 8)
 	})
@@ -536,7 +536,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 8
 		variantID := 16
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 1234.56,
 		}
 
@@ -556,7 +556,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 8
 		variantID := 17
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 0.01,
 		}
 
@@ -579,7 +579,7 @@ func TestUpdateVariant(t *testing.T) {
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 
 		// First update
-		requestBody1 := map[string]interface{}{
+		requestBody1 := map[string]any{
 			"price": 799.99,
 		}
 		w1 := client.Put(t, url, requestBody1)
@@ -588,13 +588,13 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Equal(t, 799.99, variant1["price"])
 
 		// Second update
-		requestBody2 := map[string]interface{}{}
+		requestBody2 := map[string]any{}
 		w2 := client.Put(t, url, requestBody2)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		_ = helpers.GetResponseData(t, response2, "variant")
 
 		// Third update
-		requestBody3 := map[string]interface{}{
+		requestBody3 := map[string]any{
 			"isPopular": true,
 		}
 		w3 := client.Put(t, url, requestBody3)
@@ -614,7 +614,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5
 		variantID := 9
 
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
@@ -632,7 +632,7 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 10
 
 		// Send request with invalid field type (string instead of number for price)
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": "invalid",
 		}
 
@@ -649,7 +649,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 5
 		variantID := 11
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": "not-a-number",
 		}
 
@@ -666,7 +666,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 2
 		variantID := 6
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"allowPurchase": "yes",
 		}
 
@@ -683,7 +683,7 @@ func TestUpdateVariant(t *testing.T) {
 		productID := 7
 		variantID := 14
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"images": "not-an-array",
 		}
 
@@ -701,7 +701,7 @@ func TestUpdateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -715,7 +715,7 @@ func TestUpdateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -729,7 +729,7 @@ func TestUpdateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 
@@ -743,7 +743,7 @@ func TestUpdateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"price": 99.99,
 		}
 

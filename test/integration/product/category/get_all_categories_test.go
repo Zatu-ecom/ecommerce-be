@@ -40,7 +40,7 @@ func TestGetAllCategories(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Global Electronics",
 			"description": "Global electronics category",
 		}
@@ -48,7 +48,7 @@ func TestGetAllCategories(t *testing.T) {
 
 		// Create seller-specific category
 		client.SetToken(sellerToken)
-		sellerReq := map[string]interface{}{
+		sellerReq := map[string]any{
 			"name":        "Seller Custom Category",
 			"description": "Seller's custom category",
 		}
@@ -66,8 +66,8 @@ func TestGetAllCategories(t *testing.T) {
 		)
 
 		// Verify response structure
-		data := response["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := response["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		// Should have at least 2 categories (1 global + 1 seller-specific)
 		assert.GreaterOrEqual(t, len(categories), 2, "Should have global and seller categories")
@@ -76,7 +76,7 @@ func TestGetAllCategories(t *testing.T) {
 		hasGlobal := false
 		hasSeller := false
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			if catMap["name"] == "Global Electronics" {
 				hasGlobal = true
 			}
@@ -139,7 +139,7 @@ func TestGetAllCategories(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Global Furniture",
 			"description": "Global furniture category",
 		}
@@ -147,7 +147,7 @@ func TestGetAllCategories(t *testing.T) {
 
 		// Create seller-specific category
 		client.SetToken(sellerToken)
-		sellerReq := map[string]interface{}{
+		sellerReq := map[string]any{
 			"name":        "Seller Custom Furniture",
 			"description": "Seller's custom furniture",
 		}
@@ -162,8 +162,8 @@ func TestGetAllCategories(t *testing.T) {
 		)
 
 		// Verify response
-		data := response["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := response["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		// Should include global and seller's own categories
 		assert.GreaterOrEqual(t, len(categories), 2, "Should have categories")
@@ -172,7 +172,7 @@ func TestGetAllCategories(t *testing.T) {
 		hasGlobal := false
 		hasSeller := false
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			if catMap["name"] == "Global Furniture" {
 				hasGlobal = true
 			}
@@ -190,7 +190,7 @@ func TestGetAllCategories(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		seller1Req := map[string]interface{}{
+		seller1Req := map[string]any{
 			"name":        "Seller1 Exclusive Category",
 			"description": "Seller 1's category",
 		}
@@ -202,7 +202,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetHeader(constants.SELLER_ID_HEADER, "") // Clear X-Seller-ID
 
 		// Create global category
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Admin Global Category",
 			"description": "Global category by admin",
 		}
@@ -217,8 +217,8 @@ func TestGetAllCategories(t *testing.T) {
 		)
 
 		// Admin should see ALL categories (global + all seller-specific)
-		data := response["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := response["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		assert.GreaterOrEqual(t, len(categories), 2, "Admin should see all categories")
 
@@ -226,7 +226,7 @@ func TestGetAllCategories(t *testing.T) {
 		hasGlobal := false
 		hasSeller := false
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			if catMap["name"] == "Admin Global Category" {
 				hasGlobal = true
 			}
@@ -249,7 +249,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create Parent
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent Category Hierarchy",
 			"description": "Parent category",
 		}
@@ -263,7 +263,7 @@ func TestGetAllCategories(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create Child
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child Category Hierarchy",
 			"description": "Child category",
 			"parentId":    parentID,
@@ -278,7 +278,7 @@ func TestGetAllCategories(t *testing.T) {
 		childID := uint(childCategory["id"].(float64))
 
 		// Create Grandchild
-		grandchildReq := map[string]interface{}{
+		grandchildReq := map[string]any{
 			"name":        "Grandchild Category Hierarchy",
 			"description": "Grandchild category",
 			"parentId":    childID,
@@ -294,13 +294,13 @@ func TestGetAllCategories(t *testing.T) {
 		)
 
 		// Verify hierarchical structure
-		data := response["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := response["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		// Find the parent category and verify it has children
-		var foundParent map[string]interface{}
+		var foundParent map[string]any
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			if catMap["name"] == "Parent Category Hierarchy" {
 				foundParent = catMap
 				break
@@ -311,7 +311,7 @@ func TestGetAllCategories(t *testing.T) {
 
 		// Check if parent has children
 		if children, ok := foundParent["children"]; ok && children != nil {
-			childrenList := children.([]interface{})
+			childrenList := children.([]any)
 			assert.GreaterOrEqual(t, len(childrenList), 1, "Parent should have children")
 
 			// Note: The hierarchical structure in GetAllCategories returns a tree,
@@ -320,7 +320,7 @@ func TestGetAllCategories(t *testing.T) {
 			// However, if the response shows 0 grandchildren, it might be a service limitation.
 			// For now, we'll just verify that the parent has at least one child.
 			if len(childrenList) > 0 {
-				firstChild := childrenList[0].(map[string]interface{})
+				firstChild := childrenList[0].(map[string]any)
 				// Verify child has the correct structure (name, id, etc.)
 				assert.NotNil(t, firstChild["id"], "Child should have an ID")
 				assert.NotNil(t, firstChild["name"], "Child should have a name")
@@ -334,10 +334,10 @@ func TestGetAllCategories(t *testing.T) {
 				// Check if grandchildren exist (this may be populated or not depending on service implementation)
 				// If grandchildren are present, verify the structure
 				if grandchildren, ok := firstChild["children"]; ok && grandchildren != nil {
-					grandchildrenList := grandchildren.([]interface{})
+					grandchildrenList := grandchildren.([]any)
 					if len(grandchildrenList) > 0 {
 						// If grandchildren are populated, verify the first one
-						firstGrandchild := grandchildrenList[0].(map[string]interface{})
+						firstGrandchild := grandchildrenList[0].(map[string]any)
 						assert.NotNil(t, firstGrandchild["id"], "Grandchild should have an ID")
 						assert.Equal(
 							t,
@@ -358,7 +358,7 @@ func TestGetAllCategories(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Only Global Category",
 			"description": "Only global, no seller-specific",
 		}
@@ -376,13 +376,13 @@ func TestGetAllCategories(t *testing.T) {
 		)
 
 		// Should return only global categories
-		data := response["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := response["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		// Check that the "Only Global Category" is present
 		foundGlobal := false
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			if catMap["name"] == "Only Global Category" {
 				foundGlobal = true
 				break
@@ -402,7 +402,7 @@ func TestGetAllCategories(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create a category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Response Validation Category",
 			"description": "Category for response validation",
 		}
@@ -420,12 +420,12 @@ func TestGetAllCategories(t *testing.T) {
 		assert.True(t, response["success"].(bool), "Response should be successful")
 		assert.NotNil(t, response["data"], "Response should have data")
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.NotNil(t, data["categories"], "Data should have categories array")
 
-		categories := data["categories"].([]interface{})
+		categories := data["categories"].([]any)
 		if len(categories) > 0 {
-			category := categories[0].(map[string]interface{})
+			category := categories[0].(map[string]any)
 
 			// Verify all required fields exist
 			assert.NotNil(t, category["id"], "Category should have id")

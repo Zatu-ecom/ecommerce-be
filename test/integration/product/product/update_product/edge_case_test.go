@@ -47,7 +47,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with whitespace-only name
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "   ",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -71,7 +71,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with special characters
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Product & Co. <Premium> Edition™",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -99,7 +99,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with unicode characters
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":  "高级产品 Premium Product 😀",
 			"brand": "العلامة التجارية",
 			"tags":  []string{"中文", "العربية", "emoji😀"},
@@ -130,7 +130,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with maximum allowed lengths
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":             strings.Repeat("A", 200),  // max 200
 			"brand":            strings.Repeat("B", 100),  // max 100
 			"shortDescription": strings.Repeat("S", 500),  // max 500
@@ -157,7 +157,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Attempt SQL injection
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Test'; DROP TABLE product; --",
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -196,7 +196,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Attempt XSS attack
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":             "<script>alert('XSS')</script>",
 			"shortDescription": "<img src=x onerror=alert('XSS')>",
 			"tags":             []string{"<script>", "alert('xss')", "</script>"},
@@ -240,7 +240,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		for i := 0; i < 20; i++ {
 			tags[i] = fmt.Sprintf("tag%d", i+1)
 		}
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"tags": tags,
 		}
 		url := fmt.Sprintf("/api/product/%d", product.ID)
@@ -250,7 +250,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		updatedProduct := helpers.GetResponseData(t, response, "product")
 
-		responseTags, ok := updatedProduct["tags"].([]interface{})
+		responseTags, ok := updatedProduct["tags"].([]any)
 		require.True(t, ok, "Tags should be an array")
 		assert.Len(t, responseTags, 20, "Should have exactly 20 tags")
 
@@ -269,7 +269,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.NoError(t, err, "Should find product for seller")
 
 		// When: Update with leading/trailing spaces
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":  "  Product Name  ",
 			"brand": "  BrandName  ",
 		}
@@ -305,7 +305,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		// When: Send request with brand=null (omitted) and shortDescription="" (empty)
 		// brand field NOT in request = null = don't update
 		// shortDescription field in request with empty = update to empty
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"shortDescription": "", // Empty = clear field
 			// brand NOT provided = null = keep existing value
 		}
@@ -371,13 +371,13 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 
 		done := make(chan *int, 2)
 		go func() {
-			updateRequest := map[string]interface{}{"name": "Concurrent Update A"}
+			updateRequest := map[string]any{"name": "Concurrent Update A"}
 			w := client1.Put(t, url, updateRequest)
 			code := w.Code
 			done <- &code
 		}()
 		go func() {
-			updateRequest := map[string]interface{}{"name": "Concurrent Update B"}
+			updateRequest := map[string]any{"name": "Concurrent Update B"}
 			w := client2.Put(t, url, updateRequest)
 			code := w.Code
 			done <- &code
@@ -417,7 +417,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		originalID := product.ID
 
 		// When: Attempt mass assignment of protected fields
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":      "Updated Name",
 			"sellerId":  999,          // Attempt to change ownership
 			"id":        888,          // Attempt to change ID
@@ -488,7 +488,7 @@ func TestUpdateProductEdgeCases(t *testing.T) {
 		require.Greater(t, variantCountBefore, int64(0), "Product should have variants")
 
 		// When: Seller updates product details
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":             "Updated Product with Variants",
 			"shortDescription": "Updated description",
 		}

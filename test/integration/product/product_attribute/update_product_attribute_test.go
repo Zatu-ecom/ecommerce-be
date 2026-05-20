@@ -29,8 +29,8 @@ func TestUpdateProductAttribute(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an attribute
-	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]any {
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 value,
 			"sortOrder":             sortOrder,
@@ -59,7 +59,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Update the attribute
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Blue", // Another valid color
 			"sortOrder": 1,
 		}
@@ -95,7 +95,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Update the attribute with same seller
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "AMD",
 			"sortOrder": 2,
 		}
@@ -126,7 +126,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Update only sort order
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "5000mAh", // Keep same value
 			"sortOrder": 10,        // Change sort order
 		}
@@ -154,7 +154,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		originalSortOrder := attribute["sortOrder"]
 
 		// Update only value
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "15x25x8",
 			"sortOrder": int(originalSortOrder.(float64)), // Keep same sort order
 		}
@@ -187,7 +187,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -213,7 +213,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		// Product 1 belongs to John (seller_id=1)
 		otherProductID := 1
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -245,7 +245,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "L",
 			"sortOrder": 2,
 		}
@@ -269,7 +269,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		productID := 1
 		attributeID := 2
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Apple Inc.",
 			"sortOrder": 1,
 		}
@@ -297,7 +297,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attribute := createAttribute(productID, attributeDefID, "Black", 0)
 		attributeID := int(attribute["id"].(float64))
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -316,7 +316,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 
 		productID := 5 // Jane's product
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -341,7 +341,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		// Try to update it using product 6's URL
 		productID2 := 6 // Jane's Summer Dress
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -364,7 +364,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Try to update with empty value
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "",
 			"sortOrder": 1,
 		}
@@ -387,7 +387,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attributeID := int(attribute["id"].(float64))
 
 		// Missing value field
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"sortOrder": 1,
 		}
 
@@ -404,7 +404,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 
 		productID := 5 // Jane's product
 
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Updated",
 			"sortOrder": 1,
 		}
@@ -437,7 +437,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		attr3ID := int(attr3["id"].(float64))
 
 		// Update first attribute
-		updateBody1 := map[string]interface{}{
+		updateBody1 := map[string]any{
 			"value":     "Intel i7",
 			"sortOrder": 10,
 		}
@@ -446,7 +446,7 @@ func TestUpdateProductAttribute(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 
 		// Update second attribute
-		updateBody2 := map[string]interface{}{
+		updateBody2 := map[string]any{
 			"value":     "5000mAh",
 			"sortOrder": 20,
 		}
@@ -463,11 +463,11 @@ func TestUpdateProductAttribute(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Find and verify each attribute
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 
 			if attrID == attr1ID {

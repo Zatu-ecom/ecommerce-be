@@ -38,7 +38,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create initial global category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Electronics",
 			"description": "Electronic devices",
 		}
@@ -60,7 +60,7 @@ func TestUpdateCategory(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		// Update 1: Change name and description
-		updateReq1 := map[string]interface{}{
+		updateReq1 := map[string]any{
 			"name":        "Electronics & Gadgets",
 			"description": "Electronic devices and gadgets",
 		}
@@ -110,7 +110,7 @@ func TestUpdateCategory(t *testing.T) {
 		)
 
 		// Create a parent category for hierarchy tests
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Technology",
 			"description": "Technology parent category",
 		}
@@ -124,7 +124,7 @@ func TestUpdateCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Update 2: Set parent (convert root to subcategory)
-		updateReq2 := map[string]interface{}{
+		updateReq2 := map[string]any{
 			"name":        "Electronics & Gadgets",
 			"description": "Electronic devices and gadgets",
 			"parentId":    parentID,
@@ -146,7 +146,7 @@ func TestUpdateCategory(t *testing.T) {
 		assert.True(t, updatedCategory2["isGlobal"].(bool), "Should remain global")
 
 		// Update 3: Remove parent (make it root again)
-		updateReq3 := map[string]interface{}{
+		updateReq3 := map[string]any{
 			"name":        "Electronics & Gadgets",
 			"description": "Electronic devices and gadgets",
 			"parentId":    nil,
@@ -163,7 +163,7 @@ func TestUpdateCategory(t *testing.T) {
 		assert.True(t, updatedCategory3["isGlobal"].(bool), "Should remain global")
 
 		// Create another parent for move test
-		parent2Req := map[string]interface{}{
+		parent2Req := map[string]any{
 			"name":        "Consumer Electronics",
 			"description": "Consumer electronics parent",
 		}
@@ -177,7 +177,7 @@ func TestUpdateCategory(t *testing.T) {
 		parent2ID := uint(parent2Category["id"].(float64))
 
 		// Update 4: Change parent (move to different parent)
-		updateReq4 := map[string]interface{}{
+		updateReq4 := map[string]any{
 			"name":        "Electronics & Gadgets",
 			"description": "Electronic devices and gadgets",
 			"parentId":    parent2ID,
@@ -206,7 +206,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create initial seller-specific category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "My Products",
 			"description": "My seller products",
 		}
@@ -227,7 +227,7 @@ func TestUpdateCategory(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Update 1: Change name and description
-		updateReq1 := map[string]interface{}{
+		updateReq1 := map[string]any{
 			"name":        "My Premium Products",
 			"description": "My premium seller products",
 		}
@@ -269,7 +269,7 @@ func TestUpdateCategory(t *testing.T) {
 		)
 
 		// Create parent for seller
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Seller Categories",
 			"description": "Parent for seller categories",
 		}
@@ -283,7 +283,7 @@ func TestUpdateCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Update 2: Change parent
-		updateReq2 := map[string]interface{}{
+		updateReq2 := map[string]any{
 			"name":        "My Premium Products",
 			"description": "My premium seller products",
 			"parentId":    parentID,
@@ -316,7 +316,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Books",
 			"description": "Books and magazines",
 		}
@@ -330,7 +330,7 @@ func TestUpdateCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Update only name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name":        "Books & Magazines",
 			"description": "Books and magazines", // Same as before
 		}
@@ -362,7 +362,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create a category to update
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Test Category",
 			"description": "For validation tests",
 		}
@@ -376,7 +376,7 @@ func TestUpdateCategory(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Empty name
-		updateReq1 := map[string]interface{}{
+		updateReq1 := map[string]any{
 			"name":        "",
 			"description": "Updated description",
 		}
@@ -388,7 +388,7 @@ func TestUpdateCategory(t *testing.T) {
 		for i := 0; i < 101; i++ {
 			longName += "a"
 		}
-		updateReq2 := map[string]interface{}{
+		updateReq2 := map[string]any{
 			"name":        longName,
 			"description": "Updated description",
 		}
@@ -396,7 +396,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, w2, http.StatusBadRequest)
 
 		// Name too short (<3 chars)
-		updateReq3 := map[string]interface{}{
+		updateReq3 := map[string]any{
 			"name":        "ab",
 			"description": "Updated description",
 		}
@@ -408,7 +408,7 @@ func TestUpdateCategory(t *testing.T) {
 		for i := 0; i < 501; i++ {
 			longDesc += "a"
 		}
-		updateReq4 := map[string]interface{}{
+		updateReq4 := map[string]any{
 			"name":        "Valid Name",
 			"description": longDesc,
 		}
@@ -416,7 +416,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, w4, http.StatusBadRequest)
 
 		// Invalid category ID
-		updateReq5 := map[string]interface{}{
+		updateReq5 := map[string]any{
 			"name":        "Valid Name",
 			"description": "Valid description",
 		}
@@ -424,7 +424,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, w5, http.StatusNotFound)
 
 		// Invalid parent ID
-		updateReq6 := map[string]interface{}{
+		updateReq6 := map[string]any{
 			"name":        "Valid Name",
 			"description": "Valid description",
 			"parentId":    99999,
@@ -442,7 +442,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Sports",
 			"description": "Sports parent",
 		}
@@ -456,7 +456,7 @@ func TestUpdateCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create first child category
-		child1Req := map[string]interface{}{
+		child1Req := map[string]any{
 			"name":        "Football",
 			"description": "Football equipment",
 			"parentId":    parentID,
@@ -469,7 +469,7 @@ func TestUpdateCategory(t *testing.T) {
 		)
 
 		// Create second child category
-		child2Req := map[string]interface{}{
+		child2Req := map[string]any{
 			"name":        "Basketball",
 			"description": "Basketball equipment",
 			"parentId":    parentID,
@@ -484,7 +484,7 @@ func TestUpdateCategory(t *testing.T) {
 		child2ID := uint(child2Category["id"].(float64))
 
 		// Try to update child2 to have same name as child1 (same parent) - should fail
-		updateReq1 := map[string]interface{}{
+		updateReq1 := map[string]any{
 			"name":        "Football",
 			"description": "Basketball equipment",
 			"parentId":    parentID,
@@ -493,7 +493,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, w1, http.StatusConflict)
 
 		// Create another parent
-		parent2Req := map[string]interface{}{
+		parent2Req := map[string]any{
 			"name":        "Outdoor Sports",
 			"description": "Outdoor sports parent",
 		}
@@ -507,7 +507,7 @@ func TestUpdateCategory(t *testing.T) {
 		parent2ID := uint(parent2Category["id"].(float64))
 
 		// Update child2 to have same name as child1 but different parent - should succeed
-		updateReq2 := map[string]interface{}{
+		updateReq2 := map[string]any{
 			"name":        "Football",
 			"description": "Basketball equipment",
 			"parentId":    parent2ID,
@@ -523,7 +523,7 @@ func TestUpdateCategory(t *testing.T) {
 		assert.Equal(t, float64(parent2ID), updatedChild2["parentId"].(float64))
 
 		// Update with same name (no change) - should succeed
-		updateReq3 := map[string]interface{}{
+		updateReq3 := map[string]any{
 			"name":        "Football",
 			"description": "Updated description",
 			"parentId":    parent2ID,
@@ -548,7 +548,7 @@ func TestUpdateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq1 := map[string]interface{}{
+		createReq1 := map[string]any{
 			"name":        "Immutability Test Global",
 			"description": "This is global",
 		}
@@ -562,7 +562,7 @@ func TestUpdateCategory(t *testing.T) {
 		globalCategoryID := uint(globalCategory["id"].(float64))
 
 		// Update global category - verify it remains global
-		updateReq1 := map[string]interface{}{
+		updateReq1 := map[string]any{
 			"name":        "Updated Immutability Global",
 			"description": "Still global",
 		}
@@ -581,7 +581,7 @@ func TestUpdateCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		createReq2 := map[string]interface{}{
+		createReq2 := map[string]any{
 			"name":        "Seller Category",
 			"description": "This is seller-specific",
 		}
@@ -596,7 +596,7 @@ func TestUpdateCategory(t *testing.T) {
 		originalSellerID := sellerCategory["sellerId"]
 
 		// Update seller category - verify it remains seller-specific
-		updateReq2 := map[string]interface{}{
+		updateReq2 := map[string]any{
 			"name":        "Updated Seller Category",
 			"description": "Still seller-specific",
 		}
@@ -621,7 +621,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create category A
-		createReqA := map[string]interface{}{
+		createReqA := map[string]any{
 			"name":        "Category A",
 			"description": "First category",
 		}
@@ -635,7 +635,7 @@ func TestUpdateCategory(t *testing.T) {
 		categoryAID := uint(categoryA["id"].(float64))
 
 		// Try to set A as its own parent - should fail
-		updateReqSelf := map[string]interface{}{
+		updateReqSelf := map[string]any{
 			"name":        "Category A",
 			"description": "First category",
 			"parentId":    categoryAID,
@@ -644,7 +644,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, wSelf, http.StatusBadRequest)
 
 		// Create category B with A as parent
-		createReqB := map[string]interface{}{
+		createReqB := map[string]any{
 			"name":        "Category B",
 			"description": "Second category",
 			"parentId":    categoryAID,
@@ -659,7 +659,7 @@ func TestUpdateCategory(t *testing.T) {
 		categoryBID := uint(categoryB["id"].(float64))
 
 		// Create category C with B as parent (A->B->C)
-		createReqC := map[string]interface{}{
+		createReqC := map[string]any{
 			"name":        "Category C",
 			"description": "Third category",
 			"parentId":    categoryBID,
@@ -674,7 +674,7 @@ func TestUpdateCategory(t *testing.T) {
 		categoryCID := uint(categoryC["id"].(float64))
 
 		// Try to set A's parent as C (creating circular: A->B->C->A) - should fail
-		updateReqCircular := map[string]interface{}{
+		updateReqCircular := map[string]any{
 			"name":        "Category A",
 			"description": "First category",
 			"parentId":    categoryCID,
@@ -692,7 +692,7 @@ func TestUpdateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalParentReq := map[string]interface{}{
+		globalParentReq := map[string]any{
 			"name":        "Global Parent",
 			"description": "Global parent category",
 		}
@@ -706,7 +706,7 @@ func TestUpdateCategory(t *testing.T) {
 		globalParentID := uint(globalParent["id"].(float64))
 
 		// Admin creates another global category
-		global2Req := map[string]interface{}{
+		global2Req := map[string]any{
 			"name":        "Global Category 2",
 			"description": "Another global category",
 		}
@@ -720,7 +720,7 @@ func TestUpdateCategory(t *testing.T) {
 		global2ID := uint(global2["id"].(float64))
 
 		// Admin moves global category under another global category - should succeed
-		updateGlobalReq := map[string]interface{}{
+		updateGlobalReq := map[string]any{
 			"name":        "Global Category 2",
 			"description": "Another global category",
 			"parentId":    globalParentID,
@@ -743,7 +743,7 @@ func TestUpdateCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		sellerCatReq := map[string]interface{}{
+		sellerCatReq := map[string]any{
 			"name":        "Seller Category",
 			"description": "Seller's category",
 		}
@@ -757,7 +757,7 @@ func TestUpdateCategory(t *testing.T) {
 		sellerCatID := uint(sellerCat["id"].(float64))
 
 		// Seller tries to move seller-specific category under global category - should succeed
-		updateSellerReq := map[string]interface{}{
+		updateSellerReq := map[string]any{
 			"name":        "Seller Category",
 			"description": "Seller's category under global parent",
 			"parentId":    globalParentID,
@@ -781,7 +781,7 @@ func TestUpdateCategory(t *testing.T) {
 		)
 
 		// Seller creates another seller-specific category as parent
-		sellerParentReq := map[string]interface{}{
+		sellerParentReq := map[string]any{
 			"name":        "Seller Parent",
 			"description": "Seller's parent category",
 		}
@@ -795,7 +795,7 @@ func TestUpdateCategory(t *testing.T) {
 		sellerParentID := uint(sellerParent["id"].(float64))
 
 		// Seller moves seller-specific category under own seller-specific category - should succeed
-		updateSellerReq2 := map[string]interface{}{
+		updateSellerReq2 := map[string]any{
 			"name":        "Seller Category",
 			"description": "Seller's category",
 			"parentId":    sellerParentID,
@@ -824,7 +824,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create a category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Category For Auth Tests",
 			"description": "For authorization tests",
 		}
@@ -839,7 +839,7 @@ func TestUpdateCategory(t *testing.T) {
 
 		// No token - should return 401
 		client.SetToken("")
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name":        "Updated Name",
 			"description": "Updated description",
 		}
@@ -858,7 +858,7 @@ func TestUpdateCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Cross User Restrictions Global",
 			"description": "Global for restrictions test",
 		}
@@ -875,7 +875,7 @@ func TestUpdateCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updateGlobalReq := map[string]interface{}{
+		updateGlobalReq := map[string]any{
 			"name":        "Hacked Global Category",
 			"description": "Trying to hack",
 		}
@@ -883,7 +883,7 @@ func TestUpdateCategory(t *testing.T) {
 		helpers.AssertErrorResponse(t, w1, http.StatusForbidden)
 
 		// Seller creates own category
-		sellerReq := map[string]interface{}{
+		sellerReq := map[string]any{
 			"name":        "Seller Category",
 			"description": "Seller's own category",
 		}
@@ -899,7 +899,7 @@ func TestUpdateCategory(t *testing.T) {
 
 		// Admin updates global category - should succeed
 		client.SetToken(adminToken)
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name":        "Updated Restrictions Global",
 			"description": "Admin can update",
 		}
@@ -923,7 +923,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent Category",
 			"description": "Has children",
 		}
@@ -937,7 +937,7 @@ func TestUpdateCategory(t *testing.T) {
 		parentID := uint(parent["id"].(float64))
 
 		// Create child categories
-		child1Req := map[string]interface{}{
+		child1Req := map[string]any{
 			"name":        "Child 1",
 			"description": "First child",
 			"parentId":    parentID,
@@ -949,7 +949,7 @@ func TestUpdateCategory(t *testing.T) {
 			http.StatusCreated,
 		)
 
-		child2Req := map[string]interface{}{
+		child2Req := map[string]any{
 			"name":        "Child 2",
 			"description": "Second child",
 			"parentId":    parentID,
@@ -962,7 +962,7 @@ func TestUpdateCategory(t *testing.T) {
 		)
 
 		// Update parent category that has children - should succeed
-		updateParentReq := map[string]interface{}{
+		updateParentReq := map[string]any{
 			"name":        "Updated Parent Category",
 			"description": "Still has children",
 		}
@@ -988,7 +988,7 @@ func TestUpdateCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "No Change Category",
 			"description": "Will not change",
 		}
@@ -1004,7 +1004,7 @@ func TestUpdateCategory(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Update with exact same data
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name":        "No Change Category",
 			"description": "Will not change",
 		}

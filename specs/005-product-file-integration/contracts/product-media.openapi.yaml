@@ -1,0 +1,337 @@
+openapi: 3.0.3
+info:
+  title: Product Media Integration API
+  version: 0.1.0
+  description: Contract for attaching, reading, updating, and removing File module media from Product responses.
+servers:
+  - url: /api
+paths:
+  /product/{productId}:
+    get:
+      summary: Get product detail with media
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/SellerId'
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product detail includes ordered media summaries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /product:
+    get:
+      summary: List products with media
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/SellerId'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Product list includes media summaries for each product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /product/{productId}/media:
+    post:
+      summary: Attach uploaded media to a product
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachProductMediaRequest'
+      responses:
+        '201':
+          description: Media link created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductMediaResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /product/{productId}/media/{fileId}:
+    patch:
+      summary: Update product media metadata
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/FileId'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductMediaRequest'
+      responses:
+        '200':
+          description: Media metadata updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductMediaResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Remove product media and attempt underlying file cleanup
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/FileId'
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Product media link removed.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    SellerId:
+      name: X-Seller-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    FileId:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AttachProductMediaRequest:
+      type: object
+      required:
+        - fileId
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        isPrimary:
+          type: boolean
+          default: false
+        displayOrder:
+          type: integer
+          minimum: 0
+          default: 0
+    UpdateProductMediaRequest:
+      type: object
+      properties:
+        isPrimary:
+          type: boolean
+        displayOrder:
+          type: integer
+          minimum: 0
+      minProperties: 1
+    ProductMedia:
+      type: object
+      required:
+        - fileId
+        - url
+        - isPrimary
+        - displayOrder
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPrimary:
+          type: boolean
+        displayOrder:
+          type: integer
+          minimum: 0
+    Product:
+      type: object
+      description: Existing product response with additive media field.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sellerId:
+          type: integer
+        images:
+          type: array
+          deprecated: true
+          items:
+            type: string
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductMedia'
+      required:
+        - id
+        - name
+        - media
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+        totalPages:
+          type: integer
+        totalItems:
+          type: integer
+        itemsPerPage:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+    ProductListData:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ProductResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Product'
+    ProductListResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ProductListData'
+    ProductMediaResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ProductMedia'
+    ErrorEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        code:
+          type: string
+  responses:
+    BadRequest:
+      description: Invalid request, missing correlation ID, or invalid file reference.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Caller is not allowed to manage this product.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Product or product media link was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Media file is already attached to this product.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

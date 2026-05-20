@@ -21,15 +21,15 @@ promotion/
 ```go
 type PromotionStrategy interface {
     // Validates the discount config structure
-    ValidateConfig(config map[string]interface{}) error
-    
+    ValidateConfig(config map[string]any) error
+
     // Validates if promotion can be applied to cart
     ValidateCart(
         ctx context.Context,
         promotion *entity.Promotion,
         cart *model.CartValidationRequest,
     ) (*model.PromotionValidationResult, error)
-    
+
     // Calculates discount amount
     CalculateDiscount(
         ctx context.Context,
@@ -80,6 +80,7 @@ discount, err := strategy.CalculateDiscount(ctx, promotion, cart)
 ## 🔧 Adding New Promotion Type
 
 1. **Define config model** in `model/discount_config_model.go`:
+
 ```go
 type NewTypeConfig struct {
     Field1 string `json:"field1" binding:"required"`
@@ -88,6 +89,7 @@ type NewTypeConfig struct {
 ```
 
 2. **Create strategy** in `promotionStrategy/new_type_strategy.go`:
+
 ```go
 type NewTypeStrategy struct{}
 
@@ -95,7 +97,7 @@ func NewNewTypeStrategy() PromotionStrategy {
     return &NewTypeStrategy{}
 }
 
-func (s *NewTypeStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *NewTypeStrategy) ValidateConfig(config map[string]any) error {
     // Implementation
 }
 
@@ -109,6 +111,7 @@ func (s *NewTypeStrategy) CalculateDiscount(...) (int64, error) {
 ```
 
 3. **Register in factory** in `strategy_factory.go`:
+
 ```go
 case entity.PromoTypeNewType:
     return NewNewTypeStrategy()
@@ -140,15 +143,15 @@ return strategy.ValidateCart(ctx, promotion, cart)
 
 ## 📊 Strategy Implementations
 
-| Strategy | Config Model | Key Validations |
-|----------|-------------|-----------------|
-| Percentage | `PercentageDiscountConfig` | 0.01 ≤ percentage ≤ 100 |
-| Fixed Amount | `FixedAmountConfig` | amount_cents > 0 |
-| Free Shipping | `FreeShippingConfig` | Optional min_order_cents |
-| Buy X Get Y | `BuyXGetYConfig` | buy_quantity, get_quantity > 0; same reward requires scope_type; cross reward requires get_product_id |
-| Bundle | `BundleConfig` | bundle_items not empty |
-| Tiered | `TieredConfig` | tiers not empty, valid tier_type |
-| Flash Sale | `FlashSaleConfig` | discount_value > 0, stock limits |
+| Strategy      | Config Model               | Key Validations                                                                                       |
+| ------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Percentage    | `PercentageDiscountConfig` | 0.01 ≤ percentage ≤ 100                                                                               |
+| Fixed Amount  | `FixedAmountConfig`        | amount_cents > 0                                                                                      |
+| Free Shipping | `FreeShippingConfig`       | Optional min_order_cents                                                                              |
+| Buy X Get Y   | `BuyXGetYConfig`           | buy_quantity, get_quantity > 0; same reward requires scope_type; cross reward requires get_product_id |
+| Bundle        | `BundleConfig`             | bundle_items not empty                                                                                |
+| Tiered        | `TieredConfig`             | tiers not empty, valid tier_type                                                                      |
+| Flash Sale    | `FlashSaleConfig`          | discount_value > 0, stock limits                                                                      |
 
 ## 🎯 Build Status
 

@@ -7,7 +7,9 @@ Successfully implemented the create promotion service with all required componen
 ## 📁 Files Created
 
 ### 1. Repository Layer
+
 **File**: `promotion/repository/promotion_repository.go`
+
 - Interface: `PromotionRepository`
 - Implementation: `PromotionRepositoryImpl`
 - Methods:
@@ -17,7 +19,9 @@ Successfully implemented the create promotion service with all required componen
   - `Exists(ctx, id)` - Check if promotion exists
 
 ### 2. Request Models
+
 **File**: `promotion/model/promotion_request_model.go`
+
 - `CreatePromotionRequest` struct with comprehensive validation
 - All fields properly tagged with `binding` validators
 - Enum validation for:
@@ -27,13 +31,17 @@ Successfully implemented the create promotion service with all required componen
   - `CampaignStatus` (6 statuses)
 
 ### 3. Response Models
+
 **File**: `promotion/model/promotion_response_model.go`
+
 - `PromotionResponse` struct matching all entity fields
 - Formatted timestamps (RFC3339 string format)
 - Optional relationship fields (products, categories, collections)
 
 ### 4. Factory Mapper
+
 **File**: `promotion/factory/promotion_mapper.go`
+
 - `PromotionRequestToEntity(req, sellerID)` - Convert request to entity
 - `PromotionEntityToResponse(promotion)` - Convert entity to response
 - Specific function names to avoid conflicts (Go functions are package-level)
@@ -43,7 +51,9 @@ Successfully implemented the create promotion service with all required componen
   - Type conversions
 
 ### 5. Service Layer
+
 **File**: `promotion/service/promotion_service.go`
+
 - Interface: `PromotionService`
 - Implementation: `PromotionServiceImpl`
 - Main method: `CreatePromotion(ctx, req, sellerID)`
@@ -53,7 +63,9 @@ Successfully implemented the create promotion service with all required componen
   - `validateEligibility()` - Customer eligibility validation
 
 ### 6. Error Definitions
+
 **File**: `promotion/error/promotion_error.go`
+
 - Error codes and messages
 - Predefined errors:
   - `ErrPromotionNotFound`
@@ -66,7 +78,9 @@ Successfully implemented the create promotion service with all required componen
 ## 🎯 Features Implemented
 
 ### Discount Config Validation
+
 Each promotion type has specific required fields validated:
+
 - **percentage_discount**: `percentage` (1-100), optional `max_discount_cents`
 - **fixed_amount**: `amount_cents`
 - **buy_x_get_y**: `buy_quantity`, `get_quantity`, `max_sets`, `is_same_reward`, `scope_type`, `get_product_id`
@@ -76,12 +90,14 @@ Each promotion type has specific required fields validated:
 - **flash_sale**: `discount_type`, `discount_value`
 
 ### Business Logic Validations
+
 1. **Discount Config**: Type-specific field validation
 2. **Date Ranges**: StartsAt before EndsAt, RFC3339 format
 3. **Eligibility**: CustomerSegmentID required for specific_segment
 4. **Slug Uniqueness**: Per-seller slug uniqueness check
 
 ### Default Values
+
 - Status: `draft`
 - AutoStart: `true`
 - AutoEnd: `true`
@@ -100,7 +116,7 @@ Each promotion type has specific required fields validated:
 ✅ **Logging**: Context-based structured logging  
 ✅ **Validation**: Struct tags + business logic validation  
 ✅ **Dependency Injection**: Constructor-based injection  
-✅ **Singular Naming**: `promotion` not `promotions`  
+✅ **Singular Naming**: `promotion` not `promotions`
 
 ## 🔧 Usage Example
 
@@ -111,7 +127,7 @@ promotionService := service.NewPromotionService(promotionRepo)
 req := model.CreatePromotionRequest{
     Name: "Summer Sale",
     PromotionType: entity.PromoTypePercentage,
-    DiscountConfig: map[string]interface{}{
+    DiscountConfig: map[string]any{
         "percentage": 20.0,
         "max_discount_cents": 100000,
     },
@@ -126,6 +142,7 @@ response, err := promotionService.CreatePromotion(ctx, req, sellerID)
 ## 📋 Next Steps (Not Implemented)
 
 As requested, the following were NOT implemented:
+
 - Handler layer (`promotion/handler/promotion_handler.go`)
 - Routes (`promotion/route/promotion_routes.go`)
 - Factory registration

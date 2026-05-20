@@ -29,8 +29,8 @@ func TestDeleteProductOption(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an option
-	createOption := func(productID int, name string, displayName string, position int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createOption := func(productID int, name string, displayName string, position int) map[string]any {
+		requestBody := map[string]any{
 			"name":        name,
 			"displayName": displayName,
 			"position":    position,
@@ -43,8 +43,8 @@ func TestDeleteProductOption(t *testing.T) {
 	}
 
 	// Helper function to create an option with values
-	createOptionWithValues := func(productID int, name string, displayName string, position int, values []map[string]interface{}) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createOptionWithValues := func(productID int, name string, displayName string, position int, values []map[string]any) map[string]any {
+		requestBody := map[string]any{
 			"name":        name,
 			"displayName": displayName,
 			"position":    position,
@@ -123,11 +123,11 @@ func TestDeleteProductOption(t *testing.T) {
 		wGetInitial := client.Get(t, getURL)
 		getInitialResponse := helpers.AssertSuccessResponse(t, wGetInitial, http.StatusOK)
 		initialOptionsData := helpers.GetResponseData(t, getInitialResponse, "options")
-		initialOptions := initialOptionsData["options"].([]interface{})
+		initialOptions := initialOptionsData["options"].([]any)
 		initialCount := len(initialOptions)
 
 		// Create option with 3 values
-		values := []map[string]interface{}{
+		values := []map[string]any{
 			{
 				"value":       "red",
 				"displayName": "Red",
@@ -150,7 +150,7 @@ func TestDeleteProductOption(t *testing.T) {
 
 		// Verify option was created with values
 		assert.NotNil(t, option["values"])
-		optionValues := option["values"].([]interface{})
+		optionValues := option["values"].([]any)
 		assert.Equal(t, 3, len(optionValues), "Should have 3 values")
 
 		// Delete the option
@@ -163,7 +163,7 @@ func TestDeleteProductOption(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		optionsData := helpers.GetResponseData(t, getResponse, "options")
-		options := optionsData["options"].([]interface{})
+		options := optionsData["options"].([]any)
 
 		// Should be back to initial count (our option was deleted)
 		assert.Equal(
@@ -175,7 +175,7 @@ func TestDeleteProductOption(t *testing.T) {
 
 		// Verify the deleted option is not in the list
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] != nil {
 				optID := int(optMap["id"].(float64))
 				assert.NotEqual(t, optionID, optID, "Deleted option should not be in list")
@@ -457,7 +457,7 @@ func TestDeleteProductOption(t *testing.T) {
 		wGetInitial := client.Get(t, getURL)
 		getInitialResponse := helpers.AssertSuccessResponse(t, wGetInitial, http.StatusOK)
 		initialOptionsData := helpers.GetResponseData(t, getInitialResponse, "options")
-		initialOptions := initialOptionsData["options"].([]interface{})
+		initialOptions := initialOptionsData["options"].([]any)
 		initialCount := len(initialOptions)
 
 		// Create multiple options
@@ -477,7 +477,7 @@ func TestDeleteProductOption(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		optionsData := helpers.GetResponseData(t, getResponse, "options")
-		options := optionsData["options"].([]interface{})
+		options := optionsData["options"].([]any)
 
 		// Should have initial + 2 (we created 3 and deleted 1)
 		expectedCount := initialCount + 2
@@ -490,7 +490,7 @@ func TestDeleteProductOption(t *testing.T) {
 
 		// Verify the deleted option is not in the list
 		for _, opt := range options {
-			optMap := opt.(map[string]interface{})
+			optMap := opt.(map[string]any)
 			if optMap["id"] != nil {
 				optID := int(optMap["id"].(float64))
 				assert.NotEqual(t, option2ID, optID, "Deleted option should not be in list")
@@ -517,7 +517,7 @@ func TestDeleteProductOption(t *testing.T) {
 		wGetInitial2 := client.Get(t, getURL2)
 		getInitialResponse2 := helpers.AssertSuccessResponse(t, wGetInitial2, http.StatusOK)
 		initialOptionsData2 := helpers.GetResponseData(t, getInitialResponse2, "options")
-		initialOptions2 := initialOptionsData2["options"].([]interface{})
+		initialOptions2 := initialOptionsData2["options"].([]any)
 		initialCount2 := len(initialOptions2)
 
 		// Delete option from product 1
@@ -530,7 +530,7 @@ func TestDeleteProductOption(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		optionsData := helpers.GetResponseData(t, getResponse, "options")
-		options := optionsData["options"].([]interface{})
+		options := optionsData["options"].([]any)
 
 		// Count should be the same as before (we only deleted from product 1)
 		assert.Equal(

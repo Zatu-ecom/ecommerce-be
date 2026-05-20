@@ -44,7 +44,7 @@ func TestAuthSuite(t *testing.T) {
 
 // TestScenario1_SuccessfulLogin
 func (s *AuthTestSuite) TestSuccessfulLogin() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"email":    "jane.merchant@example.com",
 		"password": "seller123",
 	}
@@ -58,7 +58,7 @@ func (s *AuthTestSuite) TestSuccessfulLogin() {
 	assert.True(s.T(), response["success"].(bool))
 	assert.Equal(s.T(), "Login successful", response["message"])
 
-	data, ok := response["data"].(map[string]interface{})
+	data, ok := response["data"].(map[string]any)
 	assert.True(s.T(), ok)
 
 	token, tokenOk := data["token"].(string)
@@ -68,7 +68,7 @@ func (s *AuthTestSuite) TestSuccessfulLogin() {
 
 // TestScenario2_InvalidCredentials
 func (s *AuthTestSuite) TestInvalidCredentials() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"email":    "jane.merchant@example.com",
 		"password": "wrongpassword",
 	}
@@ -84,7 +84,7 @@ func (s *AuthTestSuite) TestInvalidCredentials() {
 
 // TestScenario3_MissingEmail
 func (s *AuthTestSuite) TestMissingEmail() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"password": "seller123",
 	}
 
@@ -98,7 +98,7 @@ func (s *AuthTestSuite) TestMissingEmail() {
 
 // TestScenario4_MissingPassword
 func (s *AuthTestSuite) TestMissingPassword() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"email": "jane.merchant@example.com",
 	}
 
@@ -112,7 +112,7 @@ func (s *AuthTestSuite) TestMissingPassword() {
 
 // TestScenario5_InvalidEmailFormat
 func (s *AuthTestSuite) TestInvalidEmailFormat() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"email":    "not-an-email",
 		"password": "seller123",
 	}
@@ -127,7 +127,7 @@ func (s *AuthTestSuite) TestInvalidEmailFormat() {
 
 // TestScenario6_NonExistentUser
 func (s *AuthTestSuite) TestNonExistentUser() {
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"email":    "nonexistent@example.com",
 		"password": "somepassword",
 	}

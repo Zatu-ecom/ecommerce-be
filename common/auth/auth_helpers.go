@@ -22,7 +22,7 @@ func HasRequiredRoleLevel(userRoleLevel, requiredRoleLevel uint) bool {
 
 // getValueFromContext is a helper that extracts a value from context
 // Works with both *gin.Context and standard context.Context
-func getValueFromContext(ctx context.Context, key string) (interface{}, bool) {
+func getValueFromContext(ctx context.Context, key string) (any, bool) {
 	// Try Gin context first (uses internal map storage)
 	if ginCtx, ok := ctx.(*gin.Context); ok {
 		return ginCtx.Get(key)

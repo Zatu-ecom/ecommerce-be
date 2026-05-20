@@ -198,7 +198,7 @@ func (h *ProductOptionValueHandler) BulkAddOptionValues(c *gin.Context) {
 		return
 	}
 
-	h.Success(c, http.StatusCreated, utils.PRODUCT_OPTION_VALUES_ADDED_MSG, map[string]interface{}{
+	h.Success(c, http.StatusCreated, utils.PRODUCT_OPTION_VALUES_ADDED_MSG, map[string]any{
 		utils.OPTION_VALUES_FIELD_NAME: valueResponses,
 		utils.ADDED_COUNT_FIELD_NAME:   len(valueResponses),
 	})
@@ -240,7 +240,7 @@ func (h *ProductOptionValueHandler) BulkUpdateOptionValues(c *gin.Context) {
 		return
 	}
 
-	h.Success(c, http.StatusOK, response.Message, map[string]interface{}{
+	h.Success(c, http.StatusOK, response.Message, map[string]any{
 		"updatedCount": response.UpdatedCount,
 	})
 }

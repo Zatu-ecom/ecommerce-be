@@ -220,7 +220,7 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	// Parse additional filters
-	filters := make(map[string]interface{})
+	filters := make(map[string]any)
 	if categoryID, err := strconv.ParseUint(c.Query("categoryId"), 10, 32); err == nil &&
 		categoryID > 0 {
 		filters["categoryId"] = uint(categoryID)

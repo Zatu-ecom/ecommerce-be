@@ -10,12 +10,14 @@ import (
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
+	"ecommerce-be/file"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
 	"ecommerce-be/payment"
 	"ecommerce-be/product"
 	"ecommerce-be/promotion"
+	"ecommerce-be/report"
 	"ecommerce-be/user"
 
 	"github.com/gin-gonic/gin"
@@ -99,4 +101,6 @@ func registerContainer(router *gin.Engine) {
 	_ = payment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
+	_ = report.NewContainer(router)
+	_ = file.NewContainer(router)
 }

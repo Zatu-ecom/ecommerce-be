@@ -53,7 +53,7 @@ promotion/
 
 ```go
 type PromotionStrategy interface {
-    ValidateConfig(config map[string]interface{}) error
+    ValidateConfig(config map[string]any) error
     ValidateCart(ctx, promotion, cart) (*PromotionValidationResult, error)
     CalculateDiscount(ctx, promotion, cart) (int64, error)
 }
@@ -98,12 +98,12 @@ func (s *PromotionServiceImpl) CreatePromotion(...) (*model.PromotionResponse, e
     if strategy == nil {
         return nil, promoErrors.ErrInvalidDiscountConfig.WithMessage("Unsupported promotion type")
     }
-    
+
     // Validate config using strategy
     if err := strategy.ValidateConfig(req.DiscountConfig); err != nil {
         return nil, err
     }
-    
+
     // ... rest of validation and creation
 }
 ```
@@ -118,7 +118,7 @@ func (s *PromotionServiceImpl) ValidatePromotionForCart(
 ) (*model.PromotionValidationResult, error) {
     // Fetch promotion
     // Check status, dates, usage limits, eligibility
-    
+
     // Get strategy and validate
     strategy := promotionStrategy.GetPromotionStrategy(promotion.PromotionType)
     return strategy.ValidateCart(ctx, promotion, cart)
@@ -129,7 +129,7 @@ func (s *PromotionServiceImpl) ValidatePromotionForCart(
 
 ## 📊 Typed Config Models
 
-Instead of `map[string]interface{}`, each promotion type has a strongly-typed config:
+Instead of `map[string]any`, each promotion type has a strongly-typed config:
 
 ```go
 // model/discount_config_model.go
@@ -159,7 +159,7 @@ type BundleConfig struct {
 req := model.CreatePromotionRequest{
     Name: "Summer Sale",
     PromotionType: entity.PromoTypePercentage,
-    DiscountConfig: map[string]interface{}{
+    DiscountConfig: map[string]any{
         "percentage": 20.0,
         "max_discount_cents": 100000,
     },

@@ -57,7 +57,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		assert.NotNil(t, variant["selectedOptions"])
 
 		// Verify selected options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Len(t, selectedOptions, 2, "Should have 2 selected options (Color and Storage)")
 	})
@@ -84,13 +84,13 @@ func TestFindVariantByOptions(t *testing.T) {
 		assert.Equal(t, true, variant["isPopular"])
 
 		// Verify selected options structure
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, selectedOptions, 2)
 
 		// Verify each option has required fields
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			assert.NotNil(t, option["optionId"])
 			assert.NotNil(t, option["optionName"])
 			assert.NotNil(t, option["optionDisplayName"])
@@ -121,7 +121,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		assert.Equal(t, "MBP-16-M3-SB-16-512", variant["sku"])
 		assert.Equal(t, 2499.00, variant["price"])
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, selectedOptions, 3, "Should have 3 selected options")
 	})
@@ -421,13 +421,13 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 
 		// Find the Color option and verify it has colorCode
 		foundColorOption := false
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			if option["optionName"] == "Color" {
 				foundColorOption = true
 				// Black color should have a color code
@@ -507,13 +507,13 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Greater(t, len(selectedOptions), 0, "Should have at least one option")
 
 		// Verify structure of each option
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 
 			// Required fields in each option
 			assert.NotNil(t, option["optionId"])
@@ -541,7 +541,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok, "images should be an array")
 		// Images can be empty or have multiple items, both are valid
 		assert.NotNil(t, images)
@@ -562,7 +562,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
+		images, ok := variant["images"].([]any)
 		assert.True(t, ok, "images should be an array")
 		assert.GreaterOrEqual(t, len(images), 1, "iPhone variant should have at least 1 image")
 	})

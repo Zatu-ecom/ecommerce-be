@@ -3,6 +3,7 @@
 ## 🎯 Overview
 
 Implemented a **Strategy Pattern** for promotion validation with:
+
 - ✅ Typed discount config models for each promotion type
 - ✅ Validation strategies for config and cart validation
 - ✅ Automatic promotion application during checkout
@@ -11,12 +12,13 @@ Implemented a **Strategy Pattern** for promotion validation with:
 ## 📁 New Files Created
 
 ### 1. Typed Config Models
+
 **File**: `promotion/model/discount_config_model.go`
 
 Strongly-typed structs for each promotion type with validation tags:
 
 ```go
-// Instead of map[string]interface{}
+// Instead of map[string]any
 type PercentageDiscountConfig struct {
     Percentage        float64 `json:"percentage" binding:"required,min=0.01,max=100"`
     MaxDiscountCents  *int64  `json:"max_discount_cents,omitempty"`
@@ -39,6 +41,7 @@ type BuyXGetYConfig struct {
 ```
 
 ### 2. Cart Validation Models
+
 **File**: `promotion/model/cart_validation_model.go`
 
 Models for cart validation during checkout:
@@ -72,13 +75,14 @@ type PromotionValidationResult struct {
 ```
 
 ### 3. Strategy Interface
+
 **File**: `promotion/service/strategy/promotion_validator.go`
 
 ```go
 type PromotionValidator interface {
     // Validates discount config structure
-    ValidateConfig(config map[string]interface{}) error
-    
+    ValidateConfig(config map[string]any) error
+
     // Validates if promotion can be applied to cart
     ValidateCart(
         ctx context.Context,
@@ -101,6 +105,7 @@ Each promotion type has its own validator:
 - **`flash_sale_validator.go`** - Flash sale with stock limits
 
 ### 5. Validator Factory
+
 **File**: `promotion/service/strategy/validator_factory.go`
 
 ```go
@@ -116,6 +121,7 @@ func GetValidator(promotionType entity.PromotionType) PromotionValidator {
 ```
 
 ### 6. Cart Validation Service
+
 **File**: `promotion/service/promotion_validator_service.go`
 
 Main method for automatic promotion application:
@@ -133,10 +139,11 @@ func (s *PromotionServiceImpl) ValidatePromotionForCart(
 ### `promotion/service/promotion_service.go`
 
 **Before** (generic validation):
+
 ```go
 func (s *PromotionServiceImpl) validateDiscountConfig(
     promotionType entity.PromotionType,
-    config map[string]interface{},
+    config map[string]any,
 ) error {
     switch promotionType {
     case entity.PromoTypePercentage:
@@ -149,6 +156,7 @@ func (s *PromotionServiceImpl) validateDiscountConfig(
 ```
 
 **After** (strategy pattern):
+
 ```go
 // Get validator for promotion type
 validator := strategy.GetValidator(req.PromotionType)
@@ -172,7 +180,7 @@ promotionService := service.NewPromotionService(promotionRepo)
 req := model.CreatePromotionRequest{
     Name: "Summer Sale",
     PromotionType: entity.PromoTypePercentage,
-    DiscountConfig: map[string]interface{}{
+    DiscountConfig: map[string]any{
         "percentage": 20.0,
         "max_discount_cents": 100000,
     },
@@ -218,6 +226,7 @@ if result.IsValid {
 ## 🎯 Validation Logic
 
 ### Common Validations (All Types)
+
 1. ✅ Promotion status (must be `active`)
 2. ✅ Date range (current time within start/end dates)
 3. ✅ Usage limits (total and per customer)
@@ -228,40 +237,47 @@ if result.IsValid {
 ### Type-Specific Validations
 
 #### Percentage Discount
+
 - Validates percentage is between 0.01 and 100
 - Applies max discount cap
 - Calculates: `subtotal * percentage / 100`
 
 #### Fixed Amount
+
 - Validates amount > 0
 - Ensures discount doesn't exceed cart total
 - Direct discount application
 
 #### Buy X Get Y
+
 - Counts qualifying items
 - Calculates sets: `totalQty / (buyQty + getQty)`
 - Applies discount to cheapest items
 - Supports max sets limit
 
 #### Bundle
+
 - Checks all bundle items present in cart
 - Validates quantities match
 - Supports: `fixed_price`, `percentage`, `fixed_amount`
 - Returns list of applied items
 
 #### Tiered
+
 - Determines tier based on quantity or spend
 - Finds applicable tier (min/max range)
 - Applies tier-specific discount
 - Supports progressive discounts
 
 #### Flash Sale
+
 - Checks stock limit vs sold count
 - Time-sensitive validation
 - Supports percentage or fixed amount
 - Tracks inventory in real-time
 
 #### Free Shipping
+
 - Validates minimum order amount
 - Applies to shipping cost
 - Supports max shipping discount cap
@@ -269,26 +285,31 @@ if result.IsValid {
 ## 🏗️ Architecture Benefits
 
 ### 1. **Maintainability**
+
 - Each promotion type has its own file
 - Easy to find and modify specific logic
 - No giant switch statements
 
 ### 2. **Extensibility**
+
 - Add new promotion type: Create new validator
 - No changes to existing code
 - Follows Open/Closed Principle
 
 ### 3. **Type Safety**
+
 - Strongly-typed config models
 - Compile-time validation
 - Better IDE support
 
 ### 4. **Testability**
+
 - Each validator can be tested independently
 - Mock strategies for unit tests
 - Clear separation of concerns
 
 ### 5. **Reusability**
+
 - Same validator for create and cart validation
 - Consistent logic across operations
 - Single source of truth
@@ -296,17 +317,19 @@ if result.IsValid {
 ## 🔮 Future Enhancements
 
 ### Easy to Add:
+
 1. **New Promotion Types**
+
    ```go
    // 1. Add to entity
    PromoTypeTimedDiscount PromotionType = "timed_discount"
-   
+
    // 2. Create config model
    type TimedDiscountConfig struct { ... }
-   
+
    // 3. Create validator
    type TimedDiscountValidator struct{}
-   
+
    // 4. Register in factory
    case entity.PromoTypeTimedDiscount:
        return NewTimedDiscountValidator()
@@ -337,6 +360,7 @@ $ go build ./promotion/...
 ## 📝 Summary
 
 The strategy pattern implementation provides:
+
 - ✅ Clean, maintainable code structure
 - ✅ Type-safe discount configurations
 - ✅ Automatic promotion application for checkout
