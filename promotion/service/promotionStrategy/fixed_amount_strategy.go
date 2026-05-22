@@ -71,7 +71,7 @@ func (s *FixedAmountStrategy) DescribeConfig() model.PromotionStrategyDescriptor
 }
 
 // ValidateConfig validates the fixed amount configuration
-func (s *FixedAmountStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *FixedAmountStrategy) ValidateConfig(config map[string]any) error {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid config format")

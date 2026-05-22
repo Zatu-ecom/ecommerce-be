@@ -63,7 +63,7 @@ type OrderShipment struct {
 	Status      ShipmentStatus         `json:"status"      gorm:"column:status;size:32;default:pending;index"`
 	ShippedAt   *time.Time             `json:"shippedAt"   gorm:"column:shipped_at"`
 	DeliveredAt *time.Time             `json:"deliveredAt" gorm:"column:delivered_at"`
-	Metadata    map[string]interface{} `json:"metadata"    gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata    map[string]any `json:"metadata"    gorm:"column:metadata;type:jsonb;default:'{}'"`
 
 	// Relationships
 	Items []OrderShipmentItem `json:"items,omitempty" gorm:"foreignKey:ShipmentID"`

@@ -180,6 +180,37 @@ const (
 	SELLER_OR_ADMIN_REQUIRED_MSG = "Seller or Admin access required"
 )
 
+// Product Media messages
+const (
+	PRODUCT_MEDIA_NOT_FOUND_MSG      = "Product media link not found"
+	PRODUCT_MEDIA_DUPLICATE_MSG      = "This file is already attached to the product"
+	PRODUCT_MEDIA_INVALID_FILE_MSG   = "The referenced file does not exist or is not accessible"
+	PRODUCT_MEDIA_CLEANUP_FAILED_MSG = "Product media removed but underlying file cleanup failed; scheduled for retry"
+
+	MEDIA_ATTACHED_MSG         = "Media attached to product"
+	MEDIA_UPDATED_MSG          = "Product media metadata updated"
+	MEDIA_REMOVED_MSG          = "Product media removed"
+	FAILED_TO_ATTACH_MEDIA_MSG = "Failed to attach media to product"
+	FAILED_TO_UPDATE_MEDIA_MSG = "Failed to update product media metadata"
+	FAILED_TO_REMOVE_MEDIA_MSG = "Failed to remove product media"
+	MEDIA_FIELD_NAME           = "media"
+)
+
+// Variant Media messages
+const (
+	VARIANT_MEDIA_NOT_FOUND_MSG      = "Variant media link not found"
+	VARIANT_MEDIA_DUPLICATE_MSG      = "This file is already attached to the variant"
+	VARIANT_MEDIA_INVALID_FILE_MSG   = "The referenced file does not exist or is not accessible"
+	VARIANT_MEDIA_CLEANUP_FAILED_MSG = "Variant media removed but underlying file cleanup failed; scheduled for retry"
+
+	VARIANT_MEDIA_ATTACHED_MSG         = "Media attached to variant"
+	VARIANT_MEDIA_UPDATED_MSG          = "Variant media metadata updated"
+	VARIANT_MEDIA_REMOVED_MSG          = "Variant media removed"
+	FAILED_TO_ATTACH_VARIANT_MEDIA_MSG = "Failed to attach media to variant"
+	FAILED_TO_UPDATE_VARIANT_MEDIA_MSG = "Failed to update variant media metadata"
+	FAILED_TO_REMOVE_VARIANT_MEDIA_MSG = "Failed to remove variant media"
+)
+
 // Business rule messages
 const (
 	CATEGORY_CANNOT_BE_DELETED_MSG  = "Category cannot be deleted due to business rules"

@@ -612,10 +612,10 @@ func (s *FlashSalePromotionTestSuite) createFlashSalePromotion(
 func (s *FlashSalePromotionTestSuite) createGenericPromotion(
 	name string,
 	promoType string,
-	discountConfig interface{},
+	discountConfig any,
 	opts promotionCreateOptions,
 ) uint {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           name,
 		"promotionType":  promoType,
 		"discountConfig": discountConfig,
@@ -636,13 +636,13 @@ func (s *FlashSalePromotionTestSuite) createGenericPromotion(
 }
 
 func (s *FlashSalePromotionTestSuite) createPromotionFromPayload(
-	payload map[string]interface{},
+	payload map[string]any,
 ) uint {
 	res := s.sellerClient.Post(s.T(), PromotionAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code, "promotion creation should succeed")
 
 	respData := helpers.ParseResponse(s.T(), res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -662,7 +662,7 @@ func (s *FlashSalePromotionTestSuite) linkPromotionProducts(
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionProductsEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"productIds":  productIDs,
 		},
@@ -674,9 +674,9 @@ func (s *FlashSalePromotionTestSuite) linkPromotionCategories(
 	promotionID uint,
 	categoryIDs ...uint,
 ) {
-	categories := make([]map[string]interface{}, 0, len(categoryIDs))
+	categories := make([]map[string]any, 0, len(categoryIDs))
 	for _, categoryID := range categoryIDs {
-		categories = append(categories, map[string]interface{}{
+		categories = append(categories, map[string]any{
 			"categoryId":           categoryID,
 			"includeSubcategories": false,
 		})
@@ -685,7 +685,7 @@ func (s *FlashSalePromotionTestSuite) linkPromotionCategories(
 	res := s.sellerClient.Post(
 		s.T(),
 		promotionCategoriesEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promotionID,
 			"categories":  categories,
 		},
@@ -701,7 +701,7 @@ func buildFlashSalePayload(
 	minOrderCents *int64,
 	stockLimit *int,
 	soldCount *int,
-) map[string]interface{} {
+) map[string]any {
 	config := model.FlashSaleConfig{
 		DiscountType:     discountType,
 		DiscountValue:    discountValue,
@@ -710,7 +710,7 @@ func buildFlashSalePayload(
 		StockLimit:       stockLimit,
 		SoldCount:        soldCount,
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"name":           name,
 		"promotionType":  promoTypeFlashSale,
 		"discountConfig": config,

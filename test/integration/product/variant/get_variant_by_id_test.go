@@ -76,7 +76,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
-		assert.NotNil(t, variant["images"])
+		assert.NotNil(t, variant["media"])
 		assert.NotNil(t, variant["product"])
 	})
 
@@ -94,7 +94,7 @@ func TestGetVariantByID(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		// Check selectedOptions has 3 options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Len(t, selectedOptions, 3, "MacBook should have 3 options: Color, Memory, Storage")
 
@@ -227,8 +227,8 @@ func TestGetVariantByID(t *testing.T) {
 		assert.True(t, variant["isPopular"].(bool), "Variant 1 should be popular")
 	})
 
-	t.Run("Success - Get variant with multiple images", func(t *testing.T) {
-		// Product 1, Variant 1 with image URL
+	t.Run("Success - Get variant media field is always a JSON array", func(t *testing.T) {
+		// Product 1, Variant 1 — images are now managed via variant_media table
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "2")
 
@@ -240,9 +240,8 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]interface{})
-		assert.True(t, ok, "images should be an array")
-		assert.GreaterOrEqual(t, len(images), 1, "iPhone variant should have at least 1 image")
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should always be a JSON array")
 	})
 
 	// ============================================================================
@@ -344,13 +343,13 @@ func TestGetVariantByID(t *testing.T) {
 		assert.Equal(t, "ADIDAS-RUN-BW-9", variant["sku"])
 
 		// Check selectedOptions for the special character
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 
 		// Find the Color option
 		foundColorOption := false
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			if option["optionName"] == "Color" {
 				foundColorOption = true
 				// Should have "Black/White" as value
@@ -412,7 +411,7 @@ func TestGetVariantByID(t *testing.T) {
 
 			// Verify all required fields for VariantDetailResponse
 			requiredFields := []string{
-				"id", "productId", "product", "sku", "price", "images",
+				"id", "productId", "product", "sku", "price", "media",
 				"allowPurchase", "isPopular", "isDefault",
 				"selectedOptions", "createdAt", "updatedAt",
 			}
@@ -442,7 +441,7 @@ func TestGetVariantByID(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		// Check product object
-		product, ok := variant["product"].(map[string]interface{})
+		product, ok := variant["product"].(map[string]any)
 		assert.True(t, ok, "product should be an object")
 
 		// Verify product fields
@@ -465,13 +464,13 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Greater(t, len(selectedOptions), 0, "Should have at least one option")
 
 		// Verify structure of each option
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 
 			// Required fields in each option
 			assert.NotNil(t, option["optionId"])
@@ -501,13 +500,13 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 
 		// Find the Color option and verify it has colorCode
 		foundColorOption := false
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			if option["optionName"] == "Color" {
 				foundColorOption = true
 				assert.NotNil(t, option["colorCode"], "Color option should have colorCode")
@@ -593,8 +592,8 @@ func TestGetVariantByID(t *testing.T) {
 			assert.Equal(t, "NIKE-TSHIRT-WHT-M", variant2["sku"])
 
 			// selectedOptions should be different
-			options1 := variant1["selectedOptions"].([]interface{})
-			options2 := variant2["selectedOptions"].([]interface{})
+			options1 := variant1["selectedOptions"].([]any)
+			options2 := variant2["selectedOptions"].([]any)
 			assert.Len(t, options1, 2)
 			assert.Len(t, options2, 2)
 		},
@@ -620,8 +619,8 @@ func TestGetVariantByID(t *testing.T) {
 			variant2 := helpers.GetResponseData(t, response2, "variant")
 
 			// Product info should be identical
-			product1 := variant1["product"].(map[string]interface{})
-			product2 := variant2["product"].(map[string]interface{})
+			product1 := variant1["product"].(map[string]any)
+			product2 := variant2["product"].(map[string]any)
 
 			assert.Equal(t, product1["id"], product2["id"])
 			assert.Equal(t, product1["name"], product2["name"])
@@ -645,7 +644,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.Equal(t, float64(productID), variant["productId"])
 
 		// product.id should also match
-		product := variant["product"].(map[string]interface{})
+		product := variant["product"].(map[string]any)
 		assert.Equal(t, float64(productID), product["id"])
 	})
 
@@ -662,14 +661,14 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, selectedOptions, 2, "Should have exactly 2 options")
 
 		// Verify the options are Size and Color with correct values
 		optionsMap := make(map[string]string)
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			optionsMap[option["optionName"].(string)] = option["value"].(string)
 		}
 
@@ -726,7 +725,7 @@ func TestGetVariantByID(t *testing.T) {
 			)
 
 			// Verify product object exists and has required fields
-			product, ok := variantDetail["product"].(map[string]interface{})
+			product, ok := variantDetail["product"].(map[string]any)
 			assert.True(t, ok, "product should be an object")
 			assert.NotNil(t, product["id"])
 			assert.NotNil(t, product["name"])

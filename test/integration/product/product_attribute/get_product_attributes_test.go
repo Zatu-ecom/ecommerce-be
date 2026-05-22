@@ -29,8 +29,8 @@ func TestGetProductAttributes(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Helper function to create an attribute
-	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createAttribute := func(productID, attributeDefID int, value string, sortOrder int) map[string]any {
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 value,
 			"sortOrder":             sortOrder,
@@ -79,7 +79,7 @@ func TestGetProductAttributes(t *testing.T) {
 		assert.NotNil(t, productAttributes["attributes"])
 		assert.NotNil(t, productAttributes["total"])
 
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 		total := int(productAttributes["total"].(float64))
 
 		assert.Equal(t, len(attributes), total, "Total should match attributes length")
@@ -101,7 +101,7 @@ func TestGetProductAttributes(t *testing.T) {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 			productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-			attributes := productAttributes["attributes"].([]interface{})
+			attributes := productAttributes["attributes"].([]any)
 
 			// Just verify we can get attributes (might be 0 or have seed data)
 			assert.NotNil(t, attributes, "Should return attributes array")
@@ -153,12 +153,12 @@ func TestGetProductAttributes(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		assert.Greater(t, len(attributes), 0, "Should have at least one attribute")
 
 		// Check first attribute has definition details
-		firstAttr := attributes[0].(map[string]interface{})
+		firstAttr := attributes[0].(map[string]any)
 
 		assert.NotNil(t, firstAttr["id"])
 		assert.NotNil(t, firstAttr["productId"])
@@ -200,15 +200,15 @@ func TestGetProductAttributes(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Product 7 has 2 from seeds + 3 we just added = 5 total
 		assert.GreaterOrEqual(t, len(attributes), 5, "Should have at least 5 attributes")
 
 		// Verify attributes are sorted by sort order
 		for i := 0; i < len(attributes)-1; i++ {
-			currentAttr := attributes[i].(map[string]interface{})
-			nextAttr := attributes[i+1].(map[string]interface{})
+			currentAttr := attributes[i].(map[string]any)
+			nextAttr := attributes[i+1].(map[string]any)
 
 			currentOrder := currentAttr["sortOrder"].(float64)
 			nextOrder := nextAttr["sortOrder"].(float64)
@@ -223,9 +223,9 @@ func TestGetProductAttributes(t *testing.T) {
 
 		// Verify the values are in correct order (first non-seed attribute by sort order)
 		// Find the first attribute with sortOrder 10
-		var firstAttr map[string]interface{}
+		var firstAttr map[string]any
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			if attrMap["sortOrder"].(float64) == 10 {
 				firstAttr = attrMap
 				break
@@ -291,7 +291,7 @@ func TestGetProductAttributes(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		assert.GreaterOrEqual(t, len(attributes), 3, "Should have at least 3 attributes")
 	})
@@ -310,7 +310,7 @@ func TestGetProductAttributes(t *testing.T) {
 		attributeID := int(attr["id"].(float64))
 
 		// Update the attribute to another valid value
-		updateBody := map[string]interface{}{
+		updateBody := map[string]any{
 			"value":     "Regular",
 			"sortOrder": 5,
 		}
@@ -328,12 +328,12 @@ func TestGetProductAttributes(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Find the updated attribute
 		found := false
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			if int(attrMap["id"].(float64)) == attributeID {
 				assert.Equal(t, "Regular", attrMap["value"])
 				assert.Equal(t, float64(5), attrMap["sortOrder"])
@@ -374,11 +374,11 @@ func TestGetProductAttributes(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, response, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Verify deleted attribute is not in list
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrID := int(attrMap["id"].(float64))
 			assert.NotEqual(t, attr1ID, attrID, "Deleted attribute should not be in list")
 		}

@@ -74,7 +74,7 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 		Slug:                        promotion.Slug,
 		Description:                 promotion.Description,
 		PromotionType:               promotion.PromotionType,
-		DiscountConfig:              map[string]interface{}(promotion.DiscountConfig),
+		DiscountConfig:              map[string]any(promotion.DiscountConfig),
 		AppliesTo:                   promotion.AppliesTo,
 		EligibleFor:                 promotion.EligibleFor,
 		CustomerSegmentID:           promotion.CustomerSegmentID,

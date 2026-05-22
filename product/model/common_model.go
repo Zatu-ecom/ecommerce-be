@@ -11,7 +11,7 @@ type PaginationResponse = common.PaginationResponse
 // SearchQuery represents search parameters
 type SearchQuery struct {
 	Query     string                 `json:"query"`
-	Filters   map[string]interface{} `json:"filters"`
+	Filters   map[string]any `json:"filters"`
 	Page      int                    `json:"page"`
 	Limit     int                    `json:"limit"`
 	SortBy    string                 `json:"sortBy"`
@@ -20,7 +20,7 @@ type SearchQuery struct {
 
 // FilterOption represents a generic filter option
 type FilterOption struct {
-	ID    interface{} `json:"id"`
+	ID    any `json:"id"`
 	Value string      `json:"value"`
 	Count int         `json:"count"`
 }

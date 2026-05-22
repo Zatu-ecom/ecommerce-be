@@ -100,7 +100,7 @@ func (s *BundleStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
 }
 
 // ValidateConfig validates the bundle configuration
-func (s *BundleStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *BundleStrategy) ValidateConfig(config map[string]any) error {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage("Invalid config format")
@@ -309,7 +309,7 @@ func (s *BundleStrategy) calculateBundleTotalCentsV2(
 }
 
 func (s *BundleStrategy) parseBundleConfig(
-	discountConfig map[string]interface{},
+	discountConfig map[string]any,
 ) (model.BundleConfig, bool) {
 	configJSON, _ := json.Marshal(discountConfig)
 

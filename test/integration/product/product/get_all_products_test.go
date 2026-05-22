@@ -43,12 +43,12 @@ func TestGetAllProducts(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify products array exists
-		products, ok := response["data"].(map[string]interface{})["products"].([]interface{})
+		products, ok := response["data"].(map[string]any)["products"].([]any)
 		assert.True(t, ok, "products should be an array")
 		assert.NotEmpty(t, products, "Should return at least one product")
 
 		// Verify pagination exists
-		pagination, ok := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination, ok := response["data"].(map[string]any)["pagination"].(map[string]any)
 		assert.True(t, ok, "pagination should exist")
 		assert.NotNil(t, pagination["currentPage"])
 		assert.NotNil(t, pagination["totalPages"])
@@ -57,7 +57,7 @@ func TestGetAllProducts(t *testing.T) {
 
 		// Verify each product has required fields
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.NotNil(t, product["id"], "Product should have id")
 			assert.NotNil(t, product["name"], "Product should have name")
 			assert.NotNil(t, product["categoryId"], "Product should have categoryId")
@@ -69,10 +69,10 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
-		products := data["products"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		products := data["products"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		assert.LessOrEqual(t, len(products), 10, "Should return max 10 products per page")
 		assert.Equal(t, float64(1), pagination["currentPage"], "Should be page 1 by default")
@@ -88,10 +88,10 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=1&pageSize=5")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
-		products := data["products"].([]interface{})
-		pagination := data["pagination"].(map[string]interface{})
+		products := data["products"].([]any)
+		pagination := data["pagination"].(map[string]any)
 
 		assert.LessOrEqual(t, len(products), 5, "Should return max 5 products")
 		assert.Equal(t, float64(5), pagination["itemsPerPage"], "Should have 5 items per page")
@@ -101,9 +101,9 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=2&pageSize=3")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
-		pagination := data["pagination"].(map[string]interface{})
+		pagination := data["pagination"].(map[string]any)
 		assert.Equal(t, float64(2), pagination["currentPage"], "Should be page 2")
 		assert.True(t, pagination["hasPrev"].(bool), "Should have previous page")
 	})
@@ -112,13 +112,13 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// All products should have variantPreview (listing view doesn't include full variants)
 		foundProductWithVariantPreview := false
 		for _, p := range products {
-			product := p.(map[string]interface{})
-			if variantPreview, ok := product["variantPreview"].(map[string]interface{}); ok {
+			product := p.(map[string]any)
+			if variantPreview, ok := product["variantPreview"].(map[string]any); ok {
 				foundProductWithVariantPreview = true
 				// Verify variantPreview structure
 				assert.NotNil(
@@ -146,11 +146,11 @@ func TestGetAllProducts(t *testing.T) {
 
 		// Verify that full variants are NOT included in listing (GetAll API)
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			variants, hasVariants := product["variants"]
 			// variants should either not exist or be null/empty in listing view
 			if hasVariants && variants != nil {
-				variantsArray, isArray := variants.([]interface{})
+				variantsArray, isArray := variants.([]any)
 				if isArray {
 					assert.Empty(
 						t,
@@ -171,11 +171,11 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?categoryIds=4")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// All products should belong to category 4
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(
 				t,
 				float64(4),
@@ -189,11 +189,11 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?brands=Apple")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotEmpty(t, products, "Should find Apple products")
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(t, "Apple", product["brand"], "All products should be Apple brand")
 		}
 	})
@@ -203,7 +203,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, fmt.Sprintf("/api/product?minPrice=%.2f", minPrice))
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Note: The filter might work on product level or variant level
 		// This test just verifies the query doesn't error
@@ -215,7 +215,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, fmt.Sprintf("/api/product?maxPrice=%.2f", maxPrice))
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotNil(t, products, "Should return products array")
 	})
@@ -224,7 +224,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?minPrice=20&maxPrice=100")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotNil(t, products, "Should return products array")
 	})
@@ -233,7 +233,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?isPopular=true")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotNil(t, products, "Should return products array")
 	})
@@ -242,7 +242,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?isPopular=false")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotNil(t, products, "Should return products array")
 	})
@@ -251,7 +251,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?categoryIds=4&brands=Apple&minPrice=900")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should work without error, results depend on data
 		assert.NotNil(t, products, "Should return products array")
@@ -261,7 +261,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?brands=NonExistentBrand123")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.Empty(t, products, "Should return empty array for non-existent brand")
 	})
@@ -270,7 +270,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?categoryIds=99999")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.Empty(t, products, "Should return empty array for non-existent category")
 	})
@@ -283,12 +283,12 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotEmpty(t, products, "Should return products")
 		// Verify products have createdAt field
 		if len(products) > 0 {
-			product := products[0].(map[string]interface{})
+			product := products[0].(map[string]any)
 			assert.NotNil(t, product["createdAt"], "Product should have createdAt")
 		}
 	})
@@ -297,7 +297,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?sortBy=created_at&sortOrder=asc")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotNil(t, products, "Should return products array")
 	})
@@ -306,13 +306,13 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?sortBy=name&sortOrder=asc")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotEmpty(t, products, "Should return products")
 		// Verify sorted by name
 		if len(products) >= 2 {
-			name1 := products[0].(map[string]interface{})["name"].(string)
-			name2 := products[1].(map[string]interface{})["name"].(string)
+			name1 := products[0].(map[string]any)["name"].(string)
+			name2 := products[1].(map[string]any)["name"].(string)
 			assert.LessOrEqual(t, name1, name2, "Products should be sorted by name ascending")
 		}
 	})
@@ -321,13 +321,13 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?sortBy=name&sortOrder=desc")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.NotEmpty(t, products, "Should return products")
 		// Verify sorted by name
 		if len(products) >= 2 {
-			name1 := products[0].(map[string]interface{})["name"].(string)
-			name2 := products[1].(map[string]interface{})["name"].(string)
+			name1 := products[0].(map[string]any)["name"].(string)
+			name2 := products[1].(map[string]any)["name"].(string)
 			assert.GreaterOrEqual(t, name1, name2, "Products should be sorted by name descending")
 		}
 	})
@@ -346,7 +346,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=0")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.Equal(t, float64(1), pagination["currentPage"], "Page 0 should default to page 1")
 	})
@@ -355,7 +355,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=-5")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.Equal(
 			t,
@@ -369,7 +369,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?pageSize=0")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.Greater(t, pagination["itemsPerPage"], float64(0), "Limit 0 should use default")
 	})
@@ -378,7 +378,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?pageSize=-10")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.Greater(
 			t,
@@ -392,8 +392,8 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?pageSize=1000")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should be capped at 100 (based on service implementation)
 		assert.LessOrEqual(t, len(products), 100, "Should cap limit at max value")
@@ -409,7 +409,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=9999&pageSize=10")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		assert.Empty(t, products, "Should return empty array for page beyond total")
 	})
@@ -419,7 +419,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?page=1&pageSize=2")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.False(t, pagination["hasPrev"].(bool), "First page should not have previous")
 		// hasNext depends on total products
@@ -432,14 +432,14 @@ func TestGetAllProducts(t *testing.T) {
 		// First get total pages
 		w1 := client.Get(t, "/api/product?pageSize=5")
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
-		pagination1 := response1["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination1 := response1["data"].(map[string]any)["pagination"].(map[string]any)
 		totalPages := int(pagination1["totalPages"].(float64))
 
 		if totalPages > 1 {
 			// Get last page
 			w2 := client.Get(t, fmt.Sprintf("/api/product?page=%d&pageSize=5", totalPages))
 			response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-			pagination2 := response2["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+			pagination2 := response2["data"].(map[string]any)["pagination"].(map[string]any)
 
 			assert.False(t, pagination2["hasNext"].(bool), "Last page should not have next")
 			assert.True(t, pagination2["hasPrev"].(bool), "Last page should have previous")
@@ -468,7 +468,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?categoryIds=notanumber")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should ignore invalid categoryId and return all products
 		assert.NotNil(t, products, "Should return products despite invalid categoryId")
@@ -496,8 +496,8 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?brands=Apple&categoryIds=10&maxPrice=1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.Empty(t, products, "Should return empty array")
 		assert.Equal(t, float64(0), pagination["totalItems"], "Total items should be 0")
@@ -512,15 +512,15 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?pageSize=1")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Check top-level structure
 		assert.NotNil(t, data["products"], "Response should have products")
 		assert.NotNil(t, data["pagination"], "Response should have pagination")
 
-		products := data["products"].([]interface{})
+		products := data["products"].([]any)
 		if len(products) > 0 {
-			product := products[0].(map[string]interface{})
+			product := products[0].(map[string]any)
 
 			// Verify product fields
 			requiredFields := []string{
@@ -545,7 +545,6 @@ func TestGetAllProducts(t *testing.T) {
 			// Verify listing-specific fields
 			assert.NotNil(t, product["hasVariants"], "Product should have hasVariants")
 			assert.NotNil(t, product["allowPurchase"], "Product should have allowPurchase")
-			assert.NotNil(t, product["images"], "Product should have images")
 
 			// variantPreview should exist for products with variants
 			if product["hasVariants"].(bool) {
@@ -559,7 +558,7 @@ func TestGetAllProducts(t *testing.T) {
 			// Full variants should NOT be in listing view
 			variants, hasVariants := product["variants"]
 			if hasVariants && variants != nil {
-				variantsArray, isArray := variants.([]interface{})
+				variantsArray, isArray := variants.([]any)
 				if isArray {
 					assert.Empty(t, variantsArray, "GetAll API should not return full variants")
 				}
@@ -567,7 +566,7 @@ func TestGetAllProducts(t *testing.T) {
 		}
 
 		// Verify pagination fields
-		pagination := data["pagination"].(map[string]interface{})
+		pagination := data["pagination"].(map[string]any)
 		paginationFields := []string{
 			"currentPage", "totalPages", "totalItems", "itemsPerPage", "hasNext", "hasPrev",
 		}
@@ -584,7 +583,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?brands=L%27Oreal") // L'Oreal with URL encoding
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should handle URL-encoded special characters
 		assert.NotNil(t, products, "Should handle special characters in brand")
@@ -595,7 +594,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, fmt.Sprintf("/api/product?brands=%s", longBrand))
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should handle long brand names
 		assert.NotNil(t, products, "Should handle long brand names")
@@ -613,7 +612,7 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should handle complex queries without error
 		assert.NotNil(t, products, "Should handle complex queries")
@@ -623,8 +622,8 @@ func TestGetAllProducts(t *testing.T) {
 		w := client.Get(t, "/api/product?pageSize=100")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
-		pagination := response["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
+		pagination := response["data"].(map[string]any)["pagination"].(map[string]any)
 
 		assert.LessOrEqual(t, len(products), 100, "Should not exceed max limit")
 		assert.LessOrEqual(
@@ -643,13 +642,13 @@ func TestGetAllProducts(t *testing.T) {
 		// Get first page
 		w1 := client.Get(t, "/api/product?page=1&pageSize=5")
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
-		pagination1 := response1["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination1 := response1["data"].(map[string]any)["pagination"].(map[string]any)
 		totalItems1 := pagination1["totalItems"]
 
 		// Get second page
 		w2 := client.Get(t, "/api/product?page=2&pageSize=5")
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		pagination2 := response2["data"].(map[string]interface{})["pagination"].(map[string]interface{})
+		pagination2 := response2["data"].(map[string]any)["pagination"].(map[string]any)
 		totalItems2 := pagination2["totalItems"]
 
 		// Total items should be consistent
@@ -662,20 +661,20 @@ func TestGetAllProducts(t *testing.T) {
 		// First request
 		w1 := client.Get(t, query)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
-		products1 := response1["data"].(map[string]interface{})["products"].([]interface{})
+		products1 := response1["data"].(map[string]any)["products"].([]any)
 
 		// Second request
 		w2 := client.Get(t, query)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		products2 := response2["data"].(map[string]interface{})["products"].([]interface{})
+		products2 := response2["data"].(map[string]any)["products"].([]any)
 
 		// Should return same number of products
 		assert.Equal(t, len(products1), len(products2), "Same query should return same count")
 
 		// Should return same products in same order
 		if len(products1) > 0 && len(products2) > 0 {
-			firstProduct1 := products1[0].(map[string]interface{})
-			firstProduct2 := products2[0].(map[string]interface{})
+			firstProduct1 := products1[0].(map[string]any)
+			firstProduct2 := products2[0].(map[string]any)
 			assert.Equal(
 				t,
 				firstProduct1["id"],
@@ -778,7 +777,7 @@ func TestGetAllProducts(t *testing.T) {
 
 		// Should succeed after trimming whitespace
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 		assert.NotNil(t, products, "Should return products after trimming whitespace")
 	})
 
@@ -788,14 +787,14 @@ func TestGetAllProducts(t *testing.T) {
 		client2.SetHeader("X-Seller-ID", "2")
 		w2 := client2.Get(t, "/api/product")
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
-		products2 := response2["data"].(map[string]interface{})["products"].([]interface{})
+		products2 := response2["data"].(map[string]any)["products"].([]any)
 
 		// Get products for seller 3
 		client3 := helpers.NewAPIClient(server)
 		client3.SetHeader("X-Seller-ID", "3")
 		w3 := client3.Get(t, "/api/product")
 		response3 := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
-		products3 := response3["data"].(map[string]interface{})["products"].([]interface{})
+		products3 := response3["data"].(map[string]any)["products"].([]any)
 
 		// Both sellers should have products (based on seed data)
 		assert.NotEmpty(t, products2, "Seller 2 should have products")
@@ -803,13 +802,13 @@ func TestGetAllProducts(t *testing.T) {
 
 		// Verify seller 2's products belong to seller 2
 		for _, p := range products2 {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(t, float64(2), product["sellerId"], "Products should belong to seller 2")
 		}
 
 		// Verify seller 3's products belong to seller 3
 		for _, p := range products3 {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(t, float64(3), product["sellerId"], "Products should belong to seller 3")
 		}
 	})
@@ -825,11 +824,11 @@ func TestGetAllProducts(t *testing.T) {
 		w := clientSeller2.Get(t, "/api/product")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// All products should belong to seller 2
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(
 				t,
 				float64(2),
@@ -847,11 +846,11 @@ func TestGetAllProducts(t *testing.T) {
 		w := clientSeller3.Get(t, "/api/product?categoryIds=7") // Men's Clothing
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		products := response["data"].(map[string]interface{})["products"].([]interface{})
+		products := response["data"].(map[string]any)["products"].([]any)
 
 		// Should only return seller 3's products in category 7
 		for _, p := range products {
-			product := p.(map[string]interface{})
+			product := p.(map[string]any)
 			assert.Equal(t, float64(3), product["sellerId"], "Products should belong to seller 3")
 			assert.Equal(t, float64(7), product["categoryId"], "Products should be in category 7")
 		}

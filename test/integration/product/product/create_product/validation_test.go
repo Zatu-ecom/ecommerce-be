@@ -35,24 +35,24 @@ func TestCreateProductValidation(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product",
 			"categoryId": "abc", // Invalid: string instead of number
 			"baseSku":    "TEST-INVALID-TYPE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-INVALID-TYPE-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -69,24 +69,24 @@ func TestCreateProductValidation(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product",
 			"categoryId": 4,
 			"baseSku":    "TEST-INVALID-PRICE-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-INVALID-PRICE-001-V1",
 					"price": "not-a-number", // Invalid: string instead of number
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -103,7 +103,7 @@ func TestCreateProductValidation(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product",
 			"categoryId": 4,
 			"baseSku":    "TEST-INVALID-VARIANTS-001",
@@ -120,12 +120,12 @@ func TestCreateProductValidation(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product",
 			"categoryId": 4,
 			"baseSku":    "TEST-INVALID-OPTIONS-001",
 			"options":    "not-an-array", // Invalid: string instead of array
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-INVALID-OPTIONS-001-V1",
 					"price": 99.99,
@@ -143,25 +143,25 @@ func TestCreateProductValidation(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product",
 			"categoryId": 4,
 			"baseSku":    "TEST-INVALID-BOOL-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":       "TEST-INVALID-BOOL-001-V1",
 					"price":     99.99,
 					"isDefault": "yes", // Invalid: string instead of boolean
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},

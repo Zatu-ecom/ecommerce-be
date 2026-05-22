@@ -739,7 +739,7 @@ func (s *BundlePromotionTestSuite) TestScenario11_SQLInjectionVariantIDsValidati
 	res := s.sellerClient.Post(
 		s.T(),
 		PromotionVariantsEndpoint,
-		map[string]interface{}{
+		map[string]any{
 			"promotionId": promoID,
 			"variantIds":  "1 OR 1=1",
 		},
@@ -788,10 +788,10 @@ func (s *BundlePromotionTestSuite) createBundlePromotionWithOptions(
 func (s *BundlePromotionTestSuite) createPromotion(
 	name string,
 	promoType string,
-	discountConfig interface{},
+	discountConfig any,
 	opts promotionCreateOptions,
 ) uint {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":           name,
 		"promotionType":  promoType,
 		"discountConfig": discountConfig,
@@ -811,12 +811,12 @@ func (s *BundlePromotionTestSuite) createPromotion(
 	return s.createPromotionFromPayload(payload)
 }
 
-func (s *BundlePromotionTestSuite) createPromotionFromPayload(payload map[string]interface{}) uint {
+func (s *BundlePromotionTestSuite) createPromotionFromPayload(payload map[string]any) uint {
 	res := s.sellerClient.Post(s.T(), PromotionAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code)
 
 	respData := helpers.ParseResponse(s.T(), res.Body)
-	promo := respData["data"].(map[string]interface{})["promotion"].(map[string]interface{})
+	promo := respData["data"].(map[string]any)["promotion"].(map[string]any)
 	return uint(promo["id"].(float64))
 }
 
@@ -826,8 +826,8 @@ func buildBundlePayload(
 	discountValue *float64,
 	bundlePrice *int64,
 	bundleItems []model.BundleItemConfig,
-) map[string]interface{} {
-	return map[string]interface{}{
+) map[string]any {
+	return map[string]any{
 		"name":          name,
 		"promotionType": promoTypeBundle,
 		"discountConfig": model.BundleConfig{

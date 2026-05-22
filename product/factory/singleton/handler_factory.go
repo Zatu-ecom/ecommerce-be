@@ -38,11 +38,13 @@ func (f *HandlerFactory) initialize() {
 		f.productHandler = handler.NewProductHandler(
 			f.serviceFactory.GetProductService(),
 			f.serviceFactory.GetProductQueryService(),
+			f.serviceFactory.GetProductMediaService(),
 		)
 		f.variantHandler = handler.NewVariantHandler(
 			f.serviceFactory.GetVariantService(),
 			f.serviceFactory.GetVariantQueryService(),
 			f.serviceFactory.GetVariantBulkService(),
+			f.serviceFactory.GetVariantMediaService(),
 		)
 		f.productAttributeHandler = handler.NewProductAttributeHandler(
 			f.serviceFactory.GetProductAttributeService(),

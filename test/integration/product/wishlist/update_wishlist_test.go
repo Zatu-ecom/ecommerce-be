@@ -52,7 +52,7 @@ func TestUpdateWishlist(t *testing.T) {
 	client.SetToken(aliceToken)
 
 	// Create first wishlist (will be default)
-	createReq := map[string]interface{}{
+	createReq := map[string]any{
 		"name": "Alice Primary Wishlist",
 	}
 	w := client.Post(t, "/api/product/wishlist", createReq)
@@ -61,7 +61,7 @@ func TestUpdateWishlist(t *testing.T) {
 	aliceWishlistID := uint(aliceWishlist["id"].(float64))
 
 	// Create second wishlist (non-default)
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Secondary Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -70,7 +70,7 @@ func TestUpdateWishlist(t *testing.T) {
 	aliceWishlistID2 := uint(aliceWishlist2["id"].(float64))
 
 	// Create third wishlist for additional tests
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Third Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -82,7 +82,7 @@ func TestUpdateWishlist(t *testing.T) {
 	michaelToken := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 	client.SetToken(michaelToken)
 
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Michael Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -100,7 +100,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Update name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice Updated Wishlist",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID3), updateReq)
@@ -127,7 +127,7 @@ func TestUpdateWishlist(t *testing.T) {
 		assert.True(t, wishlist["isDefault"].(bool), "First wishlist should be default initially")
 
 		// Set second wishlist as default
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"isDefault": true,
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID2), updateReq)
@@ -153,7 +153,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Update both fields on third wishlist
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name":      "Alice New Default Wishlist",
 			"isDefault": true,
 		}
@@ -180,7 +180,7 @@ func TestUpdateWishlist(t *testing.T) {
 		originalName := originalWishlist["name"].(string)
 
 		// Update with empty body
-		updateReq := map[string]interface{}{}
+		updateReq := map[string]any{}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
 
 		// Assert response - should succeed with no changes
@@ -203,7 +203,7 @@ func TestUpdateWishlist(t *testing.T) {
 		currentName := originalWishlist["name"].(string)
 
 		// Update with same name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": currentName,
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -221,7 +221,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// First make wishlist 1 default again
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"isDefault": true,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -244,7 +244,7 @@ func TestUpdateWishlist(t *testing.T) {
 		// Clear token
 		client.SetToken("")
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Unauthorized Update",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -256,7 +256,7 @@ func TestUpdateWishlist(t *testing.T) {
 		// Set invalid token
 		client.SetToken("invalid-token-here")
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Invalid Token Update",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -273,7 +273,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Seller Update Attempt",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -286,7 +286,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Admin Update Attempt",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -300,7 +300,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Try to update Alice's wishlist
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Michael Trying to Update Alice",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -314,7 +314,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Try to update Michael's wishlist
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice Trying to Update Michael",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID), updateReq)
@@ -332,7 +332,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Update Non-Existent",
 		}
 		w := client.Put(t, "/api/product/wishlist/99999", updateReq)
@@ -345,7 +345,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Invalid ID Update",
 		}
 		w := client.Put(t, "/api/product/wishlist/abc", updateReq)
@@ -358,7 +358,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Negative ID Update",
 		}
 		w := client.Put(t, "/api/product/wishlist/-1", updateReq)
@@ -378,7 +378,7 @@ func TestUpdateWishlist(t *testing.T) {
 		existingName := existingWishlist["name"].(string)
 
 		// Try to update second wishlist with same name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": existingName,
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID2), updateReq)
@@ -397,7 +397,7 @@ func TestUpdateWishlist(t *testing.T) {
 			longName += "a"
 		}
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": longName,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -410,7 +410,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -442,7 +442,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Large ID Update",
 		}
 		// Large valid uint64 ID - should return 404 Not Found
@@ -456,7 +456,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Zero ID Update",
 		}
 		w := client.Put(t, "/api/product/wishlist/0", updateReq)
@@ -469,7 +469,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "   ",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -488,7 +488,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice's 🎁 Holiday Wishlist 2025!",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -516,7 +516,7 @@ func TestUpdateWishlist(t *testing.T) {
 			maxName += "a"
 		}
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": maxName,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -534,14 +534,14 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// First ensure wishlist 1 is default
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"isDefault": true,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
 		helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Try to set isDefault=false (should have no effect - can't unset default)
-		updateReq = map[string]interface{}{
+		updateReq = map[string]any{
 			"isDefault": false,
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -563,7 +563,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "SQL Injection Test",
 		}
 		w := client.Put(t, "/api/product/wishlist/1;DROP TABLE wishlist;--", updateReq)
@@ -577,7 +577,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "'; DROP TABLE wishlist; --",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -600,7 +600,7 @@ func TestUpdateWishlist(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "<script>alert('xss')</script>",
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -632,7 +632,7 @@ func TestUpdateWishlist(t *testing.T) {
 		aliceToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(aliceToken)
 
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice Hacked Michael",
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID), updateReq)
@@ -662,7 +662,7 @@ func TestUpdateWishlist(t *testing.T) {
 		client.SetToken(token)
 
 		// Create additional wishlist for Michael
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Michael Second Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -677,7 +677,7 @@ func TestUpdateWishlist(t *testing.T) {
 		assert.True(t, wishlist["isDefault"].(bool), "First wishlist should be default")
 
 		// Set second wishlist as default
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"isDefault": true,
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlist2ID), updateReq)
@@ -708,7 +708,7 @@ func TestUpdateWishlist(t *testing.T) {
 		originalItemCount := originalWishlist["itemCount"].(float64)
 
 		// Update name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice Renamed Again",
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -736,7 +736,7 @@ func TestUpdateWishlist(t *testing.T) {
 		originalUpdatedAt := originalWishlist["updatedAt"].(string)
 
 		// Update name
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": "Alice Timestamp Test",
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID), updateReq)
@@ -763,7 +763,7 @@ func TestUpdateWishlist(t *testing.T) {
 		existingName := existingWishlist["name"].(string)
 
 		// Try to update with different case
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": existingName + " UPPERCASE",
 		}
 		w = client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID2), updateReq)
@@ -783,7 +783,7 @@ func TestUpdateWishlist(t *testing.T) {
 
 		// Update name
 		newName := "Michael Integration Test Wishlist"
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": newName,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID), updateReq)
@@ -804,7 +804,7 @@ func TestUpdateWishlist(t *testing.T) {
 
 		// Update name
 		newName := "Michael All Wishlists Test"
-		updateReq := map[string]interface{}{
+		updateReq := map[string]any{
 			"name": newName,
 		}
 		w := client.Put(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID), updateReq)
@@ -813,12 +813,12 @@ func TestUpdateWishlist(t *testing.T) {
 		// Verify via GetAll
 		w = client.Get(t, "/api/product/wishlist")
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		wishlists := response["data"].(map[string]interface{})["wishlists"].([]interface{})
+		wishlists := response["data"].(map[string]any)["wishlists"].([]any)
 
 		// Find the updated wishlist
 		found := false
 		for _, wl := range wishlists {
-			wishlist := wl.(map[string]interface{})
+			wishlist := wl.(map[string]any)
 			if uint(wishlist["id"].(float64)) == michaelWishlistID {
 				assert.Equal(t, newName, wishlist["name"], "Name should match in GetAll")
 				found = true

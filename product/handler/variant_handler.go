@@ -22,6 +22,7 @@ type VariantHandler struct {
 	variantService      service.VariantService
 	variantQueryService service.VariantQueryService
 	variantBulkService  service.VariantBulkService
+	variantMediaService service.VariantMediaService
 }
 
 // NewVariantHandler creates a new instance of VariantHandler
@@ -29,12 +30,14 @@ func NewVariantHandler(
 	variantService service.VariantService,
 	variantQueryService service.VariantQueryService,
 	variantBulkService service.VariantBulkService,
+	variantMediaService service.VariantMediaService,
 ) *VariantHandler {
 	return &VariantHandler{
 		BaseHandler:         handler.NewBaseHandler(),
 		variantService:      variantService,
 		variantQueryService: variantQueryService,
 		variantBulkService:  variantBulkService,
+		variantMediaService: variantMediaService,
 	}
 }
 
@@ -318,7 +321,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 		c,
 		http.StatusOK,
 		utils.VARIANTS_BULK_UPDATED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			utils.UPDATED_COUNT_FIELD_NAME: response.UpdatedCount,
 			utils.VARIANTS_FIELD_NAME:      response.Variants,
 		},
@@ -379,11 +382,130 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 		c,
 		http.StatusOK,
 		utils.VARIANT_RETRIEVED_MSG,
-		map[string]interface{}{
+		map[string]any{
 			utils.VARIANTS_FIELD_NAME: response.Variants,
 			"total":                   response.Total,
 			"page":                    response.Page,
 			"pageSize":                response.PageSize,
 		},
 	)
+}
+
+// ─── Variant media management ─────────────────────────────────────────────────
+
+// AttachVariantMedia handles POST /api/product/:productId/variant/:variantId/media
+// Links an already-uploaded file to a variant. Returns 201 Created.
+func (h *VariantHandler) AttachVariantMedia(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+	variantID, err := h.ParseUintParam(c, utils.VARIANT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid variant ID")
+		return
+	}
+
+	var req model.AttachVariantMediaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.HandleError(c, commonError.ErrValidation.WithMessage(err.Error()), "")
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, commonError.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	resp, err := h.variantMediaService.AttachMedia(c, variantID, productID, sellerID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_ATTACH_VARIANT_MEDIA_MSG)
+		return
+	}
+
+	h.SuccessWithData(c, http.StatusCreated, utils.VARIANT_MEDIA_ATTACHED_MSG,
+		utils.MEDIA_FIELD_NAME, resp)
+}
+
+// UpdateVariantMediaMetadata handles PATCH /api/product/:productId/variant/:variantId/media/:fileId
+// Updates isPrimary and/or displayOrder for an existing variant-media link.
+func (h *VariantHandler) UpdateVariantMediaMetadata(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+	variantID, err := h.ParseUintParam(c, utils.VARIANT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid variant ID")
+		return
+	}
+
+	fileID := c.Param("fileId")
+	if fileID == "" {
+		h.HandleError(c, commonError.ErrInvalidID, "Invalid file ID")
+		return
+	}
+
+	var req model.UpdateVariantMediaMetadataRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.HandleError(c, commonError.ErrValidation.WithMessage(err.Error()), "")
+		return
+	}
+	if req.IsPrimary == nil && req.DisplayOrder == nil {
+		h.HandleError(c, commonError.ErrNoFieldsProvided.WithMessage(
+			"at least one of isPrimary or displayOrder must be provided"), "")
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, commonError.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	resp, err := h.variantMediaService.UpdateMediaMetadata(c, variantID, productID, fileID, sellerID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_UPDATE_VARIANT_MEDIA_MSG)
+		return
+	}
+
+	h.SuccessWithData(c, http.StatusOK, utils.VARIANT_MEDIA_UPDATED_MSG,
+		utils.MEDIA_FIELD_NAME, resp)
+}
+
+// RemoveVariantMedia handles DELETE /api/product/:productId/variant/:variantId/media/:fileId
+// Removes the variant-media link. Returns 204 No Content.
+func (h *VariantHandler) RemoveVariantMedia(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, utils.PRODUCT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+	variantID, err := h.ParseUintParam(c, utils.VARIANT_ID_PARAM)
+	if err != nil {
+		h.HandleError(c, err, "Invalid variant ID")
+		return
+	}
+
+	fileID := c.Param("fileId")
+	if fileID == "" {
+		h.HandleError(c, commonError.ErrInvalidID, "Invalid file ID")
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, commonError.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	if err := h.variantMediaService.RemoveMedia(c, variantID, productID, fileID, sellerID); err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_REMOVE_VARIANT_MEDIA_MSG)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

@@ -3,6 +3,7 @@ package singleton
 import (
 	"sync"
 
+	fileSingleton "ecommerce-be/file/factory/singleton"
 	"ecommerce-be/product/service"
 )
 
@@ -24,6 +25,8 @@ type ServiceFactory struct {
 	wishlistService          service.WishlistService
 	wishlistItemService      service.WishlistItemService
 	collectionProductService service.CollectionProductService
+	productMediaService      service.ProductMediaService
+	variantMediaService      service.VariantMediaService
 
 	once sync.Once
 }
@@ -61,12 +64,31 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetWishlistRepository(),
 		)
 
-		// Initialize VariantQueryService (query operations only - no circular dependencies)
+		// Initialize ProductFileGateway early — both VariantMediaService and
+		// ProductMediaService depend on it, and VariantQueryService must be
+		// initialized before VariantService.
+		fileFact := fileSingleton.GetInstance()
+		fileGateway := service.NewProductFileGateway(
+			fileFact.GetFileReadService(),
+			fileFact.GetFileDeleteService(),
+		)
+
+		// Initialize VariantMediaService BEFORE VariantQueryService so it can be
+		// injected into the query service for embedding media in variant responses.
+		f.variantMediaService = service.NewVariantMediaService(
+			f.repoFactory.GetVariantMediaRepository(),
+			variantRepo,
+			productRepo,
+			fileGateway,
+		)
+
+		// Initialize VariantQueryService with VariantMediaService dependency
 		f.variantQueryService = service.NewVariantQueryService(
 			variantRepo,
 			f.wishlistItemService,
 			f.productOptionService,
 			f.validatorService,
+			f.variantMediaService,
 		)
 
 		// Initialize VariantService with VariantQueryService dependency
@@ -93,13 +115,27 @@ func (f *ServiceFactory) initialize() {
 			f.validatorService,
 		)
 
-		// Initialize ProductQueryService with VariantQueryService
+		// Initialize CollectionProductService
+		f.collectionProductService = service.NewCollectionProductService(
+			f.repoFactory.GetCollectionProductRepository(),
+		)
+
+		// Initialize ProductMediaService BEFORE ProductQueryService so it can be
+		// injected into the query service for embedding media in product responses.
+		f.productMediaService = service.NewProductMediaService(
+			f.repoFactory.GetProductMediaRepository(),
+			productRepo,
+			fileGateway,
+		)
+
+		// Initialize ProductQueryService with VariantQueryService and media service
 		f.productQueryService = service.NewProductQueryService(
 			productRepo,
 			f.variantQueryService,
 			f.categoryService,
 			f.productAttributeService,
 			f.productOptionService,
+			f.productMediaService,
 		)
 
 		// Initialize WishlistService (needs ProductQueryService for product details)
@@ -107,11 +143,6 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetWishlistRepository(),
 			f.repoFactory.GetWishlistItemRepository(),
 			f.productQueryService,
-		)
-
-		// Initialize CollectionProductService
-		f.collectionProductService = service.NewCollectionProductService(
-			f.repoFactory.GetCollectionProductRepository(),
 		)
 
 		// Initialize ProductService with its dependencies
@@ -209,4 +240,16 @@ func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
 func (f *ServiceFactory) GetCollectionProductService() service.CollectionProductService {
 	f.initialize()
 	return f.collectionProductService
+}
+
+// GetProductMediaService returns the singleton product-media service.
+func (f *ServiceFactory) GetProductMediaService() service.ProductMediaService {
+	f.initialize()
+	return f.productMediaService
+}
+
+// GetVariantMediaService returns the singleton variant-media service.
+func (f *ServiceFactory) GetVariantMediaService() service.VariantMediaService {
+	f.initialize()
+	return f.variantMediaService
 }

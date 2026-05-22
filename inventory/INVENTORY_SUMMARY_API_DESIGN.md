@@ -1572,7 +1572,7 @@ All APIs follow this structure:
 type APIResponse struct {
     Success bool        `json:"success"`
     Message string      `json:"message"`
-    Data    interface{} `json:"data,omitempty"`
+    Data    any `json:"data,omitempty"`
     Error   *ErrorInfo  `json:"error,omitempty"`
 }
 

@@ -136,7 +136,7 @@ func (s *BuyXGetYStrategy) DescribeConfig() model.PromotionStrategyDescriptor {
 // ValidateConfig enforces the two supported config shapes:
 // 1. same-reward mode => scope_type required, get_product_id forbidden
 // 2. cross-product reward mode => get_product_id required, scope_type forbidden
-func (s *BuyXGetYStrategy) ValidateConfig(config map[string]interface{}) error {
+func (s *BuyXGetYStrategy) ValidateConfig(config map[string]any) error {
 	buyXGetYConfig, err := parseBuyXGetYConfig(config)
 	if err != nil {
 		return promoErrors.ErrInvalidDiscountConfig.WithMessage(
@@ -669,8 +669,8 @@ func buyXGetYGroupKey(item model.CartItem, scopeType model.BuyXGetYScopeType) st
 // parseBuyXGetYConfig normalizes defaults before unmarshalling:
 // - is_same_reward defaults to true
 // - scope_type defaults to same_product when same-reward mode is used
-func parseBuyXGetYConfig(config map[string]interface{}) (model.BuyXGetYConfig, error) {
-	normalized := make(map[string]interface{}, len(config)+2)
+func parseBuyXGetYConfig(config map[string]any) (model.BuyXGetYConfig, error) {
+	normalized := make(map[string]any, len(config)+2)
 	for key, value := range config {
 		normalized[key] = value
 	}

@@ -351,11 +351,10 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 		MinPrice      float64
 		MaxPrice      float64
 		AllowPurchase bool
-		MainImage     string
 	}
 
 	err := db.DB(ctx).Model(&entity.ProductVariant{}).
-		Select(productQuery.VARIANT_PRICE_AGGREGATION_QUERY, productID).
+		Select(productQuery.VARIANT_PRICE_AGGREGATION_QUERY).
 		Where("product_id = ?", productID).
 		Scan(&priceAgg).Error
 	if err != nil {
@@ -365,9 +364,6 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	aggregation.MinPrice = priceAgg.MinPrice
 	aggregation.MaxPrice = priceAgg.MaxPrice
 	aggregation.AllowPurchase = priceAgg.AllowPurchase
-	if priceAgg.MainImage != "" {
-		aggregation.MainImage = priceAgg.MainImage
-	}
 
 	// Get option names and values
 	var optionData []struct {
@@ -512,26 +508,6 @@ func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
 				result[agg.ProductID].MinPrice = agg.MinPrice
 				result[agg.ProductID].MaxPrice = agg.MaxPrice
 				result[agg.ProductID].AllowPurchase = agg.AllowPurchase
-			}
-		}
-
-		// Get main images from default variants for products
-		var imageData []struct {
-			ProductID uint
-			Images    string
-		}
-
-		err = db.DB(ctx).Model(&entity.ProductVariant{}).
-			Select("DISTINCT ON (product_id) product_id, images").
-			Where("product_id IN ? AND is_default = true AND images IS NOT NULL AND images != '{}'", variantProductIDs).
-			Scan(&imageData).Error
-		if err != nil {
-			return nil, err
-		}
-
-		for _, img := range imageData {
-			if result[img.ProductID] != nil {
-				result[img.ProductID].MainImage = img.Images
 			}
 		}
 

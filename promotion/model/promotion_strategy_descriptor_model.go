@@ -8,7 +8,7 @@ type PromotionConfigFieldDescriptor struct {
 	Type          string      `json:"type"`
 	Required      bool        `json:"required"`
 	Description   string      `json:"description"`
-	DefaultValue  interface{} `json:"defaultValue,omitempty"`
+	DefaultValue  any `json:"defaultValue,omitempty"`
 	AllowedValues []string    `json:"allowedValues,omitempty"`
 }
 

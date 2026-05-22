@@ -26,14 +26,16 @@ type VariantDetailResponse struct {
 	Product         ProductBasicInfo        `json:"product,omitzero"`
 	SKU             string                  `json:"sku"`
 	Price           float64                 `json:"price"`
-	Images          []string                `json:"images"`
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
 	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
-	CreatedAt       string                  `json:"createdAt,omitempty"`
-	UpdatedAt       string                  `json:"updatedAt,omitempty"`
+	// Media is always a JSON array (never null). Items ordered by display_order ASC, id ASC.
+	// Items whose file data cannot be resolved are silently omitted.
+	Media     []VariantMediaResponse `json:"media"`
+	CreatedAt string                 `json:"createdAt,omitempty"`
+	UpdatedAt string                 `json:"updatedAt,omitempty"`
 }
 
 // VariantResponse represents simplified variant information
@@ -41,12 +43,12 @@ type VariantResponse struct {
 	ID              uint                    `json:"id"`
 	SKU             string                  `json:"sku"`
 	Price           float64                 `json:"price"`
-	Images          []string                `json:"images"`
 	AllowPurchase   bool                    `json:"allowPurchase"`
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
 	IsWishlisted    bool                    `json:"isWishlisted"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
+	Media           []VariantMediaResponse  `json:"media"`
 }
 
 // FindVariantByOptionsRequest represents the request to find a variant by options
@@ -85,39 +87,70 @@ type GetAvailableOptionsResponse struct {
 	Options   []ProductOptionDetailResponse `json:"options"`
 }
 
+// ─── Variant media ────────────────────────────────────────────────────────────
+
+// VariantMediaResponse is the media summary embedded in variant detail and
+// variant list responses. Ordered by display_order ASC, id ASC.
+// Items whose file data cannot be resolved are silently omitted.
+type VariantMediaResponse struct {
+	FileID       string  `json:"fileId"`
+	URL          string  `json:"url"`
+	ThumbnailURL *string `json:"thumbnailUrl,omitempty"`
+	IsPrimary    bool    `json:"isPrimary"`
+	DisplayOrder int     `json:"displayOrder"`
+}
+
+// AttachVariantMediaRequest is the request body for
+// POST /api/product/:productId/variant/:variantId/media
+type AttachVariantMediaRequest struct {
+	FileID       string `json:"fileId"       binding:"required"`
+	IsPrimary    bool   `json:"isPrimary"`
+	DisplayOrder int    `json:"displayOrder" binding:"min=0"`
+}
+
+// UpdateVariantMediaMetadataRequest is the request body for
+// PATCH /api/product/:productId/variant/:variantId/media/:fileId
+type UpdateVariantMediaMetadataRequest struct {
+	IsPrimary    *bool `json:"isPrimary"`
+	DisplayOrder *int  `json:"displayOrder" binding:"omitempty,min=0"`
+}
+
+// ─── Variant option inputs ────────────────────────────────────────────────────
+
 // VariantOptionInput represents an option selection for variant creation
 type VariantOptionInput struct {
 	OptionName string `json:"optionName" binding:"required"`
 	Value      string `json:"value"      binding:"required"`
 }
 
-// CreateVariantRequest represents the request to create a new variant
+// CreateVariantRequest represents the request to create a new variant.
+// Images are no longer accepted here — attach them after creation via
+// POST /api/product/:productId/variant/:variantId/media.
 type CreateVariantRequest struct {
 	SKU           string               `json:"sku"`
 	Price         float64              `json:"price"         binding:"required,gt=0"`
-	Images        []string             `json:"images"        binding:"max=20"`
 	AllowPurchase *bool                `json:"allowPurchase"`
 	IsPopular     *bool                `json:"isPopular"`
 	IsDefault     *bool                `json:"isDefault"`
 	Options       []VariantOptionInput `json:"options"       binding:"required,min=1,dive"`
 }
 
-// UpdateVariantRequest represents the request to update an existing variant
+// UpdateVariantRequest represents the request to update an existing variant.
+// Images are managed separately via the variant media endpoints.
 type UpdateVariantRequest struct {
 	SKU           *string  `json:"sku"`
 	Price         *float64 `json:"price"         binding:"omitempty,gt=0"`
-	Images        []string `json:"images"        binding:"max=20"`
 	AllowPurchase *bool    `json:"allowPurchase"`
 	IsPopular     *bool    `json:"isPopular"`
 	IsDefault     *bool    `json:"isDefault"`
 }
 
-// BulkUpdateVariantItem represents a single variant update in bulk operation
+// BulkUpdateVariantItem represents a single variant update in bulk operation.
+// Images are managed separately via the variant media endpoints.
 type BulkUpdateVariantItem struct {
 	ID            uint     `json:"id"                      binding:"required"`
 	SKU           *string  `json:"sku,omitempty"`
 	Price         *float64 `json:"price,omitempty"         binding:"omitempty,gt=0"`
-	Images        []string `json:"images,omitempty"        binding:"omitempty,max=20"`
 	AllowPurchase *bool    `json:"allowPurchase,omitempty"`
 	IsPopular     *bool    `json:"isPopular,omitempty"`
 	IsDefault     *bool    `json:"isDefault,omitempty"`

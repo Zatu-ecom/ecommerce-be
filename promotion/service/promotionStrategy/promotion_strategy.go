@@ -10,7 +10,7 @@ import (
 // PromotionStrategy defines the interface for promotion validation and application
 type PromotionStrategy interface {
 	// ValidateConfig validates the discount config structure for the promotion type
-	ValidateConfig(config map[string]interface{}) error
+	ValidateConfig(config map[string]any) error
 
 	// DescribeConfig returns the supported config fields and setup guidance for the promotion type.
 	DescribeConfig() model.PromotionStrategyDescriptor

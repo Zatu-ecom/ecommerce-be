@@ -19,6 +19,8 @@ type RepositoryFactory struct {
 	wishlistRepo          repository.WishlistRepository
 	wishlistItemRepo      repository.WishlistItemRepository
 	collectionProductRepo repository.CollectionProductRepository
+	productMediaRepo      repository.ProductMediaRepository
+	variantMediaRepo      repository.VariantMediaRepository
 
 	once sync.Once
 }
@@ -41,6 +43,8 @@ func (f *RepositoryFactory) initialize() {
 		f.wishlistRepo = repository.NewWishlistRepository()
 		f.wishlistItemRepo = repository.NewWishlistItemRepository()
 		f.collectionProductRepo = repository.NewCollectionProductRepository()
+		f.productMediaRepo = repository.NewProductMediaRepository()
+		f.variantMediaRepo = repository.NewVariantMediaRepository()
 	})
 }
 
@@ -95,4 +99,16 @@ func (f *RepositoryFactory) GetWishlistItemRepository() repository.WishlistItemR
 func (f *RepositoryFactory) GetCollectionProductRepository() repository.CollectionProductRepository {
 	f.initialize()
 	return f.collectionProductRepo
+}
+
+// GetProductMediaRepository returns the singleton product-media repository.
+func (f *RepositoryFactory) GetProductMediaRepository() repository.ProductMediaRepository {
+	f.initialize()
+	return f.productMediaRepo
+}
+
+// GetVariantMediaRepository returns the singleton variant-media repository.
+func (f *RepositoryFactory) GetVariantMediaRepository() repository.VariantMediaRepository {
+	f.initialize()
+	return f.variantMediaRepo
 }
