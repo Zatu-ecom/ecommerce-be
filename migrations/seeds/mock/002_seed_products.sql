@@ -326,44 +326,46 @@ ON CONFLICT (option_id, value) DO UPDATE SET
 SELECT setval('product_option_value_id_seq', (SELECT MAX(id) FROM product_option_value));
 
 -- Insert Product Variants (sku, price, images, allow_purchase, is_default)
-INSERT INTO product_variant (id, product_id, sku, price, images, allow_purchase, is_popular, is_default) VALUES
+-- Images are no longer stored on product_variant (migration 020 dropped the column).
+-- Attach variant images via POST /api/product/:productId/variant/:variantId/media.
+INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
 -- iPhone 15 Pro variants (2 colors × 2 storage = 4 variants)
-(1, 1, 'IPHONE-15-PRO-NAT-128', 999.00, ARRAY['https://example.com/iphone-15-pro-natural-128.jpg'], true, true, true),
-(2, 1, 'IPHONE-15-PRO-NAT-256', 1099.00, ARRAY['https://example.com/iphone-15-pro-natural-256.jpg'], true, false, false),
-(3, 1, 'IPHONE-15-PRO-BLU-128', 999.00, ARRAY['https://example.com/iphone-15-pro-blue-128.jpg'], true, false, false),
-(4, 1, 'IPHONE-15-PRO-BLU-256', 1099.00, ARRAY['https://example.com/iphone-15-pro-blue-256.jpg'], true, false, false),
+(1, 1, 'IPHONE-15-PRO-NAT-128', 999.00, true, true, true),
+(2, 1, 'IPHONE-15-PRO-NAT-256', 1099.00, true, false, false),
+(3, 1, 'IPHONE-15-PRO-BLU-128', 999.00, true, false, false),
+(4, 1, 'IPHONE-15-PRO-BLU-256', 1099.00, true, false, false),
 
 -- Samsung S24 variants
-(5, 2, 'SAMSUNG-S24-BLK-128', 799.00, ARRAY['https://example.com/samsung-s24-black-128.jpg'], true, true, true),
-(6, 2, 'SAMSUNG-S24-BLK-256', 899.00, ARRAY['https://example.com/samsung-s24-black-256.jpg'], true, false, false),
+(5, 2, 'SAMSUNG-S24-BLK-128', 799.00, true, true, true),
+(6, 2, 'SAMSUNG-S24-BLK-256', 899.00, true, false, false),
 
 -- MacBook Pro variants
-(7, 3, 'MBP-16-M3-SB-16-512', 2499.00, ARRAY['https://example.com/mbp-16-space-black.jpg'], true, true, true),
-(8, 3, 'MBP-16-M3-SLV-16-512', 2499.00, ARRAY['https://example.com/mbp-16-silver.jpg'], true, false, false),
+(7, 3, 'MBP-16-M3-SB-16-512', 2499.00, true, true, true),
+(8, 3, 'MBP-16-M3-SLV-16-512', 2499.00, true, false, false),
 
 -- Sony Headphones variants
-(19, 4, 'SONY-WH1000XM5-BLK', 399.99, ARRAY['https://example.com/sony-wh1000xm5-black.jpg'], true, true, true),
-(20, 4, 'SONY-WH1000XM5-SLV', 399.99, ARRAY['https://example.com/sony-wh1000xm5-silver.jpg'], true, false, false),
+(19, 4, 'SONY-WH1000XM5-BLK', 399.99, true, true, true),
+(20, 4, 'SONY-WH1000XM5-SLV', 399.99, true, false, false),
 
 -- T-Shirt variants
-(9, 5, 'NIKE-TSHIRT-BLK-M', 29.99, ARRAY['https://example.com/nike-tshirt-black-m.jpg'], true, true, true),
-(10, 5, 'NIKE-TSHIRT-WHT-M', 29.99, ARRAY['https://example.com/nike-tshirt-white-m.jpg'], true, false, false),
-(11, 5, 'NIKE-TSHIRT-BLK-L', 29.99, ARRAY['https://example.com/nike-tshirt-black-l.jpg'], true, false, false),
+(9, 5, 'NIKE-TSHIRT-BLK-M', 29.99, true, true, true),
+(10, 5, 'NIKE-TSHIRT-WHT-M', 29.99, true, false, false),
+(11, 5, 'NIKE-TSHIRT-BLK-L', 29.99, true, false, false),
 
 -- Summer Dress variants
-(12, 6, 'ZARA-DRESS-BLUE-M', 49.99, ARRAY['https://example.com/zara-dress-blue-m.jpg'], true, true, true),
-(13, 6, 'ZARA-DRESS-PINK-M', 49.99, ARRAY['https://example.com/zara-dress-pink-m.jpg'], true, false, false),
+(12, 6, 'ZARA-DRESS-BLUE-M', 49.99, true, true, true),
+(13, 6, 'ZARA-DRESS-PINK-M', 49.99, true, false, false),
 
 -- Running Shoes variants
-(14, 7, 'ADIDAS-RUN-BW-9', 89.99, ARRAY['https://example.com/adidas-run-blackwhite-9.jpg'], true, true, true),
-(15, 7, 'ADIDAS-RUN-BW-10', 89.99, ARRAY['https://example.com/adidas-run-blackwhite-10.jpg'], true, false, false),
+(14, 7, 'ADIDAS-RUN-BW-9', 89.99, true, true, true),
+(15, 7, 'ADIDAS-RUN-BW-10', 89.99, true, false, false),
 
 -- Sofa variants
-(16, 8, 'IKEA-SOFA-GRAY-FAB', 899.00, ARRAY['https://example.com/ikea-sofa-gray-fabric.jpg'], true, true, true),
-(17, 8, 'IKEA-SOFA-BEIGE-FAB', 899.00, ARRAY['https://example.com/ikea-sofa-beige-fabric.jpg'], true, false, false),
+(16, 8, 'IKEA-SOFA-GRAY-FAB', 899.00, true, true, true),
+(17, 8, 'IKEA-SOFA-BEIGE-FAB', 899.00, true, false, false),
 
 -- Mattress (single variant)
-(18, 9, 'CASPER-MATTRESS-Q-FOAM', 799.00, ARRAY['https://example.com/casper-mattress-queen.jpg'], true, true, true)
+(18, 9, 'CASPER-MATTRESS-Q-FOAM', 799.00, true, true, true)
 ON CONFLICT (id) DO UPDATE SET
     price = EXCLUDED.price,
     is_popular = EXCLUDED.is_popular,

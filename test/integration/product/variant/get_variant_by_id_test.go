@@ -76,7 +76,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
-		assert.NotNil(t, variant["images"])
+		assert.NotNil(t, variant["media"])
 		assert.NotNil(t, variant["product"])
 	})
 
@@ -227,8 +227,8 @@ func TestGetVariantByID(t *testing.T) {
 		assert.True(t, variant["isPopular"].(bool), "Variant 1 should be popular")
 	})
 
-	t.Run("Success - Get variant with multiple images", func(t *testing.T) {
-		// Product 1, Variant 1 with image URL
+	t.Run("Success - Get variant media field is always a JSON array", func(t *testing.T) {
+		// Product 1, Variant 1 — images are now managed via variant_media table
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "2")
 
@@ -240,9 +240,8 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok, "images should be an array")
-		assert.GreaterOrEqual(t, len(images), 1, "iPhone variant should have at least 1 image")
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should always be a JSON array")
 	})
 
 	// ============================================================================
@@ -412,7 +411,7 @@ func TestGetVariantByID(t *testing.T) {
 
 			// Verify all required fields for VariantDetailResponse
 			requiredFields := []string{
-				"id", "productId", "product", "sku", "price", "images",
+				"id", "productId", "product", "sku", "price", "media",
 				"allowPurchase", "isPopular", "isDefault",
 				"selectedOptions", "createdAt", "updatedAt",
 			}

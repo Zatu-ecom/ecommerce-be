@@ -24,17 +24,20 @@ type ProductHandler struct {
 	*handler.BaseHandler
 	productService      service.ProductService
 	productQueryService service.ProductQueryService
+	productMediaService service.ProductMediaService
 }
 
 // NewProductHandler creates a new instance of ProductHandler
 func NewProductHandler(
 	productService service.ProductService,
 	productQueryService service.ProductQueryService,
+	productMediaService service.ProductMediaService,
 ) *ProductHandler {
 	return &ProductHandler{
 		BaseHandler:         handler.NewBaseHandler(),
 		productService:      productService,
 		productQueryService: productQueryService,
+		productMediaService: productMediaService,
 	}
 }
 
@@ -351,4 +354,113 @@ func (h *ProductHandler) GetRelatedProductsScored(c *gin.Context) {
 	}
 
 	h.Success(c, http.StatusOK, utils.RELATED_PRODUCTS_RETRIEVED_MSG, relatedProductsResponse)
+}
+
+// ─── Product Media Handlers ───────────────────────────────────────────────────
+
+// AttachMedia handles POST /api/product/:productId/media
+// Attaches an already-uploaded file to the product identified by productId.
+// Requires seller authentication; the caller must own the product.
+func (h *ProductHandler) AttachMedia(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	var req model.AttachMediaRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, error.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	resp, err := h.productMediaService.AttachMedia(c, productID, sellerID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_ATTACH_MEDIA_MSG)
+		return
+	}
+
+	h.SuccessWithData(c, http.StatusCreated, utils.MEDIA_ATTACHED_MSG,
+		utils.MEDIA_FIELD_NAME, resp)
+}
+
+// UpdateMediaMetadata handles PATCH /api/product/:productId/media/:fileId
+// Updates isPrimary and/or displayOrder for an existing product-media link.
+// Requires seller authentication; the caller must own the product.
+func (h *ProductHandler) UpdateMediaMetadata(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	fileID := c.Param("fileId")
+	if fileID == "" {
+		h.HandleError(c, error.ErrInvalidID, "Invalid file ID")
+		return
+	}
+
+	var req model.UpdateMediaMetadataRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	if req.IsPrimary == nil && req.DisplayOrder == nil {
+		h.HandleError(c, error.ErrNoFieldsProvided.WithMessage(
+			"at least one of isPrimary or displayOrder must be provided",
+		), "")
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, error.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	resp, err := h.productMediaService.UpdateMediaMetadata(c, productID, fileID, sellerID, req)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_UPDATE_MEDIA_MSG)
+		return
+	}
+
+	h.SuccessWithData(c, http.StatusOK, utils.MEDIA_UPDATED_MSG,
+		utils.MEDIA_FIELD_NAME, resp)
+}
+
+// RemoveMedia handles DELETE /api/product/:productId/media/:fileId
+// Removes the product-media link and attempts best-effort file asset cleanup.
+// Returns 204 No Content on success; cleanup failures do not affect the status.
+func (h *ProductHandler) RemoveMedia(c *gin.Context) {
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, "Invalid product ID")
+		return
+	}
+
+	fileID := c.Param("fileId")
+	if fileID == "" {
+		h.HandleError(c, error.ErrInvalidID, "Invalid file ID")
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists || sellerID == 0 {
+		h.HandleError(c, error.ErrSellerDataMissing, "Seller context required")
+		return
+	}
+
+	if err := h.productMediaService.RemoveMedia(c, productID, fileID, sellerID); err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_REMOVE_MEDIA_MSG)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

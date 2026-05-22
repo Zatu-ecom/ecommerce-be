@@ -493,10 +493,6 @@ func TestCreateProduct(t *testing.T) {
 				{
 					"sku":   "TEST-FULL-001-V1",
 					"price": 199.99,
-					"images": []string{
-						"https://example.com/image1.jpg",
-						"https://example.com/image2.jpg",
-					},
 					"options": []map[string]any{
 						{"optionName": "color", "value": "gold"},
 					},
@@ -555,14 +551,13 @@ func TestCreateProduct(t *testing.T) {
 		assert.Contains(t, tags, "featured")
 		assert.Contains(t, tags, "bestseller")
 
-		// Verify variant with images
+		// Verify variant exists with media field (images are now managed via variant media endpoints)
 		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, variants, 1)
 		variant := variants[0].(map[string]any)
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok)
-		assert.Len(t, images, 2)
+		_, ok = variant["media"].([]any)
+		assert.True(t, ok, "media should be a JSON array")
 
 		// Verify product attributes
 		attributes, ok := product["attributes"].([]any)
@@ -758,12 +753,13 @@ func TestCreateProduct(t *testing.T) {
 		assert.True(t, foundCarePackage, "Should find Care Package option")
 	})
 
-	t.Run("Success - Create product with multiple images per variant", func(t *testing.T) {
+	t.Run("Success - Create product with multiple variants each has empty media", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
+		// Images are now managed via POST /product/:id/variant/:id/media after variant creation
 		requestBody := map[string]any{
-			"name":       "Test Product - Multiple Images",
+			"name":       "Test Product - Multiple Variants",
 			"categoryId": 7,
 			"baseSku":    "TEST-IMG-001",
 			"options": []map[string]any{
@@ -780,13 +776,6 @@ func TestCreateProduct(t *testing.T) {
 				{
 					"sku":   "TEST-IMG-001-BLK",
 					"price": 79.99,
-					"images": []string{
-						"https://example.com/img1.jpg",
-						"https://example.com/img2.jpg",
-						"https://example.com/img3.jpg",
-						"https://example.com/img4.jpg",
-						"https://example.com/img5.jpg",
-					},
 					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
@@ -794,11 +783,6 @@ func TestCreateProduct(t *testing.T) {
 				{
 					"sku":   "TEST-IMG-001-RED",
 					"price": 79.99,
-					"images": []string{
-						"https://example.com/red1.jpg",
-						"https://example.com/red2.jpg",
-						"https://example.com/red3.jpg",
-					},
 					"options": []map[string]any{
 						{"optionName": "color", "value": "red"},
 					},
@@ -810,24 +794,15 @@ func TestCreateProduct(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
-		// Verify variants with images
 		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, variants, 2)
 
-		// Verify each variant has correct number of images
+		// Each variant should have an empty media array; use variant media endpoints to attach files
 		for _, v := range variants {
 			variant := v.(map[string]any)
-			images, ok := variant["images"].([]any)
-			assert.True(t, ok, "images should be an array")
-
-			sku := variant["sku"].(string)
-			switch sku {
-			case "TEST-IMG-001-BLK":
-				assert.Len(t, images, 5, "Black variant should have 5 images")
-			case "TEST-IMG-001-RED":
-				assert.Len(t, images, 3, "Red variant should have 3 images")
-			}
+			_, ok := variant["media"].([]any)
+			assert.True(t, ok, "media should always be a JSON array")
 		}
 	})
 

@@ -19,7 +19,6 @@ func CreateVariantFromRequest(
 		ProductID:     productID,
 		SKU:           req.SKU,
 		Price:         req.Price,
-		Images:        req.Images,
 		AllowPurchase: helper.GetBoolOrDefault(req.AllowPurchase, true),
 		IsPopular:     helper.GetBoolOrDefault(req.IsPopular, false),
 		IsDefault:     helper.GetBoolOrDefault(req.IsDefault, false),
@@ -37,10 +36,6 @@ func UpdateVariantEntity(
 
 	if req.Price != nil {
 		variant.Price = *req.Price
-	}
-
-	if req.Images != nil {
-		variant.Images = req.Images
 	}
 
 	if req.IsPopular != nil {
@@ -71,10 +66,6 @@ func BulkUpdateVariantEntity(
 
 	if updateData.Price != nil {
 		variant.Price = *updateData.Price
-	}
-
-	if updateData.Images != nil {
-		variant.Images = updateData.Images
 	}
 
 	if updateData.IsPopular != nil {
@@ -129,7 +120,9 @@ func CreateVariantOptionValues(
  *    Response Builders                         *
  ***********************************************/
 
-// BuildVariantDetailResponse builds VariantDetailResponse from entities
+// BuildVariantDetailResponse builds VariantDetailResponse from entities.
+// Media is always initialised as a non-nil slice; callers should overwrite it
+// after resolving file URLs via VariantMediaService.GetMediaForVariants.
 func BuildVariantDetailResponse(
 	variant *entity.ProductVariant,
 	product *entity.Product,
@@ -141,10 +134,10 @@ func BuildVariantDetailResponse(
 		SKU:             variant.SKU,
 		Price:           variant.Price,
 		AllowPurchase:   variant.AllowPurchase,
-		Images:          helper.GetOrEmptySlice(variant.Images),
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
 		SelectedOptions: selectedOptions,
+		Media:           []model.VariantMediaResponse{},
 		CreatedAt:       helper.FormatTimestamp(variant.CreatedAt),
 		UpdatedAt:       helper.FormatTimestamp(variant.UpdatedAt),
 	}
@@ -169,7 +162,8 @@ func BuildVariantDetailResponse(
 	return response
 }
 
-// BuildVariantResponse builds VariantResponse from entity
+// BuildVariantResponse builds VariantResponse from entity.
+// Media is always initialised as a non-nil empty slice.
 func BuildVariantResponse(
 	variant *entity.ProductVariant,
 	selectedOptions []model.VariantOptionResponse,
@@ -179,10 +173,10 @@ func BuildVariantResponse(
 		SKU:             variant.SKU,
 		Price:           variant.Price,
 		AllowPurchase:   variant.AllowPurchase,
-		Images:          helper.GetOrEmptySlice(variant.Images),
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
 		SelectedOptions: selectedOptions,
+		Media:           []model.VariantMediaResponse{},
 	}
 }
 

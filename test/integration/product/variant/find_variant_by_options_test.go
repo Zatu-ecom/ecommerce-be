@@ -483,7 +483,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		// Verify all required fields
 		requiredFields := []string{
-			"id", "sku", "price", "images", "allowPurchase",
+			"id", "sku", "price", "media", "allowPurchase",
 			"isPopular", "isDefault", "selectedOptions",
 		}
 
@@ -530,7 +530,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("ResponseValidation - Verify images is an array", func(t *testing.T) {
+	t.Run("ResponseValidation - Verify media is always a JSON array", func(t *testing.T) {
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "3")
 
@@ -541,14 +541,14 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok, "images should be an array")
-		// Images can be empty or have multiple items, both are valid
-		assert.NotNil(t, images)
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be a JSON array")
+		// Media can be empty or populated; both are valid
+		assert.NotNil(t, media)
 	})
 
-	t.Run("ResponseValidation - Multiple images in variant", func(t *testing.T) {
-		// iPhone has multiple images in seed data
+	t.Run("ResponseValidation - Media field present on find-by-options response", func(t *testing.T) {
+		// Variant images are now managed via the variant_media table (file module)
 		client.SetToken("")
 		client.SetHeader("X-Seller-ID", "2")
 
@@ -562,9 +562,8 @@ func TestFindVariantByOptions(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok, "images should be an array")
-		assert.GreaterOrEqual(t, len(images), 1, "iPhone variant should have at least 1 image")
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should always be a JSON array")
 	})
 
 	// ============================================================================

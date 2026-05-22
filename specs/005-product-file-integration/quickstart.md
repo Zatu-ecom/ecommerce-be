@@ -1,8 +1,10 @@
 # Quickstart: Product File Integration
 
+> **Last updated**: 2026-05-21 — Variant Media (US4) added. The `images` field has been removed from variant request/response DTOs. Use the variant media endpoints below to manage variant-specific images.
+
 ## Goal
 
-Implement Product media management so products can attach existing uploaded files, expose ordered media in product responses, update primary/order metadata, and remove linked media with best-effort File module cleanup.
+Implement Product and Variant media management so products and variants can attach existing uploaded files, expose ordered media in responses, update primary/order metadata, and remove linked media with best-effort File module cleanup.
 
 ## Prerequisites
 
@@ -13,6 +15,7 @@ Implement Product media management so products can attach existing uploaded file
 
 ## Implementation Order
 
+### Product Media (US1–US3)
 1. Add migration `019_create_product_media_table.sql`.
 2. Add `product/entity/product_media.go`.
 3. Add Product media request/response DTOs to `product/model`.
@@ -23,6 +26,20 @@ Implement Product media management so products can attach existing uploaded file
 8. Add Product media routes under `/api/product/{productId}/media`.
 9. Wire repositories/services/handlers through Product singleton factories.
 10. Write integration tests before implementation and keep them green.
+
+### Variant Media (US4)
+11. Add migration `020_create_variant_media_table.sql` — drops `images TEXT[]` from `product_variant`, creates `variant_media` table.
+12. Add `product/entity/variant_media.go`.
+13. Remove `Images []string` from `ProductVariant` entity, `VariantDetailResponse`, `VariantResponse`, `CreateVariantRequest`, `UpdateVariantRequest`, and `BulkUpdateVariantItem`.
+14. Add `Media []VariantMediaResponse` to `VariantDetailResponse` and `VariantResponse` in `product/model/variant_model.go`.
+15. Add `VariantMediaRepository` in `product/repository/variant_media_repository.go`.
+16. Add `VariantMediaService` in `product/service/variant_media_service.go`.
+17. Inject `VariantMediaService` into `VariantQueryService` to populate the `media` field on all variant reads.
+18. Add handler methods `AttachVariantMedia`, `UpdateVariantMediaMetadata`, `RemoveVariantMedia` to `product/handler/variant_handler.go`.
+19. Register variant media routes under `/api/product/{productId}/variant/{variantId}/media`.
+20. Wire through singleton factories (repository, service, handler).
+21. Update seed files to remove `images` column from `INSERT INTO product_variant` statements.
+22. Update existing variant integration tests to remove `images` assertions and verify `media` field.
 
 ## Integration test approach (matches existing modules)
 
@@ -101,6 +118,60 @@ curl -X DELETE "$BASE_URL/api/product/101/media/018e6b00-0000-7000-8000-00000000
 
 Expected: `204 No Content`. Product no longer includes the removed media.
 
+---
+
+## Variant Media API Verification
+
+### Attach variant media
+
+```bash
+curl -X POST "$BASE_URL/api/product/101/variant/5/media" \
+  -H "Authorization: Bearer $SELLER_TOKEN" \
+  -H "X-Correlation-ID: variant-media-attach-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fileId": "018e6b00-0000-7000-8000-000000000002",
+    "isPrimary": true,
+    "displayOrder": 0
+  }'
+```
+
+Expected: `201 Created` with a Variant media summary.
+
+### Update variant media metadata
+
+```bash
+curl -X PATCH "$BASE_URL/api/product/101/variant/5/media/018e6b00-0000-7000-8000-000000000002" \
+  -H "Authorization: Bearer $SELLER_TOKEN" \
+  -H "X-Correlation-ID: variant-media-update-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isPrimary": false,
+    "displayOrder": 1
+  }'
+```
+
+Expected: `200 OK` with updated primary/order values.
+
+### Read variant with media
+
+```bash
+curl "$BASE_URL/api/product/101/variant/5" \
+  -H "X-Correlation-ID: variant-media-read-1"
+```
+
+Expected: Variant response includes `"media": [...]` ordered by `displayOrder`.
+
+### Remove variant media
+
+```bash
+curl -X DELETE "$BASE_URL/api/product/101/variant/5/media/018e6b00-0000-7000-8000-000000000002" \
+  -H "Authorization: Bearer $SELLER_TOKEN" \
+  -H "X-Correlation-ID: variant-media-remove-1"
+```
+
+Expected: `204 No Content`. Variant `media` no longer includes the removed item.
+
 ## Integration Test Coverage
 
 Required tests:
@@ -121,12 +192,48 @@ Required tests:
 - Product list batches media resolution for all returned products.
 - Seller A cannot attach, update, remove, or read Seller B private product media.
 
+## Final Route Summary (as of implementation)
+
+### Product Media Routes
+
+| Method   | Route                                               | Auth          | Status |
+|----------|-----------------------------------------------------|---------------|--------|
+| `GET`    | `/api/product`                                      | PublicAPIAuth | 200    |
+| `GET`    | `/api/product/:productId`                           | PublicAPIAuth | 200    |
+| `POST`   | `/api/product/:productId/media`                     | SellerAuth    | 201    |
+| `PATCH`  | `/api/product/:productId/media/:fileId`             | SellerAuth    | 200    |
+| `DELETE` | `/api/product/:productId/media/:fileId`             | SellerAuth    | 204    |
+
+### Variant Media Routes
+
+| Method   | Route                                                               | Auth       | Status |
+|----------|---------------------------------------------------------------------|------------|--------|
+| `GET`    | `/api/product/:productId/variant/:variantId`                        | PublicAuth | 200    |
+| `POST`   | `/api/product/:productId/variant/:variantId/media`                  | SellerAuth | 201    |
+| `PATCH`  | `/api/product/:productId/variant/:variantId/media/:fileId`          | SellerAuth | 200    |
+| `DELETE` | `/api/product/:productId/variant/:variantId/media/:fileId`          | SellerAuth | 204    |
+
+**Required headers on all requests:**
+- `X-Correlation-ID: <uuid>` — enforced by middleware (missing returns 400)
+- `Authorization: Bearer <jwt>` — required on seller-protected routes
+
+**Seller scope:** Product and variant ownership are validated in the service layer. A seller accessing another seller's product or variant receives `404` (not `403`) to avoid leaking existence.
+
+**Media in responses:** The `media` field is always a JSON array (`[]` when empty, never `null`) in both product and variant responses. Items are ordered by `displayOrder ASC, id ASC`. Items whose file data cannot be resolved are silently skipped — the response is still `200`.
+
+**`images` field removed from variants:** The `CreateVariantRequest`, `UpdateVariantRequest`, `BulkUpdateVariantItem`, `VariantDetailResponse`, and `VariantResponse` DTOs no longer contain an `images` field. Sending `images` in a request body is silently ignored. Use the variant media endpoints above to manage variant images.
+
+**Best-effort file cleanup on remove:** `DELETE /media/:fileId` (product or variant) always returns `204` even if the underlying file asset deletion fails. A warning is logged for operational follow-up.
+
 ## Done Criteria
 
-- All new integration tests pass (`go test ./test/integration/product/product_media/...`).
+- All new integration tests pass:
+  - `go test ./test/integration/product/product_media/...` (35 tests)
+  - `go test ./test/integration/product/variant_media/...` (23 tests)
 - Existing Product and File integration tests still pass.
-- Every scenario in **Integration Test Coverage** above is covered; any gap filled with a **unit** test is documented in code comments and justified (narrow pure logic only).
-- Product response changes are additive.
+- Every scenario in **Integration Test Coverage** above is covered.
+- Product and variant response changes are additive (`media` field added, `images` field removed from variants).
 - No Product code imports File repositories or File entities for persistence.
-- Product list media resolution is batched.
-- Product media operations preserve seller isolation and correlation ID enforcement.
+- Product list media resolution is batched (no N+1).
+- All media operations preserve seller isolation and correlation ID enforcement.
+- Seed files (`migrations/seeds/mock/002_seed_products.sql`, test data files) do not reference the dropped `images` column.

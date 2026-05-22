@@ -76,12 +76,8 @@ func TestCreateVariant(t *testing.T) {
 		productID := 5
 
 		requestBody := map[string]any{
-			"sku":   "NIKE-TSHIRT-GRAY-XL",
-			"price": 34.99,
-			"images": []string{
-				"https://example.com/img1.jpg",
-				"https://example.com/img2.jpg",
-			},
+			"sku":           "NIKE-TSHIRT-GRAY-XL",
+			"price":         34.99,
 			"allowPurchase": true,
 			"isPopular":     true,
 			"isDefault":     false,
@@ -104,10 +100,10 @@ func TestCreateVariant(t *testing.T) {
 		assert.True(t, variant["isPopular"].(bool))
 		assert.False(t, variant["isDefault"].(bool))
 
-		// Check images
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok, "Images should be an array")
-		assert.Len(t, images, 2, "Should have 2 images")
+		// Media is managed via the variant media endpoints; a new variant has empty media
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be an array")
+		assert.Empty(t, media, "New variant should have no media")
 	})
 
 	t.Run("Success - Variant creation with single option", func(t *testing.T) {
@@ -174,23 +170,15 @@ func TestCreateVariant(t *testing.T) {
 		assert.Equal(t, 2999.00, variant["price"])
 	})
 
-	t.Run("Success - Variant creation with multiple images", func(t *testing.T) {
+	t.Run("Success - Variant creation response includes empty media array", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 7 // Running Shoes
 
-		images := []string{
-			"https://example.com/shoe-front.jpg",
-			"https://example.com/shoe-side.jpg",
-			"https://example.com/shoe-back.jpg",
-			"https://example.com/shoe-sole.jpg",
-		}
-
 		requestBody := map[string]any{
-			"sku":    "ADIDAS-RUN-BO-11",
-			"price":  89.99,
-			"images": images,
+			"sku":   "ADIDAS-RUN-BO-11",
+			"price": 89.99,
 			"options": []map[string]any{
 				{"optionName": "Size", "value": "11"},
 				{"optionName": "Color", "value": "Blue/Orange"},
@@ -203,22 +191,21 @@ func TestCreateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		// Check images
-		returnedImages, ok := variant["images"].([]any)
-		assert.True(t, ok, "Images should be an array")
-		assert.Len(t, returnedImages, 4, "Should have 4 images")
+		// Images are managed via POST /variant/:id/media; new variants start with empty media
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be an array")
+		assert.Empty(t, media, "Newly created variant should have no media")
 	})
 
-	t.Run("Success - Variant creation with empty images array", func(t *testing.T) {
+	t.Run("Success - Variant creation response always has media field", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 7 // Running Shoes
 
 		requestBody := map[string]any{
-			"sku":    "ADIDAS-RUN-AB-11",
-			"price":  89.99,
-			"images": []string{},
+			"sku":   "ADIDAS-RUN-AB-11",
+			"price": 89.99,
 			"options": []map[string]any{
 				{"optionName": "Size", "value": "11"},
 				{"optionName": "Color", "value": "All Black"},
@@ -231,14 +218,10 @@ func TestCreateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		// Check images is empty or nil
-		images, hasImages := variant["images"]
-		if hasImages && images != nil {
-			imagesArray, isArray := images.([]any)
-			if isArray {
-				assert.Empty(t, imagesArray, "Images array should be empty")
-			}
-		}
+		// media field must always be present (never nil) even when empty
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be a JSON array")
+		assert.Empty(t, media)
 	})
 
 	t.Run("Success - Variant creation as default variant", func(t *testing.T) {
@@ -876,7 +859,6 @@ func TestCreateVariant(t *testing.T) {
 		requestBody := map[string]any{
 			"sku":           "ZARA-DRESS-BLUE-XL",
 			"price":         54.99,
-			"images":        []string{"https://example.com/dress.jpg"},
 			"allowPurchase": true,
 			"isPopular":     false,
 			"isDefault":     false,

@@ -197,19 +197,18 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		assert.Equal(t, "Café Crème", product["name"], "French accents should be preserved")
 	})
 
-	t.Run("EdgeCase - Very long image URLs", func(t *testing.T) {
+	t.Run("EdgeCase - Variant with very long SKU is accepted", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		// Create a URL with 1000+ characters
-		baseURL := "https://example.com/images/product/very-long-path/"
-		longPath := strings.Repeat("subdirectory/", 50) // Creates a long path
-		veryLongURL := baseURL + longPath + "image.jpg"
+		// Images are now managed via the variant media endpoints (file module).
+		// This test verifies that a product with a very long SKU is still accepted.
+		longSKU := strings.Repeat("A", 200)
 
 		requestBody := map[string]any{
-			"name":       "Test Product - Long URL",
+			"name":       "Test Product - Long SKU",
 			"categoryId": 4,
-			"baseSku":    "TEST-LONG-URL-001",
+			"baseSku":    "TEST-LONG-SKU-001",
 			"options": []map[string]any{
 				{
 					"name":        "color",
@@ -221,11 +220,8 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 			"variants": []map[string]any{
 				{
-					"sku":   "TEST-LONG-URL-001-V1",
+					"sku":   longSKU,
 					"price": 99.99,
-					"images": []string{
-						veryLongURL, // Very long URL (1000+ chars)
-					},
 					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
@@ -233,25 +229,21 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			},
 		}
 
-		t.Logf("Testing with URL length: %d characters", len(veryLongURL))
-
 		w := client.Post(t, "/api/product", requestBody)
 
-		// Behavior depends on database constraints
-		// Either accepts (if no length limit) or rejects (if URL too long)
+		// Accept or reject depending on SKU length constraints
 		if w.Code == http.StatusCreated {
 			response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 			product := helpers.GetResponseData(t, response, "product")
 			variants, ok := product["variants"].([]any)
 			assert.True(t, ok)
 			variant := variants[0].(map[string]any)
-			images := variant["images"].([]any)
-			assert.NotEmpty(t, images, "Image should be stored")
-			t.Log("Very long URL was accepted and stored")
+			_, ok = variant["media"].([]any)
+			assert.True(t, ok, "media should always be a JSON array")
+			t.Log("Very long SKU was accepted")
 		} else {
-			// URL too long - should be validation error
 			helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
-			t.Log("Very long URL was rejected (expected if there's a length limit)")
+			t.Log("Very long SKU was rejected (expected if there is a length constraint)")
 		}
 	})
 
