@@ -5,6 +5,7 @@ import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handler"
+	"ecommerce-be/product/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,5 +47,13 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)
 		productRoutes.PUT("/:productId", sellerAuth, m.productHandler.UpdateProduct)
 		productRoutes.DELETE("/:productId", sellerAuth, m.productHandler.DeleteProduct)
+
+		// Product media management routes (seller-protected)
+		mediaRoutes := productRoutes.Group("/:productId" + utils.PRODUCT_MEDIA_ROUTE)
+		{
+			mediaRoutes.POST("", sellerAuth, m.productHandler.AttachMedia)
+			mediaRoutes.PATCH(utils.PRODUCT_MEDIA_FILE_ROUTE, sellerAuth, m.productHandler.UpdateMediaMetadata)
+			mediaRoutes.DELETE(utils.PRODUCT_MEDIA_FILE_ROUTE, sellerAuth, m.productHandler.RemoveMedia)
+		}
 	}
 }

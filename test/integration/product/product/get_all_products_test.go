@@ -545,7 +545,6 @@ func TestGetAllProducts(t *testing.T) {
 			// Verify listing-specific fields
 			assert.NotNil(t, product["hasVariants"], "Product should have hasVariants")
 			assert.NotNil(t, product["allowPurchase"], "Product should have allowPurchase")
-			assert.NotNil(t, product["images"], "Product should have images")
 
 			// variantPreview should exist for products with variants
 			if product["hasVariants"].(bool) {

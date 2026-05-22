@@ -228,7 +228,7 @@ func buildCartItemResponse(
 	variantInfo := model.VariantInfo{
 		ID:            item.VariantID,
 		SKU:           variant.SKU,
-		Images:        variant.Images,
+		Images:        []string{},
 		AllowPurchase: variant.AllowPurchase,
 		Product: model.ProductBasicInfo{
 			ID:   variant.Product.ID,

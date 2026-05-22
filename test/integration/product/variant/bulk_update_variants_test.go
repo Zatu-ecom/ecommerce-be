@@ -242,12 +242,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 		requestBody := map[string]any{
 			"variants": []map[string]any{
 				{
-					"id":    14,
-					"price": 119.99,
-					"images": []string{
-						"https://example.com/shoe1.jpg",
-						"https://example.com/shoe2.jpg",
-					},
+					"id":            14,
+					"price":         119.99,
 					"allowPurchase": true,
 					"isPopular":     true,
 					"isDefault":     true,
@@ -255,7 +251,6 @@ func TestBulkUpdateVariants(t *testing.T) {
 				{
 					"id":            15,
 					"price":         109.99,
-					"images":        []string{"https://example.com/shoe3.jpg"},
 					"allowPurchase": true,
 					"isPopular":     false,
 					"isDefault":     false,
@@ -397,10 +392,10 @@ func TestBulkUpdateVariants(t *testing.T) {
 	})
 
 	// ============================================================================
-	// SUCCESS SCENARIOS - Images
+	// SUCCESS SCENARIOS - SKU bulk updates
 	// ============================================================================
 
-	t.Run("Success - Update images for multiple variants", func(t *testing.T) {
+	t.Run("Success - Bulk update SKU for multiple variants", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
@@ -408,21 +403,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]any{
 			"variants": []map[string]any{
-				{
-					"id": 12,
-					"images": []string{
-						"https://example.com/dress1.jpg",
-						"https://example.com/dress2.jpg",
-					},
-				},
-				{
-					"id": 13,
-					"images": []string{
-						"https://example.com/dress3.jpg",
-						"https://example.com/dress4.jpg",
-						"https://example.com/dress5.jpg",
-					},
-				},
+				{"id": 12, "sku": "ZARA-DRESS-BLK-M-V1"},
+				{"id": 13, "sku": "ZARA-DRESS-BLK-L-V1"},
 			},
 		}
 
@@ -436,7 +418,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
-	t.Run("Success - Clear images for multiple variants", func(t *testing.T) {
+	t.Run("Success - Bulk update flags for multiple variants", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
 
@@ -444,8 +426,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]any{
 			"variants": []map[string]any{
-				{"id": 2, "images": []string{}},
-				{"id": 3, "images": []string{}},
+				{"id": 2, "isPopular": true},
+				{"id": 3, "isPopular": false},
 			},
 		}
 
@@ -459,7 +441,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
-	t.Run("Success - Mix images update (some with new, some empty)", func(t *testing.T) {
+	t.Run("Success - Bulk update price for multiple variants", func(t *testing.T) {
 		seller4Token := helpers.Login(t, client, helpers.Seller4Email, helpers.Seller4Password)
 		client.SetToken(seller4Token)
 
@@ -467,8 +449,8 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		requestBody := map[string]any{
 			"variants": []map[string]any{
-				{"id": 16, "images": []string{"https://example.com/sofa-new.jpg"}},
-				{"id": 17, "images": []string{}},
+				{"id": 16, "price": 1299.99},
+				{"id": 17, "price": 1199.99},
 			},
 		}
 
@@ -763,12 +745,13 @@ func TestBulkUpdateVariants(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Validation Error - Images field not an array", func(t *testing.T) {
+	t.Run("Validation - Unknown fields in variant item are silently ignored", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
 
 		productID := 1
 
+		// images is no longer part of BulkUpdateVariantItem; the field is silently ignored
 		requestBody := map[string]any{
 			"variants": []map[string]any{
 				{"id": 4, "images": "not-an-array"},
@@ -778,7 +761,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		url := fmt.Sprintf("/api/product/%d/variant/bulk", productID)
 		w := client.Put(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+		assert.Equal(t, http.StatusOK, w.Code, "Unknown fields should be silently ignored")
 	})
 
 	t.Run("Validation Error - Missing variantId in item", func(t *testing.T) {

@@ -74,20 +74,15 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Equal(t, 1399.99, variant["price"])
 	})
 
-	t.Run("Success - Update images only", func(t *testing.T) {
+	t.Run("Success - Update response always includes media field", func(t *testing.T) {
 		seller2Token := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
 		client.SetToken(seller2Token)
 
 		productID := 2 // Samsung S24
 		variantID := 5 // Use variant 5
 
-		newImages := []string{
-			"https://example.com/samsung-new-1.jpg",
-			"https://example.com/samsung-new-2.jpg",
-		}
-
 		requestBody := map[string]any{
-			"images": newImages,
+			"sku": "SAMSUNG-S24-UPDATED",
 		}
 
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
@@ -96,9 +91,9 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok)
-		assert.Len(t, images, 2)
+		// Images are now managed via the variant media endpoints; media must always be present
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should always be a JSON array in the response")
 	})
 
 	t.Run("Success - Update allowPurchase flag", func(t *testing.T) {
@@ -176,13 +171,8 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 9 // Use variant 9 (default variant)
 
 		requestBody := map[string]any{
-			"sku":   "NIKE-TSHIRT-COMPLETE-UPDATE",
-			"price": 39.99,
-			"images": []string{
-				"https://example.com/updated1.jpg",
-				"https://example.com/updated2.jpg",
-				"https://example.com/updated3.jpg",
-			},
+			"sku":           "NIKE-TSHIRT-COMPLETE-UPDATE",
+			"price":         39.99,
 			"allowPurchase": true,
 			"isPopular":     false,
 			"isDefault":     true,
@@ -199,13 +189,9 @@ func TestUpdateVariant(t *testing.T) {
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.False(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
-
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok)
-		assert.Len(t, images, 3)
 	})
 
-	t.Run("Success - Update with empty images array", func(t *testing.T) {
+	t.Run("Success - Update response media field is always a JSON array", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
@@ -213,7 +199,7 @@ func TestUpdateVariant(t *testing.T) {
 		variantID := 11 // Use variant 11
 
 		requestBody := map[string]any{
-			"images": []string{},
+			"isPopular": false,
 		}
 
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
@@ -222,9 +208,8 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok)
-		assert.Len(t, images, 0)
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should always be a JSON array")
 	})
 
 	// ============================================================================
@@ -496,26 +481,15 @@ func TestUpdateVariant(t *testing.T) {
 		assert.Equal(t, longSKU, variant["sku"])
 	})
 
-	t.Run("Edge Case - Update with many images", func(t *testing.T) {
+	t.Run("Edge Case - Update preserves media field across multiple updates", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 6
 		variantID := 13
 
-		manyImages := []string{
-			"https://example.com/img1.jpg",
-			"https://example.com/img2.jpg",
-			"https://example.com/img3.jpg",
-			"https://example.com/img4.jpg",
-			"https://example.com/img5.jpg",
-			"https://example.com/img6.jpg",
-			"https://example.com/img7.jpg",
-			"https://example.com/img8.jpg",
-		}
-
 		requestBody := map[string]any{
-			"images": manyImages,
+			"price": 59.99,
 		}
 
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
@@ -524,9 +498,9 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		images, ok := variant["images"].([]any)
-		assert.True(t, ok)
-		assert.Len(t, images, 8)
+		assert.Equal(t, 59.99, variant["price"])
+		_, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be a JSON array after update")
 	})
 
 	t.Run("Edge Case - Update with decimal price", func(t *testing.T) {
@@ -676,13 +650,15 @@ func TestUpdateVariant(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Invalid Request - Images not an array", func(t *testing.T) {
+	t.Run("Invalid Request - Unknown fields are silently ignored", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 7
 		variantID := 14
 
+		// images is no longer part of the UpdateVariantRequest DTO; it is managed
+		// via the dedicated variant media endpoints. Sending it is a no-op.
 		requestBody := map[string]any{
 			"images": "not-an-array",
 		}
@@ -690,7 +666,7 @@ func TestUpdateVariant(t *testing.T) {
 		url := fmt.Sprintf("/api/product/%d/variant/%d", productID, variantID)
 		w := client.Put(t, url, requestBody)
 
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+		assert.Equal(t, http.StatusOK, w.Code, "Unknown fields should be silently ignored")
 	})
 
 	// ============================================================================

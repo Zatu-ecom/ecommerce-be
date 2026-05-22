@@ -31,6 +31,18 @@ const (
 	REDIS_NOT_INITIALIZED_MSG = constants.REDIS_NOT_INITIALIZED_MSG
 )
 
+// Product Media route path segments (relative to /:productId)
+const (
+	PRODUCT_MEDIA_ROUTE      = "/media"
+	PRODUCT_MEDIA_FILE_ROUTE = "/:fileId"
+)
+
+// Variant Media route path segments (relative to /:productId/variant/:variantId)
+const (
+	VARIANT_MEDIA_ROUTE      = "/media"
+	VARIANT_MEDIA_FILE_ROUTE = "/:fileId"
+)
+
 // Backward-compatible aliases (to be removed after migration)
 const (
 	AuthenticationRequiredMsg = AUTHENTICATION_REQUIRED_MSG

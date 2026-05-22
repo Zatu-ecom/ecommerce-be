@@ -363,11 +363,6 @@ func BuildProductResponse(
 		}
 	}
 
-	// Add main product image if available
-	if variantAgg.MainImage != "" {
-		productResp.Images = []string{variantAgg.MainImage}
-	}
-
 	// Build variant preview for product listings
 	if variantAgg.TotalVariants > 0 {
 		variantPreview := &model.VariantPreview{
@@ -430,7 +425,6 @@ func BuildRelatedProductItemScored(
 			Max: scoredResult.MaxPrice,
 		},
 		AllowPurchase: scoredResult.AllowPurchase,
-		Images:        []string{},
 	}
 
 	// Add variant preview if available

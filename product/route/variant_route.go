@@ -5,6 +5,7 @@ import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/product/factory/singleton"
 	"ecommerce-be/product/handler"
+	"ecommerce-be/product/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,5 +42,13 @@ func (m *VariantModule) RegisterRoutes(router *gin.Engine) {
 		variantRoutes.PUT("/:variantId", sellerAuth, m.variantHandler.UpdateVariant)
 		variantRoutes.PUT("/bulk", sellerAuth, m.variantHandler.BulkUpdateVariants)
 		variantRoutes.DELETE("/:variantId", sellerAuth, m.variantHandler.DeleteVariant)
+
+		// Variant media management routes (seller-protected)
+		variantMediaRoutes := variantRoutes.Group("/:variantId" + utils.VARIANT_MEDIA_ROUTE)
+		{
+			variantMediaRoutes.POST("", sellerAuth, m.variantHandler.AttachVariantMedia)
+			variantMediaRoutes.PATCH(utils.VARIANT_MEDIA_FILE_ROUTE, sellerAuth, m.variantHandler.UpdateVariantMediaMetadata)
+			variantMediaRoutes.DELETE(utils.VARIANT_MEDIA_FILE_ROUTE, sellerAuth, m.variantHandler.RemoveVariantMedia)
+		}
 	}
 }

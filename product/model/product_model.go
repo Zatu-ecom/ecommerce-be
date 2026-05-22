@@ -98,7 +98,6 @@ type ProductResponse struct {
 	HasVariants    bool            `json:"hasVariants"`              // Product has variants
 	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
 	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
-	Images         []string        `json:"images"`                   // Main product images
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
 	IsWishlisted   bool            `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
 
@@ -108,8 +107,35 @@ type ProductResponse struct {
 	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)
 	Variants       []VariantDetailResponse       `json:"variants,omitempty"` // Full variants with selected options (detail view)
 
+	// Product media (additive – empty slice when no media attached)
+	Media []ProductMediaResponse `json:"media"`
+
 	CreatedAt string `json:"createdAt,omitempty"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+// ProductMediaResponse is the media summary embedded in product detail and listing responses.
+// Ordered by display_order ASC, id ASC. Missing file data is omitted (resilience).
+type ProductMediaResponse struct {
+	FileID       string  `json:"fileId"`
+	URL          string  `json:"url"`
+	ThumbnailURL *string `json:"thumbnailUrl,omitempty"`
+	IsPrimary    bool    `json:"isPrimary"`
+	DisplayOrder int     `json:"displayOrder"`
+}
+
+// AttachMediaRequest is the request body for POST /api/product/:productId/media.
+type AttachMediaRequest struct {
+	FileID       string `json:"fileId"       binding:"required"`
+	IsPrimary    bool   `json:"isPrimary"`
+	DisplayOrder int    `json:"displayOrder" binding:"min=0"`
+}
+
+// UpdateMediaMetadataRequest is the request body for PATCH /api/product/:productId/media/:fileId.
+// Pointer fields distinguish "not provided" from zero value so only supplied fields are updated.
+type UpdateMediaMetadataRequest struct {
+	IsPrimary    *bool `json:"isPrimary"`
+	DisplayOrder *int  `json:"displayOrder" binding:"omitempty,min=0"`
 }
 
 // CategoryInfo represents basic category information

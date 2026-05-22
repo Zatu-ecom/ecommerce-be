@@ -256,10 +256,6 @@ func calculateVariantAggFromModels(
 		if v.AllowPurchase {
 			agg.AllowPurchase = true
 		}
-		if agg.MainImage == "" && len(v.Images) > 0 {
-			agg.MainImage = v.Images[0]
-		}
-
 		// Collect unique option values
 		for _, opt := range v.SelectedOptions {
 			if optionValuesMap[opt.OptionName] == nil {

@@ -1,8 +1,16 @@
 openapi: 3.0.3
 info:
-  title: Product Media Integration API
-  version: 0.1.0
-  description: Contract for attaching, reading, updating, and removing File module media from Product responses.
+  title: Product & Variant Media Integration API
+  version: 0.2.0
+  description: |
+    Contract for attaching, reading, updating, and removing File module media from
+    Product and Variant responses.
+
+    **v0.2.0 changes (2026-05-21):**
+    - Added variant media endpoints under `/product/{productId}/variant/{variantId}/media`.
+    - Removed deprecated `images` array from Product and Variant schemas.
+    - Added `VariantMedia`, `AttachVariantMediaRequest`, `UpdateVariantMediaRequest` schemas.
+    - Added `VariantId` path parameter.
 servers:
   - url: /api
 paths:
@@ -85,6 +93,89 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /product/{productId}/variant/{variantId}/media:
+    post:
+      summary: Attach uploaded media to a variant
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/VariantId'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachVariantMediaRequest'
+      responses:
+        '201':
+          description: Variant media link created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantMediaResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /product/{productId}/variant/{variantId}/media/{fileId}:
+    patch:
+      summary: Update variant media metadata
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/VariantId'
+        - $ref: '#/components/parameters/FileId'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVariantMediaRequest'
+      responses:
+        '200':
+          description: Variant media metadata updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantMediaResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Remove variant media and attempt underlying file cleanup
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/VariantId'
+        - $ref: '#/components/parameters/FileId'
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Variant media link removed.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /product/{productId}/media/{fileId}:
     patch:
       summary: Update product media metadata
@@ -162,6 +253,13 @@ components:
       schema:
         type: integer
         minimum: 1
+    VariantId:
+      name: variantId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     FileId:
       name: fileId
       in: path
@@ -217,9 +315,86 @@ components:
         displayOrder:
           type: integer
           minimum: 0
+    VariantMedia:
+      type: object
+      required:
+        - fileId
+        - url
+        - isPrimary
+        - displayOrder
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPrimary:
+          type: boolean
+        displayOrder:
+          type: integer
+          minimum: 0
+    AttachVariantMediaRequest:
+      type: object
+      required:
+        - fileId
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        isPrimary:
+          type: boolean
+          default: false
+        displayOrder:
+          type: integer
+          minimum: 0
+          default: 0
+    UpdateVariantMediaRequest:
+      type: object
+      properties:
+        isPrimary:
+          type: boolean
+        displayOrder:
+          type: integer
+          minimum: 0
+      minProperties: 1
+    Variant:
+      type: object
+      description: Variant response with media field. The legacy `images` field has been removed.
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        sku:
+          type: string
+        price:
+          type: number
+        allowPurchase:
+          type: boolean
+        isPopular:
+          type: boolean
+        isDefault:
+          type: boolean
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantMedia'
+        selectedOptions:
+          type: array
+          items:
+            type: object
+      required:
+        - id
+        - productId
+        - media
     Product:
       type: object
-      description: Existing product response with additive media field.
+      description: Product response with additive media field. The legacy `images` field has been removed from variant sub-objects.
       properties:
         id:
           type: integer
@@ -227,15 +402,14 @@ components:
           type: string
         sellerId:
           type: integer
-        images:
-          type: array
-          deprecated: true
-          items:
-            type: string
         media:
           type: array
           items:
             $ref: '#/components/schemas/ProductMedia'
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
       required:
         - id
         - name
@@ -294,6 +468,16 @@ components:
           type: string
         data:
           $ref: '#/components/schemas/ProductMedia'
+    VariantMediaResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/VariantMedia'
     ErrorEnvelope:
       type: object
       properties:
