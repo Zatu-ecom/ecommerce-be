@@ -401,7 +401,7 @@ func (r *ProductOptionRepositoryImpl) BulkUpdateOptions(
 		for _, option := range options {
 			if err := tx.Model(&entity.ProductOption{}).
 				Where("id = ?", option.ID).
-				Updates(map[string]interface{}{
+				Updates(map[string]any{
 					"display_name": option.DisplayName,
 					"position":     option.Position,
 				}).Error; err != nil {
@@ -423,7 +423,7 @@ func (r *ProductOptionRepositoryImpl) BulkUpdateOptionValues(
 
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, value := range values {
-			updates := map[string]interface{}{}
+			updates := map[string]any{}
 
 			// Only update non-empty fields
 			if value.DisplayName != "" {

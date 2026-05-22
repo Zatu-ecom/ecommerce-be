@@ -41,7 +41,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Product 5 is owned by seller_id 3 (Jane) - Classic Cotton T-Shirt
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "material",
 			"displayName": "Material",
 			"position":    1,
@@ -70,7 +70,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Values should be empty or nil when not provided
 		values, hasValues := option["values"]
 		if hasValues && values != nil {
-			valuesArray, isArray := values.([]interface{})
+			valuesArray, isArray := values.([]any)
 			if isArray {
 				assert.Empty(t, valuesArray, "Values array should be empty when no values provided")
 			}
@@ -85,11 +85,11 @@ func TestCreateProductOption(t *testing.T) {
 		// Use product 6 owned by Jane (seller_id 3) - Summer Dress
 		productID := 6
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "size",
 			"displayName": "Size",
 			"position":    1,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					"value":       "small",
 					"displayName": "Small",
@@ -122,12 +122,12 @@ func TestCreateProductOption(t *testing.T) {
 		assert.Equal(t, float64(1), option["position"])
 
 		// Assert values were created
-		values, ok := option["values"].([]interface{})
+		values, ok := option["values"].([]any)
 		assert.True(t, ok, "Values should be an array")
 		assert.Len(t, values, 2, "Should have 2 values")
 
 		// Check first value
-		value1 := values[0].(map[string]interface{})
+		value1 := values[0].(map[string]any)
 		assert.NotNil(t, value1["id"])
 		assert.NotNil(t, value1["optionId"])
 		assert.Equal(t, "small", value1["value"])
@@ -137,7 +137,7 @@ func TestCreateProductOption(t *testing.T) {
 		assert.NotNil(t, value1["updatedAt"])
 
 		// Check second value
-		value2 := values[1].(map[string]interface{})
+		value2 := values[1].(map[string]any)
 		assert.Equal(t, "medium", value2["value"])
 		assert.Equal(t, "Medium", value2["displayName"])
 		assert.Equal(t, float64(2), value2["position"])
@@ -151,11 +151,11 @@ func TestCreateProductOption(t *testing.T) {
 		// Use product 7 owned by Jane (seller_id 3) - Running Shoes
 		productID := 7
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "fit",
 			"displayName": "Fit Type",
 			"position":    2,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					"value":       "slim",
 					"displayName": "Slim Fit",
@@ -186,7 +186,7 @@ func TestCreateProductOption(t *testing.T) {
 		option := helpers.GetResponseData(t, response, "option")
 
 		// Assert values were created
-		values, ok := option["values"].([]interface{})
+		values, ok := option["values"].([]any)
 		assert.True(t, ok, "Values should be an array")
 		assert.Len(t, values, 3, "Should have 3 values")
 	})
@@ -199,11 +199,11 @@ func TestCreateProductOption(t *testing.T) {
 		// Use product 5 owned by Jane (seller_id 3)
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "color",
 			"displayName": "Color",
 			"position":    1,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					"value":       "red",
 					"displayName": "Red",
@@ -237,18 +237,18 @@ func TestCreateProductOption(t *testing.T) {
 		option := helpers.GetResponseData(t, response, "option")
 
 		// Assert color codes are present
-		values, ok := option["values"].([]interface{})
+		values, ok := option["values"].([]any)
 		assert.True(t, ok, "Values should be an array")
 		assert.Len(t, values, 3, "Should have 3 color values")
 
 		// Verify color codes
-		value1 := values[0].(map[string]interface{})
+		value1 := values[0].(map[string]any)
 		assert.Equal(t, "#FF0000", value1["colorCode"])
 
-		value2 := values[1].(map[string]interface{})
+		value2 := values[1].(map[string]any)
 		assert.Equal(t, "#0000FF", value2["colorCode"])
 
-		value3 := values[2].(map[string]interface{})
+		value3 := values[2].(map[string]any)
 		assert.Equal(t, "#00FF00", value3["colorCode"])
 	})
 
@@ -261,7 +261,7 @@ func TestCreateProductOption(t *testing.T) {
 		productID := 6
 
 		// Create first option with position 3
-		requestBody1 := map[string]interface{}{
+		requestBody1 := map[string]any{
 			"name":        "sleeve",
 			"displayName": "Sleeve Length",
 			"position":    3,
@@ -280,7 +280,7 @@ func TestCreateProductOption(t *testing.T) {
 		assert.Equal(t, float64(3), option1["position"])
 
 		// Create second option with position 1
-		requestBody2 := map[string]interface{}{
+		requestBody2 := map[string]any{
 			"name":        "neckline",
 			"displayName": "Neckline",
 			"position":    1,
@@ -298,7 +298,7 @@ func TestCreateProductOption(t *testing.T) {
 		assert.Equal(t, float64(1), option2["position"])
 
 		// Create third option with position 2
-		requestBody3 := map[string]interface{}{
+		requestBody3 := map[string]any{
 			"name":        "length",
 			"displayName": "Dress Length",
 			"position":    2,
@@ -327,7 +327,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"displayName": "Color",
 			"position":    1,
 		}
@@ -345,7 +345,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":     "color",
 			"position": 1,
 		}
@@ -363,7 +363,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "c", // Only 1 character
 			"displayName": "Color",
 			"position":    1,
@@ -385,7 +385,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Create a name longer than 50 characters
 		longName := strings.Repeat("a", 51)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        longName,
 			"displayName": "Very Long Option Name",
 			"position":    1,
@@ -404,7 +404,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "color",
 			"displayName": "Co", // Only 2 characters
 			"position":    1,
@@ -426,7 +426,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Create a displayName longer than 100 characters
 		longDisplayName := strings.Repeat("a", 101)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "color",
 			"displayName": longDisplayName,
 			"position":    1,
@@ -445,11 +445,11 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "shade",
 			"displayName": "Shade",
 			"position":    1,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					"value":       "red",
 					"displayName": "Red",
@@ -472,11 +472,11 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "pattern",
 			"displayName": "Pattern",
 			"position":    1,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					// Missing "value" field
 					"displayName": "Striped",
@@ -498,11 +498,11 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "style",
 			"displayName": "Style",
 			"position":    1,
-			"values": []map[string]interface{}{
+			"values": []map[string]any{
 				{
 					"value": "casual",
 					// Missing "displayName" field
@@ -527,7 +527,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "finish",
 			"displayName": "Finish Type",
 			"position":    1,
@@ -545,7 +545,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "texture",
 			"displayName": "Texture",
 			"position":    1,
@@ -565,7 +565,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Product 1 is owned by seller_id 1 (different seller)
 		productID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "weight",
 			"displayName": "Weight",
 			"position":    1,
@@ -586,7 +586,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Admin creates option for Product 5 (owned by seller_id 3)
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "quality",
 			"displayName": "Quality Grade",
 			"position":    3,
@@ -610,7 +610,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Admin creates option for Product 1 (owned by seller_id 2)
 		productID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "warranty",
 			"displayName": "Warranty Period",
 			"position":    3,
@@ -633,7 +633,7 @@ func TestCreateProductOption(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "rating",
 			"displayName": "Rating",
 			"position":    1,
@@ -658,7 +658,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Use a non-existent product ID
 		productID := 99999
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "type",
 			"displayName": "Type",
 			"position":    1,
@@ -678,7 +678,7 @@ func TestCreateProductOption(t *testing.T) {
 		// Use product 7 owned by Jane (seller_id 3)
 		productID := 7
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "brand",
 			"displayName": "Brand",
 			"position":    1,
@@ -695,7 +695,7 @@ func TestCreateProductOption(t *testing.T) {
 		)
 
 		// Try to create duplicate option with same name - should fail
-		requestBody2 := map[string]interface{}{
+		requestBody2 := map[string]any{
 			"name":        "brand", // Same name
 			"displayName": "Brand Name",
 			"position":    2,
@@ -712,7 +712,7 @@ func TestCreateProductOption(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":        "dimension",
 			"displayName": "Dimension",
 			"position":    1,

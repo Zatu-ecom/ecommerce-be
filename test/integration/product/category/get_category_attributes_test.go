@@ -38,7 +38,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create global category
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Global Electronics Category",
 			"description": "Global electronics",
 		}
@@ -52,7 +52,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Create attribute definition with correct structure
-		attrReq := map[string]interface{}{
+		attrReq := map[string]any{
 			"key":           "brand",
 			"name":          "Brand",
 			"description":   "Product brand",
@@ -68,7 +68,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 
 		// Create and link attribute to category using /api/product/attribute/:categoryId endpoint
 		// This endpoint creates a category-specific attribute definition
-		catAttrReq := map[string]interface{}{
+		catAttrReq := map[string]any{
 			"key":           "color",
 			"name":          "Color",
 			"description":   "Product color for this category",
@@ -89,19 +89,19 @@ func TestGetCategoryAttributes(t *testing.T) {
 		)
 
 		// Verify response structure matches AttributeDefinitionsResponse
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		assert.GreaterOrEqual(t, len(attributes), 1, "Should have at least 1 attribute")
 
 		// Verify attribute structure matches AttributeDefinitionResponse
 		if len(attributes) > 0 {
-			firstAttr := attributes[0].(map[string]interface{})
+			firstAttr := attributes[0].(map[string]any)
 			assert.NotNil(t, firstAttr["id"], "Should have id")
 			assert.NotNil(t, firstAttr["key"], "Should have key")
 			assert.NotNil(t, firstAttr["name"], "Should have name")
@@ -115,7 +115,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create category
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Seller's Custom Category",
 			"description": "Seller specific category",
 		}
@@ -129,7 +129,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Create category-specific attribute using correct endpoint and structure
-		attrReq := map[string]interface{}{
+		attrReq := map[string]any{
 			"key":         "size",
 			"name":        "Size",
 			"description": "Product size",
@@ -152,12 +152,12 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		assert.GreaterOrEqual(
@@ -173,7 +173,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		seller1Token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(seller1Token)
 
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Seller1 Private Attributes Category",
 			"description": "Private category",
 		}
@@ -204,7 +204,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent Category Inheritance",
 			"description": "Parent with attributes",
 		}
@@ -218,7 +218,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		parentID := uint(parent["id"].(float64))
 
 		// Create parent attributes using category-specific endpoint
-		attr1Req := map[string]interface{}{
+		attr1Req := map[string]any{
 			"key":         "material_inherit",
 			"name":        "Material",
 			"description": "Product material",
@@ -226,7 +226,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		attr1W := client.Post(t, fmt.Sprintf("/api/product/attribute/%d", parentID), attr1Req)
 		helpers.AssertSuccessResponse(t, attr1W, http.StatusCreated)
 
-		attr2Req := map[string]interface{}{
+		attr2Req := map[string]any{
 			"key":         "color_inherit",
 			"name":        "Color",
 			"description": "Product color",
@@ -235,7 +235,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		helpers.AssertSuccessResponse(t, attr2W, http.StatusCreated)
 
 		// Create child category
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child Category Inheritance",
 			"description": "Child with own attribute",
 			"parentId":    parentID,
@@ -250,7 +250,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		childID := uint(child["id"].(float64))
 
 		// Add child's own attribute
-		attr3Req := map[string]interface{}{
+		attr3Req := map[string]any{
 			"key":         "weight_inherit",
 			"name":        "Weight",
 			"description": "Product weight",
@@ -270,12 +270,12 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		// Should have 3 attributes (2 inherited + 1 own)
@@ -284,7 +284,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		// Verify attribute names are present
 		attrNames := make(map[string]bool)
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrNames[attrMap["name"].(string)] = true
 		}
 
@@ -299,7 +299,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create grandparent
-		grandparentReq := map[string]interface{}{
+		grandparentReq := map[string]any{
 			"name":        "Grandparent Multi-Level",
 			"description": "Grandparent category",
 		}
@@ -313,7 +313,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		grandparentID := uint(grandparent["id"].(float64))
 
 		// Add grandparent attribute
-		gAttrReq := map[string]interface{}{
+		gAttrReq := map[string]any{
 			"key":         "origin_multilevel",
 			"name":        "Origin",
 			"description": "Country of origin",
@@ -322,7 +322,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		helpers.AssertSuccessResponse(t, gAttrW, http.StatusCreated)
 
 		// Create parent
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent Multi-Level",
 			"description": "Parent category",
 			"parentId":    grandparentID,
@@ -337,7 +337,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		parentID := uint(parent["id"].(float64))
 
 		// Add parent attribute
-		pAttrReq := map[string]interface{}{
+		pAttrReq := map[string]any{
 			"key":         "warranty_multilevel",
 			"name":        "Warranty",
 			"description": "Warranty period",
@@ -346,7 +346,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		helpers.AssertSuccessResponse(t, pAttrW, http.StatusCreated)
 
 		// Create child
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child Multi-Level",
 			"description": "Child category",
 			"parentId":    parentID,
@@ -361,7 +361,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		childID := uint(child["id"].(float64))
 
 		// Add child attribute
-		cAttrReq := map[string]interface{}{
+		cAttrReq := map[string]any{
 			"key":         "model_multilevel",
 			"name":        "Model",
 			"description": "Model number",
@@ -380,12 +380,12 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		// Should have 3 attributes from all levels
@@ -399,7 +399,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		// Verify all attributes are present
 		attrNames := make(map[string]bool)
 		for _, attr := range attributes {
-			attrMap := attr.(map[string]interface{})
+			attrMap := attr.(map[string]any)
 			attrNames[attrMap["name"].(string)] = true
 		}
 
@@ -445,7 +445,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create category with attribute
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Auth Seller Category",
 			"description": "Category for auth test",
 		}
@@ -466,7 +466,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		_, hasAttributes := data["attributes"]
 		assert.True(t, hasAttributes, "Should return attributes field")
 	})
@@ -476,7 +476,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Seller Category for Admin",
 			"description": "Seller category",
 		}
@@ -500,7 +500,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		_, hasAttributes := data["attributes"]
 		assert.True(t, hasAttributes, "Admin should access any category attributes")
 	})
@@ -514,7 +514,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Empty Attributes Category",
 			"description": "No attributes",
 		}
@@ -538,12 +538,12 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		assert.Equal(t, 0, len(attributes), "Should return empty array when no attributes")
@@ -578,7 +578,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		categoryReq := map[string]interface{}{
+		categoryReq := map[string]any{
 			"name":        "Field Validation Category",
 			"description": "For response validation",
 		}
@@ -592,7 +592,7 @@ func TestGetCategoryAttributes(t *testing.T) {
 		categoryID := uint(category["id"].(float64))
 
 		// Create detailed attribute
-		attrReq := map[string]interface{}{
+		attrReq := map[string]any{
 			"key":           "detailed",
 			"name":          "DetailedAttribute",
 			"description":   "Detailed attribute",
@@ -611,19 +611,19 @@ func TestGetCategoryAttributes(t *testing.T) {
 			http.StatusOK,
 		)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 
 		// Safely get attributes array
-		var attributes []interface{}
+		var attributes []any
 		if attrData, ok := data["attributes"]; ok && attrData != nil {
-			attributes = attrData.([]interface{})
+			attributes = attrData.([]any)
 		}
 
 		assert.GreaterOrEqual(t, len(attributes), 1, "Should have at least 1 attribute")
 
 		// Verify response fields match AttributeDefinitionResponse
 		if len(attributes) > 0 {
-			attr := attributes[0].(map[string]interface{})
+			attr := attributes[0].(map[string]any)
 			assert.NotNil(t, attr["id"], "Should have id field")
 			assert.NotNil(t, attr["key"], "Should have key field")
 			assert.NotNil(t, attr["name"], "Should have name field")

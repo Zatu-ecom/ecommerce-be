@@ -43,7 +43,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use color attribute (ID 1) which doesn't exist on product 5 yet
 		attributeDefID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Red",
 			"sortOrder":             1,
@@ -83,7 +83,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use dimensions attribute (ID 11) which doesn't exist on product 5 yet
 		attributeDefID := 11
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "28 x 18",
 			"sortOrder":             0,
@@ -116,7 +116,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use size attribute (ID 9) which doesn't exist on product 6 yet
 		attributeDefID := 9
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "M",
 			"sortOrder":             5,
@@ -145,7 +145,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use size attribute (ID 9) with valid value from allowed_values
 		attributeDefID := 9
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "L",
 			"sortOrder":             0,
@@ -175,7 +175,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 1
 		attributeDefID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Test",
 			"sortOrder":             0,
@@ -196,7 +196,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 1
 		attributeDefID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Test",
 			"sortOrder":             0,
@@ -225,7 +225,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 6
 		attributeDefID := 1 // Color from seed data
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Blue",
 			"sortOrder":             5,
@@ -251,7 +251,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 1
 		attributeDefID := 1 // Color from seed data
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Silver",
 			"sortOrder":             5,
@@ -278,7 +278,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 99999 // Non-existent product
 		attributeDefID := 1
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Test",
 			"sortOrder":             0,
@@ -299,7 +299,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 5
 		attributeDefID := 99999 // Non-existent attribute definition
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "Test",
 			"sortOrder":             0,
@@ -321,7 +321,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use weight_capacity attribute (ID 12) which doesn't exist on product 5 yet
 		attributeDefID := 12
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "150",
 			"sortOrder":             0,
@@ -353,7 +353,7 @@ func TestAddProductAttribute(t *testing.T) {
 		// Use fit attribute (ID 10)
 		attributeDefID := 10
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": attributeDefID,
 			"value":                 "",
 			"sortOrder":             0,
@@ -373,7 +373,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 1
 
 		// Missing attributeDefinitionId
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"value":     "Test",
 			"sortOrder": 0,
 		}
@@ -389,7 +389,7 @@ func TestAddProductAttribute(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"attributeDefinitionId": 1,
 			"value":                 "Test",
 			"sortOrder":             0,
@@ -414,7 +414,7 @@ func TestAddProductAttribute(t *testing.T) {
 		productID := 7
 
 		// Add first attribute - color (doesn't exist on product 7)
-		requestBody1 := map[string]interface{}{
+		requestBody1 := map[string]any{
 			"attributeDefinitionId": 1, // color
 			"value":                 "Black",
 			"sortOrder":             1,
@@ -425,7 +425,7 @@ func TestAddProductAttribute(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w1, http.StatusCreated)
 
 		// Add second attribute - fit (doesn't exist on product 7)
-		requestBody2 := map[string]interface{}{
+		requestBody2 := map[string]any{
 			"attributeDefinitionId": 10, // fit
 			"value":                 "Regular",
 			"sortOrder":             2,
@@ -435,7 +435,7 @@ func TestAddProductAttribute(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w2, http.StatusCreated)
 
 		// Add third attribute - dimensions (doesn't exist on product 7)
-		requestBody3 := map[string]interface{}{
+		requestBody3 := map[string]any{
 			"attributeDefinitionId": 11, // dimensions
 			"value":                 "28 x 18 x 10",
 			"sortOrder":             3,
@@ -450,7 +450,7 @@ func TestAddProductAttribute(t *testing.T) {
 		getResponse := helpers.AssertSuccessResponse(t, wGet, http.StatusOK)
 
 		productAttributes := helpers.GetResponseData(t, getResponse, "productAttributes")
-		attributes := productAttributes["attributes"].([]interface{})
+		attributes := productAttributes["attributes"].([]any)
 
 		// Should have at least the 3 we just added plus the 2 from seed data (brand, material)
 		assert.GreaterOrEqual(t, len(attributes), 5, "Should have at least 5 attributes")

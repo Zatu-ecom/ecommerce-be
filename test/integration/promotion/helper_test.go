@@ -5,8 +5,8 @@ import (
 )
 
 // DefaultPromotionPayload returns a valid default payload map for creating a promotion in tests.
-func DefaultPromotionPayload() map[string]interface{} {
-	return map[string]interface{}{
+func DefaultPromotionPayload() map[string]any {
+	return map[string]any{
 		"name":          "Default Promotion",
 		"promotionType": "percentage",
 		"discountConfig": model.PercentageDiscountConfig{
@@ -23,7 +23,7 @@ func DefaultPromotionPayload() map[string]interface{} {
 
 // BuildPromotionPayload is a helper to construct a promotion payload and overrides
 // the most common fields (name, promotionType, discountConfig).
-func BuildPromotionPayload(name, promoType string, discountConfig interface{}) map[string]interface{} {
+func BuildPromotionPayload(name, promoType string, discountConfig any) map[string]any {
 	payload := DefaultPromotionPayload()
 	if name != "" {
 		payload["name"] = name

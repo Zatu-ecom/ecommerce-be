@@ -58,7 +58,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 	client.SetToken(aliceToken)
 
 	// Create wishlist for Alice
-	createReq := map[string]interface{}{
+	createReq := map[string]any{
 		"name": "Alice Test Wishlist",
 	}
 	w := client.Post(t, "/api/product/wishlist", createReq)
@@ -67,7 +67,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 	aliceWishlistID := uint(aliceWishlist["id"].(float64))
 
 	// Create second wishlist for Alice (for move item tests and verification)
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Alice Second Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -79,7 +79,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 	michaelToken := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 	client.SetToken(michaelToken)
 
-	createReq = map[string]interface{}{
+	createReq = map[string]any{
 		"name": "Michael Test Wishlist",
 	}
 	w = client.Post(t, "/api/product/wishlist", createReq)
@@ -95,7 +95,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 
@@ -114,7 +114,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		client.SetToken(token)
 
 		// Add second item
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID2,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -123,7 +123,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		assert.Equal(t, float64(variantID2), item["variantId"], "Variant ID should match")
 
 		// Add third item
-		addReq = map[string]interface{}{
+		addReq = map[string]any{
 			"variantId": variantID3,
 		}
 		w = client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -143,7 +143,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		client.SetToken(token)
 
 		// Add variant to second wishlist (same variant already in first wishlist)
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID2), addReq)
@@ -158,7 +158,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 
 	t.Run("NEG-ADD-001: Add item without authentication returns 401", func(t *testing.T) {
 		client.SetToken("")
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -167,7 +167,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 
 	t.Run("NEG-ADD-002: Add item with invalid token returns 401", func(t *testing.T) {
 		client.SetToken("invalid-token-here")
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -181,7 +181,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 	t.Run("NEG-ADD-003: Seller role cannot add item to wishlist", func(t *testing.T) {
 		token := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(token)
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -191,7 +191,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 	t.Run("NEG-ADD-004: Admin role cannot add item to wishlist", func(t *testing.T) {
 		token := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(token)
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -203,7 +203,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -218,7 +218,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{}
+		addReq := map[string]any{}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
@@ -227,7 +227,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": "not-a-number",
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -238,7 +238,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, "/api/product/wishlist/99999/item", addReq)
@@ -249,7 +249,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, "/api/product/wishlist/abc/item", addReq)
@@ -267,7 +267,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 			client.SetToken(token)
 
 			// variantID1 was already added in HP-ADD-001
-			addReq := map[string]interface{}{
+			addReq := map[string]any{
 				"variantId": variantID1,
 			}
 			w := client.Post(
@@ -287,7 +287,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": 0,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -300,7 +300,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": 9999999999,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -321,7 +321,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": -1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID), addReq)
@@ -336,7 +336,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, "/api/product/wishlist/1;DROP TABLE wishlist;--/item", addReq)
@@ -348,7 +348,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		aliceToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(aliceToken)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID2,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", michaelWishlistID), addReq)
@@ -457,7 +457,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		token := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 		client.SetToken(token)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": variantID1,
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", michaelWishlistID), addReq)
@@ -643,7 +643,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		client.SetToken(token)
 
 		// Add a new item
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": uint(7), // MacBook Pro variant
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID2), addReq)
@@ -683,7 +683,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		client.SetToken(token)
 
 		// Create a fresh wishlist for this test
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name": "Integration Test Wishlist",
 		}
 		w := client.Post(t, "/api/product/wishlist", createReq)
@@ -692,7 +692,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		testWishlistID := uint(wishlistData["id"].(float64))
 
 		// Add item
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": uint(14), // Running Shoes variant
 		}
 		w = client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", testWishlistID), addReq)
@@ -725,7 +725,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		aliceToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(aliceToken)
 
-		addReq := map[string]interface{}{
+		addReq := map[string]any{
 			"variantId": uint(16), // Sofa variant
 		}
 		w := client.Post(t, fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID2), addReq)

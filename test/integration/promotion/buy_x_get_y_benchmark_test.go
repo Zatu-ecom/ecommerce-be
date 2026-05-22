@@ -16,7 +16,7 @@ func BenchmarkBuyXGetYStrategySameRewardLargeQuantity(b *testing.B) {
 	promotion := &entity.Promotion{
 		Name:      "BxGy Same Category",
 		AppliesTo: entity.ScopeAllProducts,
-		DiscountConfig: map[string]interface{}{
+		DiscountConfig: map[string]any{
 			"buy_quantity":   2,
 			"get_quantity":   1,
 			"is_same_reward": true,
@@ -67,7 +67,7 @@ func BenchmarkBuyXGetYStrategyCrossRewardLargeQuantity(b *testing.B) {
 	promotion := &entity.Promotion{
 		Name:      "Buy Phone Get Headphones",
 		AppliesTo: entity.ScopeAllProducts,
-		DiscountConfig: map[string]interface{}{
+		DiscountConfig: map[string]any{
 			"buy_quantity":   1,
 			"get_quantity":   1,
 			"is_same_reward": false,

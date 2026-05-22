@@ -48,8 +48,8 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 	*/
 
 	// Helper function to create an option
-	createOption := func(productID int, name string, displayName string, position int) map[string]interface{} {
-		requestBody := map[string]interface{}{
+	createOption := func(productID int, name string, displayName string, position int) map[string]any {
+		requestBody := map[string]any{
 			"name":        name,
 			"displayName": displayName,
 			"position":    position,
@@ -62,8 +62,8 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 	}
 
 	// Helper function to bulk add option values
-	bulkAddOptionValues := func(productID int, optionID int, values []map[string]interface{}) *httptest.ResponseRecorder {
-		requestBody := map[string]interface{}{
+	bulkAddOptionValues := func(productID int, optionID int, values []map[string]any) *httptest.ResponseRecorder {
+		requestBody := map[string]any{
 			"values": values,
 		}
 
@@ -72,8 +72,8 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 	}
 
 	// Helper function to bulk update option values
-	bulkUpdateOptionValues := func(productID int, optionID int, updates []map[string]interface{}) *httptest.ResponseRecorder {
-		requestBody := map[string]interface{}{
+	bulkUpdateOptionValues := func(productID int, optionID int, updates []map[string]any) *httptest.ResponseRecorder {
+		requestBody := map[string]any{
 			"values": updates,
 		}
 
@@ -90,7 +90,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use existing values from seed data: 23, 24, 25
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{
 				"valueId":     23,
 				"displayName": "Extra Small Updated",
@@ -112,7 +112,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify response structure
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok, "Response should have data field")
 
 		updatedCount, ok := data["updatedCount"].(float64)
@@ -129,19 +129,19 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		optionID := int(option["id"].(float64))
 
 		// Add initial values
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "opt1", "displayName": "Option 1", "colorCode": "#FF0000", "position": 1},
 			{"value": "opt2", "displayName": "Option 2", "colorCode": "#00FF00", "position": 2},
 		}
 		addResponse := bulkAddOptionValues(6, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
-		valueId1 := uint(optionValues[0].(map[string]interface{})["id"].(float64))
-		valueId2 := uint(optionValues[1].(map[string]interface{})["id"].(float64))
+		valueId1 := uint(optionValues[0].(map[string]any)["id"].(float64))
+		valueId2 := uint(optionValues[1].(map[string]any)["id"].(float64))
 
 		// Update only displayName
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId1, "displayName": "Updated Option 1"},
 			{"valueId": valueId2, "displayName": "Updated Option 2"},
 		}
@@ -149,7 +149,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(6, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -158,7 +158,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use existing color values: 28, 29
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 28, "colorCode": "#111111"},
 			{"valueId": 29, "colorCode": "#EEEEEE"},
 		}
@@ -166,7 +166,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(5, 9, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -178,21 +178,21 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(7, "test_position", "Test Position Update", 1)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "pos1", "displayName": "Position 1", "position": 1},
 			{"value": "pos2", "displayName": "Position 2", "position": 2},
 			{"value": "pos3", "displayName": "Position 3", "position": 3},
 		}
 		addResponse := bulkAddOptionValues(7, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
-		valueId1 := uint(optionValues[0].(map[string]interface{})["id"].(float64))
-		valueId2 := uint(optionValues[1].(map[string]interface{})["id"].(float64))
-		valueId3 := uint(optionValues[2].(map[string]interface{})["id"].(float64))
+		valueId1 := uint(optionValues[0].(map[string]any)["id"].(float64))
+		valueId2 := uint(optionValues[1].(map[string]any)["id"].(float64))
+		valueId3 := uint(optionValues[2].(map[string]any)["id"].(float64))
 
 		// Update only positions
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId1, "position": 100},
 			{"valueId": valueId2, "position": 200},
 			{"valueId": valueId3, "position": 300},
@@ -201,7 +201,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(7, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"])
 	})
 
@@ -213,21 +213,21 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(5, "test_mixed", "Test Mixed Update", 10)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "mix1", "displayName": "Mix 1", "colorCode": "#AAAAAA", "position": 1},
 			{"value": "mix2", "displayName": "Mix 2", "colorCode": "#BBBBBB", "position": 2},
 			{"value": "mix3", "displayName": "Mix 3", "colorCode": "#CCCCCC", "position": 3},
 		}
 		addResponse := bulkAddOptionValues(5, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
-		valueId1 := uint(optionValues[0].(map[string]interface{})["id"].(float64))
-		valueId2 := uint(optionValues[1].(map[string]interface{})["id"].(float64))
-		valueId3 := uint(optionValues[2].(map[string]interface{})["id"].(float64))
+		valueId1 := uint(optionValues[0].(map[string]any)["id"].(float64))
+		valueId2 := uint(optionValues[1].(map[string]any)["id"].(float64))
+		valueId3 := uint(optionValues[2].(map[string]any)["id"].(float64))
 
 		// Mixed updates
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId1, "displayName": "Updated Mix 1"},
 			{"valueId": valueId2, "colorCode": "#DDDDDD"},
 			{"valueId": valueId3, "displayName": "Updated Mix 3", "position": 99},
@@ -236,7 +236,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(5, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"])
 	})
 
@@ -245,14 +245,14 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update single value from seed data
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 26, "displayName": "Extra Large Single Update", "position": 50},
 		}
 
 		w := bulkUpdateOptionValues(5, 8, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"])
 	})
 
@@ -264,23 +264,23 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(6, "test_keep", "Test Keep Existing", 10)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "keep1", "displayName": "Keep 1", "colorCode": "#123456", "position": 1},
 		}
 		addResponse := bulkAddOptionValues(6, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
-		valueId := uint(optionValues[0].(map[string]interface{})["id"].(float64))
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
+		valueId := uint(optionValues[0].(map[string]any)["id"].(float64))
 
 		// Update with empty optional fields
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId, "displayName": "", "colorCode": ""},
 		}
 
 		w := bulkUpdateOptionValues(6, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"])
 	})
 
@@ -292,7 +292,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(7, "test_all", "Test Update All", 10)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "all1", "displayName": "All 1", "position": 1},
 			{"value": "all2", "displayName": "All 2", "position": 2},
 			{"value": "all3", "displayName": "All 3", "position": 3},
@@ -300,13 +300,13 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		}
 		addResponse := bulkAddOptionValues(7, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
 		// Update all 4 values
-		updates := []map[string]interface{}{}
+		updates := []map[string]any{}
 		for i, ov := range optionValues {
-			valueId := uint(ov.(map[string]interface{})["id"].(float64))
-			updates = append(updates, map[string]interface{}{
+			valueId := uint(ov.(map[string]any)["id"].(float64))
+			updates = append(updates, map[string]any{
 				"valueId":     valueId,
 				"displayName": fmt.Sprintf("Updated All %d", i+1),
 			})
@@ -315,7 +315,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(7, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(4), data["updatedCount"])
 	})
 
@@ -324,7 +324,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use existing values and reorder: 27 (was 5) → 1, 26 (was 4) → 2, 23 (was 1) → 3
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 27, "position": 1},
 			{"valueId": 26, "position": 2},
 			{"valueId": 23, "position": 3},
@@ -333,7 +333,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(5, 8, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(3), data["updatedCount"])
 	})
 
@@ -342,7 +342,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Update multiple values to same position
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 30, "position": 1},
 			{"valueId": 31, "position": 1},
 		}
@@ -350,7 +350,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(5, 9, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -361,7 +361,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 	t.Run("Unauthorized - No token", func(t *testing.T) {
 		client.SetToken("")
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
@@ -373,7 +373,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
@@ -386,7 +386,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Product 1 belongs to john.seller@example.com, not seller@example.com
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 1, "displayName": "Test"},
 		}
 
@@ -400,7 +400,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 
 		// Admin bulk updates values on Product 5 (owned by seller_id 3)
 		// Values 23, 24, 25 = S, M, L
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Small Size - Admin"},
 			{"valueId": 24, "displayName": "Medium Size - Admin"},
 		}
@@ -409,10 +409,10 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify response structure
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok, "Response should have data field")
 		if ok && data != nil {
-			optionValues, ok := data["optionValues"].([]interface{})
+			optionValues, ok := data["optionValues"].([]any)
 			if ok {
 				assert.GreaterOrEqual(t, len(optionValues), 1, "Should have at least 1 updated value")
 			}
@@ -425,7 +425,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 
 		// Admin bulk updates values on Product 1 (owned by seller_id 2)
 		// Values 1, 2 = Natural Titanium, Blue Titanium
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 1, "displayName": "Natural Titanium - Admin Updated"},
 			{"valueId": 2, "displayName": "Blue Titanium - Admin Updated", "colorCode": "#4169E1"},
 		}
@@ -434,10 +434,10 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
 		// Verify response structure
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		assert.True(t, ok, "Response should have data field")
 		if ok && data != nil {
-			optionValues, ok := data["optionValues"].([]interface{})
+			optionValues, ok := data["optionValues"].([]any)
 			if ok {
 				assert.GreaterOrEqual(t, len(optionValues), 1, "Should have at least 1 updated value")
 			}
@@ -452,11 +452,11 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
-		requestBody := map[string]interface{}{"values": updates}
+		requestBody := map[string]any{"values": updates}
 		w := client.Put(t, "/api/product/invalid/option/8/value/bulk-update", requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -466,11 +466,11 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
-		requestBody := map[string]interface{}{"values": updates}
+		requestBody := map[string]any{"values": updates}
 		w := client.Put(t, "/api/product/5/option/abc/value/bulk-update", requestBody)
 
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
@@ -480,7 +480,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
@@ -492,7 +492,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
@@ -508,8 +508,8 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
-			"values": []map[string]interface{}{},
+		requestBody := map[string]any{
+			"values": []map[string]any{},
 		}
 
 		url := "/api/product/5/option/8/value/bulk-update"
@@ -522,7 +522,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 
 		url := "/api/product/5/option/8/value/bulk-update"
 		w := client.Put(t, url, requestBody)
@@ -534,7 +534,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"displayName": "Updated", "position": 1},
 		}
 
@@ -547,7 +547,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		longDisplayName := strings.Repeat("a", 101)
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": longDisplayName},
 		}
 
@@ -559,7 +559,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"values": "not-an-array",
 		}
 
@@ -578,7 +578,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Option 8 belongs to product 5, try with product 6
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Test"},
 		}
 
@@ -590,7 +590,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 99999, "displayName": "Non-existent"},
 		}
 
@@ -603,7 +603,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Value 23 belongs to option 8, try to update via option 9
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Wrong Option"},
 		}
 
@@ -616,7 +616,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Mix of valid (23, 24) and invalid (99999) value IDs
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "displayName": "Valid 1"},
 			{"valueId": 99999, "displayName": "Invalid"},
 			{"valueId": 24, "displayName": "Valid 2"},
@@ -638,7 +638,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(5, "test_partial", "Test Partial Update", 20)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "part1", "displayName": "Part 1", "position": 1},
 			{"value": "part2", "displayName": "Part 2", "position": 2},
 			{"value": "part3", "displayName": "Part 3", "position": 3},
@@ -646,13 +646,13 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		}
 		addResponse := bulkAddOptionValues(5, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
-		valueId1 := uint(optionValues[0].(map[string]interface{})["id"].(float64))
-		valueId3 := uint(optionValues[2].(map[string]interface{})["id"].(float64))
+		valueId1 := uint(optionValues[0].(map[string]any)["id"].(float64))
+		valueId3 := uint(optionValues[2].(map[string]any)["id"].(float64))
 
 		// Update only 1st and 3rd values
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId1, "displayName": "Updated Part 1"},
 			{"valueId": valueId3, "displayName": "Updated Part 3"},
 		}
@@ -660,7 +660,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		w := bulkUpdateOptionValues(5, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(2), data["updatedCount"])
 	})
 
@@ -669,7 +669,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Try to update same value twice
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 27, "displayName": "First Update"},
 			{"valueId": 27, "displayName": "Second Update"},
 		}
@@ -688,19 +688,19 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(6, "test_atomic", "Test Atomic Update", 20)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "atom1", "displayName": "Atomic 1", "position": 1},
 			{"value": "atom2", "displayName": "Atomic 2", "position": 2},
 		}
 		addResponse := bulkAddOptionValues(6, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
 
-		valueId1 := uint(optionValues[0].(map[string]interface{})["id"].(float64))
-		valueId2 := uint(optionValues[1].(map[string]interface{})["id"].(float64))
+		valueId1 := uint(optionValues[0].(map[string]any)["id"].(float64))
+		valueId2 := uint(optionValues[1].(map[string]any)["id"].(float64))
 
 		// Try to update with one valid and one invalid
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId1, "displayName": "Should Not Update 1"},
 			{"valueId": valueId2, "displayName": "Should Not Update 2"},
 			{"valueId": 99999, "displayName": "Invalid ID"},
@@ -711,7 +711,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 
 		// Verify first two values were NOT updated by trying to update them again
 		// If rollback worked, this should succeed
-		verifyUpdates := []map[string]interface{}{
+		verifyUpdates := []map[string]any{
 			{"valueId": valueId1, "displayName": "Verify Update 1"},
 		}
 		wVerify := bulkUpdateOptionValues(6, optionID, verifyUpdates)
@@ -726,23 +726,23 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		option := createOption(7, "test_color_keep", "Test Color Keep", 20)
 		optionID := int(option["id"].(float64))
 
-		initialValues := []map[string]interface{}{
+		initialValues := []map[string]any{
 			{"value": "color1", "displayName": "Color 1", "colorCode": "#FF0000", "position": 1},
 		}
 		addResponse := bulkAddOptionValues(7, optionID, initialValues)
 		addData := helpers.AssertSuccessResponse(t, addResponse, http.StatusCreated)
-		optionValues := addData["data"].(map[string]interface{})["optionValues"].([]interface{})
-		valueId := uint(optionValues[0].(map[string]interface{})["id"].(float64))
+		optionValues := addData["data"].(map[string]any)["optionValues"].([]any)
+		valueId := uint(optionValues[0].(map[string]any)["id"].(float64))
 
 		// Update with empty colorCode
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": valueId, "colorCode": ""},
 		}
 
 		w := bulkUpdateOptionValues(7, optionID, updates)
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(1), data["updatedCount"])
 	})
 
@@ -751,7 +751,7 @@ func TestBulkUpdateOptionValues(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Try to update position to negative
-		updates := []map[string]interface{}{
+		updates := []map[string]any{
 			{"valueId": 23, "position": -1},
 		}
 

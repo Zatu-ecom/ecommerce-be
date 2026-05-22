@@ -40,10 +40,10 @@ func TestCreateVariant(t *testing.T) {
 		// Product 5 is Classic Cotton T-Shirt with Size and Color options
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "NIKE-TSHIRT-NAVY-XL",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XL"},
 				{"optionName": "Color", "value": "Navy"},
 			},
@@ -64,7 +64,7 @@ func TestCreateVariant(t *testing.T) {
 		assert.NotNil(t, variant["updatedAt"])
 
 		// Check selected options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Len(t, selectedOptions, 2, "Should have 2 selected options")
 	})
@@ -75,17 +75,13 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
-			"sku":   "NIKE-TSHIRT-GRAY-XL",
-			"price": 34.99,
-			"images": []string{
-				"https://example.com/img1.jpg",
-				"https://example.com/img2.jpg",
-			},
+		requestBody := map[string]any{
+			"sku":           "NIKE-TSHIRT-GRAY-XL",
+			"price":         34.99,
 			"allowPurchase": true,
 			"isPopular":     true,
 			"isDefault":     false,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XL"},
 				{"optionName": "Color", "value": "Gray"},
 			},
@@ -104,10 +100,10 @@ func TestCreateVariant(t *testing.T) {
 		assert.True(t, variant["isPopular"].(bool))
 		assert.False(t, variant["isDefault"].(bool))
 
-		// Check images
-		images, ok := variant["images"].([]interface{})
-		assert.True(t, ok, "Images should be an array")
-		assert.Len(t, images, 2, "Should have 2 images")
+		// Media is managed via the variant media endpoints; a new variant has empty media
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be an array")
+		assert.Empty(t, media, "New variant should have no media")
 	})
 
 	t.Run("Success - Variant creation with single option", func(t *testing.T) {
@@ -120,10 +116,10 @@ func TestCreateVariant(t *testing.T) {
 		productID := 7 // Running Shoes
 
 		// Create variant with both required options (Size and Color)
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "ADIDAS-RUN-BW-12",
 			"price": 89.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "12"},
 				{"optionName": "Color", "value": "Black/White"},
 			},
@@ -136,7 +132,7 @@ func TestCreateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		// Check options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 		assert.GreaterOrEqual(t, len(selectedOptions), 1, "Should have at least 1 selected option")
 	})
@@ -149,10 +145,10 @@ func TestCreateVariant(t *testing.T) {
 		// Product 3 is MacBook Pro with Color, Memory, and Storage options (owned by seller_id 2)
 		productID := 3
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "MBP-16-M3-SB-32-1TB",
 			"price": 2999.00,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Color", "value": "Space Black"},
 				{"optionName": "Memory", "value": "32GB"},
 				{"optionName": "Storage", "value": "1TB"},
@@ -166,7 +162,7 @@ func TestCreateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		// Check all 3 options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, selectedOptions, 3, "Should have 3 selected options")
 
@@ -174,24 +170,16 @@ func TestCreateVariant(t *testing.T) {
 		assert.Equal(t, 2999.00, variant["price"])
 	})
 
-	t.Run("Success - Variant creation with multiple images", func(t *testing.T) {
+	t.Run("Success - Variant creation response includes empty media array", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 7 // Running Shoes
 
-		images := []string{
-			"https://example.com/shoe-front.jpg",
-			"https://example.com/shoe-side.jpg",
-			"https://example.com/shoe-back.jpg",
-			"https://example.com/shoe-sole.jpg",
-		}
-
-		requestBody := map[string]interface{}{
-			"sku":    "ADIDAS-RUN-BO-11",
-			"price":  89.99,
-			"images": images,
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"sku":   "ADIDAS-RUN-BO-11",
+			"price": 89.99,
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "11"},
 				{"optionName": "Color", "value": "Blue/Orange"},
 			},
@@ -203,23 +191,22 @@ func TestCreateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		// Check images
-		returnedImages, ok := variant["images"].([]interface{})
-		assert.True(t, ok, "Images should be an array")
-		assert.Len(t, returnedImages, 4, "Should have 4 images")
+		// Images are managed via POST /variant/:id/media; new variants start with empty media
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be an array")
+		assert.Empty(t, media, "Newly created variant should have no media")
 	})
 
-	t.Run("Success - Variant creation with empty images array", func(t *testing.T) {
+	t.Run("Success - Variant creation response always has media field", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
 		productID := 7 // Running Shoes
 
-		requestBody := map[string]interface{}{
-			"sku":    "ADIDAS-RUN-AB-11",
-			"price":  89.99,
-			"images": []string{},
-			"options": []map[string]interface{}{
+		requestBody := map[string]any{
+			"sku":   "ADIDAS-RUN-AB-11",
+			"price": 89.99,
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "11"},
 				{"optionName": "Color", "value": "All Black"},
 			},
@@ -231,14 +218,10 @@ func TestCreateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		// Check images is empty or nil
-		images, hasImages := variant["images"]
-		if hasImages && images != nil {
-			imagesArray, isArray := images.([]interface{})
-			if isArray {
-				assert.Empty(t, imagesArray, "Images array should be empty")
-			}
-		}
+		// media field must always be present (never nil) even when empty
+		media, ok := variant["media"].([]any)
+		assert.True(t, ok, "media should be a JSON array")
+		assert.Empty(t, media)
 	})
 
 	t.Run("Success - Variant creation as default variant", func(t *testing.T) {
@@ -247,11 +230,11 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 6 // Summer Dress
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":       "ZARA-DRESS-BLUE-L",
 			"price":     49.99,
 			"isDefault": true,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "L"},
 				{"optionName": "Color", "value": "Floral Blue"},
 			},
@@ -272,11 +255,11 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 6 // Summer Dress
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":       "ZARA-DRESS-PINK-L",
 			"price":     49.99,
 			"isPopular": true,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "L"},
 				{"optionName": "Color", "value": "Floral Pink"},
 			},
@@ -297,10 +280,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 7 // Running Shoes
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "", // Empty SKU
 			"price": 89.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "7"},
 				{"optionName": "Color", "value": "Black/White"},
 			},
@@ -325,10 +308,10 @@ func TestCreateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -343,10 +326,10 @@ func TestCreateVariant(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -365,9 +348,9 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku": "TEST-SKU",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -384,10 +367,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 0,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -404,10 +387,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": -10.50,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -424,10 +407,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt has both Size and Color options
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU-MISSING-COLOR",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "S"},
 			},
 		}
@@ -444,7 +427,7 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
 		}
@@ -461,10 +444,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":     "TEST-SKU",
 			"price":   29.99,
-			"options": []map[string]interface{}{},
+			"options": []map[string]any{},
 		}
 
 		url := fmt.Sprintf("/api/product/%d/variant", productID)
@@ -479,10 +462,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"value": "M"}, // Missing optionName
 			},
 		}
@@ -499,10 +482,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "", "value": "M"},
 			},
 		}
@@ -519,10 +502,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size"}, // Missing value
 			},
 		}
@@ -539,10 +522,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": ""},
 			},
 		}
@@ -561,7 +544,7 @@ func TestCreateVariant(t *testing.T) {
 		url := fmt.Sprintf("/api/product/%d/variant", productID)
 
 		// Test with empty body (missing all required fields)
-		requestBody := map[string]interface{}{}
+		requestBody := map[string]any{}
 		w := client.Post(t, url, requestBody)
 
 		// Should fail due to missing required fields
@@ -578,10 +561,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 99999 // Non-existent product
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -602,10 +585,10 @@ func TestCreateVariant(t *testing.T) {
 			productID := 1
 
 			// Use a unique combination that doesn't exist in seed data
-			requestBody := map[string]interface{}{
+			requestBody := map[string]any{
 				"sku":   "IPHONE-HACK",
 				"price": 999.00,
-				"options": []map[string]interface{}{
+				"options": []map[string]any{
 					{"optionName": "Color", "value": "Black Titanium"}, // Different color
 					{"optionName": "Storage", "value": "1TB"},          // Different storage
 				},
@@ -626,10 +609,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt has Size and Color options
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"optionName": "Material",
 					"value":      "Cotton",
@@ -649,10 +632,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XXXL"}, // XXXL doesn't exist as a value
 			},
 		}
@@ -670,10 +653,10 @@ func TestCreateVariant(t *testing.T) {
 		productID := 5 // T-Shirt
 
 		// First create a variant
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "NIKE-TSHIRT-WHITE-XXL",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XXL"},
 				{"optionName": "Color", "value": "White"},
 			},
@@ -684,10 +667,10 @@ func TestCreateVariant(t *testing.T) {
 		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 
 		// Try to create another variant with the same option combination
-		requestBody2 := map[string]interface{}{
+		requestBody2 := map[string]any{
 			"sku":   "NIKE-TSHIRT-WHITE-XXL-DUPLICATE",
 			"price": 34.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XXL"},
 				{"optionName": "Color", "value": "White"},
 			},
@@ -704,10 +687,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt has only Size and Color
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 				{"optionName": "Color", "value": "Black"},
 				{"optionName": "Storage", "value": "128GB"}, // Storage doesn't belong to T-Shirt
@@ -726,10 +709,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 				{"optionName": "Size", "value": "L"}, // Duplicate Size option
 			},
@@ -751,10 +734,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -770,10 +753,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -790,10 +773,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "TEST-SKU",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 			},
 		}
@@ -811,10 +794,10 @@ func TestCreateVariant(t *testing.T) {
 		// Try to create variant for product owned by seller_id 2
 		productID := 1 // iPhone 15 Pro
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "IPHONE-15-PRO-WHT-512",
 			"price": 1199.00,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Color", "value": "White Titanium"},
 				{"optionName": "Storage", "value": "512GB"},
 			},
@@ -836,10 +819,10 @@ func TestCreateVariant(t *testing.T) {
 		// Admin creates variant for product owned by seller_id 3
 		productID := 6 // Summer Dress (owned by seller_id 3)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "ZARA-DRESS-WHITE-M-ADMIN",
 			"price": 49.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "M"},
 				{"optionName": "Color", "value": "Solid White"},
 			},
@@ -858,7 +841,7 @@ func TestCreateVariant(t *testing.T) {
 		assert.Equal(t, 49.99, variant["price"])
 
 		// Verify selected options
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Len(t, selectedOptions, 2, "Should have 2 selected options")
 	})
@@ -873,14 +856,13 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 6 // Summer Dress
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":           "ZARA-DRESS-BLUE-XL",
 			"price":         54.99,
-			"images":        []string{"https://example.com/dress.jpg"},
 			"allowPurchase": true,
 			"isPopular":     false,
 			"isDefault":     false,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "XL"},
 				{"optionName": "Color", "value": "Floral Blue"},
 			},
@@ -906,7 +888,7 @@ func TestCreateVariant(t *testing.T) {
 
 		// Check product info (if included)
 		if product, hasProduct := variant["product"]; hasProduct && product != nil {
-			productInfo := product.(map[string]interface{})
+			productInfo := product.(map[string]any)
 			assert.NotNil(t, productInfo["id"], "Product info should have ID")
 			assert.NotNil(t, productInfo["name"], "Product info should have name")
 		}
@@ -918,10 +900,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 7 // Running Shoes
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "ADIDAS-RUN-BW-8",
 			"price": 89.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "8"},
 				{"optionName": "Color", "value": "Black/White"},
 			},
@@ -949,10 +931,10 @@ func TestCreateVariant(t *testing.T) {
 
 		productID := 5 // T-Shirt
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"sku":   "NIKE-TSHIRT-NAVY-S",
 			"price": 29.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "Size", "value": "S"},
 				{"optionName": "Color", "value": "Navy"},
 			},
@@ -965,13 +947,13 @@ func TestCreateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		// Check selected options mapping
-		selectedOptions, ok := variant["selectedOptions"].([]interface{})
+		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok, "selectedOptions should be an array")
 		assert.Len(t, selectedOptions, 2, "Should have 2 selected options")
 
 		// Verify each option has required fields
 		for _, opt := range selectedOptions {
-			option := opt.(map[string]interface{})
+			option := opt.(map[string]any)
 			assert.NotNil(t, option["optionId"], "Option should have optionId")
 			assert.NotNil(t, option["optionName"], "Option should have optionName")
 			assert.NotNil(t, option["optionDisplayName"], "Option should have optionDisplayName")

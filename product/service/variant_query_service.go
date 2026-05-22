@@ -92,6 +92,7 @@ type VariantQueryServiceImpl struct {
 	wishlistItemService WishlistItemService
 	optionService       ProductOptionService
 	validatorService    ProductValidatorService
+	variantMediaService VariantMediaService
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
@@ -100,12 +101,14 @@ func NewVariantQueryService(
 	wishlistItemService WishlistItemService,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
+	variantMediaService VariantMediaService,
 ) VariantQueryService {
 	return &VariantQueryServiceImpl{
 		variantRepo:         variantRepo,
 		wishlistItemService: wishlistItemService,
 		optionService:       optionService,
 		validatorService:    validatorService,
+		variantMediaService: variantMediaService,
 	}
 }
 
@@ -137,6 +140,13 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 	response, err := s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Enrich with media (best-effort: never fails the variant response).
+	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, []uint{variantID}, nil); mErr == nil {
+		if items, ok := mediaMap[variantID]; ok {
+			response.Media = items
+		}
 	}
 
 	// Check if variant is wishlisted by user (if userID is provided)
@@ -226,8 +236,22 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 		return []model.VariantDetailResponse{}, nil
 	}
 
-	// Use factory to build variants detail response
-	return factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions), nil
+	responses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+
+	// Batch-enrich with media.
+	variantIDs := make([]uint, len(responses))
+	for i, v := range responses {
+		variantIDs[i] = v.ID
+	}
+	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, nil); mErr == nil {
+		for i := range responses {
+			if items, ok := mediaMap[responses[i].ID]; ok {
+				responses[i].Media = items
+			}
+		}
+	}
+
+	return responses, nil
 }
 
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
@@ -339,6 +363,21 @@ func (s *VariantQueryServiceImpl) ListVariants(
 			// Set IsWishlisted for each variant
 			for i := range variantResponses {
 				variantResponses[i].IsWishlisted = wishlistMap[variantResponses[i].ID]
+			}
+		}
+	}
+
+	// Batch-enrich with media.
+	if len(variantResponses) > 0 {
+		variantIDs := make([]uint, len(variantResponses))
+		for i, v := range variantResponses {
+			variantIDs[i] = v.ID
+		}
+		if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, nil); mErr == nil {
+			for i := range variantResponses {
+				if items, ok := mediaMap[variantResponses[i].ID]; ok {
+					variantResponses[i].Media = items
+				}
 			}
 		}
 	}

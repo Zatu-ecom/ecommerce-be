@@ -39,26 +39,26 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		isDefault := true
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Multiple Defaults",
 			"categoryId": 4,
 			"baseSku":    "TEST-MULTI-DEFAULT-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 						{"value": "white", "displayName": "White"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":       "TEST-MULTI-DEFAULT-001-BLK",
 					"price":     99.99,
 					"isDefault": isDefault, // First default
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -66,7 +66,7 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 					"sku":       "TEST-MULTI-DEFAULT-001-WHT",
 					"price":     99.99,
 					"isDefault": isDefault, // Second default - last one wins
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "white"},
 					},
 				},
@@ -79,15 +79,15 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		product := helpers.GetResponseData(t, response, "product")
 
-		variants, ok := product["variants"].([]interface{})
+		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "variants should be an array")
 		assert.Len(t, variants, 2, "Should have 2 variants")
 
 		// Verify only one variant is marked as default (the last one - White)
 		defaultCount := 0
-		var defaultVariant map[string]interface{}
+		var defaultVariant map[string]any
 		for _, v := range variants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			if isDefault, ok := variant["isDefault"].(bool); ok && isDefault {
 				defaultCount++
 				defaultVariant = variant
@@ -107,15 +107,15 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Invalid Option Combo",
 			"categoryId": 4,
 			"baseSku":    "TEST-INVALID-COMBO-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 						{"value": "white", "displayName": "White"},
 					},
@@ -123,17 +123,17 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 				{
 					"name":        "size",
 					"displayName": "Size",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "m", "displayName": "Medium"},
 						{"value": "l", "displayName": "Large"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-INVALID-COMBO-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{
 							"optionName": "color",
 							"value":      "red",
@@ -154,31 +154,31 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Missing Option",
 			"categoryId": 4,
 			"baseSku":    "TEST-MISSING-OPT-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 					},
 				},
 				{
 					"name":        "size",
 					"displayName": "Size",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "m", "displayName": "Medium"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-MISSING-OPT-001-V1",
 					"price": 299.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 						// Missing Size option - should fail validation
 					},
@@ -196,29 +196,29 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Zero Price Package",
 			"categoryId": 4,
 			"baseSku":    "TEST-ZERO-PKG-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "Color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "Black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-ZERO-PKG-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "Color", "value": "Black"},
 					},
 				},
 			},
-			"packageOptions": []map[string]interface{}{
+			"packageOptions": []map[string]any{
 				{
 					"name":        "Free Warranty",
 					"description": "Extended warranty",
@@ -238,29 +238,29 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Negative Price Package",
 			"categoryId": 4,
 			"baseSku":    "TEST-NEG-PKG-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "Color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "Black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-NEG-PKG-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "Color", "value": "Black"},
 					},
 				},
 			},
-			"packageOptions": []map[string]interface{}{
+			"packageOptions": []map[string]any{
 				{
 					"name":        "Discount Package",
 					"description": "Special discount",
@@ -280,29 +280,29 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Zero Quantity Package",
 			"categoryId": 4,
 			"baseSku":    "TEST-ZERO-QTY-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "Color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "Black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-ZERO-QTY-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "Color", "value": "Black"},
 					},
 				},
 			},
-			"packageOptions": []map[string]interface{}{
+			"packageOptions": []map[string]any{
 				{
 					"name":        "Empty Package",
 					"description": "Package with no items",
@@ -322,29 +322,29 @@ func TestCreateProductBusinessLogic(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":       "Test Product - Negative Quantity Package",
 			"categoryId": 4,
 			"baseSku":    "TEST-NEG-QTY-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "Color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "Black", "displayName": "Black"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-NEG-QTY-001-V1",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "Color", "value": "Black"},
 					},
 				},
 			},
-			"packageOptions": []map[string]interface{}{
+			"packageOptions": []map[string]any{
 				{
 					"name":        "Negative Package",
 					"description": "Invalid package",

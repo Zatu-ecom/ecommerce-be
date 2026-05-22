@@ -37,7 +37,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create a global category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Delete Test Global Category",
 			"description": "Category to be deleted",
 		}
@@ -73,7 +73,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create a seller-specific category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller Delete Test Category",
 			"description": "Seller category to be deleted",
 		}
@@ -131,7 +131,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent For Delete Test",
 			"description": "Parent category with children",
 		}
@@ -145,7 +145,7 @@ func TestDeleteCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create child category
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child For Delete Test",
 			"description": "Child category",
 			"parentId":    parentID,
@@ -181,7 +181,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create parent category
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Parent With Both Delete Test",
 			"description": "Parent with children and products",
 		}
@@ -195,7 +195,7 @@ func TestDeleteCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create child category
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Child For Both Delete Test",
 			"description": "Child category",
 			"parentId":    parentID,
@@ -203,7 +203,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.Post(t, "/api/product/category", childReq)
 
 		// Create product in parent category
-		productReq := map[string]interface{}{
+		productReq := map[string]any{
 			"name":        "Product In Parent Delete Test",
 			"description": "Product in parent",
 			"price":       49.99,
@@ -249,7 +249,7 @@ func TestDeleteCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Category For Customer Delete Test",
 			"description": "Category that customer will try to delete",
 		}
@@ -289,7 +289,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(seller1Token)
 
 		// Create seller's category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Seller1 Category Delete Test",
 			"description": "Seller1's category",
 		}
@@ -327,7 +327,7 @@ func TestDeleteCategory(t *testing.T) {
 		adminToken := helpers.Login(t, client, helpers.AdminEmail, helpers.AdminPassword)
 		client.SetToken(adminToken)
 
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Global Category Seller Delete Test",
 			"description": "Global category that seller will try to delete",
 		}
@@ -363,7 +363,7 @@ func TestDeleteCategory(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		sellerReq := map[string]interface{}{
+		sellerReq := map[string]any{
 			"name":        "Seller Category Admin Delete Test",
 			"description": "Seller category that admin will delete",
 		}
@@ -381,7 +381,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create global category
-		globalReq := map[string]interface{}{
+		globalReq := map[string]any{
 			"name":        "Global Category Admin Delete Test",
 			"description": "Global category that admin will delete",
 		}
@@ -428,7 +428,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create Parent
-		parentReq := map[string]interface{}{
+		parentReq := map[string]any{
 			"name":        "Grandparent Delete Test",
 			"description": "Top level category",
 		}
@@ -442,7 +442,7 @@ func TestDeleteCategory(t *testing.T) {
 		parentID := uint(parentCategory["id"].(float64))
 
 		// Create Child
-		childReq := map[string]interface{}{
+		childReq := map[string]any{
 			"name":        "Parent Delete Test",
 			"description": "Second level category",
 			"parentId":    parentID,
@@ -457,7 +457,7 @@ func TestDeleteCategory(t *testing.T) {
 		childID := uint(childCategory["id"].(float64))
 
 		// Create Grandchild
-		grandchildReq := map[string]interface{}{
+		grandchildReq := map[string]any{
 			"name":        "Child Delete Test",
 			"description": "Third level category",
 			"parentId":    childID,
@@ -497,7 +497,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Double Delete Test Category",
 			"description": "Category to delete twice",
 		}
@@ -536,7 +536,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create category
-		createReq := map[string]interface{}{
+		createReq := map[string]any{
 			"name":        "Hard Delete Verification Test",
 			"description": "Category to verify hard delete",
 		}
@@ -565,12 +565,12 @@ func TestDeleteCategory(t *testing.T) {
 		getAllAfterW := client.Get(t, "/api/product/category")
 		assert.Equal(t, http.StatusOK, getAllAfterW.Code)
 		getAllResponse := helpers.ParseResponse(t, getAllAfterW.Body)
-		data := getAllResponse["data"].(map[string]interface{})
-		categories := data["categories"].([]interface{})
+		data := getAllResponse["data"].(map[string]any)
+		categories := data["categories"].([]any)
 
 		// Check that deleted category is not in the list
 		for _, cat := range categories {
-			catMap := cat.(map[string]interface{})
+			catMap := cat.(map[string]any)
 			assert.NotEqual(
 				t,
 				categoryID,
@@ -594,7 +594,7 @@ func TestDeleteCategory(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Create A (Level 1)
-		aReq := map[string]interface{}{
+		aReq := map[string]any{
 			"name":        "Level A Delete Test",
 			"description": "Top level",
 		}
@@ -604,7 +604,7 @@ func TestDeleteCategory(t *testing.T) {
 		aID := uint(aCategory["id"].(float64))
 
 		// Create B (Level 2)
-		bReq := map[string]interface{}{
+		bReq := map[string]any{
 			"name":        "Level B Delete Test",
 			"description": "Second level",
 			"parentId":    aID,
@@ -615,7 +615,7 @@ func TestDeleteCategory(t *testing.T) {
 		bID := uint(bCategory["id"].(float64))
 
 		// Create C (Level 3)
-		cReq := map[string]interface{}{
+		cReq := map[string]any{
 			"name":        "Level C Delete Test",
 			"description": "Third level",
 			"parentId":    bID,
@@ -626,7 +626,7 @@ func TestDeleteCategory(t *testing.T) {
 		cID := uint(cCategory["id"].(float64))
 
 		// Create D (Level 4 - leaf)
-		dReq := map[string]interface{}{
+		dReq := map[string]any{
 			"name":        "Level D Delete Test",
 			"description": "Fourth level - leaf node",
 			"parentId":    cID,

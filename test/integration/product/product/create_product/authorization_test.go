@@ -32,24 +32,24 @@ func TestCreateProductAuthorization(t *testing.T) {
 	client := helpers.NewAPIClient(server)
 
 	// Standard request body for authorization tests
-	requestBody := map[string]interface{}{
+	requestBody := map[string]any{
 		"name":       "Test Product - Auth Check",
 		"categoryId": 4,
 		"baseSku":    "TEST-AUTH-001",
-		"options": []map[string]interface{}{
+		"options": []map[string]any{
 			{
 				"name":        "color",
 				"displayName": "Color",
-				"values": []map[string]interface{}{
+				"values": []map[string]any{
 					{"value": "black", "displayName": "Black"},
 				},
 			},
 		},
-		"variants": []map[string]interface{}{
+		"variants": []map[string]any{
 			{
 				"sku":   "TEST-AUTH-001-V1",
 				"price": 99.99,
-				"options": []map[string]interface{}{
+				"options": []map[string]any{
 					{"optionName": "color", "value": "black"},
 				},
 			},

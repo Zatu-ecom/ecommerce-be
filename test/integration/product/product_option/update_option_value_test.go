@@ -51,7 +51,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 	*/
 
 	// Helper function to update an option value
-	updateOptionValue := func(productID int, optionID, valueID int, body map[string]interface{}) *httptest.ResponseRecorder {
+	updateOptionValue := func(productID int, optionID, valueID int, body map[string]any) *httptest.ResponseRecorder {
 		url := fmt.Sprintf("/api/product/%d/option/%d/value/%d", productID, optionID, valueID)
 		return client.Put(t, url, body)
 	}
@@ -65,7 +65,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 8, Value 24 (Medium)
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Medium Size Updated",
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -80,7 +80,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 9, Value 28 (Black)
-		w := updateOptionValue(5, 9, 28, map[string]interface{}{
+		w := updateOptionValue(5, 9, 28, map[string]any{
 			"colorCode": "#FF0000",
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -95,7 +95,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 8, Value 23 (Small)
-		w := updateOptionValue(5, 8, 23, map[string]interface{}{
+		w := updateOptionValue(5, 8, 23, map[string]any{
 			"position": 10,
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -110,7 +110,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 9, Value 29 (White)
-		w := updateOptionValue(5, 9, 29, map[string]interface{}{
+		w := updateOptionValue(5, 9, 29, map[string]any{
 			"displayName": "Pure White",
 			"colorCode":   "#F0F0F0",
 			"position":    5,
@@ -128,7 +128,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 9, Value 30 (Navy)
-		w := updateOptionValue(5, 9, 30, map[string]interface{}{
+		w := updateOptionValue(5, 9, 30, map[string]any{
 			"colorCode": "#ABCDEF",
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -142,7 +142,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Use: Product 5, Option 8, Value 25 (Large)
-		w := updateOptionValue(5, 8, 25, map[string]interface{}{
+		w := updateOptionValue(5, 8, 25, map[string]any{
 			"displayName": "L",
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -157,7 +157,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 
 		// Use: Product 5, Option 8, Value 26 (XL)
 		longName := strings.Repeat("A", 100)
-		w := updateOptionValue(5, 8, 26, map[string]interface{}{
+		w := updateOptionValue(5, 8, 26, map[string]any{
 			"displayName": longName,
 		})
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
@@ -173,7 +173,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 	t.Run("Update without authentication", func(t *testing.T) {
 		client.SetToken("")
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -184,7 +184,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(customerToken)
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Updated by Customer",
 		})
 
@@ -197,7 +197,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		anotherSellerToken := helpers.Login(t, client, "john.seller@example.com", "seller123")
 		client.SetToken(anotherSellerToken)
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Updated by Another Seller",
 		})
 
@@ -209,7 +209,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Admin updates Product 5's option value (owned by seller_id 3)
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Updated by Admin",
 		})
 
@@ -224,7 +224,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(adminToken)
 
 		// Admin updates Product 1's option value (owned by seller_id 2)
-		w := updateOptionValue(1, 1, 1, map[string]interface{}{
+		w := updateOptionValue(1, 1, 1, map[string]any{
 			"displayName": "Titanium Natural - Admin Updated",
 			"colorCode":   "#E5D6C3",
 		})
@@ -243,7 +243,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/product/invalid/option/8/value/24", map[string]interface{}{
+		w := client.Put(t, "/api/product/invalid/option/8/value/24", map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -254,7 +254,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/product/5/option/invalid/value/24", map[string]interface{}{
+		w := client.Put(t, "/api/product/5/option/invalid/value/24", map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -265,7 +265,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := client.Put(t, "/api/product/5/option/8/value/invalid", map[string]interface{}{
+		w := client.Put(t, "/api/product/5/option/8/value/invalid", map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -276,7 +276,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(99999, 8, 24, map[string]interface{}{
+		w := updateOptionValue(99999, 8, 24, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -291,7 +291,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 99999, 24, map[string]interface{}{
+		w := updateOptionValue(5, 99999, 24, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -302,7 +302,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 99999, map[string]interface{}{
+		w := updateOptionValue(5, 8, 99999, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -314,7 +314,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Option 8 belongs to product 5, try with product 6
-		w := updateOptionValue(6, 8, 24, map[string]interface{}{
+		w := updateOptionValue(6, 8, 24, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -326,7 +326,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Value 28 belongs to option 9, try with option 8
-		w := updateOptionValue(5, 8, 28, map[string]interface{}{
+		w := updateOptionValue(5, 8, 28, map[string]any{
 			"displayName": "Updated",
 		})
 
@@ -341,7 +341,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{})
+		w := updateOptionValue(5, 8, 24, map[string]any{})
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -350,7 +350,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "",
 		})
 
@@ -362,7 +362,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		longName := strings.Repeat("A", 101)
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": longName,
 		})
 
@@ -377,7 +377,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 27, map[string]interface{}{
+		w := updateOptionValue(5, 8, 27, map[string]any{
 			"position": 0,
 		})
 
@@ -393,7 +393,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 23, map[string]interface{}{
+		w := updateOptionValue(5, 8, 23, map[string]any{
 			"position": -1,
 		})
 
@@ -409,7 +409,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
-		w := updateOptionValue(5, 8, 24, map[string]interface{}{
+		w := updateOptionValue(5, 8, 24, map[string]any{
 			"displayName": "Test™ Value® with Special©",
 		})
 
@@ -423,7 +423,7 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Value 28 has color code #000000
-		w := updateOptionValue(5, 9, 28, map[string]interface{}{
+		w := updateOptionValue(5, 9, 28, map[string]any{
 			"colorCode": "",
 		})
 
@@ -441,19 +441,19 @@ func TestUpdateOptionValueSimple(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// First update
-		w1 := updateOptionValue(5, 9, 31, map[string]interface{}{
+		w1 := updateOptionValue(5, 9, 31, map[string]any{
 			"displayName": "Updated Once",
 		})
 		helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 
 		// Second update
-		w2 := updateOptionValue(5, 9, 31, map[string]interface{}{
+		w2 := updateOptionValue(5, 9, 31, map[string]any{
 			"displayName": "Updated Twice",
 		})
 		helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 
 		// Third update
-		w3 := updateOptionValue(5, 9, 31, map[string]interface{}{
+		w3 := updateOptionValue(5, 9, 31, map[string]any{
 			"displayName": "Updated Three Times",
 			"position":    10,
 		})

@@ -41,33 +41,33 @@ func TestCreateProductIntegration(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create product
-		createRequest := map[string]interface{}{
+		createRequest := map[string]any{
 			"name":       "Test Product - Integration Fetch",
 			"categoryId": 4,
 			"baseSku":    "TEST-INTEG-FETCH-001",
 			"brand":      "IntegrationBrand",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 						{"value": "white", "displayName": "White"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-INTEG-FETCH-001-BLK",
 					"price": 129.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
 				{
 					"sku":   "TEST-INTEG-FETCH-001-WHT",
 					"price": 129.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "white"},
 					},
 				},
@@ -95,8 +95,8 @@ func TestCreateProductIntegration(t *testing.T) {
 		assert.Equal(t, createdProduct["categoryId"], fetchedProduct["categoryId"], "Category ID should match")
 
 		// Verify variants count
-		createdVariants := createdProduct["variants"].([]interface{})
-		fetchedVariants := fetchedProduct["variants"].([]interface{})
+		createdVariants := createdProduct["variants"].([]any)
+		fetchedVariants := fetchedProduct["variants"].([]any)
 		assert.Len(t, fetchedVariants, len(createdVariants), "Variants count should match")
 
 		t.Log("Data consistency verified: Created and fetched product match")
@@ -107,25 +107,25 @@ func TestCreateProductIntegration(t *testing.T) {
 		client.SetToken(sellerToken)
 
 		// Create product with one variant
-		createRequest := map[string]interface{}{
+		createRequest := map[string]any{
 			"name":       "Test Product - Add Variant Later",
 			"categoryId": 4,
 			"baseSku":    "TEST-ADD-VAR-001",
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
-					"values": []map[string]interface{}{
+					"values": []map[string]any{
 						{"value": "black", "displayName": "Black"},
 						{"value": "red", "displayName": "Red"},
 					},
 				},
 			},
-			"variants": []map[string]interface{}{
+			"variants": []map[string]any{
 				{
 					"sku":   "TEST-ADD-VAR-001-BLK",
 					"price": 99.99,
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
 				},
@@ -141,14 +141,14 @@ func TestCreateProductIntegration(t *testing.T) {
 		t.Logf("Created product with ID: %d", productID)
 
 		// Verify initial variant count
-		initialVariants := product["variants"].([]interface{})
+		initialVariants := product["variants"].([]any)
 		assert.Len(t, initialVariants, 1, "Should have 1 initial variant")
 
 		// Add another variant via variant API
-		addVariantRequest := map[string]interface{}{
+		addVariantRequest := map[string]any{
 			"sku":   "TEST-ADD-VAR-001-RED",
 			"price": 99.99,
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{"optionName": "color", "value": "red"},
 			},
 		}
@@ -170,7 +170,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			finalProduct := helpers.AssertSuccessResponse(t, w3, http.StatusOK)
 			fetchedProduct := helpers.GetResponseData(t, finalProduct, "product")
 
-			finalVariants := fetchedProduct["variants"].([]interface{})
+			finalVariants := fetchedProduct["variants"].([]any)
 			assert.Len(t, finalVariants, 2, "Should have 2 variants after adding")
 
 			t.Log("API composition verified: Product created then variant added separately")
@@ -204,24 +204,24 @@ func TestCreateProductIntegration(t *testing.T) {
 				concurrentClient := helpers.NewAPIClient(server)
 				concurrentClient.SetToken(sellerToken)
 
-				requestBody := map[string]interface{}{
+				requestBody := map[string]any{
 					"name":       fmt.Sprintf("Concurrent Product %d", index),
 					"categoryId": 4,
 					"baseSku":    fmt.Sprintf("TEST-CONC-%03d", index),
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{
 							"name":        "color",
 							"displayName": "Color",
-							"values": []map[string]interface{}{
+							"values": []map[string]any{
 								{"value": "black", "displayName": "Black"},
 							},
 						},
 					},
-					"variants": []map[string]interface{}{
+					"variants": []map[string]any{
 						{
 							"sku":   fmt.Sprintf("TEST-CONC-%03d-V1", index),
 							"price": 99.99,
-							"options": []map[string]interface{}{
+							"options": []map[string]any{
 								{"optionName": "color", "value": "black"},
 							},
 						},
@@ -303,25 +303,25 @@ func TestCreateProductIntegration(t *testing.T) {
 		}
 
 		// Prepare options
-		colorValues := []map[string]interface{}{}
+		colorValues := []map[string]any{}
 		for _, color := range colors {
-			colorValues = append(colorValues, map[string]interface{}{
+			colorValues = append(colorValues, map[string]any{
 				"value":       color.value,
 				"displayName": color.name,
 				"colorCode":   color.code,
 			})
 		}
 
-		storageValues := []map[string]interface{}{}
+		storageValues := []map[string]any{}
 		for _, storage := range storages {
-			storageValues = append(storageValues, map[string]interface{}{
+			storageValues = append(storageValues, map[string]any{
 				"value":       storage.value,
 				"displayName": storage.name,
 			})
 		}
 
 		// Prepare all 16 variants
-		variants := []map[string]interface{}{}
+		variants := []map[string]any{}
 		prices := map[string]float64{
 			"128gb": 999.00,
 			"256gb": 1099.00,
@@ -332,10 +332,10 @@ func TestCreateProductIntegration(t *testing.T) {
 		for _, color := range colors {
 			for _, storage := range storages {
 				sku := fmt.Sprintf("IPHONE-15-PRO-%s-%s", color.value, storage.value)
-				variants = append(variants, map[string]interface{}{
+				variants = append(variants, map[string]any{
 					"sku":   sku,
 					"price": prices[storage.value],
-					"options": []map[string]interface{}{
+					"options": []map[string]any{
 						{"optionName": "color", "value": color.value},
 						{"optionName": "storage", "value": storage.value},
 					},
@@ -343,7 +343,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			}
 		}
 
-		requestBody := map[string]interface{}{
+		requestBody := map[string]any{
 			"name":             "iPhone 15 Pro",
 			"categoryId":       4, // Smartphones
 			"baseSku":          "IPHONE-15-PRO",
@@ -351,7 +351,7 @@ func TestCreateProductIntegration(t *testing.T) {
 			"shortDescription": "The ultimate iPhone with titanium design and A17 Pro chip",
 			"longDescription":  "iPhone 15 Pro features a strong and light titanium design with a textured matte glass back. It's the most powerful iPhone ever with the A17 Pro chip.",
 			"tags":             []string{"premium", "flagship", "5g", "titanium"},
-			"options": []map[string]interface{}{
+			"options": []map[string]any{
 				{
 					"name":        "color",
 					"displayName": "Color",
@@ -364,7 +364,7 @@ func TestCreateProductIntegration(t *testing.T) {
 				},
 			},
 			"variants": variants,
-			"attributes": []map[string]interface{}{
+			"attributes": []map[string]any{
 				{
 					"key":       "display_size",
 					"name":      "Display Size",
@@ -398,24 +398,24 @@ func TestCreateProductIntegration(t *testing.T) {
 		assert.Equal(t, "Apple", product["brand"], "Brand should match")
 
 		// Verify all 16 variants were created
-		productVariants, ok := product["variants"].([]interface{})
+		productVariants, ok := product["variants"].([]any)
 		assert.True(t, ok, "Variants should be an array")
 		assert.Len(t, productVariants, 16, "Should have 16 variants (4 colors × 4 storage options)")
 
 		// Verify options structure
-		productOptions, ok := product["options"].([]interface{})
+		productOptions, ok := product["options"].([]any)
 		assert.True(t, ok, "Options should be an array")
 		assert.Len(t, productOptions, 2, "Should have 2 options (Color and Storage)")
 
 		// Verify attributes
-		attributes, ok := product["attributes"].([]interface{})
+		attributes, ok := product["attributes"].([]any)
 		assert.True(t, ok, "Attributes should be an array")
 		assert.Len(t, attributes, 3, "Should have 3 attributes")
 
 		// Verify variant prices match storage tiers
 		variantPriceMap := make(map[string]float64)
 		for _, v := range productVariants {
-			variant := v.(map[string]interface{})
+			variant := v.(map[string]any)
 			sku := variant["sku"].(string)
 			price := variant["price"].(float64)
 			variantPriceMap[sku] = price

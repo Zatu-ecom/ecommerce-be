@@ -50,7 +50,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		originalBrand := product.Brand
 
 		// When: Seller updates product name
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Updated Premium Product Name",
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -104,7 +104,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		productID := product.ID
 
 		// When: Seller updates multiple fields
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name":             "Multi-Field Updated Product",
 			"brand":            "NewBrand",
 			"shortDescription": "This is an updated short description",
@@ -140,7 +140,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		)
 
 		// Validate tags
-		tags, ok := updatedProduct["tags"].([]interface{})
+		tags, ok := updatedProduct["tags"].([]any)
 		require.True(t, ok, "Tags should be an array")
 		assert.Len(t, tags, 3, "Should have 3 tags")
 	})
@@ -167,7 +167,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		require.NoError(t, err, "Should find different category")
 
 		// When: Seller updates only category (other fields not provided = null)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"categoryId": newCategory.ID,
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -222,7 +222,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 
 		// When: Seller updates only tags (other fields not provided = null)
 		newTags := []string{"new", "updated", "tags", "for", "search"}
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"tags": newTags,
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -233,7 +233,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updatedProduct := helpers.GetResponseData(t, response, "product")
 
 		// Validate tags are updated
-		tags, ok := updatedProduct["tags"].([]interface{})
+		tags, ok := updatedProduct["tags"].([]any)
 		require.True(t, ok, "Tags should be an array")
 		assert.Len(t, tags, 5, "Should have 5 tags")
 
@@ -262,7 +262,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		originalSellerID := product.SellerID
 
 		// When: Admin updates product
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"name": "Admin Updated Product Name",
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -314,7 +314,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		originalShortDescription := product.ShortDescription
 
 		// When: Seller updates only brand (name field NOT provided = null)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"brand": "PartialUpdateBrand",
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -349,7 +349,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		require.NotEmpty(t, product.Brand, "Product should have a brand initially")
 
 		// When: Seller updates brand to empty string (clear field)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"brand": "", // Empty string = clear the field
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -382,7 +382,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		productID := product.ID
 
 		// When: Seller updates with empty tags array (clear tags)
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"tags": []string{}, // Empty array = clear all tags
 		}
 		url := fmt.Sprintf("/api/product/%d", productID)
@@ -393,7 +393,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		updatedProduct := helpers.GetResponseData(t, response, "product")
 
 		// Tags should be cleared (empty array)
-		tags, ok := updatedProduct["tags"].([]interface{})
+		tags, ok := updatedProduct["tags"].([]any)
 		require.True(t, ok, "Tags should be an array")
 		assert.Empty(t, tags, "Tags should be empty array")
 
@@ -418,7 +418,7 @@ func TestUpdateProductHappyPath(t *testing.T) {
 		require.NotEmpty(t, product.ShortDescription, "Product should have short description")
 
 		// When: Seller clears descriptions with empty strings
-		updateRequest := map[string]interface{}{
+		updateRequest := map[string]any{
 			"shortDescription": "", // Clear short description
 			"longDescription":  "", // Clear long description
 		}

@@ -50,17 +50,17 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data, ok := response["data"].(map[string]interface{})
+		data, ok := response["data"].(map[string]any)
 		require.True(t, ok, "Response should contain data object")
 
-		relatedProducts, ok := data["relatedProducts"].([]interface{})
+		relatedProducts, ok := data["relatedProducts"].([]any)
 		require.True(t, ok, "Should have relatedProducts array")
 		assert.NotEmpty(t, relatedProducts, "Should have related products from same category")
 
 		// Check that results include same category products
 		foundSameCategory := false
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 
 			// Verify required fields
 			assert.NotNil(t, product["id"], "Product should have ID")
@@ -87,7 +87,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 
 		// Verify source product is excluded
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			assert.NotEqual(
 				t,
 				float64(productID),
@@ -97,15 +97,15 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		}
 
 		// Check pagination metadata
-		pagination, ok := data["pagination"].(map[string]interface{})
+		pagination, ok := data["pagination"].(map[string]any)
 		require.True(t, ok, "Should have pagination metadata")
 		assert.NotNil(t, pagination["currentPage"], "Should have currentPage")
 		assert.NotNil(t, pagination["totalItems"], "Should have totalItems")
 
 		// Check meta information
-		meta, ok := data["meta"].(map[string]interface{})
+		meta, ok := data["meta"].(map[string]any)
 		require.True(t, ok, "Should have meta object")
-		strategiesUsed, ok := meta["strategiesUsed"].([]interface{})
+		strategiesUsed, ok := meta["strategiesUsed"].([]any)
 		require.True(t, ok, "Should have strategiesUsed array")
 		assert.NotEmpty(t, strategiesUsed, "Should have strategies used")
 	})
@@ -123,13 +123,13 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		// Look for same brand matches (Apple products from different categories)
 		foundSameBrand := false
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 
 			// Check if it's Apple brand from different category
 			brand, hasBrand := product["brand"].(string)
@@ -141,7 +141,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 				assert.GreaterOrEqual(t, score, 80.0, "Same brand should have base score >= 80")
 
 				// Verify it's from different category (not smartphones)
-				category := product["category"].(map[string]interface{})
+				category := product["category"].(map[string]any)
 				categoryID := category["id"].(float64)
 				assert.NotEqual(
 					t,
@@ -171,12 +171,12 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		foundSibling := false
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			strategyUsed, ok := product["strategyUsed"].(string)
 
 			if ok && strategyUsed == "sibling_category" {
@@ -220,12 +220,12 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		foundTagMatch := false
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			strategyUsed, ok := product["strategyUsed"].(string)
 
 			if ok && strategyUsed == "tag_matching" {
@@ -234,7 +234,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 				assert.GreaterOrEqual(t, score, 20.0, "Tag matching should have base score >= 20")
 
 				// Verify product has tags
-				tags, hasTags := product["tags"].([]interface{})
+				tags, hasTags := product["tags"].([]any)
 				assert.True(t, hasTags, "Product should have tags")
 				assert.NotEmpty(t, tags, "Tags array should not be empty")
 			}
@@ -256,12 +256,12 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		foundPriceRange := false
 		for _, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			strategyUsed, ok := product["strategyUsed"].(string)
 
 			if ok && strategyUsed == "price_range" {
@@ -270,7 +270,7 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 				assert.GreaterOrEqual(t, score, 20.0, "Price range should have base score >= 20")
 
 				// Verify price range exists
-				priceRange, ok := product["priceRange"].(map[string]interface{})
+				priceRange, ok := product["priceRange"].(map[string]any)
 				assert.True(t, ok, "Product should have priceRange")
 				assert.NotNil(t, priceRange["min"], "Should have min price")
 				assert.NotNil(t, priceRange["max"], "Should have max price")
@@ -302,14 +302,14 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 			w := client.Get(t, url)
 
 			response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-			data := response["data"].(map[string]interface{})
-			relatedProducts := data["relatedProducts"].([]interface{})
+			data := response["data"].(map[string]any)
+			relatedProducts := data["relatedProducts"].([]any)
 
 			foundBonusProduct := false
 			for _, item := range relatedProducts {
-				product := item.(map[string]interface{})
+				product := item.(map[string]any)
 				brand, hasBrand := product["brand"].(string)
-				category, hasCategory := product["category"].(map[string]interface{})
+				category, hasCategory := product["category"].(map[string]any)
 
 				if hasBrand && hasCategory && brand == "Samsung" {
 					categoryID := category["id"].(float64)
@@ -343,15 +343,15 @@ func TestGetRelatedProductsStrategies(t *testing.T) {
 		w := client.Get(t, url)
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]interface{})
-		relatedProducts := data["relatedProducts"].([]interface{})
+		data := response["data"].(map[string]any)
+		relatedProducts := data["relatedProducts"].([]any)
 
 		require.NotEmpty(t, relatedProducts, "Should have related products")
 
 		// Verify products are ordered by descending score
 		previousScore := 999999.0
 		for i, item := range relatedProducts {
-			product := item.(map[string]interface{})
+			product := item.(map[string]any)
 			score, ok := product["score"].(float64)
 			require.True(t, ok, "Product should have score")
 

@@ -12,6 +12,7 @@ type Config struct {
 	App       AppConfig
 	Log       LogConfig
 	Scheduler SchedulerConfig
+	Messaging MessagingConfig
 }
 
 var (

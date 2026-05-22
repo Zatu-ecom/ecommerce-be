@@ -30,7 +30,7 @@ type ProductQueryService interface {
 	SearchProducts(
 		ctx context.Context,
 		query string,
-		filters map[string]interface{},
+		filters map[string]any,
 		page, limit int,
 		userID *uint, // Optional: if provided, checks if products are wishlisted by this user
 	) (*model.SearchResponse, error)
@@ -56,6 +56,7 @@ type ProductQueryServiceImpl struct {
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
 	productOptionService    ProductOptionService
+	productMediaService     ProductMediaService
 }
 
 // NewProductQueryService creates a new instance of ProductQueryService
@@ -65,6 +66,7 @@ func NewProductQueryService(
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
 	productOptionService ProductOptionService,
+	productMediaService ProductMediaService,
 ) *ProductQueryServiceImpl {
 	return &ProductQueryServiceImpl{
 		productRepo:             productRepo,
@@ -72,6 +74,7 @@ func NewProductQueryService(
 		categoryService:         categoryService,
 		productAttributeService: productAttributeService,
 		productOptionService:    productOptionService,
+		productMediaService:     productMediaService,
 	}
 }
 
@@ -97,7 +100,12 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 
 	// Build product responses with variant data using batch aggregation
 	// This prevents N+1 queries by fetching all variant data in a single query
-	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products, userID)
+	productsResponse, err := s.buildProductResponsesWithVariants(
+		ctx,
+		products,
+		userID,
+		filter.SellerID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +122,13 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 
 // buildProductResponsesWithVariants builds ProductResponse list from products with variant data
 // Performs batch variant aggregation for optimal performance - single query for all products
-// If userID is provided, also checks if products are wishlisted by that user
+// If userID is provided, also checks if products are wishlisted by that user.
+// sellerID is passed to the media gateway for scoped file access; nil means platform-wide.
 func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 	ctx context.Context,
 	products []entity.Product,
 	userID *uint,
+	sellerID *uint,
 ) ([]model.ProductResponse, error) {
 	if len(products) == 0 {
 		return []model.ProductResponse{}, nil
@@ -132,7 +142,6 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 
 	// Fetch variant aggregations for all products in ONE query via VariantService
 	// This is the key optimization to prevent N+1 queries
-	// If userID is provided, also fetches wishlist status
 	variantAggs, err := s.variantQueryService.GetProductsVariantAggregations(
 		ctx,
 		productIDs,
@@ -142,18 +151,27 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 		return nil, err
 	}
 
-	// Build response models with variant data using factory
+	// Batch-load media for all products in a single call (no N+1 on file lookups).
+	mediaByProductID, _ := s.productMediaService.GetMediaForProducts(ctx, productIDs, sellerID)
+
+	// Build response models with variant and media data using factory
 	productsResponse := make([]model.ProductResponse, 0, len(products))
 	for _, product := range products {
-		// Get variant aggregation for this product
 		variantAgg := variantAggs[product.ID]
 		if variantAgg == nil {
 			// Skip products without variants (shouldn't happen per business rules)
 			continue
 		}
 
-		// Use factory to build product response
 		productResp := factory.BuildProductResponse(&product, variantAgg)
+
+		// Attach media; always set a non-nil slice so JSON encodes [] not null.
+		media := mediaByProductID[product.ID]
+		if media == nil {
+			media = []model.ProductMediaResponse{}
+		}
+		productResp.Media = media
+
 		productsResponse = append(productsResponse, productResp)
 	}
 
@@ -182,19 +200,20 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	}
 
 	// Build detailed product response using service dependencies
-	return s.buildDetailedProductResponse(ctx, product, userID)
+	return s.buildDetailedProductResponse(ctx, product, sellerID, userID)
 }
 
 // buildDetailedProductResponse builds a complete ProductResponse with all details
 // Uses service layer dependencies to fetch related data efficiently
-// If userID is provided, also checks if product is wishlisted by that user
+// If userID is provided, also checks if product is wishlisted by that user.
+// sellerID is used for scoped media file access.
 func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	ctx context.Context,
 	product *entity.Product,
+	sellerID *uint,
 	userID *uint,
 ) (*model.ProductResponse, error) {
 	// Get variant aggregation for summary info using VariantService
-	// If userID is provided, also fetches wishlist status
 	variantAgg, err := s.variantQueryService.GetProductVariantAggregation(ctx, product.ID, userID)
 	if err != nil {
 		return nil, err
@@ -204,11 +223,8 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	response := factory.BuildProductResponse(product, variantAgg)
 
 	// Enhance with additional details for the detailed view
-	// Get product attributes using ProductAttributeService
-
 	attrResponse, err := s.productAttributeService.GetProductAttributes(ctx, product.ID)
 	if err == nil && attrResponse != nil {
-		// Use factory to convert ProductAttributeDetailResponse to ProductAttributeResponse
 		response.Attributes = factory.ConvertDetailListToSimpleAttributeResponses(
 			attrResponse.Attributes,
 		)
@@ -227,17 +243,22 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		nil,
 	)
 	if err == nil && len(productOptions) > 0 {
-		// Use factory to build options detail response
 		response.Options = productOptions
 	}
 
 	// Get all variants with their selected option values using VariantService
-	// This is optimized with a single query to prevent N+1 issues
 	variants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID)
 	if err == nil && len(variants) > 0 {
-		// Use factory to build variants detail response
 		response.Variants = variants
 	}
+
+	// Batch-load media for this product; always set a non-nil slice.
+	mediaMap, _ := s.productMediaService.GetMediaForProducts(ctx, []uint{product.ID}, sellerID)
+	media := mediaMap[product.ID]
+	if media == nil {
+		media = []model.ProductMediaResponse{}
+	}
+	response.Media = media
 
 	return &response, nil
 }
@@ -249,7 +270,7 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 func (s *ProductQueryServiceImpl) SearchProducts(
 	ctx context.Context,
 	query string,
-	filters map[string]interface{},
+	filters map[string]any,
 	page, limit int,
 	userID *uint,
 ) (*model.SearchResponse, error) {
@@ -264,8 +285,7 @@ func (s *ProductQueryServiceImpl) SearchProducts(
 
 	// Build product responses with variant data using batch aggregation
 	// Reuses the same optimization as GetAllProducts to prevent N+1 queries
-	// If userID is provided, also fetches wishlist status
-	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products, userID)
+	productsResponse, err := s.buildProductResponsesWithVariants(ctx, products, userID, nil)
 	if err != nil {
 		return nil, err
 	}
