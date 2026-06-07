@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
@@ -80,6 +81,13 @@ func (s *VariantServiceImpl) CreateVariant(
 	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, &sellerID)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(optionsResponse.Options) > 0 && len(request.Options) == 0 {
+		return nil, commonError.ErrValidation.WithMessagef(
+			"variant must specify all product options (%d required, 0 provided)",
+			len(optionsResponse.Options),
+		)
 	}
 
 	// Validate and map variant options (extracted for readability)

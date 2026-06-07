@@ -68,6 +68,7 @@ func (f *ServiceFactory) initialize() {
 		// Initialize UserService now that Address, Settings, and Currency are ready
 		f.userService = service.NewUserService(
 			userRepo,
+			sellerProfileRepo,
 			f.addressService,
 			f.sellerSettingsService,
 			f.currencyService,

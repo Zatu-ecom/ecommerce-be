@@ -17,20 +17,23 @@ const (
 		AND pv.price <= ?
 	)`
 
-	// FILTER_IN_STOCK_SUBQUERY filters products that have at least one in-stock variant
+	// FILTER_IN_STOCK_SUBQUERY filters products that have at least one purchasable variant
+	// with available inventory (quantity - reserved_quantity - threshold > 0) at any location.
 	FILTER_IN_STOCK_SUBQUERY = `EXISTS (
-		SELECT 1 FROM product_variant pv 
-		WHERE pv.product_id = product.id 
-		AND pv.in_stock = true 
-		AND pv.stock > 0
+		SELECT 1 FROM product_variant pv
+		INNER JOIN inventory inv ON inv.variant_id = pv.id
+		WHERE pv.product_id = product.id
+		AND pv.allow_purchase = true
+		AND (inv.quantity - inv.reserved_quantity - inv.threshold) > 0
 	)`
 
-	// FILTER_OUT_OF_STOCK_SUBQUERY filters products with no in-stock variants
+	// FILTER_OUT_OF_STOCK_SUBQUERY filters products with no purchasable in-stock variants
 	FILTER_OUT_OF_STOCK_SUBQUERY = `NOT EXISTS (
-		SELECT 1 FROM product_variant pv 
-		WHERE pv.product_id = product.id 
-		AND pv.in_stock = true 
-		AND pv.stock > 0
+		SELECT 1 FROM product_variant pv
+		INNER JOIN inventory inv ON inv.variant_id = pv.id
+		WHERE pv.product_id = product.id
+		AND pv.allow_purchase = true
+		AND (inv.quantity - inv.reserved_quantity - inv.threshold) > 0
 	)`
 
 	// FILTER_IS_POPULAR_SUBQUERY filters products with at least one popular variant

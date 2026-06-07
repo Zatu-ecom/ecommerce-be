@@ -332,6 +332,14 @@ func TestGetAllProducts(t *testing.T) {
 		}
 	})
 
+	t.Run("Sort - By createdAt descending (camelCase API field)", func(t *testing.T) {
+		w := client.Get(t, "/api/product?page=1&pageSize=20&sortBy=createdAt&sortOrder=desc")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		products := response["data"].(map[string]any)["products"].([]any)
+		assert.NotEmpty(t, products, "Should return products sorted by createdAt")
+	})
+
 	t.Run("Sort - Invalid sortBy field (should use default)", func(t *testing.T) {
 		w := client.Get(t, "/api/product?sortBy=invalidField&sortOrder=asc")
 
@@ -853,6 +861,75 @@ func TestGetAllProducts(t *testing.T) {
 			product := p.(map[string]any)
 			assert.Equal(t, float64(3), product["sellerId"], "Products should belong to seller 3")
 			assert.Equal(t, float64(7), product["categoryId"], "Products should be in category 7")
+		}
+	})
+
+	// ============================================================================
+	// ADDITIONAL FILTER COVERAGE
+	// ============================================================================
+
+	t.Run("Filter - By product ids", func(t *testing.T) {
+		w := client.Get(t, "/api/product?ids=1,2")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		products := response["data"].(map[string]any)["products"].([]any)
+
+		assert.Len(t, products, 2, "Should return exactly 2 products")
+		ids := make(map[float64]bool)
+		for _, p := range products {
+			product := p.(map[string]any)
+			ids[product["id"].(float64)] = true
+		}
+		assert.True(t, ids[1], "Should include product 1")
+		assert.True(t, ids[2], "Should include product 2")
+	})
+
+	t.Run("Filter - By variantIds", func(t *testing.T) {
+		// Variant 1 belongs to product 1 (iPhone 15 Pro)
+		w := client.Get(t, "/api/product?variantIds=1")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		products := response["data"].(map[string]any)["products"].([]any)
+
+		assert.Len(t, products, 1, "Should return product containing variant 1")
+		assert.Equal(t, float64(1), products[0].(map[string]any)["id"])
+	})
+
+	t.Run("Filter - By inStock=true", func(t *testing.T) {
+		w := client.Get(t, "/api/product?inStock=true")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		_, ok := response["data"].(map[string]any)["products"].([]any)
+		assert.True(t, ok, "Should return products array")
+	})
+
+	t.Run("Filter - By inStock=false", func(t *testing.T) {
+		w := client.Get(t, "/api/product?inStock=false")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		_, ok := response["data"].(map[string]any)["products"].([]any)
+		assert.True(t, ok, "Should return products array")
+	})
+
+	// ============================================================================
+	// AUTHENTICATED SELLER PATH (JWT)
+	// ============================================================================
+
+	t.Run("Auth - Seller JWT with sortBy createdAt", func(t *testing.T) {
+		authClient := helpers.NewAPIClient(server)
+		token := helpers.Login(t, authClient, helpers.Seller2Email, helpers.Seller2Password)
+		authClient.SetToken(token)
+		authClient.SetHeader("X-Seller-ID", "2")
+
+		w := authClient.Get(t, "/api/product?page=1&pageSize=20&sortBy=createdAt&sortOrder=desc")
+
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		products := response["data"].(map[string]any)["products"].([]any)
+		assert.NotEmpty(t, products, "Authenticated seller should receive products")
+
+		for _, p := range products {
+			product := p.(map[string]any)
+			assert.Equal(t, float64(2), product["sellerId"], "JWT seller should only see own products")
 		}
 	})
 }

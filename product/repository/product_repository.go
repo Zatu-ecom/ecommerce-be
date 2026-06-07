@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
@@ -165,12 +166,11 @@ func (r *ProductRepositoryImpl) FindAll(
 
 	// Apply pagination and sorting
 	offset := (page - 1) * limit
-	sortBy := filter.SortBy
-	sortOrder := filter.SortOrder
-
-	if sortBy == "" {
-		sortBy = "created_at"
+	sortBy, ok := helper.NormalizeProductSortColumn(filter.SortBy)
+	if !ok {
+		return nil, 0, commonError.ErrValidation.WithMessagef("invalid sortBy field: %s", filter.SortBy)
 	}
+	sortOrder := filter.SortOrder
 	if sortOrder == "" {
 		sortOrder = "desc"
 	}

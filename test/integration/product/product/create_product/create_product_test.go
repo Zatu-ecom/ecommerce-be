@@ -1279,7 +1279,7 @@ func TestCreateProduct(t *testing.T) {
 	})
 
 	t.Run(
-		"Error - Create product with variant without options (default variant)",
+		"Success - Create product with variant without options (default variant)",
 		func(t *testing.T) {
 			sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 			client.SetToken(sellerToken)
@@ -1292,17 +1292,17 @@ func TestCreateProduct(t *testing.T) {
 					{
 						"sku":   "TEST-NOOPT-001-V1",
 						"price": 99.99,
-						// No options - this is a default variant with no variations
+						// No options - default variant with no variations
 					},
 				},
 			}
 
 			w := client.Post(t, "/api/product", requestBody)
-			helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+			helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 		},
 	)
 
-	t.Run("Error - Create product with empty variant options array", func(t *testing.T) {
+	t.Run("Success - Create product with empty variant options array", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
@@ -1320,7 +1320,7 @@ func TestCreateProduct(t *testing.T) {
 		}
 
 		w := client.Post(t, "/api/product", requestBody)
-		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
 	})
 
 	t.Run("Error - Variant option missing optionName", func(t *testing.T) {

@@ -45,6 +45,7 @@ func BuildAuthResponse(
 	user *entity.User,
 	role *entity.Role,
 	sellerID *uint,
+	sellerProfile *model.SellerLoginProfileResponse,
 ) (*model.AuthResponse, error) {
 	// Generate JWT token with role information
 	tokenInfo := auth.TokenUserInfo{
@@ -65,9 +66,10 @@ func BuildAuthResponse(
 	userResponse := BuildUserResponse(user)
 
 	authResponse := &model.AuthResponse{
-		User:      userResponse,
-		Token:     token,
-		ExpiresIn: strconv.Itoa(config.Get().Auth.JWTExpiryHours) + "h",
+		User:          userResponse,
+		Token:         token,
+		ExpiresIn:     strconv.Itoa(config.Get().Auth.JWTExpiryHours) + "h",
+		SellerProfile: sellerProfile,
 	}
 
 	return authResponse, nil

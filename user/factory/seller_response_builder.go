@@ -68,6 +68,23 @@ func BuildSellerFullProfileResponse(
 	}
 }
 
+// BuildSellerLoginProfileResponse creates the seller-specific payload for auth/login responses.
+func BuildSellerLoginProfileResponse(
+	profile *entity.SellerProfile,
+	settings *model.SellerSettingsResponse,
+	addresses []model.AddressResponse,
+) *model.SellerLoginProfileResponse {
+	if profile == nil {
+		return nil
+	}
+
+	return &model.SellerLoginProfileResponse{
+		Profile:   BuildSellerProfileResponse(profile),
+		Settings:  settings,
+		Addresses: addresses,
+	}
+}
+
 // BuildSellerSettingsResponse creates SellerSettingsResponse from SellerSettings entity
 // Used by seller registration and seller settings endpoints
 func BuildSellerSettingsResponse(settings *entity.SellerSettings) *model.SellerSettingsResponse {

@@ -132,7 +132,7 @@ type CreateVariantRequest struct {
 	AllowPurchase *bool                `json:"allowPurchase"`
 	IsPopular     *bool                `json:"isPopular"`
 	IsDefault     *bool                `json:"isDefault"`
-	Options       []VariantOptionInput `json:"options"       binding:"required,min=1,dive"`
+	Options       []VariantOptionInput `json:"options"       binding:"omitempty,dive"`
 }
 
 // UpdateVariantRequest represents the request to update an existing variant.

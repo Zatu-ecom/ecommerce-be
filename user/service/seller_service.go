@@ -164,7 +164,7 @@ func (s *SellerServiceImpl) executeRegistration(
 	}
 
 	// 5. Generate JWT token
-	authResponse, err := factory.BuildAuthResponse(user, role, &user.ID)
+	authResponse, err := factory.BuildAuthResponse(user, role, &user.ID, nil)
 	if err != nil {
 		return nil, userErrors.ErrTokenGenerationFailed
 	}

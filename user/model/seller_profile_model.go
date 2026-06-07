@@ -33,3 +33,11 @@ type SellerFullProfileResponse struct {
 	Settings  *SellerSettingsResponse `json:"settings,omitempty"` // Null if settings not configured
 	Addresses []AddressResponse       `json:"addresses"`
 }
+
+// SellerLoginProfileResponse represents seller-specific profile data returned with login.
+// User and token remain at the auth response top level to avoid duplication.
+type SellerLoginProfileResponse struct {
+	Profile   SellerProfileResponse   `json:"profile"`
+	Settings  *SellerSettingsResponse `json:"settings,omitempty"`
+	Addresses []AddressResponse       `json:"addresses"`
+}
