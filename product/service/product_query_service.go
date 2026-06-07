@@ -55,6 +55,7 @@ type ProductQueryServiceImpl struct {
 	variantQueryService     VariantQueryService
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
+	packageOptionService    PackageOptionService
 	productOptionService    ProductOptionService
 	productMediaService     ProductMediaService
 }
@@ -65,6 +66,7 @@ func NewProductQueryService(
 	variantQueryService VariantQueryService,
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
+	packageOptionService PackageOptionService,
 	productOptionService ProductOptionService,
 	productMediaService ProductMediaService,
 ) *ProductQueryServiceImpl {
@@ -73,6 +75,7 @@ func NewProductQueryService(
 		variantQueryService:     variantQueryService,
 		categoryService:         categoryService,
 		productAttributeService: productAttributeService,
+		packageOptionService:    packageOptionService,
 		productOptionService:    productOptionService,
 		productMediaService:     productMediaService,
 	}
@@ -230,10 +233,9 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		)
 	}
 
-	// Get package options from repository (no service exists for this yet)
-	packageOptions, err := s.productRepo.FindPackageOptionByProductID(ctx, product.ID)
-	if err == nil {
-		response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
+	packageOptionsResponse, err := s.packageOptionService.GetPackageOptions(ctx, product.ID)
+	if err == nil && packageOptionsResponse != nil {
+		response.PackageOptions = packageOptionsResponse.PackageOptions
 	}
 
 	// Get all product options with their values using ProductOptionService

@@ -73,6 +73,10 @@ func (f *SingletonFactory) GetProductAttributeRepository() repository.ProductAtt
 	return f.repoFactory.GetProductAttributeRepository()
 }
 
+func (f *SingletonFactory) GetPackageOptionRepository() repository.PackageOptionRepository {
+	return f.repoFactory.GetPackageOptionRepository()
+}
+
 func (f *SingletonFactory) GetWishlistRepository() repository.WishlistRepository {
 	return f.repoFactory.GetWishlistRepository()
 }
@@ -111,6 +115,10 @@ func (f *SingletonFactory) GetVariantQueryService() service.VariantQueryService 
 
 func (f *SingletonFactory) GetProductAttributeService() service.ProductAttributeService {
 	return f.serviceFactory.GetProductAttributeService()
+}
+
+func (f *SingletonFactory) GetPackageOptionService() service.PackageOptionService {
+	return f.serviceFactory.GetPackageOptionService()
 }
 
 func (f *SingletonFactory) GetProductOptionService() service.ProductOptionService {
@@ -159,6 +167,10 @@ func (f *SingletonFactory) GetVariantHandler() *handler.VariantHandler {
 
 func (f *SingletonFactory) GetProductAttributeHandler() *handler.ProductAttributeHandler {
 	return f.handlerFactory.GetProductAttributeHandler()
+}
+
+func (f *SingletonFactory) GetPackageOptionHandler() *handler.PackageOptionHandler {
+	return f.handlerFactory.GetPackageOptionHandler()
 }
 
 func (f *SingletonFactory) GetProductOptionHandler() *handler.ProductOptionHandler {

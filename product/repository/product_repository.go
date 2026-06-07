@@ -51,12 +51,6 @@ type ProductRepository interface {
 		offset int,
 		strategies string,
 	) ([]mapper.RelatedProductScored, int64, error)
-	FindPackageOptionByProductID(
-		ctx context.Context,
-		productID uint,
-	) ([]entity.PackageOption, error)
-	CreatePackageOptions(ctx context.Context, option []entity.PackageOption) error
-	UpdatePackageOptions(ctx context.Context, option []entity.PackageOption) error
 	GetProductFilters(ctx context.Context, sellerID *uint) (
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
@@ -66,9 +60,6 @@ type ProductRepository interface {
 		*mapper.StockStatusData,
 		error,
 	)
-
-	// Bulk deletion methods for product cleanup
-	DeletePackageOptionsByProductID(ctx context.Context, productID uint) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -343,32 +334,6 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	return results, totalCount, nil
 }
 
-func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
-	ctx context.Context,
-	productID uint,
-) ([]entity.PackageOption, error) {
-	var packageOptions []entity.PackageOption
-	result := db.DB(ctx).Where("product_id = ?", productID).Find(&packageOptions)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return packageOptions, nil
-}
-
-func (r *ProductRepositoryImpl) CreatePackageOptions(
-	ctx context.Context,
-	options []entity.PackageOption,
-) error {
-	return db.DB(ctx).Create(options).Error
-}
-
-func (r *ProductRepositoryImpl) UpdatePackageOptions(
-	ctx context.Context,
-	options []entity.PackageOption,
-) error {
-	return db.DB(ctx).Save(options).Error
-}
-
 // GetProductFilters fetches all filter data in optimized queries including variant-based filters
 // Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
 func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID *uint) (
@@ -495,14 +460,3 @@ func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID 
 	return brands, categories, attributes, &priceRange, variantOptions, &stockStatus, nil
 }
 
-/***********************************************
- *    Bulk Deletion Methods for Product Cleanup
- ***********************************************/
-
-// DeletePackageOptionsByProductID deletes all package options for a given product
-func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(
-	ctx context.Context,
-	productID uint,
-) error {
-	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
-}

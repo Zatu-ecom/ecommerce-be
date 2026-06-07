@@ -72,6 +72,7 @@ type PackageOptionRequest struct {
 // PackageOptionResponse represents a package option in responses
 type PackageOptionResponse struct {
 	ID          uint    `json:"id"`
+	ProductID   uint    `json:"productId,omitempty"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
@@ -232,6 +233,26 @@ type PackageOptionUpdateRequest struct {
 
 // PackageOptionsResponse represents the response for getting package options
 type PackageOptionsResponse struct {
+	PackageOptions []PackageOptionResponse `json:"packageOptions"`
+}
+
+// BulkUpdatePackageOptionItem represents a single package option update in bulk operation
+type BulkUpdatePackageOptionItem struct {
+	PackageOptionID uint    `json:"packageOptionId" binding:"required"`
+	Name            string  `json:"name"            binding:"required"`
+	Description     string  `json:"description"`
+	Price           float64 `json:"price"           binding:"required,gt=0"`
+	Quantity        int     `json:"quantity"        binding:"required,gt=0"`
+}
+
+// BulkUpdatePackageOptionsRequest represents the request to update multiple package options
+type BulkUpdatePackageOptionsRequest struct {
+	PackageOptions []BulkUpdatePackageOptionItem `json:"packageOptions" binding:"required,min=1,dive"`
+}
+
+// BulkUpdatePackageOptionsResponse represents the response for bulk update
+type BulkUpdatePackageOptionsResponse struct {
+	UpdatedCount   int                     `json:"updatedCount"`
 	PackageOptions []PackageOptionResponse `json:"packageOptions"`
 }
 

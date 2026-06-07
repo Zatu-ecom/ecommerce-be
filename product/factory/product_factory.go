@@ -182,6 +182,7 @@ func BuildPackageOptionResponse(
 ) *model.PackageOptionResponse {
 	return &model.PackageOptionResponse{
 		ID:          packageOption.ID,
+		ProductID:   packageOption.ProductID,
 		Name:        packageOption.Name,
 		Description: packageOption.Description,
 		Price:       packageOption.Price,
@@ -200,6 +201,52 @@ func BuildPackageOptionResponses(
 		responses = append(responses, *BuildPackageOptionResponse(&option))
 	}
 	return responses
+}
+
+// BuildPackageOptionFromCreateRequest creates a PackageOption entity from a create request
+func BuildPackageOptionFromCreateRequest(
+	productID uint,
+	req model.PackageOptionCreateRequest,
+) *entity.PackageOption {
+	return &entity.PackageOption{
+		ProductID:   productID,
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Quantity:    req.Quantity,
+		BaseEntity:  helper.NewBaseEntity(),
+	}
+}
+
+// ApplyPackageOptionUpdate applies update request fields to a package option entity
+func ApplyPackageOptionUpdate(
+	packageOption *entity.PackageOption,
+	req model.PackageOptionUpdateRequest,
+) {
+	packageOption.Name = req.Name
+	packageOption.Description = req.Description
+	packageOption.Price = req.Price
+	packageOption.Quantity = req.Quantity
+}
+
+// ApplyBulkPackageOptionUpdate applies bulk update item fields to a package option entity
+func ApplyBulkPackageOptionUpdate(
+	packageOption *entity.PackageOption,
+	item model.BulkUpdatePackageOptionItem,
+) {
+	packageOption.Name = item.Name
+	packageOption.Description = item.Description
+	packageOption.Price = item.Price
+	packageOption.Quantity = item.Quantity
+}
+
+// BuildPackageOptionsListResponse builds the list response for package options
+func BuildPackageOptionsListResponse(
+	packageOptions []entity.PackageOption,
+) *model.PackageOptionsResponse {
+	return &model.PackageOptionsResponse{
+		PackageOptions: BuildPackageOptionResponses(packageOptions),
+	}
 }
 
 // BuildCategoryFilter builds CategoryFilter from mapper data

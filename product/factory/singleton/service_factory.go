@@ -19,6 +19,7 @@ type ServiceFactory struct {
 	variantQueryService      service.VariantQueryService
 	variantBulkService       service.VariantBulkService
 	productAttributeService  service.ProductAttributeService
+	packageOptionService     service.PackageOptionService
 	productOptionService     service.ProductOptionService
 	optionValueService       service.ProductOptionValueService
 	validatorService         service.ProductValidatorService
@@ -46,6 +47,7 @@ func (f *ServiceFactory) initialize() {
 		variantRepo := f.repoFactory.GetVariantRepository()
 		optionRepo := f.repoFactory.GetProductOptionRepository()
 		productAttrRepo := f.repoFactory.GetProductAttributeRepository()
+		packageOptionRepo := f.repoFactory.GetPackageOptionRepository()
 
 		// Initialize validator service first (used by other services)
 		f.validatorService = service.NewProductValidatorService(productRepo)
@@ -114,6 +116,11 @@ func (f *ServiceFactory) initialize() {
 			attributeRepo,
 			f.validatorService,
 		)
+		f.packageOptionService = service.NewPackageOptionService(
+			packageOptionRepo,
+			productRepo,
+			f.validatorService,
+		)
 
 		// Initialize CollectionProductService
 		f.collectionProductService = service.NewCollectionProductService(
@@ -134,6 +141,7 @@ func (f *ServiceFactory) initialize() {
 			f.variantQueryService,
 			f.categoryService,
 			f.productAttributeService,
+			f.packageOptionService,
 			f.productOptionService,
 			f.productMediaService,
 		)
@@ -155,6 +163,7 @@ func (f *ServiceFactory) initialize() {
 			f.variantBulkService,
 			f.productOptionService,
 			f.productAttributeService,
+			f.packageOptionService,
 		)
 	})
 }
@@ -205,6 +214,12 @@ func (f *ServiceFactory) GetVariantBulkService() service.VariantBulkService {
 func (f *ServiceFactory) GetProductAttributeService() service.ProductAttributeService {
 	f.initialize()
 	return f.productAttributeService
+}
+
+// GetPackageOptionService returns the singleton package option service
+func (f *ServiceFactory) GetPackageOptionService() service.PackageOptionService {
+	f.initialize()
+	return f.packageOptionService
 }
 
 // GetProductOptionService returns the singleton product option service

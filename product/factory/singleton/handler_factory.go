@@ -15,6 +15,7 @@ type HandlerFactory struct {
 	productHandler          *handler.ProductHandler
 	variantHandler          *handler.VariantHandler
 	productAttributeHandler *handler.ProductAttributeHandler
+	packageOptionHandler    *handler.PackageOptionHandler
 	productOptionHandler    *handler.ProductOptionHandler
 	optionValueHandler      *handler.ProductOptionValueHandler
 	wishlistHandler         *handler.WishlistHandler
@@ -48,6 +49,9 @@ func (f *HandlerFactory) initialize() {
 		)
 		f.productAttributeHandler = handler.NewProductAttributeHandler(
 			f.serviceFactory.GetProductAttributeService(),
+		)
+		f.packageOptionHandler = handler.NewPackageOptionHandler(
+			f.serviceFactory.GetPackageOptionService(),
 		)
 		f.productOptionHandler = handler.NewProductOptionHandler(
 			f.serviceFactory.GetProductOptionService(),
@@ -92,6 +96,12 @@ func (f *HandlerFactory) GetVariantHandler() *handler.VariantHandler {
 func (f *HandlerFactory) GetProductAttributeHandler() *handler.ProductAttributeHandler {
 	f.initialize()
 	return f.productAttributeHandler
+}
+
+// GetPackageOptionHandler returns the singleton package option handler
+func (f *HandlerFactory) GetPackageOptionHandler() *handler.PackageOptionHandler {
+	f.initialize()
+	return f.packageOptionHandler
 }
 
 // GetProductOptionHandler returns the singleton product option handler

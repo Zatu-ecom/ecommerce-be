@@ -16,6 +16,7 @@ type RepositoryFactory struct {
 	variantRepo           repository.VariantRepository
 	optionRepo            repository.ProductOptionRepository
 	productAttrRepo       repository.ProductAttributeRepository
+	packageOptionRepo     repository.PackageOptionRepository
 	wishlistRepo          repository.WishlistRepository
 	wishlistItemRepo      repository.WishlistItemRepository
 	collectionProductRepo repository.CollectionProductRepository
@@ -40,6 +41,7 @@ func (f *RepositoryFactory) initialize() {
 		f.variantRepo = repository.NewVariantRepository()
 		f.optionRepo = repository.NewProductOptionRepository()
 		f.productAttrRepo = repository.NewProductAttributeRepository()
+		f.packageOptionRepo = repository.NewPackageOptionRepository()
 		f.wishlistRepo = repository.NewWishlistRepository()
 		f.wishlistItemRepo = repository.NewWishlistItemRepository()
 		f.collectionProductRepo = repository.NewCollectionProductRepository()
@@ -82,6 +84,12 @@ func (f *RepositoryFactory) GetProductOptionRepository() repository.ProductOptio
 func (f *RepositoryFactory) GetProductAttributeRepository() repository.ProductAttributeRepository {
 	f.initialize()
 	return f.productAttrRepo
+}
+
+// GetPackageOptionRepository returns the singleton package option repository
+func (f *RepositoryFactory) GetPackageOptionRepository() repository.PackageOptionRepository {
+	f.initialize()
+	return f.packageOptionRepo
 }
 
 // GetWishlistRepository returns the singleton wishlist repository

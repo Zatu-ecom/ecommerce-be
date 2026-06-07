@@ -42,6 +42,7 @@ type ProductServiceImpl struct {
 	variantBulkService      VariantBulkService
 	productOptionService    ProductOptionService
 	productAttributeService ProductAttributeService
+	packageOptionService    PackageOptionService
 }
 
 // NewProductService creates a new instance of ProductService
@@ -54,6 +55,7 @@ func NewProductService(
 	variantBulkService VariantBulkService,
 	productOptionService ProductOptionService,
 	productAttributeService ProductAttributeService,
+	packageOptionService PackageOptionService,
 ) ProductService {
 	return &ProductServiceImpl{
 		productRepo:             productRepo,
@@ -64,6 +66,7 @@ func NewProductService(
 		variantBulkService:      variantBulkService,
 		productOptionService:    productOptionService,
 		productAttributeService: productAttributeService,
+		packageOptionService:    packageOptionService,
 	}
 }
 
@@ -192,7 +195,12 @@ func (s *ProductServiceImpl) createProductAssociations(
 
 	// Create package options if provided
 	if len(req.PackageOptions) > 0 {
-		packageOptions, err := s.createPackageOption(ctx, productID, req.PackageOptions)
+		packageOptions, err := s.packageOptionService.CreatePackageOptionsBulk(
+			ctx,
+			productID,
+			sellerID,
+			req.PackageOptions,
+		)
 		if err != nil {
 			return err
 		}
@@ -281,17 +289,6 @@ func calculateVariantAggFromModels(
 	return agg
 }
 
-// createPackageOption creates package options using factory
-func (s *ProductServiceImpl) createPackageOption(
-	ctx context.Context,
-	parentID uint,
-	options []model.PackageOptionRequest,
-) ([]entity.PackageOption, error) {
-	// Create package options using factory
-	packageOptions := factory.CreatePackageOptionsFromRequests(parentID, options)
-	return packageOptions, s.productRepo.CreatePackageOptions(ctx, packageOptions)
-}
-
 /************************************************************
  *	UpdateProduct updates an existing product 		        *
  *	Note: Price, images, stock are managed at variant level *
@@ -378,8 +375,8 @@ func (s *ProductServiceImpl) DeleteProduct(
 			return err
 		}
 
-		// Delete package options (no separate service yet)
-		if err := s.productRepo.DeletePackageOptionsByProductID(txCtx, id); err != nil {
+		// Delete package options
+		if err := s.packageOptionService.DeletePackageOptionsByProductID(txCtx, id); err != nil {
 			return err
 		}
 
