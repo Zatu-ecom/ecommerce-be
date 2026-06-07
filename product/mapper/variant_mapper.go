@@ -6,14 +6,18 @@ import "ecommerce-be/product/entity"
 // MainImage has been removed — product images are now managed through the
 // product_media table and returned via ProductResponse.Media.
 type VariantAggregation struct {
-	HasVariants   bool
-	TotalVariants int
-	MinPrice      float64
-	MaxPrice      float64
-	AllowPurchase bool             // At least one variant allows purchase
-	OptionNames   []string
-	OptionValues  map[string][]string // optionName -> []values
-	IsWishlisted  bool                // At least one variant is in user's wishlist (user-specific)
+	HasVariants         bool
+	TotalVariants       int
+	OptionDerivedCount  int
+	ProductOptionsCount int
+	DefaultPrice        float64
+	MinPrice            float64
+	MaxPrice            float64
+	AllowPurchase       bool // At least one variant allows purchase
+	IsPopular           bool // At least one variant is popular
+	OptionNames         []string
+	OptionValues        map[string][]string // optionName -> []values
+	IsWishlisted        bool                // At least one variant is in user's wishlist (user-specific)
 }
 
 // VariantWithOptions represents a variant with its selected option values

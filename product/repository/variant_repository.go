@@ -12,6 +12,7 @@ import (
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	productQuery "ecommerce-be/product/query"
+	productUtils "ecommerce-be/product/utils"
 
 	"gorm.io/gorm"
 )
@@ -59,6 +60,14 @@ type VariantRepository interface {
 	FindVariantsByProductID(ctx context.Context, productID uint) ([]entity.ProductVariant, error)
 	DeleteVariantsByProductID(ctx context.Context, productID uint) error
 	DeleteVariantOptionValuesByVariantIDs(ctx context.Context, variantIDs []uint) error
+	FindPlaceholderVariants(ctx context.Context, productID uint) ([]entity.ProductVariant, error)
+	FindFirstOptionDerivedVariant(ctx context.Context, productID uint) (*entity.ProductVariant, error)
+	UpdateAllVariantsFlags(
+		ctx context.Context,
+		productID uint,
+		allowPurchase *bool,
+		isPopular *bool,
+	) error
 	ListVariantsWithFilters(
 		ctx context.Context,
 		filters *model.ListVariantsRequest,
@@ -320,6 +329,70 @@ func (r *VariantRepositoryImpl) UnsetAllDefaultVariantsForProduct(
 		Update("is_default", false).Error
 }
 
+// FindPlaceholderVariants returns variants with no linked option values (internal simple-product rows).
+func (r *VariantRepositoryImpl) FindPlaceholderVariants(
+	ctx context.Context,
+	productID uint,
+) ([]entity.ProductVariant, error) {
+	var variants []entity.ProductVariant
+	err := db.DB(ctx).
+		Where("product_id = ?", productID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM variant_option_value vov WHERE vov.variant_id = product_variant.id
+		)`).
+		Order("id ASC").
+		Find(&variants).Error
+	if err != nil {
+		return nil, err
+	}
+	return variants, nil
+}
+
+// FindFirstOptionDerivedVariant returns the earliest variant linked to at least one option value.
+func (r *VariantRepositoryImpl) FindFirstOptionDerivedVariant(
+	ctx context.Context,
+	productID uint,
+) (*entity.ProductVariant, error) {
+	var variant entity.ProductVariant
+	err := db.DB(ctx).
+		Where("product_id = ?", productID).
+		Where(`EXISTS (
+			SELECT 1 FROM variant_option_value vov WHERE vov.variant_id = product_variant.id
+		)`).
+		Order("id ASC").
+		First(&variant).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &variant, nil
+}
+
+// UpdateAllVariantsFlags bulk-updates allow_purchase and/or is_popular for every variant of a product.
+func (r *VariantRepositoryImpl) UpdateAllVariantsFlags(
+	ctx context.Context,
+	productID uint,
+	allowPurchase *bool,
+	isPopular *bool,
+) error {
+	updates := map[string]any{}
+	if allowPurchase != nil {
+		updates["allow_purchase"] = *allowPurchase
+	}
+	if isPopular != nil {
+		updates["is_popular"] = *isPopular
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	return db.DB(ctx).Model(&entity.ProductVariant{}).
+		Where("product_id = ?", productID).
+		Updates(updates).Error
+}
+
 // GetProductVariantAggregation retrieves aggregated variant data for a single product
 // If userID is provided, also checks if any variant is wishlisted by that user
 func (r *VariantRepositoryImpl) GetProductVariantAggregation(
@@ -327,10 +400,10 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	productID uint,
 	userID *uint,
 ) (*mapper.VariantAggregation, error) {
-	var aggregation mapper.VariantAggregation
-	aggregation.OptionValues = make(map[string][]string)
+	aggregation := &mapper.VariantAggregation{
+		OptionValues: make(map[string][]string),
+	}
 
-	// Check if product has variants
 	var variantCount int64
 	if err := db.DB(ctx).Model(&entity.ProductVariant{}).
 		Where("product_id = ?", productID).
@@ -339,39 +412,209 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 	}
 
 	if variantCount == 0 {
-		aggregation.HasVariants = false
-		return &aggregation, nil
+		return aggregation, nil
 	}
 
-	aggregation.HasVariants = true
-	aggregation.TotalVariants = int(variantCount)
-
-	// Get price range and availability (using allow_purchase instead of stock)
-	var priceAgg struct {
-		MinPrice      float64
-		MaxPrice      float64
-		AllowPurchase bool
+	if err := r.loadProductOptionsCount(ctx, productID, aggregation); err != nil {
+		return nil, err
 	}
-
-	err := db.DB(ctx).Model(&entity.ProductVariant{}).
-		Select(productQuery.VARIANT_PRICE_AGGREGATION_QUERY).
-		Where("product_id = ?", productID).
-		Scan(&priceAgg).Error
-	if err != nil {
+	if err := r.loadOptionDerivedCount(ctx, productID, aggregation); err != nil {
+		return nil, err
+	}
+	if err := r.loadAllVariantFlags(ctx, productID, aggregation); err != nil {
+		return nil, err
+	}
+	if err := r.loadOptionDerivedPriceRange(ctx, productID, aggregation); err != nil {
+		return nil, err
+	}
+	if err := r.loadOptionPreviewForProduct(ctx, productID, aggregation); err != nil {
 		return nil, err
 	}
 
-	aggregation.MinPrice = priceAgg.MinPrice
-	aggregation.MaxPrice = priceAgg.MaxPrice
-	aggregation.AllowPurchase = priceAgg.AllowPurchase
+	if userID != nil {
+		var isWishlisted bool
+		if err := db.DB(ctx).
+			Raw(productQuery.WISHLIST_CHECK_SINGLE_PRODUCT, productID, *userID).
+			Scan(&isWishlisted).Error; err != nil {
+			return nil, err
+		}
+		aggregation.IsWishlisted = isWishlisted
+	}
 
-	// Get option names and values
+	productUtils.ApplyAggregationSemantics(aggregation)
+	return aggregation, nil
+}
+
+// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
+// If userID is provided, also checks if any variant of each product is wishlisted by that user
+func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
+	ctx context.Context,
+	productIDs []uint,
+	userID *uint,
+) (map[uint]*mapper.VariantAggregation, error) {
+	result := make(map[uint]*mapper.VariantAggregation, len(productIDs))
+	for _, productID := range productIDs {
+		result[productID] = &mapper.VariantAggregation{
+			OptionValues: make(map[string][]string),
+		}
+	}
+
+	if len(productIDs) == 0 {
+		return result, nil
+	}
+
+	var variantCounts []struct {
+		ProductID uint
+		Count     int64
+	}
+	if err := db.DB(ctx).Model(&entity.ProductVariant{}).
+		Select("product_id, COUNT(*) as count").
+		Where("product_id IN ?", productIDs).
+		Group("product_id").
+		Scan(&variantCounts).Error; err != nil {
+		return nil, err
+	}
+
+	productsWithVariants := make([]uint, 0, len(variantCounts))
+	for _, vc := range variantCounts {
+		if vc.Count > 0 {
+			productsWithVariants = append(productsWithVariants, vc.ProductID)
+		}
+	}
+
+	if len(productsWithVariants) == 0 {
+		return result, nil
+	}
+
+	if err := r.loadBatchProductOptionsCounts(ctx, productsWithVariants, result); err != nil {
+		return nil, err
+	}
+	if err := r.loadBatchOptionDerivedCounts(ctx, productsWithVariants, result); err != nil {
+		return nil, err
+	}
+	if err := r.loadBatchAllVariantFlags(ctx, productsWithVariants, result); err != nil {
+		return nil, err
+	}
+	if err := r.loadBatchOptionDerivedPriceRanges(ctx, productsWithVariants, result); err != nil {
+		return nil, err
+	}
+	if err := r.loadBatchOptionPreview(ctx, productsWithVariants, result); err != nil {
+		return nil, err
+	}
+
+	if userID != nil {
+		var wishlistedProducts []struct {
+			ProductID uint
+		}
+		if err := db.DB(ctx).
+			Raw(productQuery.WISHLIST_CHECK_MULTIPLE_PRODUCTS, productsWithVariants, *userID).
+			Scan(&wishlistedProducts).Error; err != nil {
+			return nil, err
+		}
+		for _, wp := range wishlistedProducts {
+			if result[wp.ProductID] != nil {
+				result[wp.ProductID].IsWishlisted = true
+			}
+		}
+	}
+
+	for _, productID := range productsWithVariants {
+		productUtils.ApplyAggregationSemantics(result[productID])
+	}
+
+	return result, nil
+}
+
+func (r *VariantRepositoryImpl) loadProductOptionsCount(
+	ctx context.Context,
+	productID uint,
+	aggregation *mapper.VariantAggregation,
+) error {
+	var count int64
+	if err := db.DB(ctx).Model(&entity.ProductOption{}).
+		Where("product_id = ?", productID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	aggregation.ProductOptionsCount = int(count)
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadOptionDerivedCount(
+	ctx context.Context,
+	productID uint,
+	aggregation *mapper.VariantAggregation,
+) error {
+	var count int64
+	err := db.DB(ctx).Table("variant_option_value vov").
+		Joins("JOIN product_variant pv ON pv.id = vov.variant_id").
+		Where("pv.product_id = ?", productID).
+		Distinct("vov.variant_id").
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+	aggregation.OptionDerivedCount = int(count)
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadAllVariantFlags(
+	ctx context.Context,
+	productID uint,
+	aggregation *mapper.VariantAggregation,
+) error {
+	var flags struct {
+		DefaultPrice  float64
+		AllowPurchase bool
+		IsPopular     bool
+	}
+	err := db.DB(ctx).Model(&entity.ProductVariant{}).
+		Select(productQuery.VARIANT_ALL_FLAGS_AGGREGATION_QUERY).
+		Where("product_id = ?", productID).
+		Scan(&flags).Error
+	if err != nil {
+		return err
+	}
+	aggregation.DefaultPrice = flags.DefaultPrice
+	aggregation.AllowPurchase = flags.AllowPurchase
+	aggregation.IsPopular = flags.IsPopular
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadOptionDerivedPriceRange(
+	ctx context.Context,
+	productID uint,
+	aggregation *mapper.VariantAggregation,
+) error {
+	var priceAgg struct {
+		MinPrice float64
+		MaxPrice float64
+	}
+	err := db.DB(ctx).Table("product_variant pv").
+		Select(productQuery.VARIANT_OPTION_DERIVED_PRICE_AGGREGATION_QUERY).
+		Joins(`INNER JOIN variant_option_value vov ON vov.variant_id = pv.id`).
+		Where("pv.product_id = ?", productID).
+		Scan(&priceAgg).Error
+	if err != nil {
+		return err
+	}
+	if aggregation.OptionDerivedCount > 0 {
+		aggregation.MinPrice = priceAgg.MinPrice
+		aggregation.MaxPrice = priceAgg.MaxPrice
+	}
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadOptionPreviewForProduct(
+	ctx context.Context,
+	productID uint,
+	aggregation *mapper.VariantAggregation,
+) error {
 	var optionData []struct {
 		OptionName  string
 		OptionValue string
 	}
-
-	err = db.DB(ctx).Table("variant_option_value vov").
+	err := db.DB(ctx).Table("variant_option_value vov").
 		Select("po.name as option_name, pov.value as option_value").
 		Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
 		Joins("JOIN product_option po ON pov.option_id = po.id").
@@ -381,19 +624,15 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 		Order("po.name, pov.value").
 		Scan(&optionData).Error
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Build option names and option values map
 	optionNamesSet := make(map[string]bool)
 	for _, od := range optionData {
 		optionNamesSet[od.OptionName] = true
-
 		if _, exists := aggregation.OptionValues[od.OptionName]; !exists {
 			aggregation.OptionValues[od.OptionName] = []string{}
 		}
-
-		// Check if value already exists to avoid duplicates
 		valueExists := false
 		for _, v := range aggregation.OptionValues[od.OptionName] {
 			if v == od.OptionValue {
@@ -408,193 +647,177 @@ func (r *VariantRepositoryImpl) GetProductVariantAggregation(
 			)
 		}
 	}
-
-	// Convert option names set to slice
 	for name := range optionNamesSet {
 		aggregation.OptionNames = append(aggregation.OptionNames, name)
 	}
-
-	// Check if any variant is wishlisted by the user (if userID is provided)
-	if userID != nil {
-		var isWishlisted bool
-		err = db.DB(ctx).Raw(productQuery.WISHLIST_CHECK_SINGLE_PRODUCT, productID, *userID).Scan(&isWishlisted).Error
-		if err != nil {
-			return nil, err
-		}
-		aggregation.IsWishlisted = isWishlisted
-	}
-
-	return &aggregation, nil
+	return nil
 }
 
-// GetProductsVariantAggregations retrieves aggregated variant data for multiple products
-// If userID is provided, also checks if any variant of each product is wishlisted by that user
-func (r *VariantRepositoryImpl) GetProductsVariantAggregations(
+func (r *VariantRepositoryImpl) loadBatchProductOptionsCounts(
 	ctx context.Context,
 	productIDs []uint,
-	userID *uint,
-) (map[uint]*mapper.VariantAggregation, error) {
-	result := make(map[uint]*mapper.VariantAggregation)
-
-	if len(productIDs) == 0 {
-		return result, nil
-	}
-
-	// Get variant counts per product
-	var variantCounts []struct {
+	result map[uint]*mapper.VariantAggregation,
+) error {
+	var rows []struct {
 		ProductID uint
 		Count     int64
 	}
-
-	if err := db.DB(ctx).Model(&entity.ProductVariant{}).
+	err := db.DB(ctx).Model(&entity.ProductOption{}).
 		Select("product_id, COUNT(*) as count").
 		Where("product_id IN ?", productIDs).
 		Group("product_id").
-		Scan(&variantCounts).Error; err != nil {
-		return nil, err
+		Scan(&rows).Error
+	if err != nil {
+		return err
 	}
-
-	// Initialize result map with products that have variants
-	productsWithVariants := make(map[uint]bool)
-	for _, vc := range variantCounts {
-		productsWithVariants[vc.ProductID] = true
-		result[vc.ProductID] = &mapper.VariantAggregation{
-			HasVariants:   true,
-			TotalVariants: int(vc.Count),
-			OptionValues:  make(map[string][]string),
+	for _, row := range rows {
+		if result[row.ProductID] != nil {
+			result[row.ProductID].ProductOptionsCount = int(row.Count)
 		}
 	}
+	return nil
+}
 
-	// Initialize products without variants
-	for _, productID := range productIDs {
-		if !productsWithVariants[productID] {
-			result[productID] = &mapper.VariantAggregation{
-				HasVariants:  false,
-				OptionValues: make(map[string][]string),
+func (r *VariantRepositoryImpl) loadBatchOptionDerivedCounts(
+	ctx context.Context,
+	productIDs []uint,
+	result map[uint]*mapper.VariantAggregation,
+) error {
+	var rows []struct {
+		ProductID uint
+		Count     int64
+	}
+	err := db.DB(ctx).Table("variant_option_value vov").
+		Select("pv.product_id, COUNT(DISTINCT vov.variant_id) as count").
+		Joins("JOIN product_variant pv ON pv.id = vov.variant_id").
+		Where("pv.product_id IN ?", productIDs).
+		Group("pv.product_id").
+		Scan(&rows).Error
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if result[row.ProductID] != nil {
+			result[row.ProductID].OptionDerivedCount = int(row.Count)
+		}
+	}
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadBatchAllVariantFlags(
+	ctx context.Context,
+	productIDs []uint,
+	result map[uint]*mapper.VariantAggregation,
+) error {
+	var rows []struct {
+		ProductID     uint
+		DefaultPrice  float64
+		AllowPurchase bool
+		IsPopular     bool
+	}
+	err := db.DB(ctx).Model(&entity.ProductVariant{}).
+		Select(productQuery.VARIANT_BATCH_ALL_FLAGS_AGGREGATION_QUERY).
+		Where("product_id IN ?", productIDs).
+		Group("product_id").
+		Scan(&rows).Error
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if result[row.ProductID] != nil {
+			result[row.ProductID].DefaultPrice = row.DefaultPrice
+			result[row.ProductID].AllowPurchase = row.AllowPurchase
+			result[row.ProductID].IsPopular = row.IsPopular
+		}
+	}
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadBatchOptionDerivedPriceRanges(
+	ctx context.Context,
+	productIDs []uint,
+	result map[uint]*mapper.VariantAggregation,
+) error {
+	var rows []struct {
+		ProductID uint
+		MinPrice  float64
+		MaxPrice  float64
+	}
+	err := db.DB(ctx).Table("product_variant pv").
+		Select(productQuery.VARIANT_BATCH_OPTION_DERIVED_PRICE_AGGREGATION_QUERY).
+		Joins(`INNER JOIN variant_option_value vov ON vov.variant_id = pv.id`).
+		Where("pv.product_id IN ?", productIDs).
+		Group("pv.product_id").
+		Scan(&rows).Error
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if result[row.ProductID] != nil && result[row.ProductID].OptionDerivedCount > 0 {
+			result[row.ProductID].MinPrice = row.MinPrice
+			result[row.ProductID].MaxPrice = row.MaxPrice
+		}
+	}
+	return nil
+}
+
+func (r *VariantRepositoryImpl) loadBatchOptionPreview(
+	ctx context.Context,
+	productIDs []uint,
+	result map[uint]*mapper.VariantAggregation,
+) error {
+	var optionData []struct {
+		ProductID   uint
+		OptionName  string
+		OptionValue string
+	}
+	err := db.DB(ctx).Table("variant_option_value vov").
+		Select("pv.product_id as product_id, po.name as option_name, pov.value as option_value").
+		Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
+		Joins("JOIN product_option po ON pov.option_id = po.id").
+		Joins("JOIN product_variant pv ON vov.variant_id = pv.id").
+		Where("pv.product_id IN ?", productIDs).
+		Group("pv.product_id, po.name, pov.value").
+		Order("pv.product_id, po.name, pov.value").
+		Scan(&optionData).Error
+	if err != nil {
+		return err
+	}
+
+	optionNamesMap := make(map[uint]map[string]bool)
+	for _, od := range optionData {
+		if result[od.ProductID] == nil {
+			continue
+		}
+		if _, exists := optionNamesMap[od.ProductID]; !exists {
+			optionNamesMap[od.ProductID] = make(map[string]bool)
+		}
+		optionNamesMap[od.ProductID][od.OptionName] = true
+		if _, exists := result[od.ProductID].OptionValues[od.OptionName]; !exists {
+			result[od.ProductID].OptionValues[od.OptionName] = []string{}
+		}
+		valueExists := false
+		for _, v := range result[od.ProductID].OptionValues[od.OptionName] {
+			if v == od.OptionValue {
+				valueExists = true
+				break
+			}
+		}
+		if !valueExists {
+			result[od.ProductID].OptionValues[od.OptionName] = append(
+				result[od.ProductID].OptionValues[od.OptionName],
+				od.OptionValue,
+			)
+		}
+	}
+	for productID, optionNames := range optionNamesMap {
+		if result[productID] != nil {
+			for name := range optionNames {
+				result[productID].OptionNames = append(result[productID].OptionNames, name)
 			}
 		}
 	}
-
-	// Get price range and total stock for products with variants
-	if len(productsWithVariants) > 0 {
-		var priceAggData []struct {
-			ProductID     uint
-			MinPrice      float64
-			MaxPrice      float64
-			AllowPurchase bool
-		}
-
-		variantProductIDs := make([]uint, 0, len(productsWithVariants))
-		for pid := range productsWithVariants {
-			variantProductIDs = append(variantProductIDs, pid)
-		}
-
-		err := db.DB(ctx).Model(&entity.ProductVariant{}).
-			Select(`
-				product_id,
-				MIN(price) as min_price,
-				MAX(price) as max_price,
-				BOOL_OR(allow_purchase) as allow_purchase
-			`).
-			Where("product_id IN ?", variantProductIDs).
-			Group("product_id").
-			Scan(&priceAggData).Error
-		if err != nil {
-			return nil, err
-		}
-
-		for _, agg := range priceAggData {
-			if result[agg.ProductID] != nil {
-				result[agg.ProductID].MinPrice = agg.MinPrice
-				result[agg.ProductID].MaxPrice = agg.MaxPrice
-				result[agg.ProductID].AllowPurchase = agg.AllowPurchase
-			}
-		}
-
-		// Get option names and values for all products
-		var optionData []struct {
-			ProductID   uint
-			OptionName  string
-			OptionValue string
-		}
-
-		err = db.DB(ctx).Table("variant_option_value vov").
-			Select("pv.product_id as product_id, po.name as option_name, pov.value as option_value").
-			Joins("JOIN product_option_value pov ON vov.option_value_id = pov.id").
-			Joins("JOIN product_option po ON pov.option_id = po.id").
-			Joins("JOIN product_variant pv ON vov.variant_id = pv.id").
-			Where("pv.product_id IN ?", variantProductIDs).
-			Group("pv.product_id, po.name, pov.value").
-			Order("pv.product_id, po.name, pov.value").
-			Scan(&optionData).Error
-		if err != nil {
-			return nil, err
-		}
-
-		// Build option names and option values map for each product
-		optionNamesMap := make(map[uint]map[string]bool)
-		for _, od := range optionData {
-			if result[od.ProductID] == nil {
-				continue
-			}
-
-			// Track option names
-			if _, exists := optionNamesMap[od.ProductID]; !exists {
-				optionNamesMap[od.ProductID] = make(map[string]bool)
-			}
-			optionNamesMap[od.ProductID][od.OptionName] = true
-
-			// Add option values
-			if _, exists := result[od.ProductID].OptionValues[od.OptionName]; !exists {
-				result[od.ProductID].OptionValues[od.OptionName] = []string{}
-			}
-
-			// Check if value already exists to avoid duplicates
-			valueExists := false
-			for _, v := range result[od.ProductID].OptionValues[od.OptionName] {
-				if v == od.OptionValue {
-					valueExists = true
-					break
-				}
-			}
-			if !valueExists {
-				result[od.ProductID].OptionValues[od.OptionName] = append(
-					result[od.ProductID].OptionValues[od.OptionName],
-					od.OptionValue,
-				)
-			}
-		}
-
-		// Convert option names sets to slices
-		for productID, optionNames := range optionNamesMap {
-			if result[productID] != nil {
-				for name := range optionNames {
-					result[productID].OptionNames = append(result[productID].OptionNames, name)
-				}
-			}
-		}
-
-		// Check if any variant is wishlisted by the user (if userID is provided)
-		if userID != nil {
-			var wishlistedProducts []struct {
-				ProductID uint
-			}
-
-			err = db.DB(ctx).Raw(productQuery.WISHLIST_CHECK_MULTIPLE_PRODUCTS, variantProductIDs, *userID).Scan(&wishlistedProducts).Error
-			if err != nil {
-				return nil, err
-			}
-
-			// Mark products as wishlisted
-			for _, wp := range wishlistedProducts {
-				if result[wp.ProductID] != nil {
-					result[wp.ProductID].IsWishlisted = true
-				}
-			}
-		}
-	}
-
-	return result, nil
+	return nil
 }
 
 func (r *VariantRepositoryImpl) GetProductVariantsWithOptions(

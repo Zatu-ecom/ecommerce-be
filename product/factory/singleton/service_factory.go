@@ -157,6 +157,7 @@ func (f *ServiceFactory) initialize() {
 		f.productService = service.NewProductService(
 			productRepo,
 			categoryRepo,
+			variantRepo,
 			f.productQueryService,
 			f.validatorService,
 			f.variantService,

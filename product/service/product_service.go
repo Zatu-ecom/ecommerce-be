@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"sort"
 
+	commonHelper "ecommerce-be/common/helper"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
@@ -10,6 +13,7 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
+	productUtils "ecommerce-be/product/utils"
 )
 
 // ProductService defines the interface for product-related business logic
@@ -36,6 +40,7 @@ type ProductService interface {
 type ProductServiceImpl struct {
 	productRepo             repository.ProductRepository
 	categoryRepo            repository.CategoryRepository
+	variantRepo             repository.VariantRepository
 	productQueryService     ProductQueryService
 	validatorService        ProductValidatorService
 	variantService          VariantService
@@ -49,6 +54,7 @@ type ProductServiceImpl struct {
 func NewProductService(
 	productRepo repository.ProductRepository,
 	categoryRepo repository.CategoryRepository,
+	variantRepo repository.VariantRepository,
 	productQueryService ProductQueryService,
 	validatorService ProductValidatorService,
 	variantService VariantService,
@@ -60,6 +66,7 @@ func NewProductService(
 	return &ProductServiceImpl{
 		productRepo:             productRepo,
 		categoryRepo:            categoryRepo,
+		variantRepo:             variantRepo,
 		productQueryService:     productQueryService,
 		validatorService:        validatorService,
 		variantService:          variantService,
@@ -172,8 +179,9 @@ func (s *ProductServiceImpl) createProductAssociations(
 		result.options = options
 	}
 
-	// Create variants (required)
-	variants, err := s.variantBulkService.CreateVariantsBulk(ctx, productID, sellerID, req.Variants)
+	// Create variants (explicit or synthesized placeholder for simple products)
+	variantRequests := resolveVariantCreateRequests(req)
+	variants, err := s.variantBulkService.CreateVariantsBulk(ctx, productID, sellerID, variantRequests)
 	if err != nil {
 		return err
 	}
@@ -210,6 +218,33 @@ func (s *ProductServiceImpl) createProductAssociations(
 	return nil
 }
 
+// resolveVariantCreateRequests returns explicit variants or synthesizes a placeholder for simple products.
+func resolveVariantCreateRequests(req model.ProductCreateRequest) []model.CreateVariantRequest {
+	if len(req.Variants) > 0 {
+		return req.Variants
+	}
+
+	allowPurchase := true
+	if req.AllowPurchase != nil {
+		allowPurchase = *req.AllowPurchase
+	}
+
+	isPopular := false
+	if req.IsPopular != nil {
+		isPopular = *req.IsPopular
+	}
+
+	return []model.CreateVariantRequest{
+		{
+			SKU:           req.BaseSKU,
+			Price:         req.Price,
+			AllowPurchase: commonHelper.BoolPtr(allowPurchase),
+			IsPopular:     commonHelper.BoolPtr(isPopular),
+			IsDefault:     commonHelper.BoolPtr(true),
+		},
+	}
+}
+
 // buildProductResponseFromModels combines models from different services into final product response
 // Uses factory builder for base response, then adds detailed fields from services
 func (s *ProductServiceImpl) buildProductResponseFromModels(
@@ -219,15 +254,15 @@ func (s *ProductServiceImpl) buildProductResponseFromModels(
 	attributes []model.ProductAttributeResponse,
 	packageOptions []entity.PackageOption,
 ) *model.ProductResponse {
-	// Calculate variant aggregation from models
-	variantAgg := calculateVariantAggFromModels(variants)
+	publicVariants := productUtils.FilterPublicVariants(variants)
+	variantAgg := calculateVariantAggFromModels(variants, len(options))
 
 	// Use factory builder for base response
 	response := factory.BuildProductResponse(product, variantAgg)
 
 	// Add detailed fields from services (not included in base builder)
 	response.Options = options
-	response.Variants = variants
+	response.Variants = publicVariants
 	response.Attributes = attributes
 	response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
 
@@ -237,54 +272,54 @@ func (s *ProductServiceImpl) buildProductResponseFromModels(
 // calculateVariantAggFromModels calculates aggregation data from variant models
 func calculateVariantAggFromModels(
 	variants []model.VariantDetailResponse,
+	productOptionsCount int,
 ) *mapper.VariantAggregation {
+	publicVariants := productUtils.FilterPublicVariants(variants)
+
 	agg := &mapper.VariantAggregation{
-		HasVariants:   len(variants) > 0,
-		TotalVariants: len(variants),
-		AllowPurchase: false,
-		OptionNames:   []string{},
-		OptionValues:  make(map[string][]string),
+		ProductOptionsCount: productOptionsCount,
+		OptionDerivedCount:  len(publicVariants),
+		DefaultPrice:        productUtils.DeriveProductPrice(variants),
+		AllowPurchase:       productUtils.DeriveAllowPurchase(variants),
+		IsPopular:           productUtils.DeriveIsPopular(variants),
+		OptionNames:         []string{},
+		OptionValues:        make(map[string][]string),
 	}
 
-	if len(variants) == 0 {
-		return agg
-	}
+	if len(publicVariants) > 0 {
+		minPrice := publicVariants[0].Price
+		maxPrice := publicVariants[0].Price
+		optionValuesMap := make(map[string]map[string]bool)
 
-	minPrice := variants[0].Price
-	maxPrice := variants[0].Price
-	optionValuesMap := make(map[string]map[string]bool) // optionName -> set of unique values
-
-	for _, v := range variants {
-		if v.Price < minPrice {
-			minPrice = v.Price
-		}
-		if v.Price > maxPrice {
-			maxPrice = v.Price
-		}
-		if v.AllowPurchase {
-			agg.AllowPurchase = true
-		}
-		// Collect unique option values
-		for _, opt := range v.SelectedOptions {
-			if optionValuesMap[opt.OptionName] == nil {
-				optionValuesMap[opt.OptionName] = make(map[string]bool)
+		for _, v := range publicVariants {
+			if v.Price < minPrice {
+				minPrice = v.Price
 			}
-			optionValuesMap[opt.OptionName][opt.Value] = true
+			if v.Price > maxPrice {
+				maxPrice = v.Price
+			}
+			for _, opt := range v.SelectedOptions {
+				if optionValuesMap[opt.OptionName] == nil {
+					optionValuesMap[opt.OptionName] = make(map[string]bool)
+				}
+				optionValuesMap[opt.OptionName][opt.Value] = true
+			}
+		}
+
+		agg.MinPrice = minPrice
+		agg.MaxPrice = maxPrice
+
+		for optName, valuesSet := range optionValuesMap {
+			agg.OptionNames = append(agg.OptionNames, optName)
+			values := make([]string, 0, len(valuesSet))
+			for v := range valuesSet {
+				values = append(values, v)
+			}
+			agg.OptionValues[optName] = values
 		}
 	}
 
-	agg.MinPrice = minPrice
-	agg.MaxPrice = maxPrice
-
-	// Build OptionNames and OptionValues
-	for optName, valuesSet := range optionValuesMap {
-		agg.OptionNames = append(agg.OptionNames, optName)
-		values := []string{}
-		for v := range valuesSet {
-			values = append(values, v)
-		}
-		agg.OptionValues[optName] = values
-	}
+	productUtils.ApplyAggregationSemantics(agg)
 
 	return agg
 }
@@ -326,8 +361,19 @@ func (s *ProductServiceImpl) UpdateProduct(
 	// When CategoryID is updated but Category is preloaded, GORM may not update correctly
 	product.Category = nil
 
-	// Save updated product
-	if err := s.productRepo.Update(ctx, product); err != nil {
+	hasCommerceUpdate := req.Price != nil || req.AllowPurchase != nil || req.IsPopular != nil
+
+	if hasCommerceUpdate {
+		err = db.WithTransaction(ctx, func(txCtx context.Context) error {
+			if err := s.productRepo.Update(txCtx, product); err != nil {
+				return err
+			}
+			return s.applyProductCommerceUpdates(txCtx, product.ID, req)
+		})
+	} else if err = s.productRepo.Update(ctx, product); err != nil {
+		return nil, err
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -336,6 +382,57 @@ func (s *ProductServiceImpl) UpdateProduct(
 	// Return updated product with full details
 	// Note: userID is nil here as this is a seller/admin update operation
 	return s.productQueryService.GetProductByID(ctx, product.ID, sellerId, nil)
+}
+
+func (s *ProductServiceImpl) applyProductCommerceUpdates(
+	ctx context.Context,
+	productID uint,
+	req model.ProductUpdateRequest,
+) error {
+	variants, err := s.variantRepo.FindVariantsByProductID(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if len(variants) == 0 {
+		return commonError.ErrValidation.WithMessage("product has no variants")
+	}
+
+	if req.Price != nil {
+		defaultVariant := findDefaultVariantEntity(variants)
+		if defaultVariant == nil {
+			return commonError.ErrValidation.WithMessage("default variant not found")
+		}
+		defaultVariant.Price = *req.Price
+		if err := s.variantRepo.UpdateVariant(ctx, defaultVariant); err != nil {
+			return err
+		}
+	}
+
+	if req.AllowPurchase != nil || req.IsPopular != nil {
+		return s.variantRepo.UpdateAllVariantsFlags(ctx, productID, req.AllowPurchase, req.IsPopular)
+	}
+
+	return nil
+}
+
+func findDefaultVariantEntity(variants []entity.ProductVariant) *entity.ProductVariant {
+	if len(variants) == 0 {
+		return nil
+	}
+
+	sorted := make([]entity.ProductVariant, len(variants))
+	copy(sorted, variants)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].ID < sorted[j].ID
+	})
+
+	for i := range sorted {
+		if sorted[i].IsDefault {
+			return &sorted[i]
+		}
+	}
+
+	return &sorted[0]
 }
 
 /***************************************************

@@ -108,41 +108,40 @@ func TestGetAllProducts(t *testing.T) {
 		assert.True(t, pagination["hasPrev"].(bool), "Should have previous page")
 	})
 
-	t.Run("Success - Product response includes variantPreview", func(t *testing.T) {
+	t.Run("Success - Product response includes variantPreview for configurable products", func(t *testing.T) {
 		w := client.Get(t, "/api/product")
 
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		products := response["data"].(map[string]any)["products"].([]any)
 
-		// All products should have variantPreview (listing view doesn't include full variants)
-		foundProductWithVariantPreview := false
+		foundConfigurableWithPreview := false
+		foundSimpleWithoutPreview := false
 		for _, p := range products {
 			product := p.(map[string]any)
-			if variantPreview, ok := product["variantPreview"].(map[string]any); ok {
-				foundProductWithVariantPreview = true
-				// Verify variantPreview structure
-				assert.NotNil(
-					t,
-					variantPreview["totalVariants"],
-					"VariantPreview should have totalVariants",
-				)
-				assert.NotNil(t, variantPreview["options"], "VariantPreview should have options")
+			hasVariants, _ := product["hasVariants"].(bool)
 
-				totalVariants := variantPreview["totalVariants"].(float64)
-				assert.Greater(
-					t,
-					totalVariants,
-					float64(0),
-					"Product should have at least 1 variant",
-				)
-				break
+			if hasVariants {
+				variantPreview, ok := product["variantPreview"].(map[string]any)
+				if ok && variantPreview != nil {
+					foundConfigurableWithPreview = true
+					assert.NotNil(t, variantPreview["totalVariants"])
+					assert.NotNil(t, variantPreview["options"])
+					totalVariants := variantPreview["totalVariants"].(float64)
+					assert.Greater(t, totalVariants, float64(0))
+				}
+			} else {
+				assert.Nil(t, product["variantPreview"], "Simple products should not have variantPreview")
+				assert.NotNil(t, product["price"], "Simple products should expose product-level price")
+				foundSimpleWithoutPreview = true
 			}
 		}
 		assert.True(
 			t,
-			foundProductWithVariantPreview,
-			"Should find at least one product with variantPreview",
+			foundConfigurableWithPreview,
+			"Should find at least one configurable product with variantPreview",
 		)
+		// Simple products may not exist in mock seed; listing semantics verified when present
+		_ = foundSimpleWithoutPreview
 
 		// Verify that full variants are NOT included in listing (GetAll API)
 		for _, p := range products {

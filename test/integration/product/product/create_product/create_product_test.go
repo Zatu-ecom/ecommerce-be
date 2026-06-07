@@ -112,6 +112,33 @@ func TestCreateProduct(t *testing.T) {
 		assert.Len(t, productOptions, 1, "Should have 1 product option")
 	})
 
+	t.Run("Success - Create simple product with product-level price only", func(t *testing.T) {
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		requestBody := map[string]any{
+			"name":       "Simple Product - Price Only",
+			"categoryId": 4,
+			"baseSku":    "TEST-SIMPLE-001",
+			"price":      49.99,
+		}
+
+		w := client.Post(t, "/api/product", requestBody)
+		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		product := helpers.GetResponseData(t, response, "product")
+
+		assert.NotNil(t, product["id"])
+		assert.Equal(t, "Simple Product - Price Only", product["name"])
+		assert.Equal(t, "TEST-SIMPLE-001", product["sku"])
+		assert.Equal(t, false, product["hasVariants"])
+		assert.Equal(t, 49.99, product["price"])
+		assert.Equal(t, true, product["allowPurchase"])
+
+		variants, ok := product["variants"].([]any)
+		assert.True(t, ok, "variants should be an array")
+		assert.Empty(t, variants, "Simple products should not expose placeholder variants")
+	})
+
 	t.Run("Success - Create product with multiple variants (2 options)", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
@@ -1119,7 +1146,7 @@ func TestCreateProduct(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 
-	t.Run("Error - Missing required field: variants", func(t *testing.T) {
+	t.Run("Error - Missing price and variants", func(t *testing.T) {
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
 
@@ -1127,7 +1154,7 @@ func TestCreateProduct(t *testing.T) {
 			"name":       "Test Product",
 			"categoryId": 4,
 			"baseSku":    "TEST-NOVAR-001",
-			// variants is missing
+			// price and variants are both missing
 		}
 
 		w := client.Post(t, "/api/product", requestBody)
