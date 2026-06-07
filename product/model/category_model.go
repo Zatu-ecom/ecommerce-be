@@ -34,6 +34,7 @@ type CategoryHierarchyResponse struct {
 	Name        string                      `json:"name"`
 	ParentID    *uint                       `json:"parentId"`
 	Description string                      `json:"description"`
+	IsGlobal    bool                        `json:"isGlobal"`
 	Children    []CategoryHierarchyResponse `json:"children"`
 }
 
