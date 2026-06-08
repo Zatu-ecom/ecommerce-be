@@ -138,7 +138,7 @@ func (s *ProductInventorySummaryServiceImpl) GetVariantInventoryAtLocation(
 	}
 
 	// 2. Get variants from product service
-	variants, err := s.variantService.GetProductVariantsWithOptions(ctx, productID)
+	variants, err := s.variantService.GetProductVariantsWithOptions(ctx, productID, &sellerID)
 	if err != nil {
 		return nil, err
 	}

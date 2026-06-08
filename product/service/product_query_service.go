@@ -249,8 +249,13 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		response.Options = productOptions
 	}
 
-	// Get all variants with their selected option values; expose public variants only
-	allVariants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID)
+	// Get all variants with their selected option values; expose public variants only.
+	mediaSellerID := sellerID
+	if mediaSellerID == nil {
+		sid := product.SellerID
+		mediaSellerID = &sid
+	}
+	allVariants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID, mediaSellerID)
 	if err == nil {
 		response.Variants = productUtils.FilterPublicVariants(allVariants)
 	}
