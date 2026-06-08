@@ -77,6 +77,10 @@ func (f *SingletonFactory) GetSellerHandler() *handler.SellerHandler {
 	return f.handlerFactory.GetSellerHandler()
 }
 
+func (f *SingletonFactory) GetSellerSettingsHandler() *handler.SellerSettingsHandler {
+	return f.handlerFactory.GetSellerSettingsHandler()
+}
+
 // ===============================
 // Service Getters (Delegates)
 // ===============================

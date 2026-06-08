@@ -29,5 +29,7 @@ func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewAddressModule())
 	c.RegisterModule(routes.NewUserModule())
 	c.RegisterModule(routes.NewCountryModule())
+	c.RegisterModule(routes.NewCurrencyModule())
 	c.RegisterModule(routes.NewSellerModule())
+	c.RegisterModule(routes.NewSellerSettingsModule())
 }

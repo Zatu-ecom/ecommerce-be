@@ -26,6 +26,52 @@ func NewCurrencyHandler(currencyService service.CurrencyService) *CurrencyHandle
 }
 
 // ========================================
+// PUBLIC ROUTES
+// ========================================
+
+// ListActiveCurrencies handles listing active currencies (public API)
+// GET /api/user/currency
+func (h *CurrencyHandler) ListActiveCurrencies(c *gin.Context) {
+	var params model.CurrencyQueryParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	response, err := h.currencyService.GetAllCurrencies(c, params, false)
+	if err != nil {
+		h.HandleError(c, err, constant.FAILED_TO_LIST_CURRENCIES_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, constant.CURRENCIES_LISTED_MSG, response)
+}
+
+// GetCurrencyByID handles getting a currency by ID (public API)
+// GET /api/user/currency/:id
+func (h *CurrencyHandler) GetCurrencyByID(c *gin.Context) {
+	currencyID, err := h.ParseUintParam(c, "id")
+	if err != nil {
+		h.HandleError(c, err, constant.INVALID_CURRENCY_ID_MSG)
+		return
+	}
+
+	response, err := h.currencyService.GetCurrencyByID(c, currencyID)
+	if err != nil {
+		h.HandleError(c, err, constant.FAILED_TO_GET_CURRENCY_MSG)
+		return
+	}
+
+	h.SuccessWithData(
+		c,
+		http.StatusOK,
+		constant.CURRENCY_RETRIEVED_MSG,
+		constant.CURRENCY_FIELD_NAME,
+		response,
+	)
+}
+
+// ========================================
 // ADMIN ROUTES
 // ========================================
 
