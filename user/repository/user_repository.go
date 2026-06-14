@@ -42,7 +42,11 @@ func NewUserRepository() UserRepository {
 
 // Create creates a new user in the database
 func (r *UserRepositoryImpl) Create(ctx context.Context, user *entity.User) error {
-	return db.DB(ctx).Create(user).Error
+	query := db.DB(ctx)
+	if user.SellerID == 0 {
+		query = query.Omit("SellerID")
+	}
+	return query.Create(user).Error
 }
 
 // FindByID finds a user by ID

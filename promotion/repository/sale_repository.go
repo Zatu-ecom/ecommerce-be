@@ -36,16 +36,16 @@ func (r *SaleRepositoryImpl) Create(ctx context.Context, sale *entity.Sale) erro
 
 func (r *SaleRepositoryImpl) Update(ctx context.Context, sale *entity.Sale) error {
 	return db.DB(ctx).Model(sale).
-		Select("Name", "Description", "Slug", "BannerImages", "Status", "StartAt", "EndAt", "UpdatedAt").
+		Select("Name", "Description", "Slug", "BannerFileIDs", "Status", "StartAt", "EndAt", "UpdatedAt").
 		Updates(map[string]any{
-			"name":          sale.Name,
-			"description":   sale.Description,
-			"slug":          sale.Slug,
-			"banner_images": sale.BannerImages,
-			"status":        sale.Status,
-			"start_at":      sale.StartAt,
-			"end_at":        sale.EndAt,
-			"updated_at":    sale.UpdatedAt,
+			"name":             sale.Name,
+			"description":      sale.Description,
+			"slug":             sale.Slug,
+			"banner_file_ids":  sale.BannerFileIDs,
+			"status":           sale.Status,
+			"start_at":         sale.StartAt,
+			"end_at":           sale.EndAt,
+			"updated_at":       sale.UpdatedAt,
 		}).Error
 }
 

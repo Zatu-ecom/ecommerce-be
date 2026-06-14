@@ -1,8 +1,8 @@
 # Product + File Service Integration Plan
 
 > **Purpose**: Exact changes needed in current codebase to integrate `file` module with product, variant, order snapshots, and seller-facing media fields.  
-> **Last Updated**: April 5, 2026  
-> **Status**: Analysis complete, implementation pending
+> **Last Updated**: June 2026  
+> **Status**: Superseded — see section 2 below.
 
 ---
 
@@ -49,7 +49,26 @@ References:
 
 ---
 
-## 2) Recommended Target State
+> **Status**: Superseded by migration `023_file_id_references.sql` and the `common/filegateway` pattern (April 2026). Historical analysis below is kept for reference.
+
+---
+
+## 2) Implemented Target State (migration 023)
+
+Domain tables store `*_file_id` references; API responses resolve URLs at read time via `FileDisplayGateway`:
+
+| Domain | Write field | Read field |
+|--------|-------------|------------|
+| Collection | `imageFileId` | `image: FileAssetResponse` |
+| Sale | `bannerFileIds` | `bannerImages: []FileAssetResponse` |
+| Seller profile | `businessLogoFileId` | `businessLogo: FileAssetResponse` |
+| Order item snapshot | — | `imageUrl` + `imageFileId` |
+| Cart variant | — | `variant.images` + `variant.imageFileId` |
+| Promotion scope | — | `imageUrl` from product primary media |
+
+---
+
+## 2a) Original Recommended Target State
 
 Use **`file_object_id` references** in domain tables and resolve URLs at response time from file service.
 

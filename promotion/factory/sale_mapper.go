@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/filegateway"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
@@ -21,13 +22,13 @@ func SaleRequestToEntity(req model.CreateSaleRequest, sellerID uint) (*entity.Sa
 	}
 
 	sale := &entity.Sale{
-		SellerID:     sellerID,
-		Name:         req.Name,
-		Description:  req.Description,
-		BannerImages: db.StringArray(req.BannerImages),
-		Status:       status,
-		StartAt:      startAt,
-		EndAt:        endAt,
+		SellerID:      sellerID,
+		Name:          req.Name,
+		Description:   req.Description,
+		BannerFileIDs: db.StringArray(req.BannerFileIDs),
+		Status:        status,
+		StartAt:       startAt,
+		EndAt:         endAt,
 	}
 
 	if req.Slug != nil && *req.Slug != "" {
@@ -45,7 +46,7 @@ func ApplyUpdateSaleRequest(sale *entity.Sale, req model.UpdateSaleRequest) (*en
 
 	sale.Name = req.Name
 	sale.Description = req.Description
-	sale.BannerImages = db.StringArray(req.BannerImages)
+	sale.BannerFileIDs = db.StringArray(req.BannerFileIDs)
 	sale.StartAt = startAt
 	sale.EndAt = endAt
 	sale.UpdatedAt = time.Now().UTC()
@@ -60,10 +61,12 @@ func ApplyUpdateSaleRequest(sale *entity.Sale, req model.UpdateSaleRequest) (*en
 	return sale, nil
 }
 
-func SaleEntityToResponse(sale *entity.Sale) *model.SaleResponse {
-	banners := []string(sale.BannerImages)
-	if banners == nil {
-		banners = []string{}
+func SaleEntityToResponse(
+	sale *entity.Sale,
+	bannerImages []filegateway.FileAssetResponse,
+) *model.SaleResponse {
+	if bannerImages == nil {
+		bannerImages = []filegateway.FileAssetResponse{}
 	}
 
 	return &model.SaleResponse{
@@ -72,7 +75,7 @@ func SaleEntityToResponse(sale *entity.Sale) *model.SaleResponse {
 		Name:         sale.Name,
 		Description:  sale.Description,
 		Slug:         sale.Slug,
-		BannerImages: banners,
+		BannerImages: bannerImages,
 		Status:       sale.Status,
 		StartAt:      sale.StartAt.UTC().Format(time.RFC3339),
 		EndAt:        sale.EndAt.UTC().Format(time.RFC3339),

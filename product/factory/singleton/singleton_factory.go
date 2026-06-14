@@ -153,6 +153,10 @@ func (f *SingletonFactory) GetCollectionProductService() service.CollectionProdu
 	return f.serviceFactory.GetCollectionProductService()
 }
 
+func (f *SingletonFactory) GetProductMediaService() service.ProductMediaService {
+	return f.serviceFactory.GetProductMediaService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================

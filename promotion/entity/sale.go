@@ -28,7 +28,7 @@ type Sale struct {
 	Name         string         `json:"name"         gorm:"column:name;size:255;not null"`
 	Description  *string        `json:"description" gorm:"column:description;type:text"`
 	Slug         string         `json:"slug"         gorm:"column:slug;size:255;not null"`
-	BannerImages db.StringArray `json:"bannerImages" gorm:"column:banner_images;type:text[]"`
+	BannerFileIDs db.StringArray `json:"bannerFileIds" gorm:"column:banner_file_ids;type:text[]"`
 	Status       CampaignStatus `json:"status"       gorm:"column:status;size:20;not null;default:draft"`
 	StartAt      time.Time      `json:"startAt"      gorm:"column:start_at;not null"`
 	EndAt        time.Time      `json:"endAt"        gorm:"column:end_at;not null"`

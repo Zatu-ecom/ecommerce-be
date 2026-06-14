@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"ecommerce-be/product/factory/singleton"
-
 	"github.com/go-redis/redis/v8"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -16,12 +14,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
-
-// ResetProductSingletons resets all singleton factories
-// This ensures clean state between test runs
-func ResetProductSingletons() {
-	singleton.ResetInstance()
-}
 
 // TestContainer holds the containers for testing
 type TestContainer struct {
@@ -134,8 +126,6 @@ func (tc *TestContainer) Cleanup(t *testing.T) {
 		t.Logf("failed to terminate redis container: %v", err)
 	}
 
-	// Reset singleton factory to ensure clean state for next test
-	// This is needed because Go test runner reuses the same process
-	// and singleton instances persist across test functions
-	ResetProductSingletons()
+	// Reset singleton factories so later packages do not reuse stale services.
+	ResetAllModuleSingletons()
 }

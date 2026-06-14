@@ -28,6 +28,8 @@ func (s *SaleTestSuite) SetupSuite() {
 	s.container.RunAllMigrations(s.T())
 	s.container.RunAllSeeds(s.T())
 
+	helpers.AttachMinIOStorage(s.T(), s.container, helpers.DefaultFileStorageEnvConfig())
+
 	s.server = setup.SetupTestServer(s.T(), s.container.DB, s.container.RedisClient)
 
 	s.sellerClient = helpers.NewAPIClient(s.server)

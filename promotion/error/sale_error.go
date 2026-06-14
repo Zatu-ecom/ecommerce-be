@@ -12,6 +12,7 @@ const (
 	UNAUTHORIZED_SALE_ACCESS_CODE     = "UNAUTHORIZED_SALE_ACCESS"
 	INVALID_SALE_DATE_RANGE_CODE      = "INVALID_SALE_DATE_RANGE"
 	INVALID_SALE_FOR_PROMOTION_CODE   = "INVALID_SALE_FOR_PROMOTION"
+	SALE_INVALID_FILE_CODE            = "SALE_INVALID_FILE"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 	UNAUTHORIZED_SALE_ACCESS_MSG     = "You do not have permission to access this sale"
 	INVALID_SALE_DATE_RANGE_MSG      = "Invalid sale date range"
 	INVALID_SALE_FOR_PROMOTION_MSG   = "Sale is invalid or does not belong to this seller"
+	SALE_INVALID_FILE_MSG            = "One or more banner files are invalid or not accessible"
 )
 
 var (
@@ -51,5 +53,11 @@ var (
 		Code:       INVALID_SALE_FOR_PROMOTION_CODE,
 		Message:    INVALID_SALE_FOR_PROMOTION_MSG,
 		StatusCode: http.StatusBadRequest,
+	}
+
+	ErrSaleInvalidFile = &commonError.AppError{
+		Code:       SALE_INVALID_FILE_CODE,
+		Message:    SALE_INVALID_FILE_MSG,
+		StatusCode: http.StatusUnprocessableEntity,
 	}
 )

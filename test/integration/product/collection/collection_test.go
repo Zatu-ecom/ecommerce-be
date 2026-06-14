@@ -258,3 +258,65 @@ func TestCollectionProducts(t *testing.T) {
 		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
 	})
 }
+
+func TestCollectionInvalidImageFile(t *testing.T) {
+	client := setupCollectionTest(t)
+	loginSeller(t, client)
+
+	body := map[string]any{
+		"name":        "Invalid Image Collection",
+		"description": "Should fail validation",
+		"imageFileId": "non-existent-file-id",
+	}
+	w := client.Post(t, "/api/product/collection", body)
+	helpers.AssertErrorResponse(t, w, http.StatusUnprocessableEntity)
+}
+
+func TestCollectionWithUploadedImage(t *testing.T) {
+	env := helpers.SetupFileStorageEnv(t, helpers.DefaultFileStorageEnvConfig())
+	token := helpers.Login(t, env.Client, helpers.SellerEmail, helpers.SellerPassword)
+	env.Client.SetToken(token)
+
+	fileID := helpers.UploadProductImage(t, env.Server, token)
+
+	createBody := map[string]any{
+		"name":        "Image Collection",
+		"description": "Collection with uploaded image",
+		"imageFileId": fileID,
+	}
+	createW := env.Client.Post(t, "/api/product/collection", createBody)
+	createResp := helpers.AssertSuccessResponse(t, createW, http.StatusCreated)
+	collection := helpers.GetResponseData(t, createResp, "collection")
+
+	image, ok := collection["image"].(map[string]any)
+	require.True(t, ok, "collection must include resolved image object")
+	assert.Equal(t, fileID, image["fileId"])
+	assert.NotEmpty(t, image["url"])
+
+	collectionID := uint(collection["id"].(float64))
+
+	updateBody := map[string]any{
+		"name":        "Image Collection Updated",
+		"description": "Updated with new image",
+		"imageFileId": fileID,
+	}
+	updateW := env.Client.Put(
+		t,
+		fmt.Sprintf("/api/product/collection/%d", collectionID),
+		updateBody,
+	)
+	updateResp := helpers.AssertSuccessResponse(t, updateW, http.StatusOK)
+	updated := helpers.GetResponseData(t, updateResp, "collection")
+	updatedImage, ok := updated["image"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, fileID, updatedImage["fileId"])
+	assert.NotEmpty(t, updatedImage["url"])
+
+	getW := env.Client.Get(t, fmt.Sprintf("/api/product/collection/%d", collectionID))
+	getResp := helpers.AssertSuccessResponse(t, getW, http.StatusOK)
+	fetched := helpers.GetResponseData(t, getResp, "collection")
+	fetchedImage, ok := fetched["image"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, fileID, fetchedImage["fileId"])
+	assert.NotEmpty(t, fetchedImage["url"])
+}

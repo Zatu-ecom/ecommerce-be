@@ -3,6 +3,7 @@ package factory
 import (
 	"time"
 
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/utils/helper"
@@ -25,7 +26,7 @@ func BuildCollectionEntityFromCreateRequest(
 		SellerID:    sellerID,
 		Name:        req.Name,
 		Description: req.Description,
-		Image:       req.Image,
+		ImageFileID: req.ImageFileID,
 		IsActive:    &isActive,
 		BaseEntity:  helper.NewBaseEntity(),
 	}
@@ -38,7 +39,9 @@ func ApplyCollectionUpdateRequest(
 ) *entity.Collection {
 	collection.Name = req.Name
 	collection.Description = req.Description
-	collection.Image = req.Image
+	if req.ImageFileID != nil {
+		collection.ImageFileID = req.ImageFileID
+	}
 	if req.IsActive != nil {
 		collection.IsActive = req.IsActive
 	}
@@ -50,6 +53,7 @@ func ApplyCollectionUpdateRequest(
 func BuildCollectionResponse(
 	collection *entity.Collection,
 	productCount int64,
+	image *filegateway.FileAssetResponse,
 ) *model.CollectionResponse {
 	return &model.CollectionResponse{
 		ID:           collection.ID,
@@ -57,7 +61,7 @@ func BuildCollectionResponse(
 		Name:         collection.Name,
 		Slug:         collection.Slug,
 		Description:  collection.Description,
-		Image:        collection.Image,
+		Image:        image,
 		IsActive:     defaultIsActive(collection.IsActive),
 		ProductCount: productCount,
 		CreatedAt:    helper.FormatTimestamp(collection.CreatedAt.UTC()),

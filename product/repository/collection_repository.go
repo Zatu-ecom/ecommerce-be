@@ -37,13 +37,13 @@ func (r *CollectionRepositoryImpl) Create(ctx context.Context, collection *entit
 
 func (r *CollectionRepositoryImpl) Update(ctx context.Context, collection *entity.Collection) error {
 	return db.DB(ctx).Model(collection).
-		Select("Name", "Description", "Image", "IsActive", "UpdatedAt").
+		Select("Name", "Description", "ImageFileID", "IsActive", "UpdatedAt").
 		Updates(map[string]any{
-			"name":        collection.Name,
-			"description": collection.Description,
-			"image":       collection.Image,
-			"is_active":   collection.IsActive,
-			"updated_at":  collection.UpdatedAt,
+			"name":          collection.Name,
+			"description":   collection.Description,
+			"image_file_id": collection.ImageFileID,
+			"is_active":     collection.IsActive,
+			"updated_at":    collection.UpdatedAt,
 		}).Error
 }
 

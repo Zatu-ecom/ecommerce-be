@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	fileSingleton "ecommerce-be/file/factory/singleton"
+	filegw "ecommerce-be/file/gateway"
 	"ecommerce-be/product/service"
 )
 
@@ -71,10 +72,11 @@ func (f *ServiceFactory) initialize() {
 		// ProductMediaService depend on it, and VariantQueryService must be
 		// initialized before VariantService.
 		fileFact := fileSingleton.GetInstance()
-		fileGateway := service.NewProductFileGateway(
+		productFileGateway := service.NewProductFileGateway(
 			fileFact.GetFileReadService(),
 			fileFact.GetFileDeleteService(),
 		)
+		displayGateway := filegw.NewDisplayGateway(fileFact.GetFileReadService())
 
 		// Initialize VariantMediaService BEFORE VariantQueryService so it can be
 		// injected into the query service for embedding media in variant responses.
@@ -82,7 +84,7 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetVariantMediaRepository(),
 			variantRepo,
 			productRepo,
-			fileGateway,
+			productFileGateway,
 		)
 
 		// Initialize VariantQueryService with VariantMediaService dependency
@@ -126,6 +128,7 @@ func (f *ServiceFactory) initialize() {
 		// Initialize Collection services
 		f.collectionService = service.NewCollectionService(
 			f.repoFactory.GetCollectionRepository(),
+			displayGateway,
 		)
 		f.collectionProductService = service.NewCollectionProductService(
 			f.repoFactory.GetCollectionProductRepository(),
@@ -138,7 +141,7 @@ func (f *ServiceFactory) initialize() {
 		f.productMediaService = service.NewProductMediaService(
 			f.repoFactory.GetProductMediaRepository(),
 			productRepo,
-			fileGateway,
+			productFileGateway,
 		)
 
 		// Initialize ProductQueryService with VariantQueryService and media service

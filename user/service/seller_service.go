@@ -6,7 +6,10 @@ import (
 
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
+	commonError "ecommerce-be/common/error"
+	"ecommerce-be/common/filegateway"
 	db "ecommerce-be/common/db"
+	fileGateway "ecommerce-be/file/gateway"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -21,7 +24,6 @@ type SellerService interface {
 		req model.SellerRegisterRequest,
 	) (*model.SellerRegisterResponse, error)
 
-	// GetProfile retrieves the full seller profile (user + profile + settings)
 	GetProfile(
 		ctx context.Context,
 		userID uint,
@@ -30,13 +32,11 @@ type SellerService interface {
 
 // SellerServiceImpl implements the SellerService interface
 type SellerServiceImpl struct {
-	// Services (following SOLID - use services to reuse business logic)
 	userService           UserService
 	sellerSettingsService SellerSettingsService
-
-	// Repositories (for operations managed by this service)
-	sellerProfileRepo repository.SellerProfileRepository
-	userRepo          repository.UserRepository
+	sellerProfileRepo     repository.SellerProfileRepository
+	userRepo              repository.UserRepository
+	fileGateway           filegateway.FileDisplayGateway
 }
 
 // NewSellerService creates a new instance of SellerService
@@ -45,27 +45,25 @@ func NewSellerService(
 	sellerSettingsService SellerSettingsService,
 	userRepo repository.UserRepository,
 	sellerProfileRepo repository.SellerProfileRepository,
+	fileGateway filegateway.FileDisplayGateway,
 ) SellerService {
 	return &SellerServiceImpl{
 		userService:           userService,
 		sellerSettingsService: sellerSettingsService,
 		userRepo:              userRepo,
 		sellerProfileRepo:     sellerProfileRepo,
+		fileGateway:           fileGateway,
 	}
 }
 
-// RegisterSeller creates a new seller account with user, profile, and optional settings
-// Uses transaction to ensure atomicity across multiple table operations
 func (s *SellerServiceImpl) RegisterSeller(
 	ctx context.Context,
 	req model.SellerRegisterRequest,
 ) (*model.SellerRegisterResponse, error) {
-	// 1. Validate seller-specific data BEFORE starting transaction
 	if err := s.validateSellerData(ctx, req); err != nil {
 		return nil, err
 	}
 
-	// 2. Execute registration within a transaction
 	return db.WithTransactionResult(
 		ctx,
 		func(txCtx context.Context) (*model.SellerRegisterResponse, error) {
@@ -74,17 +72,14 @@ func (s *SellerServiceImpl) RegisterSeller(
 	)
 }
 
-// validateSellerData validates seller-specific data before transaction
 func (s *SellerServiceImpl) validateSellerData(
 	ctx context.Context,
 	req model.SellerRegisterRequest,
 ) error {
-	// Validate password confirmation
 	if req.User.Password != req.User.ConfirmPassword {
 		return userErrors.ErrPasswordMismatch
 	}
 
-	// Validate TaxID uniqueness (if provided)
 	if req.Profile.TaxID != "" {
 		exists, err := s.sellerProfileRepo.ExistsByTaxID(ctx, req.Profile.TaxID)
 		if err != nil {
@@ -95,7 +90,6 @@ func (s *SellerServiceImpl) validateSellerData(
 		}
 	}
 
-	// Validate settings if provided (using SellerSettingsService)
 	if req.Settings != nil {
 		if err := s.sellerSettingsService.ValidateSettingsData(
 			ctx,
@@ -110,13 +104,10 @@ func (s *SellerServiceImpl) validateSellerData(
 	return nil
 }
 
-// executeRegistration performs the actual registration within a transaction
 func (s *SellerServiceImpl) executeRegistration(
 	ctx context.Context,
 	req model.SellerRegisterRequest,
 ) (*model.SellerRegisterResponse, error) {
-	// 1. Create user using UserService (reuses email validation, password hashing, etc.)
-
 	user, role, err := s.userService.CreateUserWithRole(
 		ctx,
 		req.User.CreateUserRequest,
@@ -126,20 +117,21 @@ func (s *SellerServiceImpl) executeRegistration(
 		return nil, userErrors.ErrUserCreateFailed
 	}
 
-	// 2. Update user's SellerID to point to itself (seller is their own seller)
-	user.SellerID = user.ID
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, userErrors.ErrSellerIDUpdateFailed
+	logoFileID := req.Profile.BusinessLogoFileID
+	if _, err := filegateway.ResolveSingle(ctx, s.fileGateway, logoFileID, &user.ID); err != nil {
+		if fileGateway.IsFileNotFound(err) || err == commonError.ErrFileNotAccessible {
+			return nil, userErrors.ErrInvalidBusinessLogoFile
+		}
+		return nil, err
 	}
 
-	// 3. Create seller profile (this service's responsibility)
 	now := time.Now()
 	profile := &entity.SellerProfile{
-		UserID:       user.ID,
-		BusinessName: req.Profile.BusinessName,
-		BusinessLogo: req.Profile.BusinessLogo,
-		TaxID:        req.Profile.TaxID,
-		IsVerified:   false,
+		UserID:             user.ID,
+		BusinessName:       req.Profile.BusinessName,
+		BusinessLogoFileID: &logoFileID,
+		TaxID:              req.Profile.TaxID,
+		IsVerified:         false,
 		BaseEntityWithoutID: commonEntity.BaseEntityWithoutID{
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -150,26 +142,28 @@ func (s *SellerServiceImpl) executeRegistration(
 		return nil, userErrors.ErrProfileCreateFailed
 	}
 
-	// 4. Create seller settings if provided (using SellerSettingsService)
-	// Settings is already SellerSettingsCreateRequest - pass directly
+	user.SellerID = user.ID
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, userErrors.ErrSellerIDUpdateFailed
+	}
+
 	var settings *model.SellerSettingsResponse
 	requiresOnboarding := true
 
 	if req.Settings != nil {
 		settings, err = s.sellerSettingsService.Create(ctx, user.ID, req.Settings)
 		if err != nil {
-			return nil, err // Error already wrapped by SellerSettingsService
+			return nil, err
 		}
 		requiresOnboarding = false
 	}
 
-	// 5. Generate JWT token
 	authResponse, err := factory.BuildAuthResponse(user, role, &user.ID, nil)
 	if err != nil {
 		return nil, userErrors.ErrTokenGenerationFailed
 	}
 
-	// 6. Build and return response using factory builders
+	logo := filegateway.ResolveOptional(ctx, s.fileGateway, profile.BusinessLogoFileID, &user.ID)
 	return factory.BuildSellerRegisterResponse(
 		user,
 		profile,
@@ -177,35 +171,32 @@ func (s *SellerServiceImpl) executeRegistration(
 		authResponse.Token,
 		authResponse.ExpiresIn,
 		requiresOnboarding,
+		logo,
 	), nil
 }
 
-// GetProfile retrieves the full seller profile including user, profile, and settings
 func (s *SellerServiceImpl) GetProfile(
 	ctx context.Context,
 	userID uint,
 ) (*model.SellerFullProfileResponse, error) {
-	// 1. Get user (using UserService - following SOLID)
 	user, err := s.userService.GetProfile(ctx, userID)
 	if err != nil {
 		return nil, userErrors.ErrUserNotFound
 	}
 
-	// 2. Get seller profile
 	profile, err := s.sellerProfileRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, userErrors.ErrSellerProfileNotFound
 	}
 
-	// 3. Get seller settings (may not exist if onboarding incomplete)
-	// SellerID is the same as UserID for sellers
 	settings, _ := s.sellerSettingsService.GetBySellerID(ctx, userID)
 
-	// 4. Build and return response
+	logo := filegateway.ResolveOptional(ctx, s.fileGateway, profile.BusinessLogoFileID, &userID)
 	return factory.BuildSellerFullProfileResponse(
 		user.UserResponse,
 		profile,
 		settings,
 		user.Addresses,
+		logo,
 	), nil
 }

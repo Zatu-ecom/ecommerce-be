@@ -7,6 +7,7 @@ const (
 	UNAUTHORIZED_COLLECTION_ACCESS_CODE  = "UNAUTHORIZED_COLLECTION_ACCESS"
 	PRODUCT_NOT_IN_COLLECTION_CODE       = "PRODUCT_NOT_IN_COLLECTION"
 	INVALID_COLLECTION_PRODUCT_CODE      = "INVALID_COLLECTION_PRODUCT"
+	COLLECTION_INVALID_FILE_CODE         = "COLLECTION_INVALID_FILE"
 )
 
 // Collection messages
@@ -16,6 +17,7 @@ const (
 	UNAUTHORIZED_COLLECTION_ACCESS_MSG = "You do not have permission to access this collection"
 	PRODUCT_NOT_IN_COLLECTION_MSG      = "One or more products are not in this collection"
 	INVALID_COLLECTION_PRODUCT_MSG     = "One or more products are invalid or do not belong to this seller"
+	COLLECTION_INVALID_FILE_MSG        = "Collection image file is invalid or not accessible"
 )
 
 // Collection success messages

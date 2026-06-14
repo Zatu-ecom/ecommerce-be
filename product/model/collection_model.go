@@ -2,36 +2,37 @@ package model
 
 import (
 	"ecommerce-be/common"
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/common/helper"
 )
 
 // CollectionCreateRequest represents the request body for creating a collection
 type CollectionCreateRequest struct {
-	Name        string  `json:"name"        binding:"required,min=3,max=255"`
-	Description *string `json:"description" binding:"omitempty,max=2000"`
-	Image       *string `json:"image"`
+	Name         string  `json:"name"         binding:"required,min=3,max=255"`
+	Description  *string `json:"description"  binding:"omitempty,max=2000"`
+	ImageFileID  *string `json:"imageFileId"  binding:"omitempty"`
 }
 
 // CollectionUpdateRequest represents the request body for updating a collection
 type CollectionUpdateRequest struct {
-	Name        string  `json:"name"        binding:"required,min=3,max=255"`
-	Description *string `json:"description" binding:"omitempty,max=2000"`
-	Image       *string `json:"image"`
-	IsActive    *bool   `json:"isActive"`
+	Name         string  `json:"name"         binding:"required,min=3,max=255"`
+	Description  *string `json:"description"  binding:"omitempty,max=2000"`
+	ImageFileID  *string `json:"imageFileId"  binding:"omitempty"`
+	IsActive     *bool   `json:"isActive"`
 }
 
 // CollectionResponse represents collection data returned in API responses
 type CollectionResponse struct {
-	ID           uint   `json:"id"`
-	SellerID     uint   `json:"sellerId"`
-	Name         string `json:"name"`
-	Slug         string `json:"slug"`
-	Description  *string `json:"description,omitempty"`
-	Image        *string `json:"image,omitempty"`
-	IsActive     bool   `json:"isActive"`
-	ProductCount int64  `json:"productCount,omitempty"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
+	ID           uint                           `json:"id"`
+	SellerID     uint                           `json:"sellerId"`
+	Name         string                         `json:"name"`
+	Slug         string                         `json:"slug"`
+	Description  *string                        `json:"description,omitempty"`
+	Image        *filegateway.FileAssetResponse `json:"image,omitempty"`
+	IsActive     bool                           `json:"isActive"`
+	ProductCount int64                          `json:"productCount,omitempty"`
+	CreatedAt    string                         `json:"createdAt"`
+	UpdatedAt    string                         `json:"updatedAt"`
 }
 
 // CollectionsResponse represents the response for listing collections

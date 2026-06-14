@@ -11,6 +11,7 @@ import (
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -56,6 +57,7 @@ type UserServiceImpl struct {
 	addressService        AddressService
 	sellerSettingsService SellerSettingsService
 	currencyService       CurrencyService
+	fileGateway           filegateway.FileDisplayGateway
 }
 
 // NewUserService creates a new instance of UserService
@@ -65,6 +67,7 @@ func NewUserService(
 	addressService AddressService,
 	sellerSettingsService SellerSettingsService,
 	currencyService CurrencyService,
+	fileGateway filegateway.FileDisplayGateway,
 ) UserService {
 	return &UserServiceImpl{
 		userRepo:              userRepo,
@@ -72,6 +75,7 @@ func NewUserService(
 		addressService:        addressService,
 		sellerSettingsService: sellerSettingsService,
 		currencyService:       currencyService,
+		fileGateway:           fileGateway,
 	}
 }
 
@@ -162,7 +166,8 @@ func (s *UserServiceImpl) buildSellerLoginProfile(
 		settings = nil
 	}
 
-	return factory.BuildSellerLoginProfileResponse(profile, settings, addresses)
+	logo := filegateway.ResolveOptional(ctx, s.fileGateway, profile.BusinessLogoFileID, &userID)
+	return factory.BuildSellerLoginProfileResponse(profile, settings, addresses, logo)
 }
 
 // GetProfile retrieves user profile information including addresses

@@ -37,4 +37,10 @@ var (
 		Message:    utils.INVALID_COLLECTION_PRODUCT_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrCollectionInvalidFile = &commonError.AppError{
+		Code:       utils.COLLECTION_INVALID_FILE_CODE,
+		Message:    utils.COLLECTION_INVALID_FILE_MSG,
+		StatusCode: http.StatusUnprocessableEntity,
+	}
 )

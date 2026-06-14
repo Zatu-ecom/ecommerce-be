@@ -3,6 +3,8 @@ package singleton
 import (
 	"sync"
 
+	fileSingleton "ecommerce-be/file/factory/singleton"
+	fileGateway "ecommerce-be/file/gateway"
 	productSingleton "ecommerce-be/product/factory/singleton"
 	"ecommerce-be/promotion/service"
 )
@@ -37,10 +39,14 @@ func (f *ServiceFactory) initialize() {
 		promotionVariantRepo := f.repoFactory.GetPromotionProductVariantScopeRepository()
 		promotionCategoryRepo := f.repoFactory.GetPromotionCategoryScopeRepository()
 		promotionCollectionRepo := f.repoFactory.GetPromotionCollectionScopeRepository()
+		promotionRepo := f.repoFactory.GetPromotionRepository()
 
 		// Initialize services
 		f.promotionProductService = service.NewPromotionProductScopeServiceImpl(
 			promotionProductRepo,
+			promotionRepo,
+			productSingleton.GetInstance().GetProductRepository(),
+			productSingleton.GetInstance().GetProductMediaService(),
 		)
 		f.promotionVariantService = service.NewPromotionVariantScopeServiceImpl(
 			promotionVariantRepo,
@@ -50,7 +56,6 @@ func (f *ServiceFactory) initialize() {
 		)
 
 		// Initialize promotion service with all dependencies
-		promotionRepo := f.repoFactory.GetPromotionRepository()
 		collectionProductService := productSingleton.GetInstance().GetCollectionProductService()
 
 		f.promotionCollectionService = service.NewPromotionCollectionScopeServiceImpl(
@@ -75,7 +80,10 @@ func (f *ServiceFactory) initialize() {
 			promotionScopeEligibilityServiceFactory,
 		)
 
-		f.saleService = service.NewSaleService(f.repoFactory.GetSaleRepository())
+		f.saleService = service.NewSaleService(
+			f.repoFactory.GetSaleRepository(),
+			fileGateway.NewDisplayGateway(fileSingleton.GetInstance().GetFileReadService()),
+		)
 
 		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
 	})

@@ -63,6 +63,13 @@ func (s *SaleTestSuite) TestCreateSaleDuplicateSlug() {
 	s.Require().Equal(http.StatusConflict, res.Code)
 }
 
+func (s *SaleTestSuite) TestCreateSaleInvalidBannerFile() {
+	payload := s.defaultSalePayload("Invalid Banner Sale")
+	payload["bannerFileIds"] = []string{"non-existent-file-id"}
+	res := s.sellerClient.Post(s.T(), SaleAPIEndpoint, payload)
+	s.Require().Equal(http.StatusUnprocessableEntity, res.Code)
+}
+
 func (s *SaleTestSuite) TestGetSaleInvalidIDPath() {
 	res := s.sellerClient.Get(s.T(), SaleAPIEndpoint+"/abc")
 	s.Require().Equal(http.StatusBadRequest, res.Code)

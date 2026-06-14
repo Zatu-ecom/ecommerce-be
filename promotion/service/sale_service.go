@@ -4,7 +4,10 @@ import (
 	"context"
 	"strings"
 
+	"ecommerce-be/common/filegateway"
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
+	fileGateway "ecommerce-be/file/gateway"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/factory"
@@ -38,12 +41,19 @@ type SaleService interface {
 
 // SaleServiceImpl implements SaleService
 type SaleServiceImpl struct {
-	saleRepo repository.SaleRepository
+	saleRepo    repository.SaleRepository
+	fileGateway filegateway.FileDisplayGateway
 }
 
 // NewSaleService creates a new SaleService
-func NewSaleService(saleRepo repository.SaleRepository) SaleService {
-	return &SaleServiceImpl{saleRepo: saleRepo}
+func NewSaleService(
+	saleRepo repository.SaleRepository,
+	fileGateway filegateway.FileDisplayGateway,
+) SaleService {
+	return &SaleServiceImpl{
+		saleRepo:    saleRepo,
+		fileGateway: fileGateway,
+	}
 }
 
 func (s *SaleServiceImpl) CreateSale(
@@ -63,6 +73,10 @@ func (s *SaleServiceImpl) CreateSale(
 		}
 	}
 
+	if err := s.validateBannerFileIDs(ctx, req.BannerFileIDs, sellerID); err != nil {
+		return nil, err
+	}
+
 	sale, err := factory.SaleRequestToEntity(req, sellerID)
 	if err != nil {
 		return nil, err
@@ -76,7 +90,7 @@ func (s *SaleServiceImpl) CreateSale(
 		return nil, err
 	}
 
-	return factory.SaleEntityToResponse(sale), nil
+	return s.toSaleResponse(ctx, sale), nil
 }
 
 func (s *SaleServiceImpl) UpdateSale(
@@ -105,6 +119,10 @@ func (s *SaleServiceImpl) UpdateSale(
 		}
 	}
 
+	if err := s.validateBannerFileIDs(ctx, req.BannerFileIDs, sellerID); err != nil {
+		return nil, err
+	}
+
 	sale, err = factory.ApplyUpdateSaleRequest(sale, req)
 	if err != nil {
 		return nil, err
@@ -118,7 +136,7 @@ func (s *SaleServiceImpl) UpdateSale(
 		return nil, err
 	}
 
-	return factory.SaleEntityToResponse(sale), nil
+	return s.toSaleResponse(ctx, sale), nil
 }
 
 func (s *SaleServiceImpl) DeleteSale(ctx context.Context, id uint, sellerID uint) error {
@@ -152,7 +170,7 @@ func (s *SaleServiceImpl) GetSaleByID(
 	if err := validateSaleOwnership(sale, sellerID); err != nil {
 		return nil, err
 	}
-	return factory.SaleEntityToResponse(sale), nil
+	return s.toSaleResponse(ctx, sale), nil
 }
 
 func (s *SaleServiceImpl) ListSales(
@@ -167,7 +185,7 @@ func (s *SaleServiceImpl) ListSales(
 
 	responses := make([]model.SaleResponse, 0, len(sales))
 	for i := range sales {
-		responses = append(responses, *factory.SaleEntityToResponse(&sales[i]))
+		responses = append(responses, *s.toSaleResponse(ctx, &sales[i]))
 	}
 
 	return &model.SalesResponse{Sales: responses}, nil
@@ -199,7 +217,37 @@ func (s *SaleServiceImpl) UpdateStatus(
 	}
 
 	sale.Status = req.Status
-	return factory.SaleEntityToResponse(sale), nil
+	return s.toSaleResponse(ctx, sale), nil
+}
+
+func (s *SaleServiceImpl) validateBannerFileIDs(
+	ctx context.Context,
+	fileIDs []string,
+	sellerID uint,
+) error {
+	for _, fileID := range fileIDs {
+		if fileID == "" {
+			continue
+		}
+		_, err := filegateway.ResolveSingle(ctx, s.fileGateway, fileID, &sellerID)
+		if err != nil {
+			if fileGateway.IsFileNotFound(err) || err == commonError.ErrFileNotAccessible {
+				return promoErrors.ErrSaleInvalidFile
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SaleServiceImpl) toSaleResponse(ctx context.Context, sale *entity.Sale) *model.SaleResponse {
+	banners := filegateway.ResolveManyOrdered(
+		ctx,
+		s.fileGateway,
+		[]string(sale.BannerFileIDs),
+		&sale.SellerID,
+	)
+	return factory.SaleEntityToResponse(sale, banners)
 }
 
 func validateSaleOwnership(sale *entity.Sale, sellerID uint) error {

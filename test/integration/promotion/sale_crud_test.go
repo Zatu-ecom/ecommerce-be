@@ -55,12 +55,11 @@ func (s *SaleTestSuite) TestUpdateSale() {
 	saleID := s.createSale(s.sellerClient, "Update Me")
 
 	body := map[string]any{
-		"name":         "Updated Sale Name",
-		"description":  "Updated description",
-		"bannerImages": []string{"https://example.com/banner.jpg"},
-		"startAt":      "2026-02-01T00:00:00Z",
-		"endAt":        "2026-11-30T23:59:59Z",
-		"status":       "scheduled",
+		"name":        "Updated Sale Name",
+		"description": "Updated description",
+		"startAt":     "2026-02-01T00:00:00Z",
+		"endAt":       "2026-11-30T23:59:59Z",
+		"status":      "scheduled",
 	}
 	res := s.sellerClient.Put(s.T(), saleURL(saleID), body)
 	s.Require().Equal(http.StatusOK, res.Code)
@@ -97,4 +96,45 @@ func (s *SaleTestSuite) TestDeleteSale() {
 
 	res = s.sellerClient.Get(s.T(), saleURL(saleID))
 	s.Require().Equal(http.StatusNotFound, res.Code)
+}
+
+func (s *SaleTestSuite) TestCreateSaleWithBannerFileIds() {
+	fileID := helpers.UploadProductImage(s.T(), s.server, s.sellerClient.Token)
+
+	payload := s.defaultSalePayload("Banner Sale 2026")
+	payload["bannerFileIds"] = []string{fileID}
+
+	res := s.sellerClient.Post(s.T(), SaleAPIEndpoint, payload)
+	s.Require().Equal(http.StatusCreated, res.Code)
+
+	response := helpers.ParseResponse(s.T(), res.Body)
+	sale := response["data"].(map[string]any)["sale"].(map[string]any)
+	banners, ok := sale["bannerImages"].([]any)
+	s.Require().True(ok)
+	s.Require().Len(banners, 1)
+
+	banner := banners[0].(map[string]any)
+	s.Equal(fileID, banner["fileId"])
+	s.NotEmpty(banner["url"])
+}
+
+func (s *SaleTestSuite) TestUpdateSaleBannerFileIds() {
+	saleID := s.createSale(s.sellerClient, "Update Banner Sale")
+	fileID := helpers.UploadProductImage(s.T(), s.server, s.sellerClient.Token)
+
+	res := s.sellerClient.Put(s.T(), saleURL(saleID), map[string]any{
+		"name":           "Update Banner Sale",
+		"bannerFileIds":  []string{fileID},
+		"startAt":        "2026-01-01T00:00:00Z",
+		"endAt":          "2026-12-31T23:59:59Z",
+		"status":         "draft",
+	})
+	s.Require().Equal(http.StatusOK, res.Code)
+
+	response := helpers.ParseResponse(s.T(), res.Body)
+	sale := response["data"].(map[string]any)["sale"].(map[string]any)
+	banners, ok := sale["bannerImages"].([]any)
+	s.Require().True(ok)
+	s.Require().Len(banners, 1)
+	s.Equal(fileID, banners[0].(map[string]any)["fileId"])
 }

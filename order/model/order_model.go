@@ -113,6 +113,7 @@ type OrderItemResponse struct {
 	VariantName               *string                          `json:"variantName"`
 	SKU                       *string                          `json:"sku"`
 	ImageURL                  *string                          `json:"imageUrl"`
+	ImageFileID               *string                          `json:"imageFileId,omitempty"`
 	Quantity                  int                              `json:"quantity"`
 	UnitPriceCents            int64                            `json:"unitPriceCents"`
 	LineTotalCents            int64                            `json:"lineTotalCents"`

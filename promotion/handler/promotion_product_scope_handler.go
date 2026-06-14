@@ -99,24 +99,19 @@ func (h *PromotionProductScopeHandler) RemoveAllProducts(c *gin.Context) {
 // GetProducts retrieves products for a promotion
 func (h *PromotionProductScopeHandler) GetProducts(c *gin.Context) {
 	var params model.GetPromotionProductsQueryParams
+
+	if promotionIDStr := c.Param("promotionId"); promotionIDStr != "" {
+		if id, err := strconv.ParseUint(promotionIDStr, 10, 64); err == nil {
+			params.PromotionID = uint(id)
+		}
+	}
+
 	if err := c.ShouldBindQuery(&params); err != nil {
 		h.HandleValidationError(c, err)
 		return
 	}
 
 	req := params.ToRequest()
-
-	// Bind promotionID from path if not in query (usually it's path param for REST)
-	// But typical Get request might use query params for filters.
-	// Let's assume promotionID is passed via query or path.
-	// If path param exists, override it.
-	promotionIDStr := c.Param("promotionId")
-	if promotionIDStr != "" {
-		id, err := strconv.ParseUint(promotionIDStr, 10, 64)
-		if err == nil {
-			req.PromotionID = uint(id)
-		}
-	}
 
 	response, err := h.service.GetProducts(c, req)
 	if err != nil {

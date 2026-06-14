@@ -47,6 +47,9 @@ const (
 	DownloadDispositionAttachment = "attachment"
 )
 
+// ThumbnailVariantCodes lists file variant codes preferred for thumbnail selection.
+var ThumbnailVariantCodes = []string{"thumb_200", "poster"}
+
 // ========================================
 // FILE READ/DELETE SUCCESS MESSAGES
 // ========================================
