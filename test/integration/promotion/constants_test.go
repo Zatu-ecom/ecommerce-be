@@ -4,6 +4,9 @@ const (
 	// PromotionAPIEndpoint is the base endpoint for Promotion creation
 	PromotionAPIEndpoint = "/api/promotion"
 
+	// SaleAPIEndpoint is the base endpoint for Sale CRUD
+	SaleAPIEndpoint = "/api/promotion/sale"
+
 	// PromotionVariantsEndpoint is the endpoint for linking variants to promotions.
 	// Request body must include `promotionId` and `variantIds`.
 	PromotionVariantsEndpoint = "/api/promotion/scope/variant"

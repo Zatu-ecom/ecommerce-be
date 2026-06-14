@@ -25,6 +25,7 @@ type ServiceFactory struct {
 	validatorService         service.ProductValidatorService
 	wishlistService          service.WishlistService
 	wishlistItemService      service.WishlistItemService
+	collectionService        service.CollectionService
 	collectionProductService service.CollectionProductService
 	productMediaService      service.ProductMediaService
 	variantMediaService      service.VariantMediaService
@@ -122,9 +123,14 @@ func (f *ServiceFactory) initialize() {
 			f.validatorService,
 		)
 
-		// Initialize CollectionProductService
+		// Initialize Collection services
+		f.collectionService = service.NewCollectionService(
+			f.repoFactory.GetCollectionRepository(),
+		)
 		f.collectionProductService = service.NewCollectionProductService(
 			f.repoFactory.GetCollectionProductRepository(),
+			f.repoFactory.GetCollectionRepository(),
+			productRepo,
 		)
 
 		// Initialize ProductMediaService BEFORE ProductQueryService so it can be
@@ -251,6 +257,11 @@ func (f *ServiceFactory) GetWishlistService() service.WishlistService {
 func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
 	f.initialize()
 	return f.wishlistItemService
+}
+
+func (f *ServiceFactory) GetCollectionService() service.CollectionService {
+	f.initialize()
+	return f.collectionService
 }
 
 func (f *ServiceFactory) GetCollectionProductService() service.CollectionProductService {

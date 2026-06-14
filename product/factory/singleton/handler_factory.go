@@ -20,6 +20,7 @@ type HandlerFactory struct {
 	optionValueHandler      *handler.ProductOptionValueHandler
 	wishlistHandler         *handler.WishlistHandler
 	wishlistItemHandler     *handler.WishlistItemHandler
+	collectionHandler       *handler.CollectionHandler
 
 	once sync.Once
 }
@@ -64,6 +65,10 @@ func (f *HandlerFactory) initialize() {
 		)
 		f.wishlistItemHandler = handler.NewWishlistItemHandler(
 			f.serviceFactory.GetWishlistItemService(),
+		)
+		f.collectionHandler = handler.NewCollectionHandler(
+			f.serviceFactory.GetCollectionService(),
+			f.serviceFactory.GetCollectionProductService(),
 		)
 	})
 }
@@ -126,4 +131,10 @@ func (f *HandlerFactory) GetWishlistHandler() *handler.WishlistHandler {
 func (f *HandlerFactory) GetWishlistItemHandler() *handler.WishlistItemHandler {
 	f.initialize()
 	return f.wishlistItemHandler
+}
+
+// GetCollectionHandler returns the singleton collection handler
+func (f *HandlerFactory) GetCollectionHandler() *handler.CollectionHandler {
+	f.initialize()
+	return f.collectionHandler
 }

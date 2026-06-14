@@ -74,15 +74,31 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 		t.Fatalf("failed to get postgres connection string: %v", err)
 	}
 
-	// Connect to the database with GORM
-	// Use the same configuration as production (singular table names)
-	gormDB, err := gorm.Open(gormpostgres.Open(connStr), &gorm.Config{
-		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true, // Use singular table names to match production
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
+	// Connect to the database with GORM (retry: postgres can report ready before accepting TCP)
+	var gormDB *gorm.DB
+	const maxDBAttempts = 10
+	for attempt := 1; attempt <= maxDBAttempts; attempt++ {
+		gormDB, err = gorm.Open(gormpostgres.Open(connStr), &gorm.Config{
+			NamingStrategy: schema.NamingStrategy{
+				SingularTable: true, // Use singular table names to match production
+			},
+		})
+		if err == nil {
+			sqlDB, dbErr := gormDB.DB()
+			if dbErr == nil {
+				pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				dbErr = sqlDB.PingContext(pingCtx)
+				cancel()
+			}
+			if dbErr == nil {
+				break
+			}
+			err = dbErr
+		}
+		if attempt == maxDBAttempts {
+			t.Fatalf("failed to connect to database after %d attempts: %v", maxDBAttempts, err)
+		}
+		time.Sleep(time.Second)
 	}
 
 	// Get Redis connection details

@@ -39,4 +39,5 @@ func addModules(c *common.Container) {
 	c.RegisterModule(route.NewVariantModule())
 	c.RegisterModule(route.NewWishlistModule())
 	c.RegisterModule(route.NewWishlistItemModule())
+	c.RegisterModule(route.NewCollectionModule())
 }

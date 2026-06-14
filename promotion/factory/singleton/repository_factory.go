@@ -13,6 +13,7 @@ type RepositoryFactory struct {
 	promotionProductVariantRepository repository.PromotionProductVariantScopeRepository
 	promotionCategoryRepository       repository.PromotionCategoryScopeRepository
 	promotionCollectionRepository     repository.PromotionCollectionScopeRepository
+	saleRepository                    repository.SaleRepository
 	once                              sync.Once
 }
 
@@ -29,6 +30,7 @@ func (f *RepositoryFactory) initialize() {
 		f.promotionProductVariantRepository = repository.NewPromotionProductVariantScopeRepository()
 		f.promotionCategoryRepository = repository.NewPromotionCategoryScopeRepository()
 		f.promotionCollectionRepository = repository.NewPromotionCollectionScopeRepository()
+		f.saleRepository = repository.NewSaleRepository()
 	})
 }
 
@@ -55,4 +57,9 @@ func (f *RepositoryFactory) GetPromotionCollectionScopeRepository() repository.P
 func (f *RepositoryFactory) GetPromotionRepository() repository.PromotionRepository {
 	f.initialize()
 	return f.promotionRepository
+}
+
+func (f *RepositoryFactory) GetSaleRepository() repository.SaleRepository {
+	f.initialize()
+	return f.saleRepository
 }

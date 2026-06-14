@@ -141,6 +141,14 @@ func (f *SingletonFactory) GetWishlistItemService() service.WishlistItemService 
 	return f.serviceFactory.GetWishlistItemService()
 }
 
+func (f *SingletonFactory) GetCollectionRepository() repository.CollectionRepository {
+	return f.repoFactory.GetCollectionRepository()
+}
+
+func (f *SingletonFactory) GetCollectionService() service.CollectionService {
+	return f.serviceFactory.GetCollectionService()
+}
+
 func (f *SingletonFactory) GetCollectionProductService() service.CollectionProductService {
 	return f.serviceFactory.GetCollectionProductService()
 }
@@ -187,4 +195,8 @@ func (f *SingletonFactory) GetWishlistHandler() *handler.WishlistHandler {
 
 func (f *SingletonFactory) GetWishlistItemHandler() *handler.WishlistItemHandler {
 	return f.handlerFactory.GetWishlistItemHandler()
+}
+
+func (f *SingletonFactory) GetCollectionHandler() *handler.CollectionHandler {
+	return f.handlerFactory.GetCollectionHandler()
 }

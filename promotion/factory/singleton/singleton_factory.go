@@ -65,6 +65,14 @@ func (f *SingletonFactory) GetPromotionCollectionScopeHandler() *handler.Promoti
 	return f.handlerFactory.GetPromotionCollectionScopeHandler()
 }
 
+func (f *SingletonFactory) GetSaleHandler() *handler.SaleHandler {
+	return f.handlerFactory.GetSaleHandler()
+}
+
+func (f *SingletonFactory) GetSaleService() service.SaleService {
+	return f.serviceFactory.GetSaleService()
+}
+
 func (f *SingletonFactory) GetPromotionService() service.PromotionService {
 	return f.serviceFactory.GetPromotionService()
 }

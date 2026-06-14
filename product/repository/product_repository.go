@@ -22,6 +22,7 @@ type ProductRepository interface {
 	Create(ctx context.Context, product *entity.Product) error
 	Update(ctx context.Context, product *entity.Product) error
 	FindByID(ctx context.Context, id uint) (*entity.Product, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]entity.Product, error)
 	// FindBySKU removed - BaseSKU validation no longer required
 	FindAll(
 		ctx context.Context,
@@ -94,6 +95,19 @@ func (r *ProductRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.
 		return nil, result.Error
 	}
 	return &product, nil
+}
+
+// FindByIDs finds products by a list of IDs
+func (r *ProductRepositoryImpl) FindByIDs(ctx context.Context, ids []uint) ([]entity.Product, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var products []entity.Product
+	err := db.DB(ctx).Where("id IN ?", ids).Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 // FindAll finds all products with filtering and pagination

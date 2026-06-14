@@ -19,6 +19,7 @@ type RepositoryFactory struct {
 	packageOptionRepo     repository.PackageOptionRepository
 	wishlistRepo          repository.WishlistRepository
 	wishlistItemRepo      repository.WishlistItemRepository
+	collectionRepo        repository.CollectionRepository
 	collectionProductRepo repository.CollectionProductRepository
 	productMediaRepo      repository.ProductMediaRepository
 	variantMediaRepo      repository.VariantMediaRepository
@@ -44,6 +45,7 @@ func (f *RepositoryFactory) initialize() {
 		f.packageOptionRepo = repository.NewPackageOptionRepository()
 		f.wishlistRepo = repository.NewWishlistRepository()
 		f.wishlistItemRepo = repository.NewWishlistItemRepository()
+		f.collectionRepo = repository.NewCollectionRepository()
 		f.collectionProductRepo = repository.NewCollectionProductRepository()
 		f.productMediaRepo = repository.NewProductMediaRepository()
 		f.variantMediaRepo = repository.NewVariantMediaRepository()
@@ -102,6 +104,11 @@ func (f *RepositoryFactory) GetWishlistRepository() repository.WishlistRepositor
 func (f *RepositoryFactory) GetWishlistItemRepository() repository.WishlistItemRepository {
 	f.initialize()
 	return f.wishlistItemRepo
+}
+
+func (f *RepositoryFactory) GetCollectionRepository() repository.CollectionRepository {
+	f.initialize()
+	return f.collectionRepo
 }
 
 func (f *RepositoryFactory) GetCollectionProductRepository() repository.CollectionProductRepository {
