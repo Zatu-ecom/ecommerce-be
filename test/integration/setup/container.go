@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"ecommerce-be/product/factory/singleton"
-
 	"github.com/go-redis/redis/v8"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -16,12 +14,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
-
-// ResetProductSingletons resets all singleton factories
-// This ensures clean state between test runs
-func ResetProductSingletons() {
-	singleton.ResetInstance()
-}
 
 // TestContainer holds the containers for testing
 type TestContainer struct {
@@ -74,15 +66,31 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 		t.Fatalf("failed to get postgres connection string: %v", err)
 	}
 
-	// Connect to the database with GORM
-	// Use the same configuration as production (singular table names)
-	gormDB, err := gorm.Open(gormpostgres.Open(connStr), &gorm.Config{
-		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true, // Use singular table names to match production
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
+	// Connect to the database with GORM (retry: postgres can report ready before accepting TCP)
+	var gormDB *gorm.DB
+	const maxDBAttempts = 10
+	for attempt := 1; attempt <= maxDBAttempts; attempt++ {
+		gormDB, err = gorm.Open(gormpostgres.Open(connStr), &gorm.Config{
+			NamingStrategy: schema.NamingStrategy{
+				SingularTable: true, // Use singular table names to match production
+			},
+		})
+		if err == nil {
+			sqlDB, dbErr := gormDB.DB()
+			if dbErr == nil {
+				pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				dbErr = sqlDB.PingContext(pingCtx)
+				cancel()
+			}
+			if dbErr == nil {
+				break
+			}
+			err = dbErr
+		}
+		if attempt == maxDBAttempts {
+			t.Fatalf("failed to connect to database after %d attempts: %v", maxDBAttempts, err)
+		}
+		time.Sleep(time.Second)
 	}
 
 	// Get Redis connection details
@@ -118,8 +126,6 @@ func (tc *TestContainer) Cleanup(t *testing.T) {
 		t.Logf("failed to terminate redis container: %v", err)
 	}
 
-	// Reset singleton factory to ensure clean state for next test
-	// This is needed because Go test runner reuses the same process
-	// and singleton instances persist across test functions
-	ResetProductSingletons()
+	// Reset singleton factories so later packages do not reuse stale services.
+	ResetAllModuleSingletons()
 }

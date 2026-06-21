@@ -1,6 +1,7 @@
 package get_product_by_id
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -306,5 +307,35 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 			product["categoryId"],
 			"CategoryID should match category.id",
 		)
+	})
+
+	// ============================================================================
+	// HP-06: Simple product detail exposes product-level commerce fields, empty variants
+	// ============================================================================
+	t.Run("HP-06: Simple product GET by ID hides placeholder variant", func(t *testing.T) {
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		createBody := map[string]any{
+			"name":       "Simple Detail Product",
+			"categoryId": 4,
+			"baseSku":    "TEST-SIMPLE-DETAIL-001",
+			"price":      55.50,
+		}
+		createResp := helpers.AssertSuccessResponse(t, client.Post(t, "/api/product", createBody), http.StatusCreated)
+		productID := int(helpers.GetResponseData(t, createResp, "product")["id"].(float64))
+
+		client.SetHeader("X-Seller-ID", fmt.Sprintf("%d", helpers.SellerUserID))
+		w := client.Get(t, fmt.Sprintf("/api/product/%d", productID))
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		product := response["data"].(map[string]any)["product"].(map[string]any)
+
+		assert.Equal(t, false, product["hasVariants"])
+		assert.Equal(t, 55.50, product["price"])
+		assert.Equal(t, true, product["allowPurchase"])
+
+		variants, ok := product["variants"].([]any)
+		assert.True(t, ok)
+		assert.Empty(t, variants, "Simple product detail should not expose placeholder variants")
 	})
 }

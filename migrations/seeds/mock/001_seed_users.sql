@@ -42,13 +42,13 @@ SELECT setval('user_id_seq', (SELECT MAX(id) FROM "user"));
 -- ------------------------------
 -- Insert Seller Profiles
 -- ------------------------------
-INSERT INTO seller_profile (user_id, business_name, business_logo, tax_id, is_verified, created_at, updated_at) VALUES
-(2, 'Tech Gadgets Pro', 'https://example.com/logos/tech-gadgets-pro.png', 'TAX-001-2024', true, NOW(), NOW()),
-(3, 'Fashion Forward', 'https://example.com/logos/fashion-forward.png', 'TAX-002-2024', true, NOW(), NOW()),
-(4, 'Home & Living Store', 'https://example.com/logos/home-living.png', 'TAX-003-2024', true, NOW(), NOW())
+INSERT INTO seller_profile (user_id, business_name, business_logo_file_id, tax_id, is_verified, created_at, updated_at) VALUES
+(2, 'Tech Gadgets Pro', NULL, 'TAX-001-2024', true, NOW(), NOW()),
+(3, 'Fashion Forward', NULL, 'TAX-002-2024', true, NOW(), NOW()),
+(4, 'Home & Living Store', NULL, 'TAX-003-2024', true, NOW(), NOW())
 ON CONFLICT (user_id) DO UPDATE SET
     business_name = EXCLUDED.business_name,
-    business_logo = EXCLUDED.business_logo,
+    business_logo_file_id = EXCLUDED.business_logo_file_id,
     tax_id = EXCLUDED.tax_id,
     is_verified = EXCLUDED.is_verified,
     updated_at = NOW();

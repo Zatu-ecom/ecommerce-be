@@ -82,6 +82,7 @@ func BuildCategoryHierarchyResponse(
 		Name:        category.Name,
 		ParentID:    responseParentID,
 		Description: category.Description,
+		IsGlobal:    category.IsGlobal,
 		Children:    children,
 	}
 }

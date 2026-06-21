@@ -4,6 +4,9 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	"ecommerce-be/common/helper"
+
+	"gorm.io/gorm"
 )
 
 type CampaignStatus string
@@ -17,14 +20,27 @@ const (
 	StatusCancelled CampaignStatus = "cancelled"
 )
 
+// Sale represents a seller-created sales campaign that groups promotions
 type Sale struct {
 	db.BaseEntity
-	sellerId     uint           `gorm:"column:seller_id;type:integer;not null;index"`
-	Name         string         `gorm:"column:name;type:varchar(255);not null"`
-	Description  string         `gorm:"column:description;type:text"`
-	Slug         string         `gorm:"column:slug;type:varchar(255);not null;unique"`
-	BannerImages db.StringArray `gorm:"column:banner_images;type:text[]"`
-	Status       CampaignStatus `gorm:"column:status;type:varchar(20);not null"`
-	StartAt      time.Time      `gorm:"column:start_at;type:timestamp;not null"`
-	EndAt        time.Time      `gorm:"column:end_at;type:timestamp;not null"`
+
+	SellerID     uint           `json:"sellerId"     gorm:"column:seller_id;not null;index"`
+	Name         string         `json:"name"         gorm:"column:name;size:255;not null"`
+	Description  *string        `json:"description" gorm:"column:description;type:text"`
+	Slug         string         `json:"slug"         gorm:"column:slug;size:255;not null"`
+	BannerFileIDs db.StringArray `json:"bannerFileIds" gorm:"column:banner_file_ids;type:text[]"`
+	Status       CampaignStatus `json:"status"       gorm:"column:status;size:20;not null;default:draft"`
+	StartAt      time.Time      `json:"startAt"      gorm:"column:start_at;not null"`
+	EndAt        time.Time      `json:"endAt"        gorm:"column:end_at;not null"`
+}
+
+func (Sale) TableName() string {
+	return "sale"
+}
+
+func (s *Sale) BeforeCreate(tx *gorm.DB) error {
+	if s.Slug == "" {
+		s.Slug = helper.GenerateSlug(s.Name)
+	}
+	return nil
 }

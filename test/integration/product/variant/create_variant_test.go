@@ -962,4 +962,98 @@ func TestCreateVariant(t *testing.T) {
 			assert.NotNil(t, option["valueDisplayName"], "Option should have valueDisplayName")
 		}
 	})
+
+	t.Run("Success - Simple to configurable migration removes placeholder variant", func(t *testing.T) {
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		createProductBody := map[string]any{
+			"name":       "Simple To Configurable Product",
+			"categoryId": 4,
+			"baseSku":    "TEST-MIGRATE-001",
+			"price":      59.99,
+		}
+		createResp := helpers.AssertSuccessResponse(t, client.Post(t, "/api/product", createProductBody), http.StatusCreated)
+		createdProduct := helpers.GetResponseData(t, createResp, "product")
+		productID := int(createdProduct["id"].(float64))
+		assert.Equal(t, false, createdProduct["hasVariants"])
+
+		optionBody := map[string]any{
+			"name":        "color",
+			"displayName": "Color",
+			"position":    1,
+			"values": []map[string]any{
+				{"value": "black", "displayName": "Black", "position": 1},
+				{"value": "white", "displayName": "White", "position": 2},
+			},
+		}
+		optionURL := fmt.Sprintf("/api/product/%d/option", productID)
+		helpers.AssertSuccessResponse(t, client.Post(t, optionURL, optionBody), http.StatusCreated)
+
+		variantBody := map[string]any{
+			"sku":   "TEST-MIGRATE-001-BLACK",
+			"price": 64.99,
+			"options": []map[string]any{
+				{"optionName": "color", "value": "black"},
+			},
+		}
+		variantURL := fmt.Sprintf("/api/product/%d/variant", productID)
+		variantResp := helpers.AssertSuccessResponse(t, client.Post(t, variantURL, variantBody), http.StatusCreated)
+		variant := helpers.GetResponseData(t, variantResp, "variant")
+		assert.Equal(t, "TEST-MIGRATE-001-BLACK", variant["sku"])
+
+		getURL := fmt.Sprintf("/api/product/%d", productID)
+		getResp := helpers.AssertSuccessResponse(t, client.Get(t, getURL), http.StatusOK)
+		product := helpers.GetResponseData(t, getResp, "product")
+
+		assert.Equal(t, true, product["hasVariants"])
+		assert.Equal(t, 64.99, product["price"])
+
+		variants, ok := product["variants"].([]any)
+		assert.True(t, ok, "variants should be an array")
+		assert.Len(t, variants, 1, "Placeholder should be removed; only option-derived variant remains")
+
+		publicVariant := variants[0].(map[string]any)
+		selectedOptions, ok := publicVariant["selectedOptions"].([]any)
+		assert.True(t, ok, "selectedOptions should be an array")
+		assert.NotEmpty(t, selectedOptions, "Public variant must have selected options")
+	})
+
+	t.Run("Success - Default reassigned when placeholder deleted without isDefault on request", func(t *testing.T) {
+		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
+		client.SetToken(sellerToken)
+
+		createProductBody := map[string]any{
+			"name":       "Simple Product Default Reassign",
+			"categoryId": 4,
+			"baseSku":    "TEST-DEFAULT-REASSIGN-001",
+			"price":      39.99,
+		}
+		createResp := helpers.AssertSuccessResponse(t, client.Post(t, "/api/product", createProductBody), http.StatusCreated)
+		productID := int(helpers.GetResponseData(t, createResp, "product")["id"].(float64))
+
+		optionBody := map[string]any{
+			"name":        "size",
+			"displayName": "Size",
+			"position":    1,
+			"values": []map[string]any{
+				{"value": "m", "displayName": "Medium", "position": 1},
+			},
+		}
+		optionURL := fmt.Sprintf("/api/product/%d/option", productID)
+		helpers.AssertSuccessResponse(t, client.Post(t, optionURL, optionBody), http.StatusCreated)
+
+		variantBody := map[string]any{
+			"sku":   "TEST-DEFAULT-REASSIGN-001-M",
+			"price": 42.99,
+			"options": []map[string]any{
+				{"optionName": "size", "value": "m"},
+			},
+		}
+		variantURL := fmt.Sprintf("/api/product/%d/variant", productID)
+		variantResp := helpers.AssertSuccessResponse(t, client.Post(t, variantURL, variantBody), http.StatusCreated)
+		variant := helpers.GetResponseData(t, variantResp, "variant")
+
+		assert.True(t, variant["isDefault"].(bool), "First option-derived variant should inherit default from deleted placeholder")
+	})
 }

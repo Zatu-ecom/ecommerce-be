@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	fileSingleton "ecommerce-be/file/factory/singleton"
+	filegw "ecommerce-be/file/gateway"
 	"ecommerce-be/product/service"
 )
 
@@ -19,11 +20,13 @@ type ServiceFactory struct {
 	variantQueryService      service.VariantQueryService
 	variantBulkService       service.VariantBulkService
 	productAttributeService  service.ProductAttributeService
+	packageOptionService     service.PackageOptionService
 	productOptionService     service.ProductOptionService
 	optionValueService       service.ProductOptionValueService
 	validatorService         service.ProductValidatorService
 	wishlistService          service.WishlistService
 	wishlistItemService      service.WishlistItemService
+	collectionService        service.CollectionService
 	collectionProductService service.CollectionProductService
 	productMediaService      service.ProductMediaService
 	variantMediaService      service.VariantMediaService
@@ -46,6 +49,7 @@ func (f *ServiceFactory) initialize() {
 		variantRepo := f.repoFactory.GetVariantRepository()
 		optionRepo := f.repoFactory.GetProductOptionRepository()
 		productAttrRepo := f.repoFactory.GetProductAttributeRepository()
+		packageOptionRepo := f.repoFactory.GetPackageOptionRepository()
 
 		// Initialize validator service first (used by other services)
 		f.validatorService = service.NewProductValidatorService(productRepo)
@@ -68,10 +72,11 @@ func (f *ServiceFactory) initialize() {
 		// ProductMediaService depend on it, and VariantQueryService must be
 		// initialized before VariantService.
 		fileFact := fileSingleton.GetInstance()
-		fileGateway := service.NewProductFileGateway(
+		productFileGateway := service.NewProductFileGateway(
 			fileFact.GetFileReadService(),
 			fileFact.GetFileDeleteService(),
 		)
+		displayGateway := filegw.NewDisplayGateway(fileFact.GetFileReadService())
 
 		// Initialize VariantMediaService BEFORE VariantQueryService so it can be
 		// injected into the query service for embedding media in variant responses.
@@ -79,7 +84,7 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetVariantMediaRepository(),
 			variantRepo,
 			productRepo,
-			fileGateway,
+			productFileGateway,
 		)
 
 		// Initialize VariantQueryService with VariantMediaService dependency
@@ -114,10 +119,21 @@ func (f *ServiceFactory) initialize() {
 			attributeRepo,
 			f.validatorService,
 		)
+		f.packageOptionService = service.NewPackageOptionService(
+			packageOptionRepo,
+			productRepo,
+			f.validatorService,
+		)
 
-		// Initialize CollectionProductService
+		// Initialize Collection services
+		f.collectionService = service.NewCollectionService(
+			f.repoFactory.GetCollectionRepository(),
+			displayGateway,
+		)
 		f.collectionProductService = service.NewCollectionProductService(
 			f.repoFactory.GetCollectionProductRepository(),
+			f.repoFactory.GetCollectionRepository(),
+			productRepo,
 		)
 
 		// Initialize ProductMediaService BEFORE ProductQueryService so it can be
@@ -125,7 +141,7 @@ func (f *ServiceFactory) initialize() {
 		f.productMediaService = service.NewProductMediaService(
 			f.repoFactory.GetProductMediaRepository(),
 			productRepo,
-			fileGateway,
+			productFileGateway,
 		)
 
 		// Initialize ProductQueryService with VariantQueryService and media service
@@ -134,6 +150,7 @@ func (f *ServiceFactory) initialize() {
 			f.variantQueryService,
 			f.categoryService,
 			f.productAttributeService,
+			f.packageOptionService,
 			f.productOptionService,
 			f.productMediaService,
 		)
@@ -149,12 +166,14 @@ func (f *ServiceFactory) initialize() {
 		f.productService = service.NewProductService(
 			productRepo,
 			categoryRepo,
+			variantRepo,
 			f.productQueryService,
 			f.validatorService,
 			f.variantService,
 			f.variantBulkService,
 			f.productOptionService,
 			f.productAttributeService,
+			f.packageOptionService,
 		)
 	})
 }
@@ -207,6 +226,12 @@ func (f *ServiceFactory) GetProductAttributeService() service.ProductAttributeSe
 	return f.productAttributeService
 }
 
+// GetPackageOptionService returns the singleton package option service
+func (f *ServiceFactory) GetPackageOptionService() service.PackageOptionService {
+	f.initialize()
+	return f.packageOptionService
+}
+
 // GetProductOptionService returns the singleton product option service
 func (f *ServiceFactory) GetProductOptionService() service.ProductOptionService {
 	f.initialize()
@@ -235,6 +260,11 @@ func (f *ServiceFactory) GetWishlistService() service.WishlistService {
 func (f *ServiceFactory) GetWishlistItemService() service.WishlistItemService {
 	f.initialize()
 	return f.wishlistItemService
+}
+
+func (f *ServiceFactory) GetCollectionService() service.CollectionService {
+	f.initialize()
+	return f.collectionService
 }
 
 func (f *ServiceFactory) GetCollectionProductService() service.CollectionProductService {

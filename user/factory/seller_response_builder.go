@@ -3,6 +3,7 @@ package factory
 import (
 	"time"
 
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
 )
@@ -12,7 +13,6 @@ import (
  ***********************************************/
 
 // BuildUserResponseForSeller creates UserResponse from User entity for seller registration
-// Reuses UserResponse model for consistency
 func BuildUserResponseForSeller(user *entity.User) model.UserResponse {
 	return model.UserResponse{
 		ID:          user.ID,
@@ -29,12 +29,14 @@ func BuildUserResponseForSeller(user *entity.User) model.UserResponse {
 }
 
 // BuildSellerProfileResponse creates SellerProfileResponse from SellerProfile entity
-// Used by seller registration and seller profile endpoints
-func BuildSellerProfileResponse(profile *entity.SellerProfile) model.SellerProfileResponse {
+func BuildSellerProfileResponse(
+	profile *entity.SellerProfile,
+	logo *filegateway.FileAssetResponse,
+) model.SellerProfileResponse {
 	return model.SellerProfileResponse{
 		UserID:       profile.UserID,
 		BusinessName: profile.BusinessName,
-		BusinessLogo: profile.BusinessLogo,
+		BusinessLogo: logo,
 		TaxID:        profile.TaxID,
 		IsVerified:   profile.IsVerified,
 		CreatedAt:    profile.CreatedAt.Format(time.RFC3339),
@@ -42,34 +44,52 @@ func BuildSellerProfileResponse(profile *entity.SellerProfile) model.SellerProfi
 }
 
 // BuildSellerProfileResponsePtr creates *SellerProfileResponse from SellerProfile entity
-// Used when returning a pointer is required
-func BuildSellerProfileResponsePtr(profile *entity.SellerProfile) *model.SellerProfileResponse {
+func BuildSellerProfileResponsePtr(
+	profile *entity.SellerProfile,
+	logo *filegateway.FileAssetResponse,
+) *model.SellerProfileResponse {
 	if profile == nil {
 		return nil
 	}
-	resp := BuildSellerProfileResponse(profile)
+	resp := BuildSellerProfileResponse(profile, logo)
 	return &resp
 }
 
 // BuildSellerFullProfileResponse creates the complete seller profile response
-// Combines user, profile, and settings information
-// Reuses existing response models for consistency
 func BuildSellerFullProfileResponse(
 	user model.UserResponse,
 	profile *entity.SellerProfile,
 	settings *model.SellerSettingsResponse,
 	addresses []model.AddressResponse,
+	logo *filegateway.FileAssetResponse,
 ) *model.SellerFullProfileResponse {
 	return &model.SellerFullProfileResponse{
 		User:      user,
-		Profile:   BuildSellerProfileResponse(profile),
+		Profile:   BuildSellerProfileResponse(profile, logo),
+		Settings:  settings,
+		Addresses: addresses,
+	}
+}
+
+// BuildSellerLoginProfileResponse creates the seller-specific payload for auth/login responses.
+func BuildSellerLoginProfileResponse(
+	profile *entity.SellerProfile,
+	settings *model.SellerSettingsResponse,
+	addresses []model.AddressResponse,
+	logo *filegateway.FileAssetResponse,
+) *model.SellerLoginProfileResponse {
+	if profile == nil {
+		return nil
+	}
+
+	return &model.SellerLoginProfileResponse{
+		Profile:   BuildSellerProfileResponse(profile, logo),
 		Settings:  settings,
 		Addresses: addresses,
 	}
 }
 
 // BuildSellerSettingsResponse creates SellerSettingsResponse from SellerSettings entity
-// Used by seller registration and seller settings endpoints
 func BuildSellerSettingsResponse(settings *entity.SellerSettings) *model.SellerSettingsResponse {
 	if settings == nil {
 		return nil
@@ -87,8 +107,6 @@ func BuildSellerSettingsResponse(settings *entity.SellerSettings) *model.SellerS
 }
 
 // BuildSellerRegisterResponse creates the full seller registration response
-// Combines user, profile, settings, and auth information
-// Reuses existing response models for consistency
 func BuildSellerRegisterResponse(
 	user *entity.User,
 	profile *entity.SellerProfile,
@@ -96,10 +114,11 @@ func BuildSellerRegisterResponse(
 	token string,
 	expiresIn string,
 	requiresOnboarding bool,
+	logo *filegateway.FileAssetResponse,
 ) *model.SellerRegisterResponse {
 	return &model.SellerRegisterResponse{
 		User:               BuildUserResponseForSeller(user),
-		Profile:            BuildSellerProfileResponse(profile),
+		Profile:            BuildSellerProfileResponse(profile, logo),
 		Settings:           settings,
 		Token:              token,
 		ExpiresIn:          expiresIn,
@@ -112,7 +131,6 @@ func BuildSellerRegisterResponse(
  ***********************************************/
 
 // BuildSellerSettingsEntity creates SellerSettings entity from create request
-// Handles default values for optional fields
 func BuildSellerSettingsEntity(
 	sellerID uint,
 	req *model.SellerSettingsCreateRequest,
@@ -127,14 +145,12 @@ func BuildSellerSettingsEntity(
 	settings.CreatedAt = now
 	settings.UpdatedAt = now
 
-	// Set settlement currency (defaults to base currency if not provided)
 	if req.SettlementCurrencyID != nil {
 		settings.SettlementCurrencyID = *req.SettlementCurrencyID
 	} else {
 		settings.SettlementCurrencyID = req.BaseCurrencyID
 	}
 
-	// Set display preference if provided
 	if req.DisplayPricesInBuyerCurrency != nil {
 		settings.DisplayPricesInBuyerCurrency = *req.DisplayPricesInBuyerCurrency
 	}

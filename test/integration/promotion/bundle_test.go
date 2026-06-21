@@ -52,11 +52,6 @@ func (s *BundlePromotionTestSuite) SetupSuite() {
 	s.container.RunAllMigrations(s.T())
 	s.container.RunAllSeeds(s.T())
 
-	// Keep tests runnable while migration 005 is out of sync with entity.Promotion.
-	s.Require().NoError(
-		s.container.DB.Exec("ALTER TABLE promotion ADD COLUMN IF NOT EXISTS sale_id BIGINT").Error,
-	)
-
 	s.server = setup.SetupTestServer(s.T(), s.container.DB, s.container.RedisClient)
 
 	s.sellerClient = helpers.NewAPIClient(s.server)

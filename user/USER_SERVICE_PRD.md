@@ -210,19 +210,28 @@ This PRD defines the requirements for completing the User Service, including aut
 
 ```json
 {
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@business.com",
-  "password": "securepass123",
-  "confirmPassword": "securepass123",
-  "phone": "+1234567890",
-  "businessName": "John's Store",
-  "businessLogo": "https://...",
-  "taxId": "TAX123456",
-  "businessCountryId": 1,
-  "baseCurrencyId": 1
+  "user": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@business.com",
+    "password": "securepass123",
+    "confirmPassword": "securepass123",
+    "phone": "+1234567890"
+  },
+  "profile": {
+    "businessName": "John's Store",
+    "businessLogoFileId": "550e8400-e29b-41d4-a716-446655440000",
+    "taxId": "TAX123456"
+  },
+  "settings": {
+    "businessCountryId": 1,
+    "baseCurrencyId": 1,
+    "settlementCurrencyId": 1
+  }
 }
 ```
+
+> `businessLogoFileId` must reference an uploaded `SELLER_LOGO` file from the File module. The logo is returned as a resolved `FileAssetResponse` object, not a raw URL string.
 
 **Requirements**:
 
@@ -253,7 +262,11 @@ This PRD defines the requirements for completing the User Service, including aut
   },
   "profile": {
     "businessName": "John's Store",
-    "businessLogo": "https://...",
+    "businessLogo": {
+      "fileId": "550e8400-e29b-41d4-a716-446655440000",
+      "url": "https://cdn.example.com/seller/logo.jpg",
+      "thumbnailUrl": "https://cdn.example.com/seller/logo-thumb.jpg"
+    },
     "taxId": "TAX123456",
     "isVerified": false
   },
@@ -277,10 +290,12 @@ This PRD defines the requirements for completing the User Service, including aut
 ```json
 {
   "businessName": "John's Updated Store",
-  "businessLogo": "https://new-logo.png",
+  "businessLogoFileId": "550e8400-e29b-41d4-a716-446655440001",
   "taxId": "NEWTAX123"
 }
 ```
+
+> Response `businessLogo` is a `FileAssetResponse` object (`fileId`, `url`, optional `thumbnailUrl`).
 
 **Requirements**:
 
@@ -422,7 +437,10 @@ This PRD defines the requirements for completing the User Service, including aut
   },
   "profile": {
     "businessName": "Jane's Shop",
-    "businessLogo": "https://...",
+    "businessLogo": {
+      "fileId": "550e8400-e29b-41d4-a716-446655440000",
+      "url": "https://cdn.example.com/seller/logo.jpg"
+    },
     "taxId": "TAX123",
     "isVerified": true,
     "verifiedAt": "2026-01-01T00:00:00Z",

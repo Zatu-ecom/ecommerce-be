@@ -120,7 +120,7 @@ func (s *variantMediaService) GetMediaForVariants(
 		}
 		item := model.VariantMediaResponse{
 			FileID:       row.FileID,
-			URL:          fi.DownloadURL,
+			URL:          fi.URL,
 			IsPrimary:    row.IsPrimary,
 			DisplayOrder: row.DisplayOrder,
 			ThumbnailURL: fi.ThumbnailURL,
@@ -190,7 +190,7 @@ func (s *variantMediaService) AttachMedia(
 
 	return &model.VariantMediaResponse{
 		FileID:       media.FileID,
-		URL:          fileInfo.DownloadURL,
+		URL:          fileInfo.URL,
 		IsPrimary:    media.IsPrimary,
 		DisplayOrder: media.DisplayOrder,
 		ThumbnailURL: fileInfo.ThumbnailURL,
@@ -254,7 +254,7 @@ func (s *variantMediaService) UpdateMediaMetadata(
 
 	// Best-effort URL enrichment.
 	if fi, fErr := s.fileGateway.GetFileInfo(ctx, fileID, &sellerID); fErr == nil {
-		resp.URL = fi.DownloadURL
+		resp.URL = fi.URL
 		resp.ThumbnailURL = fi.ThumbnailURL
 	}
 

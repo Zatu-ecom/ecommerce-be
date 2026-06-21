@@ -58,6 +58,7 @@ type PromotionService interface {
 // PromotionServiceImpl implements the PromotionService interface
 type PromotionServiceImpl struct {
 	promotionRepo                           repository.PromotionRepository
+	saleRepo                                repository.SaleRepository
 	productScopeService                     PromotionProductScopeService
 	categoryScopeService                    PromotionCategoryScopeService
 	collectionScopeService                  PromotionCollectionScopeService
@@ -68,6 +69,7 @@ type PromotionServiceImpl struct {
 // NewPromotionService creates a new instance of PromotionService
 func NewPromotionService(
 	promotionRepo repository.PromotionRepository,
+	saleRepo repository.SaleRepository,
 	productScopeService PromotionProductScopeService,
 	categoryScopeService PromotionCategoryScopeService,
 	collectionScopeService PromotionCollectionScopeService,
@@ -76,6 +78,7 @@ func NewPromotionService(
 ) PromotionService {
 	return &PromotionServiceImpl{
 		promotionRepo:                           promotionRepo,
+		saleRepo:                                saleRepo,
 		productScopeService:                     productScopeService,
 		categoryScopeService:                    categoryScopeService,
 		collectionScopeService:                  collectionScopeService,

@@ -31,11 +31,23 @@ func ValidateProductExistsAndOwnership(product *entity.Product, sellerID *uint) 
 	return nil
 }
 
-// ValidateProductVariantRequirements validates variant-related requirements for product creation
-func ValidateProductVariantRequirements(variants []model.CreateVariantRequest) error {
-	// At least one variant is required
-	if len(variants) == 0 {
-		return commonError.ErrValidation.WithMessage("at least one variant is required")
+// ValidateProductVariantRequirements validates variant-related requirements for product creation.
+// Simple products may omit variants when top-level price is provided and no options are defined.
+func ValidateProductVariantRequirements(req model.ProductCreateRequest) error {
+	if len(req.Variants) > 0 {
+		return nil
+	}
+
+	if len(req.Options) > 0 {
+		return commonError.ErrValidation.WithMessage(
+			"variants are required when product options are provided",
+		)
+	}
+
+	if req.Price <= 0 {
+		return commonError.ErrValidation.WithMessage(
+			"price is required when variants are not provided",
+		)
 	}
 
 	return nil
@@ -62,7 +74,7 @@ func ValidateProductCreateRequest(req model.ProductCreateRequest, category *enti
 	}
 
 	// Validate variant requirements
-	if err := ValidateProductVariantRequirements(req.Variants); err != nil {
+	if err := ValidateProductVariantRequirements(req); err != nil {
 		return err
 	}
 
@@ -95,6 +107,10 @@ func ValidateProductUpdateRequest(
 		if err := ValidateProductCategoryExists(category); err != nil {
 			return err
 		}
+	}
+
+	if req.Price != nil && *req.Price <= 0 {
+		return commonError.ErrValidation.WithMessage("price must be greater than 0")
 	}
 
 	return nil

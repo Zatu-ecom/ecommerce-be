@@ -11,6 +11,7 @@ import (
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -52,23 +53,29 @@ type UserService interface {
 // UserServiceImpl implements the UserService interface
 type UserServiceImpl struct {
 	userRepo              repository.UserRepository
+	sellerProfileRepo     repository.SellerProfileRepository
 	addressService        AddressService
 	sellerSettingsService SellerSettingsService
 	currencyService       CurrencyService
+	fileGateway           filegateway.FileDisplayGateway
 }
 
 // NewUserService creates a new instance of UserService
 func NewUserService(
 	userRepo repository.UserRepository,
+	sellerProfileRepo repository.SellerProfileRepository,
 	addressService AddressService,
 	sellerSettingsService SellerSettingsService,
 	currencyService CurrencyService,
+	fileGateway filegateway.FileDisplayGateway,
 ) UserService {
 	return &UserServiceImpl{
 		userRepo:              userRepo,
+		sellerProfileRepo:     sellerProfileRepo,
 		addressService:        addressService,
 		sellerSettingsService: sellerSettingsService,
 		currencyService:       currencyService,
+		fileGateway:           fileGateway,
 	}
 }
 
@@ -104,7 +111,7 @@ func (s *UserServiceImpl) Register(
 	}
 
 	// Build auth response using factory (eliminates duplication)
-	return factory.BuildAuthResponse(user, customerRole, &user.SellerID)
+	return factory.BuildAuthResponse(user, customerRole, &user.SellerID, nil)
 }
 
 // Login authenticates a user and returns a token
@@ -131,8 +138,36 @@ func (s *UserServiceImpl) Login(
 	// Resolve seller ID using factory helper (eliminates duplication)
 	sellerID := factory.ResolveSellerID(user, role)
 
+	var sellerProfile *model.SellerLoginProfileResponse
+	if role.Name.ToString() == constants.SELLER_ROLE_NAME {
+		sellerProfile = s.buildSellerLoginProfile(ctx, user.ID)
+	}
+
 	// Build auth response using factory (eliminates duplication)
-	return factory.BuildAuthResponse(user, role, sellerID)
+	return factory.BuildAuthResponse(user, role, sellerID, sellerProfile)
+}
+
+func (s *UserServiceImpl) buildSellerLoginProfile(
+	ctx context.Context,
+	userID uint,
+) *model.SellerLoginProfileResponse {
+	profile, err := s.sellerProfileRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+
+	addresses, err := s.addressService.GetAddresses(ctx, userID)
+	if err != nil {
+		addresses = []model.AddressResponse{}
+	}
+
+	settings, err := s.sellerSettingsService.GetBySellerID(ctx, userID)
+	if err != nil {
+		settings = nil
+	}
+
+	logo := filegateway.ResolveOptional(ctx, s.fileGateway, profile.BusinessLogoFileID, &userID)
+	return factory.BuildSellerLoginProfileResponse(profile, settings, addresses, logo)
 }
 
 // GetProfile retrieves user profile information including addresses

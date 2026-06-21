@@ -17,6 +17,7 @@ type HandlerFactory struct {
 	currencyHandler        *handler.CurrencyHandler
 	countryCurrencyHandler *handler.CountryCurrencyHandler
 	sellerHandler          *handler.SellerHandler
+	sellerSettingsHandler  *handler.SellerSettingsHandler
 
 	once sync.Once
 }
@@ -48,6 +49,9 @@ func (f *HandlerFactory) initialize() {
 		f.sellerHandler = handler.NewSellerHandler(
 			f.serviceFactory.GetSellerService(),
 			f.serviceFactory.GetSellerProfileService(),
+		)
+		f.sellerSettingsHandler = handler.NewSellerSettingsHandler(
+			f.serviceFactory.GetSellerSettingsService(),
 		)
 	})
 }
@@ -92,4 +96,10 @@ func (f *HandlerFactory) GetCountryCurrencyHandler() *handler.CountryCurrencyHan
 func (f *HandlerFactory) GetSellerHandler() *handler.SellerHandler {
 	f.initialize()
 	return f.sellerHandler
+}
+
+// GetSellerSettingsHandler returns the singleton seller settings handler
+func (f *HandlerFactory) GetSellerSettingsHandler() *handler.SellerSettingsHandler {
+	f.initialize()
+	return f.sellerSettingsHandler
 }
