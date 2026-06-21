@@ -59,6 +59,10 @@ func (s *PromotionServiceImpl) CreatePromotion(
 		}
 	}
 
+	if err := ValidateSaleForPromotion(ctx, s.saleRepo, req.SaleID, sellerID); err != nil {
+		return nil, err
+	}
+
 	// Convert request to entity
 	promotion := factory.PromotionRequestToEntity(req, sellerID)
 
@@ -103,6 +107,9 @@ func (s *PromotionServiceImpl) UpdatePromotion(
 				return nil, err
 			}
 			if err := s.validateUpdatedConfig(existing, req); err != nil {
+				return nil, err
+			}
+			if err := ValidateSaleForPromotion(txCtx, s.saleRepo, req.SaleID, sellerID); err != nil {
 				return nil, err
 			}
 

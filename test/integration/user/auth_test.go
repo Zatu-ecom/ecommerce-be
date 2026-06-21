@@ -64,6 +64,39 @@ func (s *AuthTestSuite) TestSuccessfulLogin() {
 	token, tokenOk := data["token"].(string)
 	assert.True(s.T(), tokenOk)
 	assert.NotEmpty(s.T(), token)
+
+	sellerProfile, sellerProfileOk := data["sellerProfile"].(map[string]any)
+	assert.True(s.T(), sellerProfileOk)
+
+	profile, profileOk := sellerProfile["profile"].(map[string]any)
+	assert.True(s.T(), profileOk)
+	assert.Equal(s.T(), "Fashion Forward", profile["businessName"])
+
+	addresses, addressesOk := sellerProfile["addresses"].([]any)
+	assert.True(s.T(), addressesOk)
+	assert.NotEmpty(s.T(), addresses)
+
+	settings, settingsOk := sellerProfile["settings"].(map[string]any)
+	assert.True(s.T(), settingsOk)
+	assert.NotNil(s.T(), settings["sellerId"])
+}
+
+func (s *AuthTestSuite) TestCustomerLoginDoesNotReturnSellerProfile() {
+	requestBody := map[string]any{
+		"email":    "alice.j@example.com",
+		"password": "customer123",
+	}
+
+	w := s.client.Post(s.T(), "/api/user/auth/login", requestBody)
+
+	assert.Equal(s.T(), http.StatusOK, w.Code)
+
+	response := helpers.ParseResponse(s.T(), w.Body)
+	data, ok := response["data"].(map[string]any)
+	assert.True(s.T(), ok)
+
+	_, exists := data["sellerProfile"]
+	assert.False(s.T(), exists)
 }
 
 // TestScenario2_InvalidCredentials

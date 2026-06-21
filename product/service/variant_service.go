@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
@@ -82,6 +83,13 @@ func (s *VariantServiceImpl) CreateVariant(
 		return nil, err
 	}
 
+	if len(optionsResponse.Options) > 0 && len(request.Options) == 0 {
+		return nil, commonError.ErrValidation.WithMessagef(
+			"variant must specify all product options (%d required, 0 provided)",
+			len(optionsResponse.Options),
+		)
+	}
+
 	// Validate and map variant options (extracted for readability)
 	optionValueIDs, optionsMap, err := s.validateAndMapVariantOptions(
 		request.Options,
@@ -116,6 +124,13 @@ func (s *VariantServiceImpl) CreateVariant(
 		variantOptionValues = factory.CreateVariantOptionValues(variant.ID, optionValueIDs)
 		if err := s.variantRepo.CreateVariantOptionValues(txCtx, variantOptionValues); err != nil {
 			return err
+		}
+
+		// Remove internal placeholder variants when first option-derived variant is created
+		if len(optionValueIDs) > 0 && len(optionsResponse.Options) > 0 {
+			if err := s.replacePlaceholderVariants(txCtx, productID, variant, request); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -302,6 +317,73 @@ func (s *VariantServiceImpl) reassignDefaultVariant(
 			remainingVariants[i].IsDefault = true
 			return s.variantRepo.UpdateVariant(ctx, &remainingVariants[i])
 		}
+	}
+
+	return nil
+}
+
+// replacePlaceholderVariants deletes internal placeholder rows after an option-derived variant is created.
+// Skips ValidateCanDeleteVariant because the new variant already satisfies the minimum-variant rule.
+func (s *VariantServiceImpl) replacePlaceholderVariants(
+	ctx context.Context,
+	productID uint,
+	newVariant *entity.ProductVariant,
+	request *model.CreateVariantRequest,
+) error {
+	placeholders, err := s.variantRepo.FindPlaceholderVariants(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if len(placeholders) == 0 {
+		return nil
+	}
+
+	placeholderWasDefault := false
+	for _, placeholder := range placeholders {
+		if placeholder.IsDefault {
+			placeholderWasDefault = true
+		}
+
+		if err := s.variantRepo.DeleteVariantOptionValues(ctx, placeholder.ID); err != nil {
+			return err
+		}
+		if err := s.variantRepo.DeleteVariant(ctx, placeholder.ID); err != nil {
+			return err
+		}
+	}
+
+	requestIsDefault := request.IsDefault != nil && *request.IsDefault
+
+	if requestIsDefault {
+		if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(ctx, productID); err != nil {
+			return err
+		}
+		newVariant.IsDefault = true
+		return s.variantRepo.UpdateVariant(ctx, newVariant)
+	}
+
+	if !placeholderWasDefault {
+		return nil
+	}
+
+	if err := s.variantRepo.UnsetAllDefaultVariantsForProduct(ctx, productID); err != nil {
+		return err
+	}
+
+	firstOptionDerived, err := s.variantRepo.FindFirstOptionDerivedVariant(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if firstOptionDerived == nil {
+		return nil
+	}
+
+	firstOptionDerived.IsDefault = true
+	if err := s.variantRepo.UpdateVariant(ctx, firstOptionDerived); err != nil {
+		return err
+	}
+	if firstOptionDerived.ID == newVariant.ID {
+		newVariant.IsDefault = true
 	}
 
 	return nil

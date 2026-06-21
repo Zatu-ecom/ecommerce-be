@@ -33,11 +33,8 @@ func (m *CurrencyModule) RegisterRoutes(router *gin.Engine) {
 	// Response: CurrencyListResponse
 	publicRoutes := router.Group(constants.APIBaseUser + "/currency")
 	{
-		publicRoutes.GET("") // TODO: m.currencyHandler.ListActiveCurrencies
-
-		// GET /api/user/currency/:id - Get currency by ID
-		// Response: CurrencyResponse
-		publicRoutes.GET("/:id") // TODO: m.currencyHandler.GetCurrencyByID
+		publicRoutes.GET("", m.currencyHandler.ListActiveCurrencies)
+		publicRoutes.GET("/:id", m.currencyHandler.GetCurrencyByID)
 	}
 
 	// ========================================

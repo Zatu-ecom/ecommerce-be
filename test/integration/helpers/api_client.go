@@ -194,12 +194,24 @@ func (c *APIClient) PutRaw(t *testing.T, url string, body []byte) *httptest.Resp
 }
 
 // Delete makes a DELETE request
-func (c *APIClient) Delete(t *testing.T, url string) *httptest.ResponseRecorder {
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+func (c *APIClient) Delete(t *testing.T, url string, body ...any) *httptest.ResponseRecorder {
+	var reqBody io.Reader
+	if len(body) > 0 && body[0] != nil {
+		bodyBytes, err := json.Marshal(body[0])
+		if err != nil {
+			t.Fatalf("failed to marshal request body: %v", err)
+		}
+		reqBody = bytes.NewBuffer(bodyBytes)
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, url, reqBody)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
+	if reqBody != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}

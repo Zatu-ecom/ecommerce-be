@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
@@ -21,6 +22,7 @@ type ProductRepository interface {
 	Create(ctx context.Context, product *entity.Product) error
 	Update(ctx context.Context, product *entity.Product) error
 	FindByID(ctx context.Context, id uint) (*entity.Product, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]entity.Product, error)
 	// FindBySKU removed - BaseSKU validation no longer required
 	FindAll(
 		ctx context.Context,
@@ -50,12 +52,6 @@ type ProductRepository interface {
 		offset int,
 		strategies string,
 	) ([]mapper.RelatedProductScored, int64, error)
-	FindPackageOptionByProductID(
-		ctx context.Context,
-		productID uint,
-	) ([]entity.PackageOption, error)
-	CreatePackageOptions(ctx context.Context, option []entity.PackageOption) error
-	UpdatePackageOptions(ctx context.Context, option []entity.PackageOption) error
 	GetProductFilters(ctx context.Context, sellerID *uint) (
 		[]mapper.BrandWithProductCount,
 		[]mapper.CategoryWithProductCount,
@@ -65,9 +61,6 @@ type ProductRepository interface {
 		*mapper.StockStatusData,
 		error,
 	)
-
-	// Bulk deletion methods for product cleanup
-	DeletePackageOptionsByProductID(ctx context.Context, productID uint) error
 }
 
 // ProductRepositoryImpl implements the ProductRepository interface
@@ -102,6 +95,19 @@ func (r *ProductRepositoryImpl) FindByID(ctx context.Context, id uint) (*entity.
 		return nil, result.Error
 	}
 	return &product, nil
+}
+
+// FindByIDs finds products by a list of IDs
+func (r *ProductRepositoryImpl) FindByIDs(ctx context.Context, ids []uint) ([]entity.Product, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var products []entity.Product
+	err := db.DB(ctx).Where("id IN ?", ids).Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 // FindAll finds all products with filtering and pagination
@@ -165,12 +171,11 @@ func (r *ProductRepositoryImpl) FindAll(
 
 	// Apply pagination and sorting
 	offset := (page - 1) * limit
-	sortBy := filter.SortBy
-	sortOrder := filter.SortOrder
-
-	if sortBy == "" {
-		sortBy = "created_at"
+	sortBy, ok := helper.NormalizeProductSortColumn(filter.SortBy)
+	if !ok {
+		return nil, 0, commonError.ErrValidation.WithMessagef("invalid sortBy field: %s", filter.SortBy)
 	}
+	sortOrder := filter.SortOrder
 	if sortOrder == "" {
 		sortOrder = "desc"
 	}
@@ -343,32 +348,6 @@ func (r *ProductRepositoryImpl) FindRelatedScored(
 	return results, totalCount, nil
 }
 
-func (r *ProductRepositoryImpl) FindPackageOptionByProductID(
-	ctx context.Context,
-	productID uint,
-) ([]entity.PackageOption, error) {
-	var packageOptions []entity.PackageOption
-	result := db.DB(ctx).Where("product_id = ?", productID).Find(&packageOptions)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return packageOptions, nil
-}
-
-func (r *ProductRepositoryImpl) CreatePackageOptions(
-	ctx context.Context,
-	options []entity.PackageOption,
-) error {
-	return db.DB(ctx).Create(options).Error
-}
-
-func (r *ProductRepositoryImpl) UpdatePackageOptions(
-	ctx context.Context,
-	options []entity.PackageOption,
-) error {
-	return db.DB(ctx).Save(options).Error
-}
-
 // GetProductFilters fetches all filter data in optimized queries including variant-based filters
 // Multi-tenant: If sellerID is provided, filter by seller. If nil (admin), get all.
 func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID *uint) (
@@ -495,14 +474,3 @@ func (r *ProductRepositoryImpl) GetProductFilters(ctx context.Context, sellerID 
 	return brands, categories, attributes, &priceRange, variantOptions, &stockStatus, nil
 }
 
-/***********************************************
- *    Bulk Deletion Methods for Product Cleanup
- ***********************************************/
-
-// DeletePackageOptionsByProductID deletes all package options for a given product
-func (r *ProductRepositoryImpl) DeletePackageOptionsByProductID(
-	ctx context.Context,
-	productID uint,
-) error {
-	return db.DB(ctx).Where("product_id = ?", productID).Delete(&entity.PackageOption{}).Error
-}

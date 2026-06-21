@@ -9,6 +9,25 @@ import (
 	"ecommerce-be/common/db"
 )
 
+// productSortColumns maps API sortBy values to safe database column names.
+var productSortColumns = map[string]string{
+	"createdAt":  "created_at",
+	"created_at": "created_at",
+	"updatedAt":  "updated_at",
+	"updated_at": "updated_at",
+	"name":       "name",
+}
+
+// NormalizeProductSortColumn maps a product list sortBy param to a DB column.
+// Returns ok=false when the field is not allowed.
+func NormalizeProductSortColumn(sortBy string) (column string, ok bool) {
+	if sortBy == "" {
+		return "created_at", true
+	}
+	column, ok = productSortColumns[sortBy]
+	return column, ok
+}
+
 // NormalizeToSnakeCase converts a string to lowercase snake_case format
 // Replaces spaces with underscores and removes special characters
 // Example: "Product Color" -> "product_color"

@@ -94,7 +94,7 @@ func MapToProductMediaResponse(
 		DisplayOrder: media.DisplayOrder,
 	}
 	if fileInfo != nil {
-		resp.URL = fileInfo.DownloadURL
+		resp.URL = fileInfo.URL
 		resp.ThumbnailURL = fileInfo.ThumbnailURL
 	}
 	return resp

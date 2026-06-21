@@ -33,10 +33,12 @@ type VariantQueryService interface {
 	) (*model.VariantResponse, error)
 
 	// GetProductVariantsWithOptions retrieves all variants with their selected option values
-	// Optimized single query to prevent N+1 issues when fetching variant details
+	// Optimized single query to prevent N+1 issues when fetching variant details.
+	// sellerID scopes file resolution for variant media; nil falls back to platform scope.
 	GetProductVariantsWithOptions(
 		ctx context.Context,
 		productID uint,
+		sellerID *uint,
 	) ([]model.VariantDetailResponse, error)
 
 	// GetProductVariantAggregation retrieves aggregated variant data for a single product
@@ -143,7 +145,13 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 	}
 
 	// Enrich with media (best-effort: never fails the variant response).
-	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, []uint{variantID}, nil); mErr == nil {
+	mediaSellerID := sellerID
+	if mediaSellerID == 0 {
+		mediaSellerID = product.SellerID
+	}
+	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(
+		ctx, []uint{variantID}, &mediaSellerID,
+	); mErr == nil {
 		if items, ok := mediaMap[variantID]; ok {
 			response.Media = items
 		}
@@ -225,6 +233,7 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 	ctx context.Context,
 	productID uint,
+	sellerID *uint,
 ) ([]model.VariantDetailResponse, error) {
 	variantsWithOptions, err := s.variantRepo.GetProductVariantsWithOptions(ctx, productID)
 	if err != nil {
@@ -243,7 +252,7 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 	for i, v := range responses {
 		variantIDs[i] = v.ID
 	}
-	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, nil); mErr == nil {
+	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, sellerID); mErr == nil {
 		for i := range responses {
 			if items, ok := mediaMap[responses[i].ID]; ok {
 				responses[i].Media = items
@@ -373,7 +382,7 @@ func (s *VariantQueryServiceImpl) ListVariants(
 		for i, v := range variantResponses {
 			variantIDs[i] = v.ID
 		}
-		if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, nil); mErr == nil {
+		if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(ctx, variantIDs, sellerID); mErr == nil {
 			for i := range variantResponses {
 				if items, ok := mediaMap[variantResponses[i].ID]; ok {
 					variantResponses[i].Media = items

@@ -21,7 +21,7 @@ type Collection struct {
 	Description *string `json:"description" gorm:"column:description;type:text"`
 
 	// Display
-	Image *string `json:"image" gorm:"column:image;type:text"`
+	ImageFileID *string `json:"imageFileId" gorm:"column:image_file_id;size:80"`
 
 	// Status
 	IsActive *bool `json:"isActive" gorm:"column:is_active;default:true;index"`

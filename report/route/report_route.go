@@ -22,10 +22,10 @@ func NewReportModule() *ReportModule {
 }
 
 func (m *ReportModule) RegisterRoutes(router *gin.Engine) {
-	adminAuth := middleware.AdminAuth() // Admin auth for reports
+	sellerAuth := middleware.SellerAuth() // Admin auth for reports
 
 	reportRoutes := router.Group(constants.APIBaseReport)
-	reportRoutes.Use(adminAuth) // Apply admin auth to all report routes
+	reportRoutes.Use(sellerAuth) // Apply admin auth to all report routes
 
 	{
 		reportRoutes.GET("/summary", m.reportHandler.GetSummary)

@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"net/url"
 	"strings"
 	"time"
 
@@ -50,7 +51,8 @@ func BuildOrderItemsFromCartSnapshot(
 		productID := item.Variant.Product.ID
 		variantID := item.Variant.ID
 		sku := toPtr(item.Variant.SKU)
-		imageURL := firstImage(item.Variant.Images)
+		imageURL := snapshotImageURL(item.Variant.Images)
+		imageFileID := item.Variant.ImageFileID
 		variantName := buildVariantName(item.Variant.Options)
 
 		result = append(result, entity.OrderItem{
@@ -61,6 +63,7 @@ func BuildOrderItemsFromCartSnapshot(
 			ProductName:    item.Variant.Product.Name,
 			VariantName:    variantName,
 			ImageURL:       imageURL,
+			ImageFileID:    imageFileID,
 			Quantity:       item.Quantity,
 			UnitPriceCents: item.UnitPrice,
 			LineTotalCents: item.LineTotal,
@@ -211,6 +214,7 @@ func BuildOrderResponseFromEntity(
 			VariantName:               item.VariantName,
 			SKU:                       item.SKU,
 			ImageURL:                  item.ImageURL,
+			ImageFileID:               item.ImageFileID,
 			Quantity:                  item.Quantity,
 			UnitPriceCents:            item.UnitPriceCents,
 			LineTotalCents:            item.LineTotalCents,
@@ -270,6 +274,27 @@ func firstImage(images []string) *string {
 		return nil
 	}
 	return &images[0]
+}
+
+// snapshotImageURL stores a stable object path for order immutability.
+// Presigned URLs (GCS/S3) embed signatures in query params, often exceed
+// order_item.image_url limits, and expire — image_file_id is the canonical ref.
+func snapshotImageURL(images []string) *string {
+	raw := firstImage(images)
+	if raw == nil {
+		return nil
+	}
+	parsed, err := url.Parse(*raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return raw
+	}
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	stripped := parsed.String()
+	if stripped == "" {
+		return raw
+	}
+	return &stripped
 }
 
 func toJSONMap(in map[string]any) db.JSONMap {

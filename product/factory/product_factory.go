@@ -182,6 +182,7 @@ func BuildPackageOptionResponse(
 ) *model.PackageOptionResponse {
 	return &model.PackageOptionResponse{
 		ID:          packageOption.ID,
+		ProductID:   packageOption.ProductID,
 		Name:        packageOption.Name,
 		Description: packageOption.Description,
 		Price:       packageOption.Price,
@@ -200,6 +201,52 @@ func BuildPackageOptionResponses(
 		responses = append(responses, *BuildPackageOptionResponse(&option))
 	}
 	return responses
+}
+
+// BuildPackageOptionFromCreateRequest creates a PackageOption entity from a create request
+func BuildPackageOptionFromCreateRequest(
+	productID uint,
+	req model.PackageOptionCreateRequest,
+) *entity.PackageOption {
+	return &entity.PackageOption{
+		ProductID:   productID,
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Quantity:    req.Quantity,
+		BaseEntity:  helper.NewBaseEntity(),
+	}
+}
+
+// ApplyPackageOptionUpdate applies update request fields to a package option entity
+func ApplyPackageOptionUpdate(
+	packageOption *entity.PackageOption,
+	req model.PackageOptionUpdateRequest,
+) {
+	packageOption.Name = req.Name
+	packageOption.Description = req.Description
+	packageOption.Price = req.Price
+	packageOption.Quantity = req.Quantity
+}
+
+// ApplyBulkPackageOptionUpdate applies bulk update item fields to a package option entity
+func ApplyBulkPackageOptionUpdate(
+	packageOption *entity.PackageOption,
+	item model.BulkUpdatePackageOptionItem,
+) {
+	packageOption.Name = item.Name
+	packageOption.Description = item.Description
+	packageOption.Price = item.Price
+	packageOption.Quantity = item.Quantity
+}
+
+// BuildPackageOptionsListResponse builds the list response for package options
+func BuildPackageOptionsListResponse(
+	packageOptions []entity.PackageOption,
+) *model.PackageOptionsResponse {
+	return &model.PackageOptionsResponse{
+		PackageOptions: BuildPackageOptionResponses(packageOptions),
+	}
 }
 
 // BuildCategoryFilter builds CategoryFilter from mapper data
@@ -348,29 +395,44 @@ func BuildProductResponse(
 		LongDescription:  product.LongDescription,
 		Tags:             product.Tags,
 		SellerID:         product.SellerID,
-		HasVariants:      variantAgg.HasVariants,
-		AllowPurchase:    variantAgg.AllowPurchase,
-		IsWishlisted:     variantAgg.IsWishlisted,
 		CreatedAt:        helper.FormatTimestamp(product.CreatedAt),
 		UpdatedAt:        helper.FormatTimestamp(product.UpdatedAt),
 	}
 
-	// Set price range if product has variants
-	if variantAgg.HasVariants {
+	ApplyCommerceFieldsFromAggregation(&productResp, variantAgg)
+
+	return productResp
+}
+
+// ApplyCommerceFieldsFromAggregation sets listing commerce fields from variant aggregation.
+func ApplyCommerceFieldsFromAggregation(
+	productResp *model.ProductResponse,
+	variantAgg *mapper.VariantAggregation,
+) {
+	if productResp == nil || variantAgg == nil {
+		return
+	}
+
+	productResp.HasVariants = variantAgg.HasVariants
+	productResp.Price = variantAgg.DefaultPrice
+	productResp.AllowPurchase = variantAgg.AllowPurchase
+	productResp.IsPopular = variantAgg.IsPopular
+	productResp.IsWishlisted = variantAgg.IsWishlisted
+	productResp.VariantPreview = nil
+
+	if variantAgg.DefaultPrice > 0 || variantAgg.HasVariants {
 		productResp.PriceRange = &model.PriceRange{
 			Min: variantAgg.MinPrice,
 			Max: variantAgg.MaxPrice,
 		}
 	}
 
-	// Build variant preview for product listings
-	if variantAgg.TotalVariants > 0 {
+	if variantAgg.HasVariants && variantAgg.TotalVariants > 0 {
 		variantPreview := &model.VariantPreview{
 			TotalVariants: variantAgg.TotalVariants,
 			Options:       []model.OptionPreview{},
 		}
 
-		// Add available option values for each option
 		for _, optionName := range variantAgg.OptionNames {
 			optionValues := variantAgg.OptionValues[optionName]
 			variantPreview.Options = append(variantPreview.Options, model.OptionPreview{
@@ -382,15 +444,12 @@ func BuildProductResponse(
 
 		productResp.VariantPreview = variantPreview
 	}
-
-	return productResp
 }
 
 // BuildRelatedProductItemScored builds a RelatedProductItemScored from RelatedProductScored mapper
 // Used for related products API with scoring information
 func BuildRelatedProductItemScored(
 	scoredResult *mapper.RelatedProductScored,
-	optionsPreview []model.OptionPreview,
 ) model.RelatedProductItemScored {
 	// Build category hierarchy info
 	var parentInfo *model.CategoryInfo
@@ -407,7 +466,7 @@ func BuildRelatedProductItemScored(
 		Parent: parentInfo,
 	}
 
-	// Build base product response
+	// Build base product response (commerce fields applied via ApplyCommerceFieldsFromAggregation)
 	productResponse := model.ProductResponse{
 		ID:               scoredResult.ProductID,
 		Name:             scoredResult.ProductName,
@@ -419,20 +478,6 @@ func BuildRelatedProductItemScored(
 		LongDescription:  scoredResult.LongDescription,
 		Tags:             scoredResult.Tags,
 		SellerID:         scoredResult.SellerID,
-		HasVariants:      scoredResult.HasVariants,
-		PriceRange: &model.PriceRange{
-			Min: scoredResult.MinPrice,
-			Max: scoredResult.MaxPrice,
-		},
-		AllowPurchase: scoredResult.AllowPurchase,
-	}
-
-	// Add variant preview if available
-	if scoredResult.TotalVariants > 0 && len(optionsPreview) > 0 {
-		productResponse.VariantPreview = &model.VariantPreview{
-			TotalVariants: int(scoredResult.TotalVariants),
-			Options:       optionsPreview,
-		}
 	}
 
 	// Build scored item with relation metadata
@@ -442,28 +487,6 @@ func BuildRelatedProductItemScored(
 		Score:           scoredResult.FinalScore,
 		StrategyUsed:    scoredResult.StrategyUsed,
 	}
-}
-
-// BuildOptionsPreview builds option preview list from product options
-// Reusable helper for variant preview construction
-func BuildOptionsPreview(options []entity.ProductOption) []model.OptionPreview {
-	optionsPreview := make([]model.OptionPreview, 0, len(options))
-
-	for _, option := range options {
-		// Extract available values from option values
-		availableValues := make([]string, 0, len(option.Values))
-		for _, val := range option.Values {
-			availableValues = append(availableValues, val.Value)
-		}
-
-		optionsPreview = append(optionsPreview, model.OptionPreview{
-			Name:            option.Name,
-			DisplayName:     option.DisplayName,
-			AvailableValues: availableValues,
-		})
-	}
-
-	return optionsPreview
 }
 
 func BuildRelatedProductsScoredResponse(

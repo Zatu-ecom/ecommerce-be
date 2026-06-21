@@ -16,8 +16,10 @@ type RepositoryFactory struct {
 	variantRepo           repository.VariantRepository
 	optionRepo            repository.ProductOptionRepository
 	productAttrRepo       repository.ProductAttributeRepository
+	packageOptionRepo     repository.PackageOptionRepository
 	wishlistRepo          repository.WishlistRepository
 	wishlistItemRepo      repository.WishlistItemRepository
+	collectionRepo        repository.CollectionRepository
 	collectionProductRepo repository.CollectionProductRepository
 	productMediaRepo      repository.ProductMediaRepository
 	variantMediaRepo      repository.VariantMediaRepository
@@ -40,8 +42,10 @@ func (f *RepositoryFactory) initialize() {
 		f.variantRepo = repository.NewVariantRepository()
 		f.optionRepo = repository.NewProductOptionRepository()
 		f.productAttrRepo = repository.NewProductAttributeRepository()
+		f.packageOptionRepo = repository.NewPackageOptionRepository()
 		f.wishlistRepo = repository.NewWishlistRepository()
 		f.wishlistItemRepo = repository.NewWishlistItemRepository()
+		f.collectionRepo = repository.NewCollectionRepository()
 		f.collectionProductRepo = repository.NewCollectionProductRepository()
 		f.productMediaRepo = repository.NewProductMediaRepository()
 		f.variantMediaRepo = repository.NewVariantMediaRepository()
@@ -84,6 +88,12 @@ func (f *RepositoryFactory) GetProductAttributeRepository() repository.ProductAt
 	return f.productAttrRepo
 }
 
+// GetPackageOptionRepository returns the singleton package option repository
+func (f *RepositoryFactory) GetPackageOptionRepository() repository.PackageOptionRepository {
+	f.initialize()
+	return f.packageOptionRepo
+}
+
 // GetWishlistRepository returns the singleton wishlist repository
 func (f *RepositoryFactory) GetWishlistRepository() repository.WishlistRepository {
 	f.initialize()
@@ -94,6 +104,11 @@ func (f *RepositoryFactory) GetWishlistRepository() repository.WishlistRepositor
 func (f *RepositoryFactory) GetWishlistItemRepository() repository.WishlistItemRepository {
 	f.initialize()
 	return f.wishlistItemRepo
+}
+
+func (f *RepositoryFactory) GetCollectionRepository() repository.CollectionRepository {
+	f.initialize()
+	return f.collectionRepo
 }
 
 func (f *RepositoryFactory) GetCollectionProductRepository() repository.CollectionProductRepository {

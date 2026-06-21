@@ -73,6 +73,10 @@ func (f *SingletonFactory) GetProductAttributeRepository() repository.ProductAtt
 	return f.repoFactory.GetProductAttributeRepository()
 }
 
+func (f *SingletonFactory) GetPackageOptionRepository() repository.PackageOptionRepository {
+	return f.repoFactory.GetPackageOptionRepository()
+}
+
 func (f *SingletonFactory) GetWishlistRepository() repository.WishlistRepository {
 	return f.repoFactory.GetWishlistRepository()
 }
@@ -113,6 +117,10 @@ func (f *SingletonFactory) GetProductAttributeService() service.ProductAttribute
 	return f.serviceFactory.GetProductAttributeService()
 }
 
+func (f *SingletonFactory) GetPackageOptionService() service.PackageOptionService {
+	return f.serviceFactory.GetPackageOptionService()
+}
+
 func (f *SingletonFactory) GetProductOptionService() service.ProductOptionService {
 	return f.serviceFactory.GetProductOptionService()
 }
@@ -133,8 +141,20 @@ func (f *SingletonFactory) GetWishlistItemService() service.WishlistItemService 
 	return f.serviceFactory.GetWishlistItemService()
 }
 
+func (f *SingletonFactory) GetCollectionRepository() repository.CollectionRepository {
+	return f.repoFactory.GetCollectionRepository()
+}
+
+func (f *SingletonFactory) GetCollectionService() service.CollectionService {
+	return f.serviceFactory.GetCollectionService()
+}
+
 func (f *SingletonFactory) GetCollectionProductService() service.CollectionProductService {
 	return f.serviceFactory.GetCollectionProductService()
+}
+
+func (f *SingletonFactory) GetProductMediaService() service.ProductMediaService {
+	return f.serviceFactory.GetProductMediaService()
 }
 
 // ===============================
@@ -161,6 +181,10 @@ func (f *SingletonFactory) GetProductAttributeHandler() *handler.ProductAttribut
 	return f.handlerFactory.GetProductAttributeHandler()
 }
 
+func (f *SingletonFactory) GetPackageOptionHandler() *handler.PackageOptionHandler {
+	return f.handlerFactory.GetPackageOptionHandler()
+}
+
 func (f *SingletonFactory) GetProductOptionHandler() *handler.ProductOptionHandler {
 	return f.handlerFactory.GetProductOptionHandler()
 }
@@ -175,4 +199,8 @@ func (f *SingletonFactory) GetWishlistHandler() *handler.WishlistHandler {
 
 func (f *SingletonFactory) GetWishlistItemHandler() *handler.WishlistItemHandler {
 	return f.handlerFactory.GetWishlistItemHandler()
+}
+
+func (f *SingletonFactory) GetCollectionHandler() *handler.CollectionHandler {
+	return f.handlerFactory.GetCollectionHandler()
 }

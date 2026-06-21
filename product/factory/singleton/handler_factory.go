@@ -15,10 +15,12 @@ type HandlerFactory struct {
 	productHandler          *handler.ProductHandler
 	variantHandler          *handler.VariantHandler
 	productAttributeHandler *handler.ProductAttributeHandler
+	packageOptionHandler    *handler.PackageOptionHandler
 	productOptionHandler    *handler.ProductOptionHandler
 	optionValueHandler      *handler.ProductOptionValueHandler
 	wishlistHandler         *handler.WishlistHandler
 	wishlistItemHandler     *handler.WishlistItemHandler
+	collectionHandler       *handler.CollectionHandler
 
 	once sync.Once
 }
@@ -49,6 +51,9 @@ func (f *HandlerFactory) initialize() {
 		f.productAttributeHandler = handler.NewProductAttributeHandler(
 			f.serviceFactory.GetProductAttributeService(),
 		)
+		f.packageOptionHandler = handler.NewPackageOptionHandler(
+			f.serviceFactory.GetPackageOptionService(),
+		)
 		f.productOptionHandler = handler.NewProductOptionHandler(
 			f.serviceFactory.GetProductOptionService(),
 		)
@@ -60,6 +65,10 @@ func (f *HandlerFactory) initialize() {
 		)
 		f.wishlistItemHandler = handler.NewWishlistItemHandler(
 			f.serviceFactory.GetWishlistItemService(),
+		)
+		f.collectionHandler = handler.NewCollectionHandler(
+			f.serviceFactory.GetCollectionService(),
+			f.serviceFactory.GetCollectionProductService(),
 		)
 	})
 }
@@ -94,6 +103,12 @@ func (f *HandlerFactory) GetProductAttributeHandler() *handler.ProductAttributeH
 	return f.productAttributeHandler
 }
 
+// GetPackageOptionHandler returns the singleton package option handler
+func (f *HandlerFactory) GetPackageOptionHandler() *handler.PackageOptionHandler {
+	f.initialize()
+	return f.packageOptionHandler
+}
+
 // GetProductOptionHandler returns the singleton product option handler
 func (f *HandlerFactory) GetProductOptionHandler() *handler.ProductOptionHandler {
 	f.initialize()
@@ -116,4 +131,10 @@ func (f *HandlerFactory) GetWishlistHandler() *handler.WishlistHandler {
 func (f *HandlerFactory) GetWishlistItemHandler() *handler.WishlistItemHandler {
 	f.initialize()
 	return f.wishlistItemHandler
+}
+
+// GetCollectionHandler returns the singleton collection handler
+func (f *HandlerFactory) GetCollectionHandler() *handler.CollectionHandler {
+	f.initialize()
+	return f.collectionHandler
 }

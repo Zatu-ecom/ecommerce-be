@@ -64,9 +64,9 @@ func main() {
 	router.Use(gin.Recovery()) // Add recovery middleware
 
 	/* Apply middleware */
+	router.Use(middleware.CORS())
 	router.Use(middleware.CorrelationID()) // Mandatory correlation ID middleware
 	router.Use(middleware.Logger())
-	router.Use(middleware.CORS())
 
 	/* Register modules */
 	registerContainer(router)

@@ -41,6 +41,7 @@ const (
 	PACKAGE_OPTION_UPDATED_MSG    = "Package option updated successfully"
 	PACKAGE_OPTION_DELETED_MSG    = "Package option deleted successfully"
 	PACKAGE_OPTIONS_RETRIEVED_MSG = "Package options retrieved successfully"
+	PACKAGE_OPTIONS_BULK_UPDATED_MSG = "Package options bulk updated successfully"
 )
 
 // Product Option success messages

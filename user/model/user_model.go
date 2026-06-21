@@ -83,9 +83,10 @@ type UserDetailResponse struct {
 
 // AuthResponse represents the authentication response with user data and token
 type AuthResponse struct {
-	User      UserResponse `json:"user"`
-	Token     string       `json:"token"`
-	ExpiresIn string       `json:"expiresIn"`
+	User          UserResponse                `json:"user"`
+	Token         string                      `json:"token"`
+	ExpiresIn     string                      `json:"expiresIn"`
+	SellerProfile *SellerLoginProfileResponse `json:"sellerProfile,omitempty"`
 }
 
 // TokenResponse represents the token refresh response

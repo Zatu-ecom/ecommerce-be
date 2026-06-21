@@ -50,6 +50,7 @@ type VariantInfo struct {
 	ID            uint                `json:"id"`
 	SKU           string              `json:"sku"`
 	Images        []string            `json:"images"`
+	ImageFileID   *string             `json:"imageFileId,omitempty"`
 	AllowPurchase bool                `json:"allowPurchase"`
 	Product       ProductBasicInfo    `json:"product"`
 	Options       []VariantOptionInfo `json:"options"`

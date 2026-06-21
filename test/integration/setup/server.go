@@ -57,37 +57,40 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 	// 2. Reset config singleton (in case previous test set it)
 	config.Reset()
 
-	// 3. Load configuration (required by middleware and other components)
+	// 3. Reset module singletons so services bind to this test's DB/Redis clients
+	ResetAllModuleSingletons()
+
+	// 4. Load configuration (required by middleware and other components)
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// 4. Initialize logger (needs config for log level)
+	// 5. Initialize logger (needs config for log level)
 	log.InitLogger(cfg)
 
-	// 5. Set the test database as the global database instance
+	// 6. Set the test database as the global database instance
 	// This is required because the modules use db.GetDB() to get the database instance
 	if database != nil {
 		db.SetDB(database)
 	}
 
-	// 6. Set the test Redis client as the global Redis instance
+	// 7. Set the test Redis client as the global Redis instance
 	if redisClient != nil {
 		cache.SetRedisClient(redisClient)
 	}
 
-	// 7. Initialize Gin Router
+	// 8. Initialize Gin Router
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
 
-	// 8. Apply middleware (same as main.go)
+	// 9. Apply middleware (same as main.go)
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
 
-	// 9. Register modules
+	// 10. Register modules
 	registerContainer(router)
 
 	return router

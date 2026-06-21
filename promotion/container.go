@@ -33,6 +33,7 @@ func NewContainer(router *gin.Engine) *common.Container {
 // addModules registers all promotion-related modules
 func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewPromotionScopeModule())
+	c.RegisterModule(routes.NewSaleModule())
 	c.RegisterModule(routes.NewPromotionModule())
 }
 

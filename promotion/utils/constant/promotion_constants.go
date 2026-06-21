@@ -27,6 +27,13 @@ const (
 	PROMOTION_COLLECTIONS_REMOVED_MSG     = "Collections removed from promotion successfully"
 	PROMOTION_ALL_COLLECTIONS_REMOVED_MSG = "All collections removed from promotion successfully"
 	PROMOTION_COLLECTIONS_RETRIEVED_MSG   = "Promotion collections retrieved successfully"
+
+	SALE_CREATED_MSG        = "Sale created successfully"
+	SALE_RETRIEVED_MSG      = "Sale retrieved successfully"
+	SALES_LISTED_MSG        = "Sales retrieved successfully"
+	SALE_UPDATED_MSG        = "Sale updated successfully"
+	SALE_STATUS_UPDATED_MSG = "Sale status updated successfully"
+	SALE_DELETED_MSG        = "Sale deleted successfully"
 )
 
 // Promotion failure messages
@@ -58,6 +65,14 @@ const (
 	FAILED_TO_GET_PROMOTION_COLLECTIONS_MSG        = "Failed to get promotion collections"
 
 	INVALID_PROMOTION_ID_MSG = "Invalid promotion ID"
+
+	FAILED_TO_CREATE_SALE_MSG        = "Failed to create sale"
+	FAILED_TO_GET_SALE_MSG           = "Failed to retrieve sale"
+	FAILED_TO_LIST_SALES_MSG         = "Failed to list sales"
+	FAILED_TO_UPDATE_SALE_MSG        = "Failed to update sale"
+	FAILED_TO_UPDATE_SALE_STATUS_MSG = "Failed to update sale status"
+	FAILED_TO_DELETE_SALE_MSG        = "Failed to delete sale"
+	INVALID_SALE_ID_MSG              = "Invalid sale ID"
 )
 
 // Promotion validation reasons (used when filtering/skipping promotions)
@@ -80,4 +95,6 @@ const (
 	PROMOTION_VARIANTS_FIELD    = "variants"
 	PROMOTION_CATEGORIES_FIELD  = "categories"
 	PROMOTION_COLLECTIONS_FIELD = "collections"
+	SALE_FIELD                  = "sale"
+	SALES_FIELD                 = "sales"
 )

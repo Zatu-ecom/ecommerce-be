@@ -15,6 +15,7 @@ type HandlerFactory struct {
 	promotionVariantHandler    *handler.PromotionVariantScopeHandler
 	promotionCategoryHandler   *handler.PromotionCategoryScopeHandler
 	promotionCollectionHandler *handler.PromotionCollectionScopeHandler
+	saleHandler                *handler.SaleHandler
 
 	once sync.Once
 }
@@ -45,6 +46,7 @@ func (f *HandlerFactory) initialize() {
 		f.promotionCollectionHandler = handler.NewPromotionCollectionScopeHandler(
 			promotionCollectionService,
 		)
+		f.saleHandler = handler.NewSaleHandler(f.serviceFactory.GetSaleService())
 	})
 }
 
@@ -71,4 +73,9 @@ func (f *HandlerFactory) GetPromotionCategoryScopeHandler() *handler.PromotionCa
 func (f *HandlerFactory) GetPromotionCollectionScopeHandler() *handler.PromotionCollectionScopeHandler {
 	f.initialize()
 	return f.promotionCollectionHandler
+}
+
+func (f *HandlerFactory) GetSaleHandler() *handler.SaleHandler {
+	f.initialize()
+	return f.saleHandler
 }

@@ -6,9 +6,12 @@ import (
 	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	productService "ecommerce-be/product/service"
+	productModel "ecommerce-be/product/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
+	productRepo "ecommerce-be/product/repository"
 )
 
 type PromotionProductScopeService interface {
@@ -22,13 +25,24 @@ type PromotionProductScopeService interface {
 }
 
 type PromotionProductScopeServiceImpl struct {
-	repo repository.PromotionProductScopeRepository
+	repo              repository.PromotionProductScopeRepository
+	promotionRepo     repository.PromotionRepository
+	productRepo       productRepo.ProductRepository
+	productMediaSvc   productService.ProductMediaService
 }
 
 func NewPromotionProductScopeServiceImpl(
 	repo repository.PromotionProductScopeRepository,
+	promotionRepo repository.PromotionRepository,
+	productRepo productRepo.ProductRepository,
+	productMediaSvc productService.ProductMediaService,
 ) *PromotionProductScopeServiceImpl {
-	return &PromotionProductScopeServiceImpl{repo: repo}
+	return &PromotionProductScopeServiceImpl{
+		repo:            repo,
+		promotionRepo:   promotionRepo,
+		productRepo:     productRepo,
+		productMediaSvc: productMediaSvc,
+	}
 }
 
 func (s *PromotionProductScopeServiceImpl) AddProducts(
@@ -37,7 +51,6 @@ func (s *PromotionProductScopeServiceImpl) AddProducts(
 ) error {
 	log.InfoWithContext(ctx, "Adding products to promotion scope")
 
-	// Convert request to entities
 	var entities []entity.PromotionProduct
 	for _, pid := range req.ProductIDs {
 		entities = append(entities, entity.PromotionProduct{
@@ -89,6 +102,35 @@ func (s *PromotionProductScopeServiceImpl) GetProducts(
 		return nil, err
 	}
 
+	promotion, err := s.promotionRepo.FindByID(ctx, req.PromotionID)
+	if err != nil {
+		return nil, err
+	}
+
+	productIDs := make([]uint, len(products))
+	for i, p := range products {
+		productIDs[i] = p.ProductID
+	}
+
+	productDetails := map[uint]struct {
+		name string
+		slug string
+	}{}
+	if len(productIDs) > 0 {
+		rows, findErr := s.productRepo.FindByIDs(ctx, productIDs)
+		if findErr == nil {
+			for _, row := range rows {
+				productDetails[row.ID] = struct {
+					name string
+					slug string
+				}{name: row.Name}
+			}
+		}
+	}
+
+	sellerID := promotion.SellerID
+	mediaByProduct, _ := s.productMediaSvc.GetMediaForProducts(ctx, productIDs, &sellerID)
+
 	response := &model.GetPromotionProductsResponse{
 		BasePromotionScopeResponse: model.BasePromotionScopeResponse{PromotionID: req.PromotionID},
 		Products:                   make([]model.PromotionProductResponse, len(products)),
@@ -96,18 +138,34 @@ func (s *PromotionProductScopeServiceImpl) GetProducts(
 	}
 
 	for i, p := range products {
+		details := productDetails[p.ProductID]
+		imageURL := primaryProductMediaURL(mediaByProduct[p.ProductID])
 		response.Products[i] = model.PromotionProductResponse{
 			BasePromotionScopeResponse: model.BasePromotionScopeResponse{
 				PromotionID: req.PromotionID,
 			},
-			ProductID: p.ProductID,
-			// Note: Product details (Name, Slug, Image) would populate here
-			// if we preloaded the 'Product' relation in the repo or fetched it separately.
-			// For now, returning basic scope info.
+			ProductID:   p.ProductID,
+			ProductName: details.name,
+			ProductSlug: details.slug,
+			ImageURL:    imageURL,
 		}
 	}
 
 	return response, nil
+}
+
+func primaryProductMediaURL(media []productModel.ProductMediaResponse) string {
+	for _, m := range media {
+		if m.IsPrimary && m.URL != "" {
+			return m.URL
+		}
+	}
+	for _, m := range media {
+		if m.URL != "" {
+			return m.URL
+		}
+	}
+	return ""
 }
 
 func (s *PromotionProductScopeServiceImpl) IsCartEligible(
@@ -115,14 +173,11 @@ func (s *PromotionProductScopeServiceImpl) IsCartEligible(
 	promotionID uint,
 	cart *model.CartValidationRequest,
 ) (bool, []string) {
-	// Collect product IDs from cart items
 	cartProductIDs := make([]uint, len(cart.Items))
 	for i, item := range cart.Items {
 		cartProductIDs[i] = item.ProductID
 	}
 
-	// Call GetProducts with cart product IDs as filter
-	// If any results come back, those cart products exist in the promotion scope
 	resp, err := s.GetProducts(ctx, model.GetPromotionProductsRequest{
 		GetPromotionScopeRequest: model.GetPromotionScopeRequest{
 			BasePromotionScopeRequest: model.BasePromotionScopeRequest{

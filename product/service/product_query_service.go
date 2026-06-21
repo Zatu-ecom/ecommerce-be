@@ -10,6 +10,7 @@ import (
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
+	productUtils "ecommerce-be/product/utils"
 )
 
 // ProductQueryService defines the interface for product query operations
@@ -55,6 +56,7 @@ type ProductQueryServiceImpl struct {
 	variantQueryService     VariantQueryService
 	categoryService         CategoryService
 	productAttributeService ProductAttributeService
+	packageOptionService    PackageOptionService
 	productOptionService    ProductOptionService
 	productMediaService     ProductMediaService
 }
@@ -65,6 +67,7 @@ func NewProductQueryService(
 	variantQueryService VariantQueryService,
 	categoryService CategoryService,
 	productAttributeService ProductAttributeService,
+	packageOptionService PackageOptionService,
 	productOptionService ProductOptionService,
 	productMediaService ProductMediaService,
 ) *ProductQueryServiceImpl {
@@ -73,6 +76,7 @@ func NewProductQueryService(
 		variantQueryService:     variantQueryService,
 		categoryService:         categoryService,
 		productAttributeService: productAttributeService,
+		packageOptionService:    packageOptionService,
 		productOptionService:    productOptionService,
 		productMediaService:     productMediaService,
 	}
@@ -230,10 +234,9 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		)
 	}
 
-	// Get package options from repository (no service exists for this yet)
-	packageOptions, err := s.productRepo.FindPackageOptionByProductID(ctx, product.ID)
-	if err == nil {
-		response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
+	// Get package options via PackageOptionService
+	if pkgResp, err := s.packageOptionService.GetPackageOptions(ctx, product.ID); err == nil && pkgResp != nil {
+		response.PackageOptions = pkgResp.PackageOptions
 	}
 
 	// Get all product options with their values using ProductOptionService
@@ -246,10 +249,15 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		response.Options = productOptions
 	}
 
-	// Get all variants with their selected option values using VariantService
-	variants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID)
-	if err == nil && len(variants) > 0 {
-		response.Variants = variants
+	// Get all variants with their selected option values; expose public variants only.
+	mediaSellerID := sellerID
+	if mediaSellerID == nil {
+		sid := product.SellerID
+		mediaSellerID = &sid
+	}
+	allVariants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID, mediaSellerID)
+	if err == nil {
+		response.Variants = productUtils.FilterPublicVariants(allVariants)
 	}
 
 	// Batch-load media for this product; always set a non-nil slice.
@@ -466,36 +474,25 @@ func (s *ProductQueryServiceImpl) buildRelatedProductItems(
 	ctx context.Context,
 	scoredResults []mapper.RelatedProductScored,
 ) ([]model.RelatedProductItemScored, map[string]bool, int, error) {
-	// Extract product IDs for batch fetching options (optimization to avoid N+1)
 	productIDs := make([]uint, len(scoredResults))
 	for i, result := range scoredResults {
 		productIDs[i] = result.ProductID
 	}
 
-	// Batch fetch all options with values for all products at once
-	// This prevents N+1 queries by fetching all data in a single query
-	productOptionsMap, err := s.productOptionService.GetProductsOptionsWithValues(ctx, productIDs)
+	aggregations, err := s.variantQueryService.GetProductsVariantAggregations(ctx, productIDs, nil)
 	if err != nil {
-		// If fetching options fails, continue without options preview
-		productOptionsMap = make(map[uint][]entity.ProductOption)
+		return nil, nil, 0, err
 	}
 
-	// Build response items using factory
 	relatedItems := make([]model.RelatedProductItemScored, 0, len(scoredResults))
 	strategiesUsedMap := make(map[string]bool)
 	totalScore := 0
 
 	for _, result := range scoredResults {
-		// Get options preview from pre-fetched data
-		var optionsPreview []model.OptionPreview
-		if options, exists := productOptionsMap[result.ProductID]; exists {
-			// Use factory method to build options preview
-			optionsPreview = factory.BuildOptionsPreview(options)
+		scoredItem := factory.BuildRelatedProductItemScored(&result)
+		if agg, ok := aggregations[result.ProductID]; ok {
+			factory.ApplyCommerceFieldsFromAggregation(&scoredItem.ProductResponse, agg)
 		}
-
-		// Use factory to build the complete scored item
-		scoredItem := factory.BuildRelatedProductItemScored(&result, optionsPreview)
-
 		relatedItems = append(relatedItems, scoredItem)
 		strategiesUsedMap[result.StrategyUsed] = true
 		totalScore += result.FinalScore

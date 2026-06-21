@@ -11,6 +11,7 @@ const (
 	INVALID_LIMIT_CODE          = "INVALID_LIMIT"
 	USER_DATA_MISSING_CODE      = "USER_DATA_MISSING"
 	CORRELATION_ID_MISSING      = "CORRELATION_ID_MISSING"
+	FILE_NOT_ACCESSIBLE_CODE    = "FILE_NOT_ACCESSIBLE"
 )
 
 const (
@@ -25,6 +26,7 @@ const (
 	INVALID_LIMIT_MSG          = "Limit must be between 1 and 100"
 	USER_DATA_MISSING_MSG      = "User data is missing in the context"
 	CORRELATION_ID_MISSING_MSG = "Correlation ID is missing in the context"
+	FILE_NOT_ACCESSIBLE_MSG    = "File is not accessible for display"
 )
 
 const (

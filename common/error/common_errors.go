@@ -97,6 +97,12 @@ var (
 		Message:    constants.CORRELATION_ID_MISSING_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrFileNotAccessible = &AppError{
+		Code:       constants.FILE_NOT_ACCESSIBLE_CODE,
+		Message:    constants.FILE_NOT_ACCESSIBLE_MSG,
+		StatusCode: http.StatusUnprocessableEntity,
+	}
 )
 
 // DatabaseError returns an AppError for database failures with a caller-specific message.

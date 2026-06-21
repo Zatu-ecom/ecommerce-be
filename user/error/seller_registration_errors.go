@@ -92,4 +92,10 @@ var (
 		Message:    constant.SELLER_PROFILE_UPDATE_FAILED_MSG,
 		StatusCode: http.StatusInternalServerError,
 	}
+
+	ErrInvalidBusinessLogoFile = &commonerrors.AppError{
+		Code:       constant.INVALID_BUSINESS_LOGO_FILE_CODE,
+		Message:    constant.INVALID_BUSINESS_LOGO_FILE_MSG,
+		StatusCode: http.StatusUnprocessableEntity,
+	}
 )

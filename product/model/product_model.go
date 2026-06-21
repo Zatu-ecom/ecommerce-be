@@ -21,7 +21,12 @@ type ProductCreateRequest struct {
 	// Options and Variants
 	// Frontend generates variant combinations from options and sends final variants
 	Options  []ProductOptionCreateRequest `json:"options"  binding:"dive"` // Product options (color, size, etc.)
-	Variants []CreateVariantRequest       `json:"variants" binding:"dive"` // Variants selected by seller (required, min=1)
+	Variants []CreateVariantRequest       `json:"variants" binding:"dive"` // Variants selected by seller (required for configurable products)
+
+	// Simple product commerce fields (used when variants is empty)
+	Price         float64 `json:"price"         binding:"omitempty,gt=0"`
+	AllowPurchase *bool   `json:"allowPurchase"`
+	IsPopular     *bool   `json:"isPopular"`
 
 	// Product attributes and package options
 	Attributes     []ProductAttributeRequest `json:"attributes"     binding:"dive"`
@@ -40,6 +45,9 @@ type ProductUpdateRequest struct {
 	Tags             *[]string                 `json:"tags"             binding:"omitempty,max=20"`
 	Attributes       []ProductAttributeRequest `json:"attributes"       binding:"omitempty,dive"`
 	PackageOptions   []PackageOptionRequest    `json:"packageOptions"   binding:"omitempty,dive"`
+	Price            *float64                  `json:"price"            binding:"omitempty,gt=0"`
+	AllowPurchase    *bool                     `json:"allowPurchase"`
+	IsPopular        *bool                     `json:"isPopular"`
 }
 
 // ProductAttributeRequest represents a product attribute in requests
@@ -72,6 +80,7 @@ type PackageOptionRequest struct {
 // PackageOptionResponse represents a package option in responses
 type PackageOptionResponse struct {
 	ID          uint    `json:"id"`
+	ProductID   uint    `json:"productId"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
@@ -95,9 +104,11 @@ type ProductResponse struct {
 	SellerID         uint                  `json:"sellerId"`
 
 	// Variant information (from aggregated variants) for a get all products API
-	HasVariants    bool            `json:"hasVariants"`              // Product has variants
+	HasVariants    bool            `json:"hasVariants"`              // Configurable product with option-derived variants
+	Price          float64         `json:"price"`                    // Default variant price
 	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
 	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
+	IsPopular      bool            `json:"isPopular"`                // At least one variant is popular
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
 	IsWishlisted   bool            `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
 
@@ -105,7 +116,7 @@ type ProductResponse struct {
 	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
 	PackageOptions []PackageOptionResponse       `json:"packageOptions,omitempty"`
 	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)
-	Variants       []VariantDetailResponse       `json:"variants,omitempty"` // Full variants with selected options (detail view)
+	Variants       []VariantDetailResponse       `json:"variants"` // Full variants with selected options (detail view); empty for simple products
 
 	// Product media (additive – empty slice when no media attached)
 	Media []ProductMediaResponse `json:"media"`
@@ -232,6 +243,26 @@ type PackageOptionUpdateRequest struct {
 
 // PackageOptionsResponse represents the response for getting package options
 type PackageOptionsResponse struct {
+	PackageOptions []PackageOptionResponse `json:"packageOptions"`
+}
+
+// BulkUpdatePackageOptionItem represents one package option in a bulk update request
+type BulkUpdatePackageOptionItem struct {
+	PackageOptionID uint    `json:"packageOptionId" binding:"required"`
+	Name            string  `json:"name"            binding:"required"`
+	Description     string  `json:"description"`
+	Price           float64 `json:"price"           binding:"required,gt=0"`
+	Quantity        int     `json:"quantity"        binding:"required,gt=0"`
+}
+
+// BulkUpdatePackageOptionsRequest represents the request body for bulk updating package options
+type BulkUpdatePackageOptionsRequest struct {
+	PackageOptions []BulkUpdatePackageOptionItem `json:"packageOptions" binding:"required,dive"`
+}
+
+// BulkUpdatePackageOptionsResponse represents the response for bulk updating package options
+type BulkUpdatePackageOptionsResponse struct {
+	UpdatedCount   int                     `json:"updatedCount"`
 	PackageOptions []PackageOptionResponse `json:"packageOptions"`
 }
 

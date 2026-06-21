@@ -228,7 +228,8 @@ func buildCartItemResponse(
 	variantInfo := model.VariantInfo{
 		ID:            item.VariantID,
 		SKU:           variant.SKU,
-		Images:        []string{},
+		Images:        variantMediaURLs(variant.Media),
+		ImageFileID:   primaryVariantMediaFileID(variant.Media),
 		AllowPurchase: variant.AllowPurchase,
 		Product: model.ProductBasicInfo{
 			ID:   variant.Product.ID,
@@ -294,4 +295,28 @@ func attachSavingsIfAny(summary *model.CartSummary) {
 func formatCurrencyWithSymbol(cents int64, symbol string, decimalDigits int) string {
 	formatStr := fmt.Sprintf("%%s%%.%df", decimalDigits)
 	return fmt.Sprintf(formatStr, symbol, float64(cents)/100.0)
+}
+
+func variantMediaURLs(media []productModel.VariantMediaResponse) []string {
+	urls := make([]string, 0, len(media))
+	for _, m := range media {
+		if m.URL != "" {
+			urls = append(urls, m.URL)
+		}
+	}
+	return urls
+}
+
+func primaryVariantMediaFileID(media []productModel.VariantMediaResponse) *string {
+	for _, m := range media {
+		if m.IsPrimary && m.URL != "" {
+			return &m.FileID
+		}
+	}
+	for _, m := range media {
+		if m.URL != "" {
+			return &m.FileID
+		}
+	}
+	return nil
 }

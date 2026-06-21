@@ -3,6 +3,8 @@ package singleton
 import (
 	"sync"
 
+	fileSingleton "ecommerce-be/file/factory/singleton"
+	fileGateway "ecommerce-be/file/gateway"
 	productSingleton "ecommerce-be/product/factory/singleton"
 	"ecommerce-be/promotion/service"
 )
@@ -17,6 +19,7 @@ type ServiceFactory struct {
 	promotionCategoryService   *service.PromotionCategoryScopeServiceImpl
 	promotionCollectionService *service.PromotionCollectionScopeServiceImpl
 	promotionCronService       service.PromotionCronService
+	saleService                service.SaleService
 
 	once sync.Once
 }
@@ -36,10 +39,14 @@ func (f *ServiceFactory) initialize() {
 		promotionVariantRepo := f.repoFactory.GetPromotionProductVariantScopeRepository()
 		promotionCategoryRepo := f.repoFactory.GetPromotionCategoryScopeRepository()
 		promotionCollectionRepo := f.repoFactory.GetPromotionCollectionScopeRepository()
+		promotionRepo := f.repoFactory.GetPromotionRepository()
 
 		// Initialize services
 		f.promotionProductService = service.NewPromotionProductScopeServiceImpl(
 			promotionProductRepo,
+			promotionRepo,
+			productSingleton.GetInstance().GetProductRepository(),
+			productSingleton.GetInstance().GetProductMediaService(),
 		)
 		f.promotionVariantService = service.NewPromotionVariantScopeServiceImpl(
 			promotionVariantRepo,
@@ -49,7 +56,6 @@ func (f *ServiceFactory) initialize() {
 		)
 
 		// Initialize promotion service with all dependencies
-		promotionRepo := f.repoFactory.GetPromotionRepository()
 		collectionProductService := productSingleton.GetInstance().GetCollectionProductService()
 
 		f.promotionCollectionService = service.NewPromotionCollectionScopeServiceImpl(
@@ -66,11 +72,17 @@ func (f *ServiceFactory) initialize() {
 
 		f.promotionService = service.NewPromotionService(
 			promotionRepo,
+			f.repoFactory.GetSaleRepository(),
 			f.promotionProductService,
 			f.promotionCategoryService,
 			f.promotionCollectionService,
 			collectionProductService,
 			promotionScopeEligibilityServiceFactory,
+		)
+
+		f.saleService = service.NewSaleService(
+			f.repoFactory.GetSaleRepository(),
+			fileGateway.NewDisplayGateway(fileSingleton.GetInstance().GetFileReadService()),
 		)
 
 		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
@@ -105,4 +117,9 @@ func (f *ServiceFactory) GetPromotionService() service.PromotionService {
 func (f *ServiceFactory) GetPromotionCronService() service.PromotionCronService {
 	f.initialize()
 	return f.promotionCronService
+}
+
+func (f *ServiceFactory) GetSaleService() service.SaleService {
+	f.initialize()
+	return f.saleService
 }
