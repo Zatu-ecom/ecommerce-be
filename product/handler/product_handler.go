@@ -22,9 +22,10 @@ import (
 // ProductHandler handles HTTP requests related to products
 type ProductHandler struct {
 	*handler.BaseHandler
-	productService      service.ProductService
-	productQueryService service.ProductQueryService
-	productMediaService service.ProductMediaService
+	productService          service.ProductService
+	productQueryService     service.ProductQueryService
+	productMediaService     service.ProductMediaService
+	recentlyViewedService   service.RecentlyViewedService
 }
 
 // NewProductHandler creates a new instance of ProductHandler
@@ -32,12 +33,14 @@ func NewProductHandler(
 	productService service.ProductService,
 	productQueryService service.ProductQueryService,
 	productMediaService service.ProductMediaService,
+	recentlyViewedService service.RecentlyViewedService,
 ) *ProductHandler {
 	return &ProductHandler{
-		BaseHandler:         handler.NewBaseHandler(),
-		productService:      productService,
-		productQueryService: productQueryService,
-		productMediaService: productMediaService,
+		BaseHandler:           handler.NewBaseHandler(),
+		productService:        productService,
+		productQueryService:   productQueryService,
+		productMediaService:   productMediaService,
+		recentlyViewedService: recentlyViewedService,
 	}
 }
 
@@ -207,8 +210,59 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		return
 	}
 
+	// US1+US2: Fire-and-forget recording — only for customers (role level 3).
+	// Seller (role level 2) and admin (role level 1) views are NOT recorded.
+	// Recording errors are handled internally by the service (US3: fire-and-forget).
+	if userIDPtr != nil {
+		if roleLevel, exists := auth.GetUserRoleLevelFromContext(c); exists &&
+			roleLevel == constants.CUSTOMER_ROLE_LEVEL {
+			go h.recentlyViewedService.RecordRecentlyViewed(
+				c, *userIDPtr, productResponse.SellerID, productID,
+			)
+		}
+	}
+
 	h.SuccessWithData(c, http.StatusOK, utils.PRODUCT_RETRIEVED_MSG,
 		utils.PRODUCT_FIELD_NAME, productResponse)
+}
+
+// GetRecentlyViewedProducts handles GET /api/product/recently-viewed
+// Returns the product IDs of recently viewed products for the authenticated customer,
+// in reverse chronological order (newest first).
+//
+// The limit parameter defaults to 10 and is capped at 50.
+func (h *ProductHandler) GetRecentlyViewedProducts(c *gin.Context) {
+	// Extract user ID from context (CustomerAuth guarantees it's present)
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		h.HandleError(c, error.UnauthorizedError, "User ID not found in context")
+		return
+	}
+
+	// Parse optional limit query parameter (default 10, max 50)
+	limit := 10
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if parsed, err := strconv.Atoi(limitStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	productIDs, err := h.recentlyViewedService.GetRecentlyViewed(c, userID, limit)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_GET_RECENTLY_VIEWED_MSG)
+		return
+	}
+
+	// Ensure empty array instead of null
+	if productIDs == nil {
+		productIDs = []uint{}
+	}
+
+	h.SuccessWithData(c, http.StatusOK, utils.RECENTLY_VIEWED_RETRIEVED_MSG,
+		utils.PRODUCT_IDS_FIELD_NAME, productIDs)
 }
 
 // SearchProducts handles product search

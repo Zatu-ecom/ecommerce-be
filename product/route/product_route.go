@@ -27,6 +27,7 @@ func NewProductModule() *ProductModule {
 // RegisterRoutes registers all product-related routes
 func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 	sellerAuth := middleware.SellerAuth()
+	customerAuth := middleware.CustomerAuth()
 	publicRoutesAuth := middleware.PublicAPIAuth()
 
 	// Product routes - /api/product/*
@@ -43,6 +44,13 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 			m.productHandler.GetRelatedProductsScored,
 		)
 
+		// Customer-only routes (protected)
+		productRoutes.GET(
+			"/recently-viewed",
+			customerAuth,
+			m.productHandler.GetRecentlyViewedProducts,
+		)
+
 		// Admin/Seller routes (protected)
 		productRoutes.POST("", sellerAuth, m.productHandler.CreateProduct)
 		productRoutes.PUT("/:productId", sellerAuth, m.productHandler.UpdateProduct)
@@ -52,8 +60,16 @@ func (m *ProductModule) RegisterRoutes(router *gin.Engine) {
 		mediaRoutes := productRoutes.Group("/:productId" + utils.PRODUCT_MEDIA_ROUTE)
 		{
 			mediaRoutes.POST("", sellerAuth, m.productHandler.AttachMedia)
-			mediaRoutes.PATCH(utils.PRODUCT_MEDIA_FILE_ROUTE, sellerAuth, m.productHandler.UpdateMediaMetadata)
-			mediaRoutes.DELETE(utils.PRODUCT_MEDIA_FILE_ROUTE, sellerAuth, m.productHandler.RemoveMedia)
+			mediaRoutes.PATCH(
+				utils.PRODUCT_MEDIA_FILE_ROUTE,
+				sellerAuth,
+				m.productHandler.UpdateMediaMetadata,
+			)
+			mediaRoutes.DELETE(
+				utils.PRODUCT_MEDIA_FILE_ROUTE,
+				sellerAuth,
+				m.productHandler.RemoveMedia,
+			)
 		}
 	}
 }

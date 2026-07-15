@@ -28,6 +28,7 @@ const (
 	VARIANT_FIELD_NAME           = "variant"
 	VARIANTS_FIELD_NAME          = "variants"
 	UPDATED_COUNT_FIELD_NAME     = "updatedCount"
+	PRODUCT_IDS_FIELD_NAME       = "productIds"
 )
 
 // URL parameter names
