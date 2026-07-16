@@ -22,10 +22,10 @@ import (
 // ProductHandler handles HTTP requests related to products
 type ProductHandler struct {
 	*handler.BaseHandler
-	productService          service.ProductService
-	productQueryService     service.ProductQueryService
-	productMediaService     service.ProductMediaService
-	recentlyViewedService   service.RecentlyViewedService
+	productService        service.ProductService
+	productQueryService   service.ProductQueryService
+	productMediaService   service.ProductMediaService
+	recentlyViewedService service.RecentlyViewedService
 }
 
 // NewProductHandler creates a new instance of ProductHandler
@@ -204,7 +204,12 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		userIDPtr = &userID
 	}
 
-	productResponse, err := h.productQueryService.GetProductByID(c, productID, sellerIDPtr, userIDPtr)
+	productResponse, err := h.productQueryService.GetProductByID(
+		c,
+		productID,
+		sellerIDPtr,
+		userIDPtr,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_PRODUCT_MSG)
 		return
@@ -227,8 +232,8 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 }
 
 // GetRecentlyViewedProducts handles GET /api/product/recently-viewed
-// Returns the product IDs of recently viewed products for the authenticated customer,
-// in reverse chronological order (newest first).
+// Delegates all business logic (fetching IDs, enriching with full product details,
+// re-ordering by view history) to RecentlyViewedService.
 //
 // The limit parameter defaults to 10 and is capped at 50.
 func (h *ProductHandler) GetRecentlyViewedProducts(c *gin.Context) {
@@ -250,19 +255,14 @@ func (h *ProductHandler) GetRecentlyViewedProducts(c *gin.Context) {
 		limit = 50
 	}
 
-	productIDs, err := h.recentlyViewedService.GetRecentlyViewed(c, userID, limit)
+	// Delegate to service — all business logic lives in RecentlyViewedService
+	productsResponse, err := h.recentlyViewedService.GetRecentlyViewedProducts(c, userID, limit)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_RECENTLY_VIEWED_MSG)
 		return
 	}
 
-	// Ensure empty array instead of null
-	if productIDs == nil {
-		productIDs = []uint{}
-	}
-
-	h.SuccessWithData(c, http.StatusOK, utils.RECENTLY_VIEWED_RETRIEVED_MSG,
-		utils.PRODUCT_IDS_FIELD_NAME, productIDs)
+	h.Success(c, http.StatusOK, utils.RECENTLY_VIEWED_RETRIEVED_MSG, productsResponse)
 }
 
 // SearchProducts handles product search
@@ -303,7 +303,14 @@ func (h *ProductHandler) SearchProducts(c *gin.Context) {
 		userIDPtr = &userID
 	}
 
-	searchResponse, err := h.productQueryService.SearchProducts(c, query, filters, page, limit, userIDPtr)
+	searchResponse, err := h.productQueryService.SearchProducts(
+		c,
+		query,
+		filters,
+		page,
+		limit,
+		userIDPtr,
+	)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_SEARCH_PRODUCTS_MSG)
 		return

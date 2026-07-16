@@ -163,9 +163,12 @@ func (f *ServiceFactory) initialize() {
 			f.productQueryService,
 		)
 
-		// Initialize RecentlyViewedService with its repository dependency
+		// Initialize RecentlyViewedService with repository and ProductQueryService.
+		// ProductQueryService is injected for the GetRecentlyViewedProducts endpoint
+		// which reuses GetAllProducts with IDs filter for full product detail enrichment.
 		f.recentlyViewedService = service.NewRecentlyViewedService(
 			f.repoFactory.GetRecentlyViewedRepository(),
+			f.productQueryService,
 		)
 
 		// Initialize ProductService with its dependencies

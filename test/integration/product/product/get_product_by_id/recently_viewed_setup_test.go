@@ -91,8 +91,14 @@ func (s *RecentlyViewedTestSuite) TearDownSuite() {
 }
 
 // SetupTest clears recently viewed data before every test for isolation.
+// Uses a retry loop to drain any fire-and-forget goroutines from the previous
+// test that may still be writing to the DB. Each pass clears + sleeps 200ms,
+// repeated 3 times ensures stale goroutines have drained.
 func (s *RecentlyViewedTestSuite) SetupTest() {
-	s.clearRecentlyViewed()
+	for i := 0; i < 3; i++ {
+		s.clearRecentlyViewed()
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 // TestRecentlyViewedSuite is the single entry point that runs all recently viewed tests.

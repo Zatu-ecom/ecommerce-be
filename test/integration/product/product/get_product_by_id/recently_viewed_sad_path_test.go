@@ -3,6 +3,7 @@ package get_product_by_id
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"ecommerce-be/test/integration/helpers"
 )
@@ -126,7 +127,9 @@ func (s *RecentlyViewedTestSuite) TestInvalidProductID_NoRecordCreated() {
 // viewing different products get correct per-user recently viewed counts.
 //
 // Setup: Customer A (Alice, seller 2) views products 1,2,3.
-//         Customer B (Michael, seller 3) views product 107.
+//
+//	Customer B (Michael, seller 3) views product 107.
+//
 // Expect: Customer A has 3 records, Customer B has 1 record, correct IDs.
 //
 // NOTE: This test will FAIL until Phase 5 handler integration adds the recording call.
@@ -140,6 +143,9 @@ func (s *RecentlyViewedTestSuite) TestMultipleDistinctProducts_NoDuplication() {
 	// Customer B views product 107 (belongs to seller 3 — Michael's seller)
 	w := s.customer2Client.Get(s.T(), fmt.Sprintf(ProductByIDAPIEndpoint, 107))
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+
+	// Drain: wait for fire-and-forget recording goroutines to complete
+	time.Sleep(300 * time.Millisecond)
 
 	// Verify customer A has 3 records
 	s.Assert().Equal(int64(3), s.countByUser(helpers.CustomerUserID),
@@ -222,27 +228,30 @@ func (s *RecentlyViewedTestSuite) TestGetRecentlyViewed_Unauthenticated() {
 }
 
 // ============================================================================
-// RV-GET-03 (T036): Customer with no recently viewed → empty array
+// RV-GET-03 (T036): Customer with no recently viewed → empty products array
 // ============================================================================
 
 // TestGetRecentlyViewed_EmptyList verifies that a customer with no recently
-// viewed products gets an empty array (not null).
+// viewed products gets an empty products array (not null).
 //
 // Setup: Customer has no recently viewed records, calls the endpoint.
-// Expect: HTTP 200 with productIds as empty array [].
-//
-// NOTE: This test will FAIL until Phase 6 handler integration adds the GET endpoint.
+// Expect: HTTP 200 with products as empty array [] and pagination total 0.
 func (s *RecentlyViewedTestSuite) TestGetRecentlyViewed_EmptyList() {
 	// Call recently viewed endpoint as authenticated customer with no views
 	w := s.customerClient.Get(s.T(), RecentlyViewedAPIEndpoint)
 	response := helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	// Extract productIds array — should be empty
+	// Extract products array — should be empty
 	data := response["data"].(map[string]any)
-	productIDs := data["productIds"].([]any)
+	products := data["products"].([]any)
+	pagination := data["pagination"].(map[string]any)
 
 	// Verify it's an empty array (not null)
-	s.Assert().NotNil(productIDs, "productIds should not be nil")
-	s.Assert().Equal(0, len(productIDs),
-		"Customer with no views should get an empty array")
+	s.Assert().NotNil(products, "products should not be nil")
+	s.Assert().Equal(0, len(products),
+		"Customer with no views should get an empty products array")
+
+	// Verify pagination shows 0 total items
+	s.Assert().Equal(float64(0), pagination["totalItems"],
+		"Pagination total items should be 0 for empty recently viewed")
 }
