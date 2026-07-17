@@ -21,6 +21,7 @@ type ServiceFactory struct {
 	sellerSettingsService  service.SellerSettingsService
 	sellerService          service.SellerService
 	sellerProfileService   service.SellerProfileService
+	passwordResetService   service.PasswordResetService
 
 	once sync.Once
 }
@@ -40,6 +41,7 @@ func (f *ServiceFactory) initialize() {
 		countryCurrencyRepo := f.repoFactory.GetCountryCurrencyRepository()
 		sellerProfileRepo := f.repoFactory.GetSellerProfileRepository()
 		sellerSettingsRepo := f.repoFactory.GetSellerSettingsRepository()
+		passwordResetRepo := f.repoFactory.GetPasswordResetRepository()
 
 		displayFileGateway := filegw.NewDisplayGateway(
 			fileSingleton.GetInstance().GetFileReadService(),
@@ -80,6 +82,11 @@ func (f *ServiceFactory) initialize() {
 			sellerProfileRepo,
 			f.sellerSettingsService,
 			displayFileGateway,
+		)
+
+		f.passwordResetService = service.NewPasswordResetService(
+			passwordResetRepo,
+			userRepo,
 		)
 	})
 }
@@ -127,4 +134,10 @@ func (f *ServiceFactory) GetSellerService() service.SellerService {
 func (f *ServiceFactory) GetSellerProfileService() service.SellerProfileService {
 	f.initialize()
 	return f.sellerProfileService
+}
+
+// GetPasswordResetService returns the singleton password reset service
+func (f *ServiceFactory) GetPasswordResetService() service.PasswordResetService {
+	f.initialize()
+	return f.passwordResetService
 }

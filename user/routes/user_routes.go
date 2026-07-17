@@ -42,6 +42,10 @@ func (m *UserModule) RegisterRoutes(router *gin.Engine) {
 		authRoutes.POST("/login", m.userHandler.Login)
 		authRoutes.POST("/refresh", auth, m.userHandler.RefreshToken)
 		authRoutes.POST("/logout", auth, m.userHandler.Logout)
+
+		// Password reset routes (public, no auth required)
+		authRoutes.POST("/forgot-password", m.userHandler.ForgotPassword)
+		authRoutes.POST("/reset-password", m.userHandler.ResetPassword)
 	}
 
 	// User routes - /api/user/*

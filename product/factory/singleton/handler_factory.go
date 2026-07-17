@@ -41,6 +41,7 @@ func (f *HandlerFactory) initialize() {
 			f.serviceFactory.GetProductService(),
 			f.serviceFactory.GetProductQueryService(),
 			f.serviceFactory.GetProductMediaService(),
+			f.serviceFactory.GetRecentlyViewedService(),
 		)
 		f.variantHandler = handler.NewVariantHandler(
 			f.serviceFactory.GetVariantService(),
