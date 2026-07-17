@@ -30,7 +30,10 @@ func NewHandlerFactory(serviceFactory *ServiceFactory) *HandlerFactory {
 // initialize creates all handler instances (lazy loading)
 func (f *HandlerFactory) initialize() {
 	f.once.Do(func() {
-		f.userHandler = handler.NewUserHandler(f.serviceFactory.GetUserService())
+		f.userHandler = handler.NewUserHandler(
+			f.serviceFactory.GetUserService(),
+			f.serviceFactory.GetPasswordResetService(),
+		)
 		f.addressHandler = handler.NewAddressHandler(
 			f.serviceFactory.GetAddressService(),
 		)
