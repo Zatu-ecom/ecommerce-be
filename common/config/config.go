@@ -5,14 +5,15 @@ import "sync"
 // Config holds all application configuration grouped by concern.
 // This is the main struct that embeds all sub-configs.
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	Redis     RedisConfig
-	Auth      AuthConfig
-	App       AppConfig
-	Log       LogConfig
-	Scheduler SchedulerConfig
-	Messaging MessagingConfig
+	Server        ServerConfig
+	Database      DatabaseConfig
+	Redis         RedisConfig
+	Auth          AuthConfig
+	App           AppConfig
+	Log           LogConfig
+	Scheduler     SchedulerConfig
+	Messaging     MessagingConfig
+	PasswordReset PasswordResetConfig
 }
 
 var (

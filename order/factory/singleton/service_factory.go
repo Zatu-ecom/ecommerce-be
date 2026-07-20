@@ -14,8 +14,10 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	cartService  service.CartService
-	orderService service.OrderService
+	cartService      service.CartService
+	orderService     service.OrderService
+	guestCartService service.GuestCartService
+	cartMergeService service.CartMergeService
 
 	once sync.Once
 }
@@ -46,7 +48,14 @@ func (f *ServiceFactory) initialize() {
 		orderHistoryRepo := f.repoFactory.GetOrderHistoryRepository()
 
 		// Initialize services
-		f.cartService = service.NewCartService(cartRepo, orderRepo, promotionSvc, inventorySvc, variantQuerySvc, userSvc)
+		f.cartService = service.NewCartService(
+			cartRepo,
+			orderRepo,
+			promotionSvc,
+			inventorySvc,
+			variantQuerySvc,
+			userSvc,
+		)
 		f.orderService = service.NewOrderService(
 			f.cartService,
 			orderRepo,
@@ -54,6 +63,18 @@ func (f *ServiceFactory) initialize() {
 			inventoryReservationSvc,
 			addressSvc,
 			userRepo,
+		)
+		f.guestCartService = service.NewGuestCartService(
+			cartRepo,
+			promotionSvc,
+			inventorySvc,
+			variantQuerySvc,
+			userSvc,
+		)
+		f.cartMergeService = service.NewCartMergeService(
+			cartRepo,
+			f.guestCartService,
+			f.cartService,
 		)
 	})
 }
@@ -68,4 +89,16 @@ func (f *ServiceFactory) GetCartService() service.CartService {
 func (f *ServiceFactory) GetOrderService() service.OrderService {
 	f.initialize()
 	return f.orderService
+}
+
+// GetGuestCartService returns the singleton guest cart service
+func (f *ServiceFactory) GetGuestCartService() service.GuestCartService {
+	f.initialize()
+	return f.guestCartService
+}
+
+// GetCartMergeService returns the singleton cart merge service
+func (f *ServiceFactory) GetCartMergeService() service.CartMergeService {
+	f.initialize()
+	return f.cartMergeService
 }

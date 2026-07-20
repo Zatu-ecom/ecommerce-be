@@ -15,14 +15,15 @@ func Load() (*Config, error) {
 
 	once.Do(func() {
 		cfg := &Config{
-			Server:    loadServerConfig(),
-			Database:  loadDatabaseConfig(),
-			Redis:     loadRedisConfig(),
-			Auth:      loadAuthConfig(),
-			App:       loadAppConfig(),
-			Log:       loadLogConfig(),
-			Scheduler: loadSchedulerConfig(),
-			Messaging: loadMessagingConfig(),
+			Server:        loadServerConfig(),
+			Database:      loadDatabaseConfig(),
+			Redis:         loadRedisConfig(),
+			Auth:          loadAuthConfig(),
+			App:           loadAppConfig(),
+			Log:           loadLogConfig(),
+			Scheduler:     loadSchedulerConfig(),
+			Messaging:     loadMessagingConfig(),
+			PasswordReset: loadPasswordResetConfig(),
 		}
 
 		if err := cfg.Validate(); err != nil {

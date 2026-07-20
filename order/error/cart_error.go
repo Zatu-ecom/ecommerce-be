@@ -31,3 +31,19 @@ func ErrPromotionServiceUnavailable(err error) *commonError.AppError {
 		StatusCode: http.StatusInternalServerError,
 	}
 }
+
+// ErrDeviceCartNotFound is returned when no active cart exists for the given device ID
+var ErrDeviceCartNotFound = &commonError.AppError{
+	Code:       "DEVICE_CART_NOT_FOUND",
+	Message:    "No cart found for this device",
+	StatusCode: http.StatusNotFound,
+}
+
+// ErrCartMergeFailed is returned when merging device cart into user cart encounters an unexpected error
+func ErrCartMergeFailed(err error) *commonError.AppError {
+	return &commonError.AppError{
+		Code:       "CART_MERGE_FAILED",
+		Message:    "Failed to merge guest cart: " + err.Error(),
+		StatusCode: http.StatusInternalServerError,
+	}
+}

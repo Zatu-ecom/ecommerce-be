@@ -19,13 +19,18 @@ import (
 
 type CartHandler struct {
 	*handler.BaseHandler
-	cartService service.CartService
+	cartService      service.CartService
+	cartMergeService service.CartMergeService
 }
 
-func NewCartHandler(cartService service.CartService) *CartHandler {
+func NewCartHandler(
+	cartService service.CartService,
+	cartMergeService service.CartMergeService,
+) *CartHandler {
 	return &CartHandler{
-		BaseHandler: handler.NewBaseHandler(),
-		cartService: cartService,
+		BaseHandler:      handler.NewBaseHandler(),
+		cartService:      cartService,
+		cartMergeService: cartMergeService,
 	}
 }
 
@@ -134,4 +139,39 @@ func (h *CartHandler) DeleteCart(c *gin.Context) {
 	}
 
 	h.Success(c, http.StatusOK, orderConstants.CART_DELETED_MSG, resp)
+}
+
+// MergeGuestCart merges the device (guest) cart into the authenticated user's cart.
+// POST /api/order/cart/merge
+// After login/signup, the frontend calls this endpoint to merge any guest cart items.
+func (h *CartHandler) MergeGuestCart(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "mergeGuestCart: user ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		log.ErrorWithContext(c, "mergeGuestCart: seller ID missing from context", nil)
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	var req model.MergeCartRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		log.WarnWithContext(c, "mergeGuestCart: validation failed: "+err.Error())
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	resp, err := h.cartMergeService.MergeDeviceCartIntoUserCart(c, userID, req.DeviceID, sellerID)
+	if err != nil {
+		log.ErrorWithContext(c, "mergeGuestCart: failed to merge cart", err)
+		h.HandleError(c, err, orderConstants.FAILED_TO_MERGE_CART_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, orderConstants.CART_MERGED_MSG, resp)
 }

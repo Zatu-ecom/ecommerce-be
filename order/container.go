@@ -27,5 +27,6 @@ func NewContainer(router *gin.Engine) *common.Container {
 // TODO: we have to implement order service and this the start point for that
 func addModules(c *common.Container) {
 	c.RegisterModule(route.NewCartModule())
+	c.RegisterModule(route.NewGuestCartModule())
 	c.RegisterModule(route.NewOrderModule())
 }

@@ -707,7 +707,8 @@ func (s *CartTestSuite) assertHasActiveCart(userID uint) {
 	var cart orderEntity.Cart
 	err := s.container.DB.Where("user_id = ?", userID).First(&cart).Error
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), userID, cart.UserID)
+	require.NotNil(s.T(), cart.UserID, "cart.UserID should not be nil for user cart")
+	assert.Equal(s.T(), userID, *cart.UserID)
 }
 
 func (s *CartTestSuite) assertNoCartItems(cartID uint) {
@@ -738,8 +739,9 @@ func (s *CartTestSuite) getActiveCartID(userID uint) uint {
 }
 
 func (s *CartTestSuite) createCartOnly(userID uint) uint {
+	uid := userID
 	cart := &orderEntity.Cart{
-		UserID:   userID,
+		UserID:   &uid,
 		Metadata: map[string]any{},
 	}
 	err := s.container.DB.Create(cart).Error

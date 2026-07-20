@@ -23,6 +23,7 @@ type RepositoryFactory struct {
 	collectionProductRepo repository.CollectionProductRepository
 	productMediaRepo      repository.ProductMediaRepository
 	variantMediaRepo      repository.VariantMediaRepository
+	recentlyViewedRepo    repository.RecentlyViewedRepository
 
 	once sync.Once
 }
@@ -49,6 +50,7 @@ func (f *RepositoryFactory) initialize() {
 		f.collectionProductRepo = repository.NewCollectionProductRepository()
 		f.productMediaRepo = repository.NewProductMediaRepository()
 		f.variantMediaRepo = repository.NewVariantMediaRepository()
+		f.recentlyViewedRepo = repository.NewRecentlyViewedRepository()
 	})
 }
 
@@ -126,4 +128,10 @@ func (f *RepositoryFactory) GetProductMediaRepository() repository.ProductMediaR
 func (f *RepositoryFactory) GetVariantMediaRepository() repository.VariantMediaRepository {
 	f.initialize()
 	return f.variantMediaRepo
+}
+
+// GetRecentlyViewedRepository returns the singleton recently viewed repository.
+func (f *RepositoryFactory) GetRecentlyViewedRepository() repository.RecentlyViewedRepository {
+	f.initialize()
+	return f.recentlyViewedRepo
 }

@@ -10,8 +10,9 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	cartHandler  *handler.CartHandler
-	orderHandler *handler.OrderHandler
+	cartHandler      *handler.CartHandler
+	orderHandler     *handler.OrderHandler
+	guestCartHandler *handler.GuestCartHandler
 
 	once sync.Once
 }
@@ -27,10 +28,13 @@ func (f *HandlerFactory) initialize() {
 		// Get services
 		cartService := f.serviceFactory.GetCartService()
 		orderService := f.serviceFactory.GetOrderService()
+		guestCartService := f.serviceFactory.GetGuestCartService()
+		cartMergeService := f.serviceFactory.GetCartMergeService()
 
 		// Initialize handlers
-		f.cartHandler = handler.NewCartHandler(cartService)
+		f.cartHandler = handler.NewCartHandler(cartService, cartMergeService)
 		f.orderHandler = handler.NewOrderHandler(orderService)
+		f.guestCartHandler = handler.NewGuestCartHandler(guestCartService)
 	})
 }
 
@@ -44,4 +48,10 @@ func (f *HandlerFactory) GetCartHandler() *handler.CartHandler {
 func (f *HandlerFactory) GetOrderHandler() *handler.OrderHandler {
 	f.initialize()
 	return f.orderHandler
+}
+
+// GetGuestCartHandler returns the singleton guest cart handler
+func (f *HandlerFactory) GetGuestCartHandler() *handler.GuestCartHandler {
+	f.initialize()
+	return f.guestCartHandler
 }
