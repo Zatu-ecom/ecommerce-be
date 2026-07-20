@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
@@ -114,6 +115,32 @@ func GetUserIDFromContext(ctx context.Context) (userID uint, exists bool) {
 // Works with both *gin.Context and context.Context
 func GetCorrelationIDFromContext(ctx context.Context) (correlationID string, exists bool) {
 	return getStringFromContext(ctx, constants.CORRELATION_ID_KEY)
+}
+
+// GetDeviceIDFromContext extracts device ID from context (set by GuestOrCustomerAuth middleware)
+// Works with both *gin.Context and context.Context
+// This is used for guest cart operations where no JWT token is present.
+func GetDeviceIDFromContext(ctx context.Context) (deviceID string, exists bool) {
+	return getStringFromContext(ctx, constants.DEVICE_ID_KEY)
+}
+
+// ExtractAndValidateDeviceID reads and validates the X-Device-ID header from the request.
+// Returns the trimmed device ID and true if valid; returns "", false on validation failure.
+// This does NOT abort the request or write a response — the caller is responsible for
+// handling the error response.
+// Validation rules: non-empty, 8-64 characters after trim.
+func ExtractAndValidateDeviceID(c *gin.Context) (string, bool) {
+	deviceID := c.GetHeader(constants.DEVICE_ID_HEADER)
+	if deviceID == "" || len(strings.TrimSpace(deviceID)) == 0 {
+		return "", false
+	}
+
+	deviceID = strings.TrimSpace(deviceID)
+	if len(deviceID) < 8 || len(deviceID) > 64 {
+		return "", false
+	}
+
+	return deviceID, true
 }
 
 // ValidateUserHasSellerRoleOrHigherAndReturnAuthData validates that:

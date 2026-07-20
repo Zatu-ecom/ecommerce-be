@@ -21,3 +21,11 @@ const (
 	FAILED_TO_UPDATE_CART_RECORD_MSG = "Failed to update record"
 	FAILED_TO_DELETE_CART_RECORD_MSG = "Failed to delete record"
 )
+
+// Cart merge messages
+const (
+	CART_MERGED_MSG            = "Guest cart merged successfully"
+	FAILED_TO_MERGE_CART_MSG   = "Failed to merge guest cart"
+	GUEST_NOT_FOUND_MSG        = "No guest cart found"
+	DEVICE_CONTEXT_MISSING_MSG = "Device context is required"
+)

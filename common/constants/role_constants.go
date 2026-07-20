@@ -21,6 +21,7 @@ const (
 	SELLER_NOT_VERIFIED_CODE          = "SELLER_NOT_VERIFIED"
 	INVALID_SELLER_CODE               = "INVALID_SELLER"
 	ROLE_NOT_FOUND_CODE               = "ROLE_NOT_FOUND"
+	ACCESS_DENIED_CODE                = "ACCESS_DENIED"
 
 	// Customer-specific error codes
 	CUSTOMER_NO_SELLER_CODE = "CUSTOMER_NO_SELLER"
