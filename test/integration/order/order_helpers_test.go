@@ -30,8 +30,9 @@ func (s *OrderSuite) createOrderRequest() map[string]any {
 }
 
 func (s *OrderSuite) createActiveEmptyCartForCustomer() {
+	userID := uint(helpers.CustomerUserID)
 	cart := &orderEntity.Cart{
-		UserID: helpers.CustomerUserID,
+		UserID: &userID,
 		Status: orderEntity.CART_STATUS_ACTIVE,
 	}
 	s.Require().NoError(s.container.DB.Create(cart).Error)

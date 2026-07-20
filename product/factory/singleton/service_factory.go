@@ -30,6 +30,7 @@ type ServiceFactory struct {
 	collectionProductService service.CollectionProductService
 	productMediaService      service.ProductMediaService
 	variantMediaService      service.VariantMediaService
+	recentlyViewedService    service.RecentlyViewedService
 
 	once sync.Once
 }
@@ -162,6 +163,14 @@ func (f *ServiceFactory) initialize() {
 			f.productQueryService,
 		)
 
+		// Initialize RecentlyViewedService with repository and ProductQueryService.
+		// ProductQueryService is injected for the GetRecentlyViewedProducts endpoint
+		// which reuses GetAllProducts with IDs filter for full product detail enrichment.
+		f.recentlyViewedService = service.NewRecentlyViewedService(
+			f.repoFactory.GetRecentlyViewedRepository(),
+			f.productQueryService,
+		)
+
 		// Initialize ProductService with its dependencies
 		f.productService = service.NewProductService(
 			productRepo,
@@ -282,4 +291,10 @@ func (f *ServiceFactory) GetProductMediaService() service.ProductMediaService {
 func (f *ServiceFactory) GetVariantMediaService() service.VariantMediaService {
 	f.initialize()
 	return f.variantMediaService
+}
+
+// GetRecentlyViewedService returns the singleton recently viewed service.
+func (f *ServiceFactory) GetRecentlyViewedService() service.RecentlyViewedService {
+	f.initialize()
+	return f.recentlyViewedService
 }

@@ -109,6 +109,11 @@ func (f *SingletonFactory) GetCountryCurrencyService() service.CountryCurrencySe
 	return f.serviceFactory.GetCountryCurrencyService()
 }
 
+// GetPasswordResetService returns the singleton password reset service
+func (f *SingletonFactory) GetPasswordResetService() service.PasswordResetService {
+	return f.serviceFactory.GetPasswordResetService()
+}
+
 // ===============================
 // Repository Getters (Delegates)
 // ===============================
@@ -131,4 +136,9 @@ func (f *SingletonFactory) GetCurrencyRepository() repository.CurrencyRepository
 
 func (f *SingletonFactory) GetCountryCurrencyRepository() repository.CountryCurrencyRepository {
 	return f.repoFactory.GetCountryCurrencyRepository()
+}
+
+// GetPasswordResetRepository returns the singleton password reset repository
+func (f *SingletonFactory) GetPasswordResetRepository() repository.PasswordResetRepository {
+	return f.repoFactory.GetPasswordResetRepository()
 }

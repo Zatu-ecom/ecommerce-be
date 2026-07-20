@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/cache"
+	commonerrors "ecommerce-be/common/error"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/service"
 	"ecommerce-be/user/utils/constant"
@@ -16,13 +18,18 @@ import (
 
 // UserHandler handles HTTP requests related to users
 type UserHandler struct {
-	userService service.UserService
+	userService          service.UserService
+	passwordResetService service.PasswordResetService
 }
 
 // NewUserHandler creates a new instance of UserHandler
-func NewUserHandler(userService service.UserService) *UserHandler {
+func NewUserHandler(
+	userService service.UserService,
+	passwordResetService service.PasswordResetService,
+) *UserHandler {
 	return &UserHandler{
-		userService: userService,
+		userService:          userService,
+		passwordResetService: passwordResetService,
 	}
 }
 
@@ -329,4 +336,93 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, http.StatusOK, constant.LOGOUT_SUCCESS_MSG, nil)
+}
+
+// ForgotPassword handles password reset request
+// It accepts an email and sends a reset token (returned in response for now)
+// Uses the same response for found/missing emails to prevent user enumeration
+func (h *UserHandler) ForgotPassword(c *gin.Context) {
+	var req model.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrors []common.ValidationError
+		validationErrors = append(validationErrors, common.ValidationError{
+			Field:   "email",
+			Message: err.Error(),
+		})
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			constant.VALIDATION_FAILED_MSG,
+			validationErrors,
+			constant.VALIDATION_ERROR_CODE,
+		)
+		return
+	}
+
+	_, err := h.passwordResetService.ForgotPassword(c, req)
+	if err != nil {
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			"Failed to process password reset request: "+err.Error(),
+		)
+		return
+	}
+
+	// Always return the same success message regardless of whether the email exists
+	// This prevents user enumeration attacks
+	common.SuccessResponse(c, http.StatusOK, constant.FORGOT_PASSWORD_SUCCESS_MSG, nil)
+}
+
+// ResetPassword handles password reset with a token
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	var req model.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrors []common.ValidationError
+		validationErrors = append(validationErrors, common.ValidationError{
+			Field:   "request",
+			Message: err.Error(),
+		})
+		common.ErrorWithValidation(
+			c,
+			http.StatusBadRequest,
+			constant.VALIDATION_FAILED_MSG,
+			validationErrors,
+			constant.VALIDATION_ERROR_CODE,
+		)
+		return
+	}
+
+	// Check if new password and confirm password match
+	if req.NewPassword != req.ConfirmPassword {
+		common.ErrorWithCode(
+			c,
+			http.StatusBadRequest,
+			constant.PASSWORD_MISMATCH_MSG,
+			constant.PASSWORD_MISMATCH_CODE,
+		)
+		return
+	}
+
+	if err := h.passwordResetService.ResetPassword(c, req); err != nil {
+		// Use errors.As to properly detect AppError types instead of string comparison
+		var appErr *commonerrors.AppError
+		if errors.As(err, &appErr) {
+			common.ErrorWithCode(
+				c,
+				appErr.StatusCode,
+				appErr.Message,
+				appErr.Code,
+			)
+			return
+		}
+		common.ErrorResp(
+			c,
+			http.StatusInternalServerError,
+			"Failed to reset password: "+err.Error(),
+		)
+		return
+	}
+
+	common.SuccessResponse(c, http.StatusOK, constant.RESET_PASSWORD_SUCCESS_MSG, nil)
 }

@@ -48,6 +48,12 @@ type UserService interface {
 		userID uint,
 		sellerID uint,
 	) (*model.CurrencyResponse, error)
+
+	// GetSellerDefaultCurrency retrieves the seller's base currency (for guest/device carts).
+	GetSellerDefaultCurrency(
+		ctx context.Context,
+		sellerID uint,
+	) (*model.CurrencyResponse, error)
 }
 
 // UserServiceImpl implements the UserService interface
@@ -433,6 +439,47 @@ func (s *UserServiceImpl) GetPreferredCurrency(
 	}
 
 	// 5. Store cleanly in Redis for 1 Hour
+	if bytes, err := json.Marshal(currencyRes); err == nil {
+		_ = cache.Set(cacheKey, string(bytes), 1*time.Hour)
+	}
+
+	return currencyRes, nil
+}
+
+// GetSellerDefaultCurrency retrieves the seller's base currency (for guest/device carts without user context).
+func (s *UserServiceImpl) GetSellerDefaultCurrency(
+	ctx context.Context,
+	sellerID uint,
+) (*model.CurrencyResponse, error) {
+	cacheKey := fmt.Sprintf("seller_default_currency:%d", sellerID)
+
+	// 1. Check Cache First
+	if cachedStr, err := cache.Get(cacheKey); err == nil && cachedStr != "" {
+		var currencyRes model.CurrencyResponse
+		if err := json.Unmarshal([]byte(cachedStr), &currencyRes); err == nil {
+			return &currencyRes, nil
+		}
+	}
+
+	// 2. Fetch seller settings (no user lookup needed)
+	sellerSettings, err := s.sellerSettingsService.GetBySellerID(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Retrieve base currency info
+	currencyDetails, err := s.currencyService.GetCurrencyByID(ctx, sellerSettings.BaseCurrencyID)
+	if err != nil {
+		return nil, err
+	}
+
+	currencyRes := &model.CurrencyResponse{
+		CurrencyBase: currencyDetails.CurrencyBase,
+		ID:           currencyDetails.ID,
+		IsActive:     currencyDetails.IsActive,
+	}
+
+	// 4. Store in cache for 1 hour
 	if bytes, err := json.Marshal(currencyRes); err == nil {
 		_ = cache.Set(cacheKey, string(bytes), 1*time.Hour)
 	}

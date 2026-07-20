@@ -18,6 +18,7 @@ type RepositoryFactory struct {
 	countryCurrencyRepo repository.CountryCurrencyRepository
 	sellerProfileRepo   repository.SellerProfileRepository
 	sellerSettingsRepo  repository.SellerSettingsRepository
+	passwordResetRepo   repository.PasswordResetRepository
 	once                sync.Once
 }
 
@@ -38,6 +39,7 @@ func (f *RepositoryFactory) initialize() {
 		f.countryCurrencyRepo = repository.NewCountryCurrencyRepository()
 		f.sellerProfileRepo = repository.NewSellerProfileRepository()
 		f.sellerSettingsRepo = repository.NewSellerSettingsRepository()
+		f.passwordResetRepo = repository.NewPasswordResetRepository()
 	})
 }
 
@@ -81,4 +83,10 @@ func (f *RepositoryFactory) GetSellerProfileRepository() repository.SellerProfil
 func (f *RepositoryFactory) GetSellerSettingsRepository() repository.SellerSettingsRepository {
 	f.initialize()
 	return f.sellerSettingsRepo
+}
+
+// GetPasswordResetRepository returns the singleton password reset repository
+func (f *RepositoryFactory) GetPasswordResetRepository() repository.PasswordResetRepository {
+	f.initialize()
+	return f.passwordResetRepo
 }

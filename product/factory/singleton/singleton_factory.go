@@ -157,6 +157,14 @@ func (f *SingletonFactory) GetProductMediaService() service.ProductMediaService 
 	return f.serviceFactory.GetProductMediaService()
 }
 
+func (f *SingletonFactory) GetRecentlyViewedRepository() repository.RecentlyViewedRepository {
+	return f.repoFactory.GetRecentlyViewedRepository()
+}
+
+func (f *SingletonFactory) GetRecentlyViewedService() service.RecentlyViewedService {
+	return f.serviceFactory.GetRecentlyViewedService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================

@@ -70,6 +70,14 @@ func (f *SingletonFactory) GetOrderService() service.OrderService {
 	return f.serviceFactory.GetOrderService()
 }
 
+func (f *SingletonFactory) GetGuestCartService() service.GuestCartService {
+	return f.serviceFactory.GetGuestCartService()
+}
+
+func (f *SingletonFactory) GetCartMergeService() service.CartMergeService {
+	return f.serviceFactory.GetCartMergeService()
+}
+
 // ===============================
 // Handler Getters (Delegates)
 // ===============================
@@ -80,4 +88,8 @@ func (f *SingletonFactory) GetCartHandler() *handler.CartHandler {
 
 func (f *SingletonFactory) GetOrderHandler() *handler.OrderHandler {
 	return f.handlerFactory.GetOrderHandler()
+}
+
+func (f *SingletonFactory) GetGuestCartHandler() *handler.GuestCartHandler {
+	return f.handlerFactory.GetGuestCartHandler()
 }

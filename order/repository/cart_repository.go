@@ -16,6 +16,8 @@ type CartRepository interface {
 	// Cart operations
 	FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
 	FindActiveCartByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
+	FindByDeviceID(ctx context.Context, deviceID string) (*entity.Cart, error)
+	FindActiveCartByDeviceID(ctx context.Context, deviceID string) (*entity.Cart, error)
 	FindCheckoutCartByUserID(ctx context.Context, userID uint) (*entity.Cart, error)
 	FindByOrderID(ctx context.Context, orderID uint) (*entity.Cart, error)
 	FindByID(ctx context.Context, cartID uint) (*entity.Cart, error)
@@ -49,6 +51,36 @@ func NewCartRepository() CartRepository {
 // FindByUserID finds the active cart for a user. Returns not found error if none exists.
 func (r *CartRepositoryImpl) FindByUserID(ctx context.Context, userID uint) (*entity.Cart, error) {
 	return r.FindActiveCartByUserID(ctx, userID)
+}
+
+// FindByDeviceID finds the active cart for a device. Returns not found error if none exists.
+func (r *CartRepositoryImpl) FindByDeviceID(ctx context.Context, deviceID string) (*entity.Cart, error) {
+	return r.FindActiveCartByDeviceID(ctx, deviceID)
+}
+
+// FindActiveCartByDeviceID finds the active cart for a device. Returns not found error if none exists.
+func (r *CartRepositoryImpl) FindActiveCartByDeviceID(
+	ctx context.Context,
+	deviceID string,
+) (*entity.Cart, error) {
+	var cart entity.Cart
+	result := db.DB(ctx).
+		Where("device_id = ? AND status = ?", deviceID, entity.CART_STATUS_ACTIVE).
+		First(&cart)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, errs.NewAppError(
+				errs.INVALID_ID_CODE,
+				orderConstants.CART_NOT_FOUND_MSG,
+				404,
+			)
+		}
+		log.ErrorWithContext(ctx, "Failed to find cart by device ID", result.Error)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+
+	return &cart, nil
 }
 
 // FindActiveCartByUserID finds the active cart for a user. Returns not found error if none exists.
@@ -129,7 +161,7 @@ func (r *CartRepositoryImpl) CreateNewActiveCart(
 	userID uint,
 ) (*entity.Cart, error) {
 	cart := &entity.Cart{
-		UserID:   userID,
+		UserID:   &userID,
 		Status:   entity.CART_STATUS_ACTIVE,
 		Metadata: db.JSONMap{},
 	}

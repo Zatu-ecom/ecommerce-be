@@ -20,6 +20,12 @@ type UpdateCartItemRequest struct {
 	Quantity int `json:"quantity" binding:"required,gt=0,lte=99"`
 }
 
+// MergeCartRequest is the request body for merging a device (guest) cart into a user (authenticated) cart.
+// DeviceID is the UUID that identifies the guest device.
+type MergeCartRequest struct {
+	DeviceID string `json:"deviceId" binding:"required,min=1,max=64"`
+}
+
 // ============================================================================
 // Shared/Base Components (DRY - Don't Repeat Yourself)
 // ============================================================================
@@ -160,9 +166,10 @@ type CartSummaryBrief struct {
 
 // CartBase contains common cart fields
 // Embedded by CartBasicResponse and CartResponse
+// UserID is nil for guest/device carts (before merge).
 type CartBase struct {
 	ID       uint           `json:"id"`
-	UserID   uint           `json:"userId"`
+	UserID   *uint          `json:"userId,omitempty"`
 	Currency CurrencyInfo   `json:"currency"`
 	Metadata map[string]any `json:"metadata"`
 }

@@ -49,6 +49,18 @@ const (
 	SELLER_ID_REQUIRED_CODE = "SELLER_ID_REQUIRED"
 	SELLER_ID_INVALID_CODE  = "SELLER_ID_INVALID"
 
+	// Device ID for guest cart support
+	DEVICE_ID_HEADER = "X-Device-ID"
+	DEVICE_ID_KEY    = "device_id"
+
+	// Device ID messages
+	DEVICE_ID_REQUIRED_MSG = "X-Device-ID header is required for guest cart access"
+	DEVICE_ID_INVALID_MSG  = "Invalid device ID provided"
+
+	// Device ID error codes
+	DEVICE_ID_REQUIRED_CODE = "DEVICE_ID_REQUIRED"
+	DEVICE_ID_INVALID_CODE  = "DEVICE_ID_INVALID"
+
 	// Bearer token constants
 	BEARER_PREFIX = "Bearer"
 
