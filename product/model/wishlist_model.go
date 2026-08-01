@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"ecommerce-be/common"
+)
 
 // ============================================================================
 // Wishlist Management - Request Models
@@ -36,14 +40,23 @@ type WishlistsResponse struct {
 	Wishlists []WishlistResponse `json:"wishlists"`
 }
 
+// WishlistProductItem represents a single wishlist item with the resolved product
+type WishlistProductItem struct {
+	WishlistItemID uint            `json:"wishlistItemId"` // ID of the wishlist item (for delete/move)
+	VariantID      uint            `json:"variantId"`      // The specific variant that was wishlisted
+	AddedAt        time.Time       `json:"addedAt"`        // When the item was added to the wishlist
+	Product        ProductResponse `json:"product"`        // Full resolved product with variants
+}
+
 // WishlistDetailResponse represents the response for getting a wishlist with products
-// Uses ProductsResponse for full product details with pagination support
+// Uses WishlistProductItem for per-item metadata with full product details
+// Pagination is top-level (not nested inside a sub-object)
 type WishlistDetailResponse struct {
-	ID        uint             `json:"id"`
-	Name      string           `json:"name"`
-	IsDefault bool             `json:"isDefault"`
-	ItemCount int              `json:"itemCount"` // Total items in wishlist (not paginated count)
-	Products  ProductsResponse `json:"products"`  // Paginated products with full details
-	CreatedAt time.Time        `json:"createdAt"`
-	UpdatedAt time.Time        `json:"updatedAt"`
+	ID         uint                      `json:"id"`
+	Name       string                    `json:"name"`
+	IsDefault  bool                      `json:"isDefault"`
+	Items      []WishlistProductItem     `json:"items"`      // Paginated items with product details
+	Pagination common.PaginationResponse `json:"pagination"` // Pagination metadata
+	CreatedAt  time.Time                 `json:"createdAt"`
+	UpdatedAt  time.Time                 `json:"updatedAt"`
 }

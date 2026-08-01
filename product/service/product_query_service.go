@@ -59,6 +59,7 @@ type ProductQueryServiceImpl struct {
 	packageOptionService    PackageOptionService
 	productOptionService    ProductOptionService
 	productMediaService     ProductMediaService
+	wishlistItemService     WishlistItemService
 }
 
 // NewProductQueryService creates a new instance of ProductQueryService
@@ -70,6 +71,7 @@ func NewProductQueryService(
 	packageOptionService PackageOptionService,
 	productOptionService ProductOptionService,
 	productMediaService ProductMediaService,
+	wishlistItemService WishlistItemService,
 ) *ProductQueryServiceImpl {
 	return &ProductQueryServiceImpl{
 		productRepo:             productRepo,
@@ -79,6 +81,7 @@ func NewProductQueryService(
 		packageOptionService:    packageOptionService,
 		productOptionService:    productOptionService,
 		productMediaService:     productMediaService,
+		wishlistItemService:     wishlistItemService,
 	}
 }
 
@@ -127,7 +130,8 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 // buildProductResponsesWithVariants builds ProductResponse list from products with variant data
 // Performs batch variant aggregation for optimal performance - single query for all products
 // If userID is provided, also checks if products are wishlisted by that user.
-// sellerID is passed to the media gateway for scoped file access; nil means platform-wide.
+// sellerID is passed to the media gateway for scoped file access; nil triggers per-seller
+// batching so that seller-owned files are still resolved correctly.
 func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 	ctx context.Context,
 	products []entity.Product,
@@ -155,8 +159,32 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 		return nil, err
 	}
 
-	// Batch-load media for all products in a single call (no N+1 on file lookups).
-	mediaByProductID, _ := s.productMediaService.GetMediaForProducts(ctx, productIDs, sellerID)
+	// Batch-load media for all products.
+	// When sellerID is explicitly provided, a single media call suffices.
+	// When sellerID is nil (e.g., wishlist service or cross-seller context), we MUST
+	// group products by seller and make per-seller calls. Otherwise the file gateway
+	// builds a Principal with OwnerType=PLATFORM, which cannot resolve seller-owned files.
+	mediaByProductID := make(map[uint][]model.ProductMediaResponse, len(products))
+	if sellerID != nil {
+		// Single-seller context – one batch call is enough.
+		mediaByProductID, _ = s.productMediaService.GetMediaForProducts(ctx, productIDs, sellerID)
+	} else {
+		// Cross-seller context – group products by SellerID and make per-seller calls.
+		sellerToProductIDs := make(map[uint][]uint)
+		for _, product := range products {
+			sellerToProductIDs[product.SellerID] = append(
+				sellerToProductIDs[product.SellerID],
+				product.ID,
+			)
+		}
+		for sid, pIDs := range sellerToProductIDs {
+			sidCopy := sid
+			perSellerMedia, _ := s.productMediaService.GetMediaForProducts(ctx, pIDs, &sidCopy)
+			for pid, media := range perSellerMedia {
+				mediaByProductID[pid] = media
+			}
+		}
+	}
 
 	// Build response models with variant and media data using factory
 	productsResponse := make([]model.ProductResponse, 0, len(products))
@@ -258,6 +286,39 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 	allVariants, err := s.variantQueryService.GetProductVariantsWithOptions(ctx, product.ID, mediaSellerID)
 	if err == nil {
 		response.Variants = productUtils.FilterPublicVariants(allVariants)
+	}
+
+	// Enrich wishlist item IDs if user is authenticated.
+	// Configurable products: attach to each public variant.
+	// Simple products: variants[] is empty (placeholder hidden) — attach at product level.
+	if userID != nil && len(response.Variants) > 0 {
+		variantIDs := make([]uint, len(response.Variants))
+		for i, v := range response.Variants {
+			variantIDs[i] = v.ID
+		}
+		itemsByVariant, err := s.wishlistItemService.GetWishlistItemsByVariantIDs(ctx, variantIDs, *userID)
+		if err == nil {
+			for i := range response.Variants {
+				if items, ok := itemsByVariant[response.Variants[i].ID]; ok {
+					response.Variants[i].WishlistItems = items
+					response.Variants[i].IsWishlisted = true
+				}
+			}
+		}
+	} else if userID != nil && len(allVariants) > 0 {
+		if def := productUtils.FindDefaultVariant(allVariants); def != nil {
+			itemsByVariant, err := s.wishlistItemService.GetWishlistItemsByVariantIDs(
+				ctx,
+				[]uint{def.ID},
+				*userID,
+			)
+			if err == nil {
+				if items, ok := itemsByVariant[def.ID]; ok {
+					response.WishlistItems = items
+					response.IsWishlisted = true
+				}
+			}
+		}
 	}
 
 	// Batch-load media for this product; always set a non-nil slice.
