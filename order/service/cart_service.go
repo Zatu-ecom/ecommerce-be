@@ -14,6 +14,7 @@ import (
 	"ecommerce-be/order/repository"
 
 	promotionModel "ecommerce-be/promotion/model"
+	promotionRepo "ecommerce-be/promotion/repository"
 	promotionService "ecommerce-be/promotion/service"
 
 	inventoryService "ecommerce-be/inventory/service"
@@ -44,20 +45,38 @@ type CartService interface {
 	UnlockCheckoutCart(ctx context.Context, cartID uint) error
 	MarkCartConverted(ctx context.Context, cartID, orderID, userID uint) error
 	ReactivateCartByOrderID(ctx context.Context, orderID uint) error
+	ApplyCoupon(ctx context.Context, userID, sellerID uint, code string) (*model.CartResponse, error)
+	RemoveCoupon(ctx context.Context, userID, sellerID uint, code string) (*model.CartResponse, error)
+	RemoveAllCoupons(ctx context.Context, userID, sellerID uint) (*model.CartResponse, error)
+	GetAvailableCoupons(
+		ctx context.Context,
+		userID, sellerID uint,
+	) (*promotionModel.AvailableCouponsResponse, error)
+	// RevalidateCouponsForCheckout rebuilds the coupon cart request from the locked cart
+	// and fails checkout if any applied coupon is no longer valid.
+	RevalidateCouponsForCheckout(
+		ctx context.Context,
+		userID, sellerID, cartID uint,
+		appliedDiscountCodeIDs []uint,
+	) error
 }
 
 type CartServiceImpl struct {
 	// Embed shared cart operations (ISP — extracted to avoid duplication with GuestCartServiceImpl)
 	cartOperations
-	orderRepo repository.OrderRepository
-	userSvc   userService.UserService
-	promotionSvc    promotionService.PromotionService
+	orderRepo        repository.OrderRepository
+	userSvc          userService.UserService
+	promotionSvc     promotionService.PromotionService
+	couponApplySvc   promotionService.CouponApplyService
+	discountCodeRepo promotionRepo.DiscountCodeRepository
 }
 
 func NewCartService(
 	cartRepo repository.CartRepository,
 	orderRepo repository.OrderRepository,
 	promotionSvc promotionService.PromotionService,
+	couponApplySvc promotionService.CouponApplyService,
+	discountCodeRepo promotionRepo.DiscountCodeRepository,
 	inventorySvc inventoryService.InventoryQueryService,
 	variantQuerySvc productVariantService.VariantQueryService,
 	userSvc userService.UserService,
@@ -69,9 +88,11 @@ func NewCartService(
 			inventorySvc:    inventorySvc,
 			variantQuerySvc: variantQuerySvc,
 		},
-		orderRepo:       orderRepo,
-		userSvc:         userSvc,
-		promotionSvc:    promotionSvc,
+		orderRepo:        orderRepo,
+		userSvc:          userSvc,
+		promotionSvc:     promotionSvc,
+		couponApplySvc:   couponApplySvc,
+		discountCodeRepo: discountCodeRepo,
 	}
 }
 
@@ -361,10 +382,49 @@ func (s *CartServiceImpl) buildCartResponseWithItems(
 		return nil, orderError.ErrPromotionServiceUnavailable(err)
 	}
 
+	if err := s.syncCartItemPromotions(ctx, items, promoSummary); err != nil {
+		return nil, err
+	}
+
+	appliedRows, err := s.cartRepo.FindAppliedCouponsByCartID(ctx, cart.ID)
+	if err != nil {
+		return nil, err
+	}
+	appliedIDs := make([]uint, 0, len(appliedRows))
+	for _, row := range appliedRows {
+		appliedIDs = append(appliedIDs, row.DiscountCodeID)
+	}
+
+	couponReq := buildCouponCartRequestFromPromo(userID, sellerID, promoSummary, promoReq, appliedIDs)
+	couponSummary, err := s.couponApplySvc.ApplyCouponsToCart(ctx, couponReq)
+	if err != nil {
+		log.ErrorWithContext(ctx, "Failed to apply coupons", err)
+		return nil, err
+	}
+
+	appliedRows, err = s.selfHealInvalidAppliedCoupons(ctx, cart.ID, appliedRows, couponSummary)
+	if err != nil {
+		return nil, err
+	}
+	healedIDs := make([]uint, 0, len(appliedRows))
+	for _, row := range appliedRows {
+		healedIDs = append(healedIDs, row.DiscountCodeID)
+	}
+	couponReq.AppliedDiscountCodeIDs = healedIDs
+
+	available, err := s.couponApplySvc.ListAvailableCouponsForCart(ctx, couponReq)
+	if err != nil {
+		log.WarnWithContext(ctx, "Failed to list available coupons: "+err.Error())
+		available = &promotionModel.AvailableCouponsResponse{}
+	}
+
 	return factory.BuildCartResponse(
 		cart,
 		items,
 		promoSummary,
+		couponSummary,
+		appliedRows,
+		available,
 		currencyMap,
 		variantMap,
 	), nil
@@ -421,4 +481,120 @@ func (s *CartServiceImpl) buildPromotionRequest(
 		}
 	}
 	return promoReq, nil
+}
+
+func buildCouponCartRequestFromPromo(
+	userID, sellerID uint,
+	promo *promotionModel.AppliedPromotionSummary,
+	promoReq *promotionModel.CartValidationRequest,
+	appliedIDs []uint,
+) *promotionModel.CouponCartRequest {
+	categoryByItemID := map[string]uint{}
+	for _, item := range promoReq.Items {
+		categoryByItemID[item.ItemID] = item.CategoryID
+	}
+
+	items := make([]promotionModel.CartItem, 0, len(promo.Items))
+	for _, summaryItem := range promo.Items {
+		qty := summaryItem.Quantity
+		if qty <= 0 {
+			qty = 1
+		}
+		unit := summaryItem.FinalPriceCents / int64(qty)
+		if unit <= 0 {
+			unit = summaryItem.OriginalUnitPriceCents
+		}
+		items = append(items, promotionModel.CartItem{
+			ItemID:     summaryItem.ItemID,
+			ProductID:  summaryItem.ProductID,
+			VariantID:  summaryItem.VariantID,
+			CategoryID: categoryByItemID[summaryItem.ItemID],
+			Quantity:   qty,
+			PriceCents: unit,
+			TotalCents: summaryItem.FinalPriceCents,
+		})
+	}
+
+	promotionsAllow := true
+	for _, p := range promo.AppliedPromotions {
+		if p.Promotion != nil && p.Promotion.CanStackWithCoupons != nil && !*p.Promotion.CanStackWithCoupons {
+			promotionsAllow = false
+			break
+		}
+	}
+
+	return &promotionModel.CouponCartRequest{
+		SellerID:               sellerID,
+		CustomerID:             &userID,
+		IsFirstOrder:           promoReq.IsFirstOrder,
+		Items:                  items,
+		SubtotalCents:          promo.FinalSubtotal,
+		ShippingCents:          promoReq.ShippingCents,
+		AppliedDiscountCodeIDs: appliedIDs,
+		PromotionsAllowCoupons: promotionsAllow,
+	}
+}
+
+// syncCartItemPromotions replaces stored promotion IDs per cart line with the set just applied.
+func (s *CartServiceImpl) syncCartItemPromotions(
+	ctx context.Context,
+	items []entity.CartItem,
+	promo *promotionModel.AppliedPromotionSummary,
+) error {
+	promoIDsByItemID := map[string][]uint{}
+	if promo != nil {
+		for _, summaryItem := range promo.Items {
+			ids := make([]uint, 0, len(summaryItem.AppliedPromotions))
+			for _, ap := range summaryItem.AppliedPromotions {
+				ids = append(ids, ap.PromotionID)
+			}
+			promoIDsByItemID[summaryItem.ItemID] = ids
+		}
+	}
+
+	for _, item := range items {
+		itemIDStr := strconv.Itoa(int(item.ID))
+		desired := promoIDsByItemID[itemIDStr]
+		if desired == nil {
+			desired = []uint{}
+		}
+		if err := s.cartRepo.SyncCartItemPromotions(ctx, item.ID, desired); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// selfHealInvalidAppliedCoupons deletes cart_applied_coupon rows that did not survive ApplyCouponsToCart.
+func (s *CartServiceImpl) selfHealInvalidAppliedCoupons(
+	ctx context.Context,
+	cartID uint,
+	appliedRows []entity.CartAppliedCoupon,
+	couponSummary *promotionModel.AppliedCouponSummary,
+) ([]entity.CartAppliedCoupon, error) {
+	valid := map[uint]struct{}{}
+	if couponSummary != nil {
+		for _, c := range couponSummary.AppliedCoupons {
+			if c.DiscountCode != nil {
+				valid[c.DiscountCode.ID] = struct{}{}
+			}
+		}
+	}
+
+	invalidIDs := make([]uint, 0)
+	kept := make([]entity.CartAppliedCoupon, 0, len(appliedRows))
+	for _, row := range appliedRows {
+		if _, ok := valid[row.DiscountCodeID]; ok {
+			kept = append(kept, row)
+			continue
+		}
+		invalidIDs = append(invalidIDs, row.DiscountCodeID)
+	}
+	if len(invalidIDs) > 0 {
+		if err := s.cartRepo.RemoveAppliedCouponsByDiscountCodeIDs(ctx, cartID, invalidIDs); err != nil {
+			return nil, err
+		}
+		log.InfoWithContext(ctx, "Self-healed invalid applied coupons")
+	}
+	return kept, nil
 }

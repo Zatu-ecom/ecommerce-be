@@ -13,21 +13,25 @@ import (
 
 const defaultFallbackUnitPriceCents int64 = 100000
 
-// BuildCartResponse converts cart entities and promotion summary into CartResponse.
+// BuildCartResponse converts cart entities and promotion/coupon summaries into CartResponse.
 func BuildCartResponse(
 	cart *entity.Cart,
 	items []entity.CartItem,
 	promo *promotionModel.AppliedPromotionSummary,
+	coupon *promotionModel.AppliedCouponSummary,
+	appliedRows []entity.CartAppliedCoupon,
+	available *promotionModel.AvailableCouponsResponse,
 	currencyMap *userModel.CurrencyResponse,
 	variantMap map[uint]productModel.VariantDetailResponse,
 ) *model.CartResponse {
 	response := &model.CartResponse{
 		CartBase:            buildCartBase(cart, currencyMap),
-		Summary:             buildCartSummary(len(items), promo, currencyMap),
+		Summary:             buildCartSummary(len(items), promo, coupon, currencyMap),
 		Items:               make([]model.CartItemWithPricingResponse, len(items)),
 		AppliedPromotions:   buildAppliedPromotions(promo, currencyMap),
-		AppliedCoupons:      make([]model.AppliedCouponInfo, 0), // Not implemented yet
+		AppliedCoupons:      buildAppliedCoupons(coupon, appliedRows, currencyMap),
 		AvailablePromotions: buildAvailablePromotions(promo, currencyMap),
+		AvailableCoupons:    buildAvailableCoupons(available, currencyMap),
 	}
 
 	itemPromoMap := buildItemPromotionMap(promo)
@@ -137,8 +141,30 @@ func buildCartBase(
 func buildCartSummary(
 	uniqueItems int,
 	promo *promotionModel.AppliedPromotionSummary,
+	coupon *promotionModel.AppliedCouponSummary,
 	currencyMap *userModel.CurrencyResponse,
 ) model.CartSummary {
+	couponDiscount := int64(0)
+	couponCount := 0
+	shippingDiscount := int64(0)
+	if coupon != nil {
+		couponDiscount = coupon.TotalDiscountCents
+		couponCount = len(coupon.AppliedCoupons)
+		shippingDiscount = coupon.ShippingDiscount
+	}
+	if promo != nil {
+		shippingDiscount += promo.ShippingDiscount
+	}
+
+	totalDiscount := promo.TotalDiscountCents + couponDiscount
+	afterDiscount := promo.FinalSubtotal - couponDiscount
+	if afterDiscount < 0 {
+		afterDiscount = 0
+	}
+	// Shipping is not yet in total; free-shipping coupons reduce shippingDiscount for display
+	_ = shippingDiscount
+	total := afterDiscount
+
 	return model.CartSummary{
 		ItemCount:   0,
 		UniqueItems: uniqueItems,
@@ -155,25 +181,113 @@ func buildCartSummary(
 			currencyMap.Symbol,
 			currencyMap.DecimalDigits,
 		),
-		TotalDiscount: promo.TotalDiscountCents, // No coupons yet
+		CouponCount:    couponCount,
+		CouponDiscount: couponDiscount,
+		CouponDiscountFormatted: formatCurrencyWithSymbol(
+			couponDiscount,
+			currencyMap.Symbol,
+			currencyMap.DecimalDigits,
+		),
+		TotalDiscount: totalDiscount,
 		TotalDiscountFormatted: formatCurrencyWithSymbol(
-			promo.TotalDiscountCents,
+			totalDiscount,
 			currencyMap.Symbol,
 			currencyMap.DecimalDigits,
 		),
-		AfterDiscount: promo.FinalSubtotal,
+		AfterDiscount: afterDiscount,
 		AfterDiscountFormatted: formatCurrencyWithSymbol(
-			promo.FinalSubtotal,
+			afterDiscount,
 			currencyMap.Symbol,
 			currencyMap.DecimalDigits,
 		),
-		Total: promo.FinalSubtotal,
+		Total: total,
 		TotalFormatted: formatCurrencyWithSymbol(
-			promo.FinalSubtotal,
+			total,
 			currencyMap.Symbol,
 			currencyMap.DecimalDigits,
 		),
 	}
+}
+
+func buildAppliedCoupons(
+	coupon *promotionModel.AppliedCouponSummary,
+	appliedRows []entity.CartAppliedCoupon,
+	currencyMap *userModel.CurrencyResponse,
+) []model.AppliedCouponInfo {
+	if coupon == nil || len(coupon.AppliedCoupons) == 0 {
+		return []model.AppliedCouponInfo{}
+	}
+
+	rowByCodeID := map[uint]uint{}
+	for _, row := range appliedRows {
+		rowByCodeID[row.DiscountCodeID] = row.ID
+	}
+
+	out := make([]model.AppliedCouponInfo, 0, len(coupon.AppliedCoupons))
+	for _, c := range coupon.AppliedCoupons {
+		if c.DiscountCode == nil {
+			continue
+		}
+		title := ""
+		if c.DiscountCode.Title != nil {
+			title = *c.DiscountCode.Title
+		}
+		info := model.AppliedCouponInfo{
+			ID:               rowByCodeID[c.DiscountCode.ID],
+			DiscountCodeID:   c.DiscountCode.ID,
+			Code:             c.DiscountCode.Code,
+			Title:            title,
+			DiscountType:     string(c.DiscountCode.DiscountType),
+			Discount:         c.DiscountCents,
+			ShippingDiscount: c.ShippingDiscount,
+		}
+		info.DiscountFormatted = formatCurrencyWithSymbol(
+			c.DiscountCents, currencyMap.Symbol, currencyMap.DecimalDigits,
+		)
+		info.ShippingDiscountFormatted = formatCurrencyWithSymbol(
+			c.ShippingDiscount, currencyMap.Symbol, currencyMap.DecimalDigits,
+		)
+		out = append(out, info)
+	}
+	return out
+}
+
+func buildAvailableCoupons(
+	available *promotionModel.AvailableCouponsResponse,
+	currencyMap *userModel.CurrencyResponse,
+) *model.CartAvailableCouponsResponse {
+	if available == nil {
+		return nil
+	}
+	out := &model.CartAvailableCouponsResponse{
+		Applicable:    make([]model.CartAvailableCouponInfo, 0, len(available.Applicable)),
+		NotApplicable: make([]model.CartUnavailableCouponInfo, 0, len(available.NotApplicable)),
+	}
+	for _, a := range available.Applicable {
+		info := model.CartAvailableCouponInfo{
+			ID:                           a.ID,
+			Code:                         a.Code,
+			Title:                        a.Title,
+			DiscountType:                 a.DiscountType,
+			Value:                        a.Value,
+			MaxDiscountAmountCents:       a.MaxDiscountAmountCents,
+			PotentialDiscount:            a.PotentialDiscount,
+			MinPurchaseAmountCents:       a.MinPurchaseAmountCents,
+			CanCombineWithOtherDiscounts: a.CanCombineWithOtherDiscounts,
+			StartsAt:                     a.StartsAt,
+			EndsAt:                       a.EndsAt,
+		}
+		info.PotentialDiscountFormatted = formatCurrencyWithSymbol(
+			a.PotentialDiscount, currencyMap.Symbol, currencyMap.DecimalDigits,
+		)
+		out.Applicable = append(out.Applicable, info)
+	}
+	for _, n := range available.NotApplicable {
+		out.NotApplicable = append(out.NotApplicable, model.CartUnavailableCouponInfo{
+			ID: n.ID, Code: n.Code, Title: n.Title, Reason: n.Reason,
+		})
+	}
+	return out
 }
 
 func buildItemPromotionMap(

@@ -130,6 +130,33 @@ func BuildOrderAppliedPromotionsFromCartSnapshot(
 	return result
 }
 
+// BuildOrderAppliedCouponsFromCartSnapshot snapshots cart-level applied coupons.
+func BuildOrderAppliedCouponsFromCartSnapshot(
+	orderID uint,
+	cart *model.CartResponse,
+) []entity.OrderAppliedCoupon {
+	result := make([]entity.OrderAppliedCoupon, 0, len(cart.AppliedCoupons))
+	for _, coupon := range cart.AppliedCoupons {
+		codeID := coupon.DiscountCodeID
+		title := coupon.Title
+		var titlePtr *string
+		if title != "" {
+			titlePtr = &title
+		}
+		result = append(result, entity.OrderAppliedCoupon{
+			OrderID:               orderID,
+			DiscountCodeID:        &codeID,
+			CouponCode:            coupon.Code,
+			CouponTitle:           titlePtr,
+			DiscountType:          coupon.DiscountType,
+			DiscountCents:         coupon.Discount,
+			ShippingDiscountCents: coupon.ShippingDiscount,
+			Metadata:              db.JSONMap{},
+		})
+	}
+	return result
+}
+
 // BuildOrderItemAppliedPromotionsFromCartSnapshot snapshots item-level promotion breakdown.
 func BuildOrderItemAppliedPromotionsFromCartSnapshot(
 	orderID uint,
@@ -187,6 +214,7 @@ func BuildOrderResponseFromEntity(
 		Items:             make([]model.OrderItemResponse, 0, len(order.Items)),
 		Addresses:         make([]model.OrderAddressResponse, 0, len(order.Addresses)),
 		AppliedPromotions: make([]model.OrderPromotionResponse, 0, len(order.AppliedPromotions)),
+		AppliedCoupons:    make([]model.OrderCouponResponse, 0, len(order.AppliedCoupons)),
 	}
 
 	itemPromoByItemID := map[uint][]model.ItemPromotionBreakdownResponse{}
@@ -246,6 +274,19 @@ func BuildOrderResponseFromEntity(
 			ShippingDiscountCents: promo.ShippingDiscountCents,
 			IsStackable:           promo.IsStackable,
 			Priority:              promo.Priority,
+		})
+	}
+
+	for _, coupon := range order.AppliedCoupons {
+		resp.AppliedCoupons = append(resp.AppliedCoupons, model.OrderCouponResponse{
+			DiscountCodeID:        coupon.DiscountCodeID,
+			CouponCode:            coupon.CouponCode,
+			CouponTitle:           coupon.CouponTitle,
+			DiscountType:          coupon.DiscountType,
+			DiscountValue:         coupon.DiscountValue,
+			DiscountCents:         coupon.DiscountCents,
+			ShippingDiscountCents: coupon.ShippingDiscountCents,
+			IsCombinable:          coupon.IsCombinable,
 		})
 	}
 

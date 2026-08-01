@@ -22,6 +22,7 @@ type OrderRepository interface {
 	CreateOrderItems(ctx context.Context, items []entity.OrderItem) error
 	CreateOrderAddresses(ctx context.Context, addresses []entity.OrderAddress) error
 	CreateOrderAppliedPromotions(ctx context.Context, promos []entity.OrderAppliedPromotion) error
+	CreateOrderAppliedCoupons(ctx context.Context, coupons []entity.OrderAppliedCoupon) error
 	CreateOrderItemAppliedPromotions(
 		ctx context.Context,
 		promos []entity.OrderItemAppliedPromotion,
@@ -102,6 +103,16 @@ func (r *OrderRepositoryImpl) CreateOrderAppliedPromotions(
 		return nil
 	}
 	return db.DB(ctx).Create(&promos).Error
+}
+
+func (r *OrderRepositoryImpl) CreateOrderAppliedCoupons(
+	ctx context.Context,
+	coupons []entity.OrderAppliedCoupon,
+) error {
+	if len(coupons) == 0 {
+		return nil
+	}
+	return db.DB(ctx).Create(&coupons).Error
 }
 
 func (r *OrderRepositoryImpl) CreateOrderItemAppliedPromotions(

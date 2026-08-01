@@ -1,7 +1,8 @@
 # Quickstart: Coupon / Discount Codes
 
 **Feature**: 007-coupon-discount-codes  
-**Date**: 2026-08-01
+**Date**: 2026-08-01  
+**Status**: Implemented (Phases 1–8)
 
 ## Overview
 
@@ -21,8 +22,9 @@ Sellers manage discount codes and scopes. Customers apply coupons on authenticat
 Get Cart / Apply Coupon / Remove Coupon
   → load cart items + variant prices
   → ApplyPromotionsToCart (existing)
+  → sync cart_item_promotion (reference IDs only)
   → load cart_applied_coupon IDs
-  → ApplyCouponsToCart (new)
+  → ApplyCouponsToCart
   → self-heal invalid attachments
   → CartResponse (items, promos, coupons, availableCoupons, summary)
 ```
@@ -38,6 +40,7 @@ Cart tables store **references only**. Money is computed at runtime. Order table
 | Customer | `POST /api/order/cart/coupon` `{ "code": "SAVE20" }` |
 | Customer | `DELETE /api/order/cart/coupon/:code`, `DELETE /api/order/cart/coupon` |
 | Customer | `GET /api/order/cart`, `GET /api/order/cart/available-coupon` |
+| Customer | `POST /api/order` (checkout snapshots coupons + records usage) |
 
 ## Database
 
@@ -45,27 +48,31 @@ Cart tables store **references only**. Money is computed at runtime. Order table
 make migrate
 ```
 
-Migration (planned): align `discount_code` columns; create `cart_applied_coupon`; create `cart_item_promotion`; indexes. See [data-model.md](./data-model.md).
+Migration `028_align_discount_code_and_cart_coupon.sql` aligns `discount_code` columns and creates `cart_applied_coupon` + `cart_item_promotion`. See [data-model.md](./data-model.md).
 
-## Manual smoke (after implementation)
+## Manual smoke
 
-1. Seller login → create percentage code `SAVE10`, activate, optionally add product scope.  
-2. Customer login → add items → `POST /api/order/cart/coupon` with `SAVE10`.  
+1. Seller login → `POST /api/promotion/discount-code` percentage code `SAVE10` → optionally add product scope.  
+2. Customer login → `POST /api/order/cart/item` → `POST /api/order/cart/coupon` with `SAVE10`.  
 3. `GET /api/order/cart` → verify `appliedCoupons`, `summary.couponDiscount`, `totalDiscount`.  
-4. Place order → verify order applied coupons + code usage incremented.  
-5. Re-apply beyond per-customer limit → expect `COUPON_ALREADY_USED` / usage error.
+4. `POST /api/order` → verify `appliedCoupons` on order + `discount_code_usage` / `current_usage_count`.  
+5. Re-apply beyond per-customer limit → expect `COUPON_ALREADY_USED` (or global `COUPON_USAGE_LIMIT_REACHED`).  
+6. Seller `DELETE` used code → expect `409 DISCOUNT_CODE_HAS_USAGE`.
 
-## Running tests (planned locations)
+## Running tests
 
 ```bash
 # Seller + scope
-go test ./test/integration/promotion/ -run DiscountCode -v
+go test ./test/integration/promotion/ -run DiscountCode -count=1
 
-# Cart coupons + checkout
-go test ./test/integration/order/ -run Coupon -v
+# Cart coupons + checkout usage
+go test ./test/integration/order/ -run 'CartCoupon|Coupon' -count=1
 
-# Or full suite
-make test-pretty
+# Calculator unit tests
+go test ./promotion/service/discountStrategy/ -count=1
+
+# Full related suites
+go test ./test/integration/promotion/ ./test/integration/order/ -count=1
 ```
 
 Coverage targets are listed in [pre-spec.md](./pre-spec.md) §9 (T-S*, T-SC*, T-C*, T-E*).
@@ -79,12 +86,5 @@ Coverage targets are listed in [pre-spec.md](./pre-spec.md) §9 (T-S*, T-SC*, T-
 | [research.md](./research.md) | Decisions |
 | [data-model.md](./data-model.md) | Schema |
 | [contracts/api-contracts.md](./contracts/api-contracts.md) | API contracts |
+| [tasks.md](./tasks.md) | Phased TDD task list |
 | [pre-spec.md](./pre-spec.md) | Detailed HOW draft |
-
-## Next command
-
-```text
-/speckit.tasks
-```
-
-Generates dependency-ordered `tasks.md` for phased TDD implementation.

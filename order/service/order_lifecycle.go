@@ -15,6 +15,7 @@ import (
 	"ecommerce-be/order/mapper"
 	"ecommerce-be/order/model"
 	orderUtils "ecommerce-be/order/utils"
+	promotionModel "ecommerce-be/promotion/model"
 )
 
 const reservationExpiresInMinutes = 5
@@ -175,6 +176,32 @@ func (s *OrderServiceImpl) persistOrderSnapshotGraph(
 		return nil, err
 	}
 
+	orderCoupons := factory.BuildOrderAppliedCouponsFromCartSnapshot(
+		order.ID,
+		createCtx.cartSnapshot,
+	)
+	if err := s.orderRepo.CreateOrderAppliedCoupons(txCtx, orderCoupons); err != nil {
+		return nil, err
+	}
+
+	appliedCouponIDs := make([]uint, 0, len(createCtx.cartSnapshot.AppliedCoupons))
+	for _, c := range createCtx.cartSnapshot.AppliedCoupons {
+		appliedCouponIDs = append(appliedCouponIDs, c.DiscountCodeID)
+	}
+	if err := s.cartSvc.RevalidateCouponsForCheckout(
+		txCtx,
+		userID,
+		sellerID,
+		createCtx.lockedCart.ID,
+		appliedCouponIDs,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := s.recordCouponUsagesFromCart(txCtx, order.ID, userID, createCtx.cartSnapshot); err != nil {
+		return nil, err
+	}
+
 	itemPromotions := factory.BuildOrderItemAppliedPromotionsFromCartSnapshot(
 		order.ID,
 		createCtx.cartSnapshot,
@@ -197,6 +224,26 @@ func (s *OrderServiceImpl) persistOrderSnapshotGraph(
 	}
 
 	return order, nil
+}
+
+func (s *OrderServiceImpl) recordCouponUsagesFromCart(
+	txCtx context.Context,
+	orderID, userID uint,
+	cart *model.CartResponse,
+) error {
+	if s.couponApplySvc == nil || cart == nil || len(cart.AppliedCoupons) == 0 {
+		return nil
+	}
+	original := cart.Summary.AfterDiscount + cart.Summary.CouponDiscount
+	records := make([]promotionModel.CouponUsageRecord, 0, len(cart.AppliedCoupons))
+	for _, c := range cart.AppliedCoupons {
+		records = append(records, promotionModel.CouponUsageRecord{
+			DiscountCodeID:      c.DiscountCodeID,
+			DiscountAmountCents: c.Discount + c.ShippingDiscount,
+			OriginalAmountCents: original,
+		})
+	}
+	return s.couponApplySvc.RecordCouponUsages(txCtx, orderID, userID, records)
 }
 
 // buildCreateOrderEntity maps request/cart snapshot totals into the persisted order row.

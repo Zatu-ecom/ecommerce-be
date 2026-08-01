@@ -166,6 +166,9 @@ func (o *cartOperations) buildCartResponseWithItems(
 		cart,
 		items,
 		promoSummary,
+		nil,
+		nil,
+		nil,
 		currencyMap,
 		variantMap,
 	), nil
