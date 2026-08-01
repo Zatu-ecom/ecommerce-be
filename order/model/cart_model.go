@@ -183,13 +183,15 @@ type CartBasicResponse struct {
 
 // AppliedCouponInfo contains coupon details for cart response
 type AppliedCouponInfo struct {
-	ID                uint   `json:"id"`
-	DiscountCodeID    uint   `json:"discountCodeId"`
-	Code              string `json:"code"`
-	Title             string `json:"title"`
-	DiscountType      string `json:"discountType"`
-	Discount          int64  `json:"discount"`
-	DiscountFormatted string `json:"discountFormatted"`
+	ID                        uint   `json:"id"`
+	DiscountCodeID            uint   `json:"discountCodeId"`
+	Code                      string `json:"code"`
+	Title                     string `json:"title"`
+	DiscountType              string `json:"discountType"`
+	Discount                  int64  `json:"discount"`
+	DiscountFormatted         string `json:"discountFormatted"`
+	ShippingDiscount          int64  `json:"shippingDiscount"`
+	ShippingDiscountFormatted string `json:"shippingDiscountFormatted"`
 }
 
 // AvailablePromotionInfo represents a promotion that can be unlocked
@@ -214,6 +216,36 @@ type AppliedPromotionInfo struct {
 	ShippingDiscountFormatted string `json:"shippingDiscountFormatted"`
 }
 
+// CartAvailableCouponsResponse splits applicable vs not-applicable coupons on cart GET
+type CartAvailableCouponsResponse struct {
+	Applicable    []CartAvailableCouponInfo   `json:"applicable"`
+	NotApplicable []CartUnavailableCouponInfo `json:"notApplicable"`
+}
+
+// CartAvailableCouponInfo is a coupon that can currently be applied
+type CartAvailableCouponInfo struct {
+	ID                           uint    `json:"id"`
+	Code                         string  `json:"code"`
+	Title                        string  `json:"title"`
+	DiscountType                 string  `json:"discountType"`
+	Value                        int64   `json:"value"`
+	MaxDiscountAmountCents       *int64  `json:"maxDiscountAmountCents,omitempty"`
+	PotentialDiscount            int64   `json:"potentialDiscount"`
+	PotentialDiscountFormatted   string  `json:"potentialDiscountFormatted"`
+	MinPurchaseAmountCents       *int64  `json:"minPurchaseAmountCents,omitempty"`
+	CanCombineWithOtherDiscounts bool    `json:"canCombineWithOtherDiscounts"`
+	StartsAt                     string  `json:"startsAt"`
+	EndsAt                       *string `json:"endsAt,omitempty"`
+}
+
+// CartUnavailableCouponInfo is a coupon that exists but is not currently applicable
+type CartUnavailableCouponInfo struct {
+	ID     uint   `json:"id"`
+	Code   string `json:"code"`
+	Title  string `json:"title"`
+	Reason string `json:"reason"`
+}
+
 // CartResponse represents the full cart response with pricing, promotions, and coupons
 // Used in Get Cart API
 type CartResponse struct {
@@ -223,4 +255,5 @@ type CartResponse struct {
 	AppliedCoupons      []AppliedCouponInfo           `json:"appliedCoupons"`
 	Summary             CartSummary                   `json:"summary"`
 	AvailablePromotions []AvailablePromotionInfo      `json:"availablePromotions,omitempty"`
+	AvailableCoupons    *CartAvailableCouponsResponse `json:"availableCoupons,omitempty"`
 }

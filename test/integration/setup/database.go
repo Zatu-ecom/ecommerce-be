@@ -79,7 +79,9 @@ func (tc *TestContainer) RunAllMigrations(t *testing.T) {
 		t.Fatalf("Failed to read migrations directory %s: %v", absPath, err)
 	}
 
-	// Filter and sort migration files (exclude seeds directory and README)
+	// Filter and sort migration files (exclude seeds directory and README).
+	// All numbered *.sql files in migrations/ are applied in lexical order
+	// (e.g. 001_… through 028_align_discount_code_and_cart_coupon.sql and beyond).
 	var migrationFiles []string
 	for _, file := range files {
 		if file.IsDir() {

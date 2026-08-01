@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"ecommerce-be/promotion/handler"
+	"ecommerce-be/promotion/repository"
 	"ecommerce-be/promotion/service"
 )
 
@@ -69,8 +70,44 @@ func (f *SingletonFactory) GetSaleHandler() *handler.SaleHandler {
 	return f.handlerFactory.GetSaleHandler()
 }
 
+func (f *SingletonFactory) GetDiscountCodeHandler() *handler.DiscountCodeHandler {
+	return f.handlerFactory.GetDiscountCodeHandler()
+}
+
+func (f *SingletonFactory) GetDiscountCodeProductScopeHandler() *handler.DiscountCodeProductScopeHandler {
+	return f.handlerFactory.GetDiscountCodeProductScopeHandler()
+}
+
+func (f *SingletonFactory) GetDiscountCodeVariantScopeHandler() *handler.DiscountCodeVariantScopeHandler {
+	return f.handlerFactory.GetDiscountCodeVariantScopeHandler()
+}
+
+func (f *SingletonFactory) GetDiscountCodeCategoryScopeHandler() *handler.DiscountCodeCategoryScopeHandler {
+	return f.handlerFactory.GetDiscountCodeCategoryScopeHandler()
+}
+
+func (f *SingletonFactory) GetDiscountCodeCollectionScopeHandler() *handler.DiscountCodeCollectionScopeHandler {
+	return f.handlerFactory.GetDiscountCodeCollectionScopeHandler()
+}
+
 func (f *SingletonFactory) GetSaleService() service.SaleService {
 	return f.serviceFactory.GetSaleService()
+}
+
+func (f *SingletonFactory) GetDiscountCodeService() service.DiscountCodeService {
+	return f.serviceFactory.GetDiscountCodeService()
+}
+
+func (f *SingletonFactory) GetCouponApplyService() service.CouponApplyService {
+	return f.serviceFactory.GetCouponApplyService()
+}
+
+func (f *SingletonFactory) GetDiscountCodeRepository() repository.DiscountCodeRepository {
+	return f.repoFactory.GetDiscountCodeRepository()
+}
+
+func (f *SingletonFactory) GetDiscountCodeUsageRepository() repository.DiscountCodeUsageRepository {
+	return f.repoFactory.GetDiscountCodeUsageRepository()
 }
 
 func (f *SingletonFactory) GetPromotionService() service.PromotionService {

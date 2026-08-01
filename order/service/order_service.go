@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/order/entity"
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/repository"
+	promotionService "ecommerce-be/promotion/service"
 	userModel "ecommerce-be/user/model"
 	userRepository "ecommerce-be/user/repository"
 	userService "ecommerce-be/user/service"
@@ -52,6 +53,7 @@ type OrderServiceImpl struct {
 	inventoryReserveSvc inventoryService.InventoryReservationService
 	addressSvc          userService.AddressService
 	userRepo            userRepository.UserRepository
+	couponApplySvc      promotionService.CouponApplyService
 }
 
 // createOrderContext carries validated inputs and locked resources required to create an order.
@@ -71,6 +73,7 @@ func NewOrderService(
 	inventoryReserveSvc inventoryService.InventoryReservationService,
 	addressSvc userService.AddressService,
 	userRepo userRepository.UserRepository,
+	couponApplySvc promotionService.CouponApplyService,
 ) OrderService {
 	return &OrderServiceImpl{
 		cartSvc:             cartSvc,
@@ -79,5 +82,6 @@ func NewOrderService(
 		inventoryReserveSvc: inventoryReserveSvc,
 		addressSvc:          addressSvc,
 		userRepo:            userRepo,
+		couponApplySvc:      couponApplySvc,
 	}
 }

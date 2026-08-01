@@ -26,7 +26,7 @@ type Cart struct {
 	UserID *uint `json:"userId,omitempty" gorm:"column:user_id;index"`
 	// DeviceID is set for guest carts identified by X-Device-ID. NULL for user carts.
 	// Exactly one of UserID or DeviceID must be non-nil (enforced by DB CHECK constraint chk_cart_owner).
-	DeviceID *string `json:"deviceId,omitempty" gorm:"column:device_id;size:64;index"`
+	DeviceID *string    `json:"deviceId,omitempty" gorm:"column:device_id;size:64;index"`
 	Status   CartStatus `json:"status"   gorm:"column:status;size:20;not null;default:'active'"`
 	OrderID  *uint      `json:"orderId"  gorm:"column:order_id;index"`
 	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
@@ -58,6 +58,10 @@ type CartAppliedCoupon struct {
 	DiscountCodeID uint `json:"discountCodeId" gorm:"column:discount_code_id;not null;index"`
 }
 
+func (CartAppliedCoupon) TableName() string {
+	return "cart_applied_coupon"
+}
+
 // ============================================================================
 // Cart Item Promotion Entity (Many-to-Many: Multiple promotions per cart item)
 // ============================================================================
@@ -69,4 +73,8 @@ type CartItemPromotion struct {
 	db.BaseEntity
 	CartItemID  uint `json:"cartItemId"  gorm:"column:cart_item_id;not null;index"`
 	PromotionID uint `json:"promotionId" gorm:"column:promotion_id;not null;index"`
+}
+
+func (CartItemPromotion) TableName() string {
+	return "cart_item_promotion"
 }

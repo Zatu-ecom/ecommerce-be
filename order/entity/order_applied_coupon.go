@@ -17,3 +17,7 @@ type OrderAppliedCoupon struct {
 	IsCombinable          *bool      `json:"isCombinable"         gorm:"column:is_combinable"`
 	Metadata              db.JSONMap `json:"metadata"             gorm:"column:metadata;type:jsonb;default:'{}'"`
 }
+
+func (OrderAppliedCoupon) TableName() string {
+	return "order_applied_coupon"
+}

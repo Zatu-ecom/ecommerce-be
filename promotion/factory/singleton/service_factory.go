@@ -13,13 +13,19 @@ import (
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	promotionService           service.PromotionService
-	promotionProductService    *service.PromotionProductScopeServiceImpl
-	promotionVariantService    *service.PromotionVariantScopeServiceImpl
-	promotionCategoryService   *service.PromotionCategoryScopeServiceImpl
-	promotionCollectionService *service.PromotionCollectionScopeServiceImpl
-	promotionCronService       service.PromotionCronService
-	saleService                service.SaleService
+	promotionService              service.PromotionService
+	promotionProductService       *service.PromotionProductScopeServiceImpl
+	promotionVariantService       *service.PromotionVariantScopeServiceImpl
+	promotionCategoryService      *service.PromotionCategoryScopeServiceImpl
+	promotionCollectionService    *service.PromotionCollectionScopeServiceImpl
+	promotionCronService          service.PromotionCronService
+	saleService                   service.SaleService
+	discountCodeService           service.DiscountCodeService
+	discountCodeProductService    service.DiscountCodeProductScopeService
+	discountCodeVariantService    service.DiscountCodeVariantScopeService
+	discountCodeCategoryService   service.DiscountCodeCategoryScopeService
+	discountCodeCollectionService service.DiscountCodeCollectionScopeService
+	couponApplyService            service.CouponApplyService
 
 	once sync.Once
 }
@@ -85,6 +91,39 @@ func (f *ServiceFactory) initialize() {
 			fileGateway.NewDisplayGateway(fileSingleton.GetInstance().GetFileReadService()),
 		)
 
+		f.discountCodeService = service.NewDiscountCodeService(
+			f.repoFactory.GetDiscountCodeRepository(),
+			f.repoFactory.GetDiscountCodeUsageRepository(),
+		)
+
+		f.discountCodeProductService = service.NewDiscountCodeProductScopeService(
+			f.repoFactory.GetDiscountCodeProductScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+			productSingleton.GetInstance().GetProductRepository(),
+		)
+		f.discountCodeVariantService = service.NewDiscountCodeVariantScopeService(
+			f.repoFactory.GetDiscountCodeVariantScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+			productSingleton.GetInstance().GetVariantRepository(),
+		)
+		f.discountCodeCategoryService = service.NewDiscountCodeCategoryScopeService(
+			f.repoFactory.GetDiscountCodeCategoryScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
+		f.discountCodeCollectionService = service.NewDiscountCodeCollectionScopeService(
+			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
+
+		f.couponApplyService = service.NewCouponApplyService(
+			f.repoFactory.GetDiscountCodeRepository(),
+			f.repoFactory.GetDiscountCodeUsageRepository(),
+			f.repoFactory.GetDiscountCodeProductScopeRepository(),
+			f.repoFactory.GetDiscountCodeVariantScopeRepository(),
+			f.repoFactory.GetDiscountCodeCategoryScopeRepository(),
+			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
+		)
+
 		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
 	})
 }
@@ -122,4 +161,34 @@ func (f *ServiceFactory) GetPromotionCronService() service.PromotionCronService 
 func (f *ServiceFactory) GetSaleService() service.SaleService {
 	f.initialize()
 	return f.saleService
+}
+
+func (f *ServiceFactory) GetDiscountCodeService() service.DiscountCodeService {
+	f.initialize()
+	return f.discountCodeService
+}
+
+func (f *ServiceFactory) GetDiscountCodeProductScopeService() service.DiscountCodeProductScopeService {
+	f.initialize()
+	return f.discountCodeProductService
+}
+
+func (f *ServiceFactory) GetDiscountCodeVariantScopeService() service.DiscountCodeVariantScopeService {
+	f.initialize()
+	return f.discountCodeVariantService
+}
+
+func (f *ServiceFactory) GetDiscountCodeCategoryScopeService() service.DiscountCodeCategoryScopeService {
+	f.initialize()
+	return f.discountCodeCategoryService
+}
+
+func (f *ServiceFactory) GetDiscountCodeCollectionScopeService() service.DiscountCodeCollectionScopeService {
+	f.initialize()
+	return f.discountCodeCollectionService
+}
+
+func (f *ServiceFactory) GetCouponApplyService() service.CouponApplyService {
+	f.initialize()
+	return f.couponApplyService
 }

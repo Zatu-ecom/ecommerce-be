@@ -13,41 +13,47 @@ import (
 func (s *ReportSuite) TestGetSalesTrends_ThisMonth() {
 	s.cleanupDomainData()
 	now := time.Now()
-	yesterday := now.AddDate(0, 0, -1)
-	twoDaysAgo := now.AddDate(0, 0, -2)
+	loc := now.Location()
+
+	// Use two calendar days guaranteed to fall inside this_month's label range.
+	// On the 1st, "yesterday" is in the prior month and is excluded from
+	// this_month — so anchor to the 1st and 2nd instead of now-1/now.
+	earlierDay := time.Date(now.Year(), now.Month(), 1, 10, 0, 0, 0, loc)
+	laterDay := earlierDay.AddDate(0, 0, 1)
+	if now.Day() > 1 {
+		laterDay = time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, loc)
+		earlierDay = laterDay.AddDate(0, 0, -1)
+	}
 
 	orders := []orderEntity.Order{
-		{
-			// Today: 2 orders, 150 total
-			UserID:      helpers.CustomerUserID,
-			OrderNumber: "ORD-TREND-1",
-			Status:      orderEntity.ORDER_STATUS_COMPLETED,
-			TotalCents:  10000,
-			PlacedAt:    &now,
-		},
-		{
-			UserID:      helpers.CustomerUserID,
-			OrderNumber: "ORD-TREND-2",
-			Status:      orderEntity.ORDER_STATUS_CONFIRMED,
-			TotalCents:  5000,
-			PlacedAt:    &now,
-		},
-		{
-			// Yesterday: 1 order, 50 total
-			UserID:      helpers.Seller2UserID,
-			OrderNumber: "ORD-TREND-3",
-			Status:      orderEntity.ORDER_STATUS_COMPLETED,
-			TotalCents:  5000,
-			PlacedAt:    &yesterday,
-		},
-		{
-			// Two days ago: 1 order, 100 total (Cancelled -> should ignore)
-			UserID:      helpers.Customer2UserID,
-			OrderNumber: "ORD-TREND-4",
-			Status:      orderEntity.ORDER_STATUS_CANCELLED,
-			TotalCents:  10000,
-			PlacedAt:    &twoDaysAgo,
-		},
+		helpers.NewOrderEntity().
+			UserID(helpers.CustomerUserID).
+			OrderNumber("ORD-TREND-1").
+			Completed().
+			TotalCents(10000).
+			PlacedAt(laterDay).
+			Build(),
+		helpers.NewOrderEntity().
+			UserID(helpers.CustomerUserID).
+			OrderNumber("ORD-TREND-2").
+			Confirmed().
+			TotalCents(5000).
+			PlacedAt(laterDay).
+			Build(),
+		helpers.NewOrderEntity().
+			UserID(helpers.Seller2UserID).
+			OrderNumber("ORD-TREND-3").
+			Completed().
+			TotalCents(5000).
+			PlacedAt(earlierDay).
+			Build(),
+		helpers.NewOrderEntity().
+			UserID(helpers.Customer2UserID).
+			OrderNumber("ORD-TREND-4").
+			Cancelled().
+			TotalCents(10000).
+			PlacedAt(laterDay.AddDate(0, 0, -2)).
+			Build(),
 	}
 
 	for _, o := range orders {
@@ -68,27 +74,26 @@ func (s *ReportSuite) TestGetSalesTrends_ThisMonth() {
 	s.Equal(len(responseBody.Data.Labels), len(responseBody.Data.RevenueData))
 	s.Equal(len(responseBody.Data.Labels), len(responseBody.Data.OrderVolumeData))
 
-	// Track the specific dates formatted as YYYY-MM-DD
-	todayStr := now.Format("2006-01-02")
-	yesterdayStr := yesterday.Format("2006-01-02")
+	earlierDayStr := earlierDay.Format("2006-01-02")
+	laterDayStr := laterDay.Format("2006-01-02")
 
-	todayFound := false
-	yesterdayFound := false
+	earlierDayFound := false
+	laterDayFound := false
 
 	for i, label := range responseBody.Data.Labels {
-		if label == todayStr {
-			todayFound = true
+		if label == laterDayStr {
+			laterDayFound = true
 			s.Equal(150.0, responseBody.Data.RevenueData[i])
 			s.Equal(2, responseBody.Data.OrderVolumeData[i])
-		} else if label == yesterdayStr {
-			yesterdayFound = true
+		} else if label == earlierDayStr {
+			earlierDayFound = true
 			s.Equal(50.0, responseBody.Data.RevenueData[i])
 			s.Equal(1, responseBody.Data.OrderVolumeData[i])
 		}
 	}
 
-	s.True(todayFound, "Today's data should be in the trends")
-	s.True(yesterdayFound, "Yesterday's data should be in the trends")
+	s.True(laterDayFound, "Later day's data should be in the trends")
+	s.True(earlierDayFound, "Earlier day's data should be in the trends")
 }
 
 func (s *ReportSuite) TestGetSalesTrends_Today_Hourly() {
@@ -98,27 +103,27 @@ func (s *ReportSuite) TestGetSalesTrends_Today_Hourly() {
 	twentyHoursAgo := now.Add(-20 * time.Hour)
 
 	orders := []orderEntity.Order{
-		{
-			UserID:      helpers.CustomerUserID,
-			OrderNumber: "ORD-HR-1",
-			Status:      orderEntity.ORDER_STATUS_COMPLETED,
-			TotalCents:  20000,
-			PlacedAt:    &now,
-		},
-		{
-			UserID:      helpers.CustomerUserID,
-			OrderNumber: "ORD-HR-2",
-			Status:      orderEntity.ORDER_STATUS_COMPLETED,
-			TotalCents:  10000,
-			PlacedAt:    &twoHoursAgo,
-		},
-		{
-			UserID:      helpers.CustomerUserID,
-			OrderNumber: "ORD-HR-3",
-			Status:      orderEntity.ORDER_STATUS_COMPLETED,
-			TotalCents:  5000,
-			PlacedAt:    &twentyHoursAgo,
-		},
+		helpers.NewOrderEntity().
+			UserID(helpers.CustomerUserID).
+			OrderNumber("ORD-HR-1").
+			Completed().
+			TotalCents(20000).
+			PlacedAt(now).
+			Build(),
+		helpers.NewOrderEntity().
+			UserID(helpers.CustomerUserID).
+			OrderNumber("ORD-HR-2").
+			Completed().
+			TotalCents(10000).
+			PlacedAt(twoHoursAgo).
+			Build(),
+		helpers.NewOrderEntity().
+			UserID(helpers.CustomerUserID).
+			OrderNumber("ORD-HR-3").
+			Completed().
+			TotalCents(5000).
+			PlacedAt(twentyHoursAgo).
+			Build(),
 	}
 
 	for _, o := range orders {

@@ -143,6 +143,17 @@ type OrderPromotionResponse struct {
 	Priority              int    `json:"priority"`
 }
 
+type OrderCouponResponse struct {
+	DiscountCodeID        *uint   `json:"discountCodeId,omitempty"`
+	CouponCode            string  `json:"couponCode"`
+	CouponTitle           *string `json:"couponTitle,omitempty"`
+	DiscountType          string  `json:"discountType"`
+	DiscountValue         *int64  `json:"discountValue,omitempty"`
+	DiscountCents         int64   `json:"discountCents"`
+	ShippingDiscountCents int64   `json:"shippingDiscountCents"`
+	IsCombinable          *bool   `json:"isCombinable,omitempty"`
+}
+
 type OrderResponse struct {
 	ID                uint                     `json:"id"`
 	OrderNumber       string                   `json:"orderNumber"`
@@ -161,6 +172,7 @@ type OrderResponse struct {
 	Items             []OrderItemResponse      `json:"items"`
 	Addresses         []OrderAddressResponse   `json:"addresses"`
 	AppliedPromotions []OrderPromotionResponse `json:"appliedPromotions"`
+	AppliedCoupons    []OrderCouponResponse    `json:"appliedCoupons"`
 }
 
 // OrderListResponse is a lightweight order summary for list APIs.
