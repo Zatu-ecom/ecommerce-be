@@ -67,6 +67,8 @@ func (f *ServiceFactory) initialize() {
 		f.wishlistItemService = service.NewWishlistItemService(
 			f.repoFactory.GetWishlistItemRepository(),
 			f.repoFactory.GetWishlistRepository(),
+			variantRepo,
+			productRepo,
 		)
 
 		// Initialize ProductFileGateway early — both VariantMediaService and
@@ -145,7 +147,7 @@ func (f *ServiceFactory) initialize() {
 			productFileGateway,
 		)
 
-		// Initialize ProductQueryService with VariantQueryService and media service
+		// Initialize ProductQueryService with VariantQueryService, media service, and wishlist service
 		f.productQueryService = service.NewProductQueryService(
 			productRepo,
 			f.variantQueryService,
@@ -154,13 +156,15 @@ func (f *ServiceFactory) initialize() {
 			f.packageOptionService,
 			f.productOptionService,
 			f.productMediaService,
+			f.wishlistItemService,
 		)
 
-		// Initialize WishlistService (needs ProductQueryService for product details)
+		// Initialize WishlistService (needs ProductQueryService + VariantQueryService for product details)
 		f.wishlistService = service.NewWishlistService(
 			f.repoFactory.GetWishlistRepository(),
 			f.repoFactory.GetWishlistItemRepository(),
 			f.productQueryService,
+			f.variantQueryService,
 		)
 
 		// Initialize RecentlyViewedService with repository and ProductQueryService.

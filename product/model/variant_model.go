@@ -19,6 +19,13 @@ type ProductBasicInfo struct {
 	CategoryID uint   `json:"categoryId,omitempty"`
 }
 
+// WishlistItemInfo contains the minimum info the FE needs to remove a wishlist item.
+// variantId is intentionally absent — the parent VariantDetailResponse already has id.
+type WishlistItemInfo struct {
+	WishlistItemID uint `json:"wishlistItemId"`
+	WishlistID     uint `json:"wishlistId"`
+}
+
 // VariantDetailResponse represents detailed variant information
 type VariantDetailResponse struct {
 	ID              uint                    `json:"id"`
@@ -30,6 +37,7 @@ type VariantDetailResponse struct {
 	IsPopular       bool                    `json:"isPopular"`
 	IsDefault       bool                    `json:"isDefault"`
 	IsWishlisted    bool                    `json:"isWishlisted"`
+	WishlistItems   []WishlistItemInfo      `json:"wishlistItems,omitempty"`
 	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
 	// Media is always a JSON array (never null). Items ordered by display_order ASC, id ASC.
 	// Items whose file data cannot be resolved are silently omitted.

@@ -110,7 +110,8 @@ type ProductResponse struct {
 	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
 	IsPopular      bool            `json:"isPopular"`                // At least one variant is popular
 	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
-	IsWishlisted   bool            `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
+	IsWishlisted   bool               `json:"isWishlisted"`               // User-specific: true if any variant is in user's wishlist
+	WishlistItems  []WishlistItemInfo `json:"wishlistItems,omitempty"` // Simple products only: wishlist item IDs for the default placeholder variant
 
 	// Detail product info (for get product by ID)
 	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
