@@ -205,13 +205,17 @@ func (s *DiscountCodeServiceImpl) UpdateStatus(
 		return nil, err
 	}
 
-	if err := s.discountCodeRepo.UpdateActive(ctx, id, req.IsActive); err != nil {
+	if err := s.discountCodeRepo.UpdateActive(ctx, id, sellerID, req.IsActive); err != nil {
 		log.ErrorWithContext(ctx, "Failed to update discount code status", err)
 		return nil, err
 	}
 
 	isActive := req.IsActive
 	code.IsActive = &isActive
+	if !isActive {
+		autoStart := false
+		code.AutoStart = &autoStart
+	}
 	return factory.DiscountCodeEntityToResponse(code), nil
 }
 

@@ -124,7 +124,10 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
 		)
 
-		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
+		f.promotionCronService = service.NewPromotionCronService(
+			promotionRepo,
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
 	})
 }
 

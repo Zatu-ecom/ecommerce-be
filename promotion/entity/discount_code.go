@@ -82,6 +82,10 @@ type DiscountCode struct {
 	// Status
 	IsActive *bool `json:"isActive" gorm:"column:is_active;default:true;index"`
 
+	// Auto transitions (cron), same idea as promotion.auto_start / auto_end
+	AutoStart *bool `json:"autoStart" gorm:"column:auto_start;default:true"`
+	AutoEnd   *bool `json:"autoEnd"   gorm:"column:auto_end;default:true"`
+
 	// Metadata
 	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
 }

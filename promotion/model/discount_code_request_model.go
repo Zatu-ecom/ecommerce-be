@@ -26,6 +26,8 @@ type CreateDiscountCodeRequest struct {
 	StartsAt                     string                 `json:"startsAt" binding:"required"`
 	EndsAt                       *string                `json:"endsAt" binding:"omitempty"`
 	IsActive                     *bool                  `json:"isActive"`
+	AutoStart                    *bool                  `json:"autoStart" binding:"omitempty"`
+	AutoEnd                      *bool                  `json:"autoEnd" binding:"omitempty"`
 	Metadata                     map[string]any         `json:"metadata"`
 }
 
@@ -49,6 +51,8 @@ type UpdateDiscountCodeRequest struct {
 	StartsAt                     *string                 `json:"startsAt" binding:"omitempty"`
 	EndsAt                       *string                 `json:"endsAt" binding:"omitempty"`
 	IsActive                     *bool                   `json:"isActive"`
+	AutoStart                    *bool                   `json:"autoStart" binding:"omitempty"`
+	AutoEnd                      *bool                   `json:"autoEnd" binding:"omitempty"`
 	Metadata                     *map[string]any         `json:"metadata"`
 }
 

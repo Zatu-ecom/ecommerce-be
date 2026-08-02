@@ -29,6 +29,8 @@ type DiscountCodeResponse struct {
 	StartsAt                     string                 `json:"startsAt"`
 	EndsAt                       *string                `json:"endsAt,omitempty"`
 	IsActive                     bool                   `json:"isActive"`
+	AutoStart                    *bool                  `json:"autoStart,omitempty"`
+	AutoEnd                      *bool                  `json:"autoEnd,omitempty"`
 	Metadata                     map[string]any         `json:"metadata,omitempty"`
 	CreatedAt                    string                 `json:"createdAt"`
 	UpdatedAt                    string                 `json:"updatedAt"`

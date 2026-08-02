@@ -47,6 +47,21 @@ func DiscountCodeRequestToEntity(
 		isActive = *req.IsActive
 	}
 
+	autoStart := true
+	if req.AutoStart != nil {
+		autoStart = *req.AutoStart
+	}
+	autoEnd := true
+	if req.AutoEnd != nil {
+		autoEnd = *req.AutoEnd
+	}
+
+	// Mirror promotion "scheduled": future starts_at + auto_start → inactive until cron activates.
+	now := time.Now().UTC()
+	if autoStart && startsAt.After(now) {
+		isActive = false
+	}
+
 	canCombine := false
 	if req.CanCombineWithOtherDiscounts != nil {
 		canCombine = *req.CanCombineWithOtherDiscounts
@@ -78,6 +93,8 @@ func DiscountCodeRequestToEntity(
 		StartsAt:                     &startsAt,
 		EndsAt:                       endsAt,
 		IsActive:                     &isActive,
+		AutoStart:                    &autoStart,
+		AutoEnd:                      &autoEnd,
 		Metadata:                     metadata,
 	}
 
@@ -185,6 +202,18 @@ func ApplyUpdateDiscountCodeRequest(
 	if req.IsActive != nil {
 		existing.IsActive = req.IsActive
 	}
+	if req.AutoStart != nil {
+		existing.AutoStart = req.AutoStart
+	}
+	if req.AutoEnd != nil {
+		existing.AutoEnd = req.AutoEnd
+	}
+	// If dates move into the future and auto-start is on, schedule (inactive) again.
+	autoStart := existing.AutoStart == nil || *existing.AutoStart
+	if autoStart && startsAt.After(time.Now().UTC()) {
+		inactive := false
+		existing.IsActive = &inactive
+	}
 	if req.Metadata != nil {
 		existing.Metadata = db.JSONMap(*req.Metadata)
 	}
@@ -239,6 +268,8 @@ func DiscountCodeEntityToResponse(code *entity.DiscountCode) *model.DiscountCode
 		StartsAt:                     startsAt,
 		EndsAt:                       endsAt,
 		IsActive:                     isActive,
+		AutoStart:                    code.AutoStart,
+		AutoEnd:                      code.AutoEnd,
 		Metadata:                     metadata,
 		CreatedAt:                    code.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:                    code.UpdatedAt.UTC().Format(time.RFC3339),
