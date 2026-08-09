@@ -32,7 +32,7 @@ func (s *DiscountCodeTestSuite) TestCreateDiscountCode() {
 func (s *DiscountCodeTestSuite) TestCreateFixedAmountDiscountCode() {
 	payload := s.defaultDiscountCodePayload("FLAT100")
 	payload["discountType"] = "fixed_amount"
-	payload["value"] = 10000
+	payload["value"] = 100.00 // major units → 10000 cents (INR)
 
 	res := s.sellerClient.Post(s.T(), DiscountCodeAPIEndpoint, payload)
 	s.Require().Equal(http.StatusCreated, res.Code)
@@ -40,7 +40,9 @@ func (s *DiscountCodeTestSuite) TestCreateFixedAmountDiscountCode() {
 	response := helpers.ParseResponse(s.T(), res.Body)
 	dc := response["data"].(map[string]any)["discountCode"].(map[string]any)
 	s.Equal("fixed_amount", dc["discountType"])
-	s.Equal(float64(10000), dc["value"])
+	helpers.AssertMoney(s.T(), dc["value"])
+	helpers.AssertMoneyCents(s.T(), dc["value"], 10000)
+	helpers.AssertMoneyAmount(s.T(), dc["value"], 100.00)
 }
 
 func (s *DiscountCodeTestSuite) TestCreateFreeShippingDiscountCode() {
@@ -54,7 +56,8 @@ func (s *DiscountCodeTestSuite) TestCreateFreeShippingDiscountCode() {
 	response := helpers.ParseResponse(s.T(), res.Body)
 	dc := response["data"].(map[string]any)["discountCode"].(map[string]any)
 	s.Equal("free_shipping", dc["discountType"])
-	s.Equal(float64(0), dc["value"])
+	helpers.AssertMoney(s.T(), dc["value"])
+	helpers.AssertMoneyCents(s.T(), dc["value"], 0)
 }
 
 func (s *DiscountCodeTestSuite) TestCreateBuyXGetYDiscountCode() {

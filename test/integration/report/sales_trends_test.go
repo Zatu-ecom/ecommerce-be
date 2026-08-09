@@ -83,11 +83,11 @@ func (s *ReportSuite) TestGetSalesTrends_ThisMonth() {
 	for i, label := range responseBody.Data.Labels {
 		if label == laterDayStr {
 			laterDayFound = true
-			s.Equal(150.0, responseBody.Data.RevenueData[i])
+			s.Equal(150.0, responseBody.Data.RevenueData[i].Amount)
 			s.Equal(2, responseBody.Data.OrderVolumeData[i])
 		} else if label == earlierDayStr {
 			earlierDayFound = true
-			s.Equal(50.0, responseBody.Data.RevenueData[i])
+			s.Equal(50.0, responseBody.Data.RevenueData[i].Amount)
 			s.Equal(1, responseBody.Data.OrderVolumeData[i])
 		}
 	}
@@ -161,24 +161,24 @@ func (s *ReportSuite) TestGetSalesTrends_Today_Hourly() {
 	for i, label := range responseBody.Data.Labels {
 		switch label {
 		case nowStr:
-			s.Equal(200.0, responseBody.Data.RevenueData[i])
+			s.Equal(200.0, responseBody.Data.RevenueData[i].Amount)
 			s.Equal(1, responseBody.Data.OrderVolumeData[i])
 			nowFound = true
 		case twoHoursAgoStr:
 			if twoHoursAgoInToday {
-				s.Equal(100.0, responseBody.Data.RevenueData[i])
+				s.Equal(100.0, responseBody.Data.RevenueData[i].Amount)
 				s.Equal(1, responseBody.Data.OrderVolumeData[i])
 			} else {
-				s.Equal(0.0, responseBody.Data.RevenueData[i],
+				s.Equal(0.0, responseBody.Data.RevenueData[i].Amount,
 					"2h-ago event is from yesterday; should not count for today")
 				s.Equal(0, responseBody.Data.OrderVolumeData[i])
 			}
 		case twentyHoursAgoStr:
 			if twentyHoursAgoInToday {
-				s.Equal(50.0, responseBody.Data.RevenueData[i])
+				s.Equal(50.0, responseBody.Data.RevenueData[i].Amount)
 				s.Equal(1, responseBody.Data.OrderVolumeData[i])
 			} else {
-				s.Equal(0.0, responseBody.Data.RevenueData[i],
+				s.Equal(0.0, responseBody.Data.RevenueData[i].Amount,
 					"20h-ago event is from yesterday; should not count for today")
 				s.Equal(0, responseBody.Data.OrderVolumeData[i])
 			}
@@ -206,7 +206,7 @@ func (s *ReportSuite) TestGetSalesTrends_EmptyState() {
 
 	// Assert everything is zero since no orders were placed
 	for i := range responseBody.Data.Labels {
-		s.Equal(0.0, responseBody.Data.RevenueData[i])
+		s.Equal(0.0, responseBody.Data.RevenueData[i].Amount)
 		s.Equal(0, responseBody.Data.OrderVolumeData[i])
 	}
 }

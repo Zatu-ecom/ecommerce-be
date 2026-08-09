@@ -1,5 +1,9 @@
 package model
 
+import (
+	commonModel "ecommerce-be/common/model"
+)
+
 // ============================================================================
 // Cart Request Models
 // ============================================================================
@@ -30,12 +34,9 @@ type MergeCartRequest struct {
 // Shared/Base Components (DRY - Don't Repeat Yourself)
 // ============================================================================
 
-// CurrencyInfo contains currency details for display
-type CurrencyInfo struct {
-	Code          string `json:"code"`
-	Symbol        string `json:"symbol"`
-	DecimalDigits int    `json:"decimalDigits"`
-}
+// CurrencyInfo contains currency details for display.
+// Alias of the shared money contract so cart responses stay on one money language.
+type CurrencyInfo = commonModel.CurrencyInfo
 
 // ProductBasicInfo contains minimal product info for cart display
 type ProductBasicInfo struct {
@@ -84,24 +85,23 @@ type CartItemResponse struct {
 
 // ItemAppliedPromotionInfo contains promotion details applied to a cart item
 type ItemAppliedPromotionInfo struct {
-	PromotionID       uint   `json:"promotionId"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	Discount          int64  `json:"discount"`
-	DiscountFormatted string `json:"discountFormatted"`
-	BadgeText         string `json:"badgeText,omitempty"`
-	BadgeColor        string `json:"badgeColor,omitempty"`
+	PromotionID uint              `json:"promotionId"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"`
+	Discount    commonModel.Money `json:"discount"`
+	BadgeText   string            `json:"badgeText,omitempty"`
+	BadgeColor  string            `json:"badgeColor,omitempty"`
 }
 
 // CartItemWithPricingResponse represents a cart item with full pricing details
 // Used in Get Cart response
 type CartItemWithPricingResponse struct {
 	CartItemBase                                      // Embed base fields
-	UnitPrice              int64                      `json:"unitPrice"`
-	LineTotal              int64                      `json:"lineTotal"`
+	UnitPrice              commonModel.Money          `json:"unitPrice"`
+	LineTotal              commonModel.Money          `json:"lineTotal"`
 	AppliedPromotions      []ItemAppliedPromotionInfo `json:"appliedPromotions"`
-	TotalPromotionDiscount int64                      `json:"totalPromotionDiscount"`
-	DiscountedLineTotal    int64                      `json:"discountedLineTotal"`
+	TotalPromotionDiscount commonModel.Money          `json:"totalPromotionDiscount"`
+	DiscountedLineTotal    commonModel.Money          `json:"discountedLineTotal"`
 }
 
 // ============================================================================
@@ -110,9 +110,9 @@ type CartItemWithPricingResponse struct {
 
 // SavingsInfo contains savings summary for display
 type SavingsInfo struct {
-	Amount     int64   `json:"amount"`
-	Percentage float64 `json:"percentage"`
-	Message    string  `json:"message"`
+	Amount     commonModel.Money `json:"amount"`
+	Percentage float64           `json:"percentage"`
+	Message    string            `json:"message"`
 }
 
 // CartSummary contains cart totals for display (used in full cart response)
@@ -120,44 +120,35 @@ type CartSummary struct {
 	ItemCount   int `json:"itemCount"`
 	UniqueItems int `json:"uniqueItems"`
 
-	Subtotal          int64  `json:"subtotal"`
-	SubtotalFormatted string `json:"subtotalFormatted"`
+	Subtotal commonModel.Money `json:"subtotal"`
 
-	PromotionCount             int    `json:"promotionCount"`
-	PromotionDiscount          int64  `json:"promotionDiscount"`
-	PromotionDiscountFormatted string `json:"promotionDiscountFormatted"`
+	PromotionCount    int               `json:"promotionCount"`
+	PromotionDiscount commonModel.Money `json:"promotionDiscount"`
 
-	CouponCount             int    `json:"couponCount"`
-	CouponDiscount          int64  `json:"couponDiscount"`
-	CouponDiscountFormatted string `json:"couponDiscountFormatted"`
+	CouponCount    int               `json:"couponCount"`
+	CouponDiscount commonModel.Money `json:"couponDiscount"`
 
-	TotalDiscount          int64  `json:"totalDiscount"`
-	TotalDiscountFormatted string `json:"totalDiscountFormatted"`
+	TotalDiscount commonModel.Money `json:"totalDiscount"`
 
-	AfterDiscount          int64  `json:"afterDiscount"`
-	AfterDiscountFormatted string `json:"afterDiscountFormatted"`
+	AfterDiscount commonModel.Money `json:"afterDiscount"`
 
-	Tax          int64  `json:"tax"`
-	TaxFormatted string `json:"taxFormatted"`
+	Tax          commonModel.Money  `json:"tax"`
+	Shipping     *commonModel.Money `json:"shipping"`
+	FreeShipping bool               `json:"freeShipping"`
 
-	Shipping          *int64  `json:"shipping"`
-	ShippingFormatted *string `json:"shippingFormatted"`
-	FreeShipping      bool    `json:"freeShipping"`
-
-	Total          int64  `json:"total"`
-	TotalFormatted string `json:"totalFormatted"`
+	Total commonModel.Money `json:"total"`
 
 	Savings *SavingsInfo `json:"savings,omitempty"`
 }
 
 // CartSummaryBrief contains minimal cart summary for header/badge display
 type CartSummaryBrief struct {
-	ItemCount     int          `json:"itemCount"`
-	UniqueItems   int          `json:"uniqueItems"`
-	Subtotal      int64        `json:"subtotal"`
-	Total         int64        `json:"total"`
-	TotalDiscount int64        `json:"totalDiscount"`
-	Currency      CurrencyInfo `json:"currency"`
+	ItemCount     int               `json:"itemCount"`
+	UniqueItems   int               `json:"uniqueItems"`
+	Subtotal      commonModel.Money `json:"subtotal"`
+	Total         commonModel.Money `json:"total"`
+	TotalDiscount commonModel.Money `json:"totalDiscount"`
+	Currency      CurrencyInfo      `json:"currency"`
 }
 
 // ============================================================================
@@ -183,37 +174,32 @@ type CartBasicResponse struct {
 
 // AppliedCouponInfo contains coupon details for cart response
 type AppliedCouponInfo struct {
-	ID                        uint   `json:"id"`
-	DiscountCodeID            uint   `json:"discountCodeId"`
-	Code                      string `json:"code"`
-	Title                     string `json:"title"`
-	DiscountType              string `json:"discountType"`
-	Discount                  int64  `json:"discount"`
-	DiscountFormatted         string `json:"discountFormatted"`
-	ShippingDiscount          int64  `json:"shippingDiscount"`
-	ShippingDiscountFormatted string `json:"shippingDiscountFormatted"`
+	ID               uint              `json:"id"`
+	DiscountCodeID   uint              `json:"discountCodeId"`
+	Code             string            `json:"code"`
+	Title            string            `json:"title"`
+	DiscountType     string            `json:"discountType"`
+	Discount         commonModel.Money `json:"discount"`
+	ShippingDiscount commonModel.Money `json:"shippingDiscount"`
 }
 
 // AvailablePromotionInfo represents a promotion that can be unlocked
 type AvailablePromotionInfo struct {
-	ID                        uint   `json:"id"`
-	Name                      string `json:"name"`
-	Type                      string `json:"type"`
-	Reason                    string `json:"reason"`
-	Requirement               string `json:"requirement,omitempty"`
-	PotentialSavings          int64  `json:"potentialSavings,omitempty"`
-	PotentialSavingsFormatted string `json:"potentialSavingsFormatted,omitempty"`
+	ID               uint              `json:"id"`
+	Name             string            `json:"name"`
+	Type             string            `json:"type"`
+	Reason           string            `json:"reason"`
+	Requirement      string            `json:"requirement,omitempty"`
+	PotentialSavings commonModel.Money `json:"potentialSavings,omitempty"`
 }
 
 // AppliedPromotionInfo represents a promotion applied at cart level
 type AppliedPromotionInfo struct {
-	PromotionID               uint   `json:"promotionId"`
-	Name                      string `json:"name"`
-	Type                      string `json:"type"`
-	Discount                  int64  `json:"discount"`
-	DiscountFormatted         string `json:"discountFormatted"`
-	ShippingDiscount          int64  `json:"shippingDiscount"`
-	ShippingDiscountFormatted string `json:"shippingDiscountFormatted"`
+	PromotionID      uint              `json:"promotionId"`
+	Name             string            `json:"name"`
+	Type             string            `json:"type"`
+	Discount         commonModel.Money `json:"discount"`
+	ShippingDiscount commonModel.Money `json:"shippingDiscount"`
 }
 
 // CartAvailableCouponsResponse splits applicable vs not-applicable coupons on cart GET
@@ -224,18 +210,17 @@ type CartAvailableCouponsResponse struct {
 
 // CartAvailableCouponInfo is a coupon that can currently be applied
 type CartAvailableCouponInfo struct {
-	ID                           uint    `json:"id"`
-	Code                         string  `json:"code"`
-	Title                        string  `json:"title"`
-	DiscountType                 string  `json:"discountType"`
-	Value                        int64   `json:"value"`
-	MaxDiscountAmountCents       *int64  `json:"maxDiscountAmountCents,omitempty"`
-	PotentialDiscount            int64   `json:"potentialDiscount"`
-	PotentialDiscountFormatted   string  `json:"potentialDiscountFormatted"`
-	MinPurchaseAmountCents       *int64  `json:"minPurchaseAmountCents,omitempty"`
-	CanCombineWithOtherDiscounts bool    `json:"canCombineWithOtherDiscounts"`
-	StartsAt                     string  `json:"startsAt"`
-	EndsAt                       *string `json:"endsAt,omitempty"`
+	ID                           uint               `json:"id"`
+	Code                         string             `json:"code"`
+	Title                        string             `json:"title"`
+	DiscountType                 string             `json:"discountType"`
+	Value                        commonModel.Money  `json:"value"`
+	MaxDiscountAmount            *commonModel.Money `json:"maxDiscountAmount,omitempty"`
+	PotentialDiscount            commonModel.Money  `json:"potentialDiscount"`
+	MinPurchaseAmount            *commonModel.Money `json:"minPurchaseAmount,omitempty"`
+	CanCombineWithOtherDiscounts bool               `json:"canCombineWithOtherDiscounts"`
+	StartsAt                     string             `json:"startsAt"`
+	EndsAt                       *string            `json:"endsAt,omitempty"`
 }
 
 // CartUnavailableCouponInfo is a coupon that exists but is not currently applicable

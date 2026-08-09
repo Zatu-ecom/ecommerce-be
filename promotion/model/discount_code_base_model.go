@@ -1,6 +1,8 @@
 package model
 
-import "ecommerce-be/common"
+import (
+	commonModel "ecommerce-be/common/model"
+)
 
 // BaseDiscountCodeScopeRequest contains common fields for all discount-code scope requests
 type BaseDiscountCodeScopeRequest struct {
@@ -10,7 +12,7 @@ type BaseDiscountCodeScopeRequest struct {
 // GetDiscountCodeScopeRequest contains pagination parameters for get requests
 type GetDiscountCodeScopeRequest struct {
 	BaseDiscountCodeScopeRequest
-	common.BaseListParams
+	commonModel.BaseListParams
 }
 
 // BaseDiscountCodeScopeResponse contains common fields for all discount-code scope responses

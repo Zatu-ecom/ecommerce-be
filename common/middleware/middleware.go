@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -139,7 +139,7 @@ func CorrelationID() gin.HandlerFunc {
 
 		// If no correlation ID provided, reject the request
 		if correlationID == "" {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.CORRELATION_ID_REQUIRED_MSG,
@@ -152,7 +152,7 @@ func CorrelationID() gin.HandlerFunc {
 		// Validate correlation ID format (basic validation)
 		correlationID = strings.TrimSpace(correlationID)
 		if len(correlationID) == 0 || len(correlationID) > 100 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.CORRELATION_ID_INVALID_MSG,

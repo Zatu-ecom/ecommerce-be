@@ -3,14 +3,17 @@ package service
 import (
 	"context"
 
-	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
+	commonError "ecommerce-be/common/error"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // VariantService defines the interface for single variant mutation operations (CQRS Command side)
@@ -41,6 +44,7 @@ type VariantServiceImpl struct {
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 	queryService     VariantQueryService
+	userSvc          userService.UserService
 }
 
 // NewVariantService creates a new instance of VariantService
@@ -49,13 +53,40 @@ func NewVariantService(
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 	queryService VariantQueryService,
+	userSvc userService.UserService,
 ) VariantService {
 	return &VariantServiceImpl{
 		variantRepo:      variantRepo,
 		optionService:    optionService,
 		validatorService: validatorService,
 		queryService:     queryService,
+		userSvc:          userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+// Writes always use the seller base currency (never buyer-preferred) per FR-001.
+func (s *VariantServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
+// resolveSellerCurrency resolves the currency for a price write. When the token
+// seller is 0 (admin acting on behalf of a seller), it falls back to the product
+// owner's sellerID so the write is interpreted in the product's base currency.
+func (s *VariantServiceImpl) resolveSellerCurrency(
+	ctx context.Context,
+	product *entity.Product,
+	tokenSellerID uint,
+) (commonModel.CurrencyInfo, error) {
+	sellerID := tokenSellerID
+	if sellerID == 0 && product != nil {
+		sellerID = product.SellerID
+	}
+	return s.sellerCurrency(ctx, sellerID)
 }
 
 /***********************************************
@@ -99,8 +130,18 @@ func (s *VariantServiceImpl) CreateVariant(
 		return nil, err
 	}
 
+	// Resolve the seller's base currency for price interpretation (FR-001).
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create variant entity using factory
-	variant := factory.CreateVariantFromRequest(productID, request)
+	variant, err := factory.CreateVariantFromRequest(productID, request, ccy)
+	if err != nil {
+		// Precision/validation errors from money conversion must be 400, not 500.
+		return nil, commonError.ErrValidation.WithMessage(err.Error())
+	}
 
 	// Store variant option values for response mapping
 	var variantOptionValues []entity.VariantOptionValue
@@ -146,7 +187,7 @@ func (s *VariantServiceImpl) CreateVariant(
 	)
 
 	// Build and return response using factory
-	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+	return factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy), nil
 }
 
 /***********************************************
@@ -175,6 +216,12 @@ func (s *VariantServiceImpl) UpdateVariant(
 		return nil, err
 	}
 
+	// Resolve the seller's base currency for price interpretation (FR-001).
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Transaction with race condition prevention:
 	// Wrap default variant logic and update in single transaction for atomicity
 	err = db.WithTransaction(ctx, func(txCtx context.Context) error {
@@ -187,7 +234,9 @@ func (s *VariantServiceImpl) UpdateVariant(
 		}
 
 		// Update variant using factory
-		variant = factory.UpdateVariantEntity(variant, request)
+		if err := factory.UpdateVariantEntity(variant, request, ccy); err != nil {
+			return commonError.ErrValidation.WithMessage(err.Error())
+		}
 
 		// Save updated variant
 		return s.variantRepo.UpdateVariant(txCtx, variant)
@@ -197,7 +246,7 @@ func (s *VariantServiceImpl) UpdateVariant(
 	}
 
 	// Build and return response directly from updated data (no additional query needed)
-	return s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
+	return s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID, ccy)
 }
 
 /***********************************************
@@ -274,6 +323,7 @@ func (s *VariantServiceImpl) buildVariantDetailResponse(
 	product *entity.Product,
 	productID uint,
 	sellerID uint,
+	ccy commonModel.CurrencyInfo,
 ) (*model.VariantDetailResponse, error) {
 	// Get variant option values
 	variantOptionValues, err := s.variantRepo.GetVariantOptionValues(ctx, variant.ID)
@@ -295,7 +345,7 @@ func (s *VariantServiceImpl) buildVariantDetailResponse(
 	)
 
 	// Build and return response
-	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+	return factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy), nil
 }
 
 // reassignDefaultVariant reassigns default status to another variant when default is deleted

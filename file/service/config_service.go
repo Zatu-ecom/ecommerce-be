@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
@@ -433,6 +433,6 @@ func (s *configService) ListConfigs(
 
 	return &model.ListStorageConfigsResponse{
 		Configs:    items,
-		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
 }

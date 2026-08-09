@@ -75,16 +75,16 @@ const (
 	// Variant-based filter queries
 	FIND_PRICE_RANGE_QUERY = `
 		SELECT 
-			MIN(pv.price) as min_price,
-			MAX(pv.price) as max_price,
+			MIN(pv.price_cents) as min_price_cents,
+			MAX(pv.price_cents) as max_price_cents,
 			COUNT(DISTINCT p.id) as product_count
 		FROM product_variant pv
 		INNER JOIN product p ON p.id = pv.product_id`
 
 	FIND_PRICE_RANGE_BY_SELLER_QUERY = `
 		SELECT 
-			MIN(pv.price) as min_price,
-			MAX(pv.price) as max_price,
+			MIN(pv.price_cents) as min_price_cents,
+			MAX(pv.price_cents) as max_price_cents,
 			COUNT(DISTINCT p.id) as product_count
 		FROM product_variant pv
 		INNER JOIN product p ON p.id = pv.product_id

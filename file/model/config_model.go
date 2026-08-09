@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/file/entity"
 )
@@ -55,7 +55,7 @@ type ProviderResponse struct {
 
 // ListStorageConfigQueryParams represents the incoming filtering and pagination query params
 type ListStorageConfigQueryParams struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	Ids         string              `form:"ids"` // comma-separated
 	ProviderIds string              `form:"providerIds"`
 	IsActive    *bool               `form:"isActive"`
@@ -79,7 +79,7 @@ func (p ListStorageConfigQueryParams) ToFilter() ListStorageConfigFilter {
 
 // ListStorageConfigFilter represents the normalized list options for the repository
 type ListStorageConfigFilter struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	OwnerType   entity.OwnerType
 	OwnerID     *uint
 	IDs         []uint
@@ -106,8 +106,8 @@ type StorageConfigListItem struct {
 
 // ListStorageConfigsResponse represents the paginated response
 type ListStorageConfigsResponse struct {
-	Configs    []StorageConfigListItem   `json:"configs"`
-	Pagination common.PaginationResponse `json:"pagination"`
+	Configs    []StorageConfigListItem        `json:"configs"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }
 
 // TestStorageConfigResponse is returned when a dry-run connectivity check succeeds.

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 )
 
@@ -11,10 +11,10 @@ type CreateDiscountCodeRequest struct {
 	Title                        *string                `json:"title" binding:"omitempty,max=255"`
 	Description                  *string                `json:"description" binding:"omitempty"`
 	DiscountType                 entity.DiscountType    `json:"discountType" binding:"required,oneof=percentage fixed_amount free_shipping buy_x_get_y"`
-	Value                        int64                  `json:"value"`
-	MaxDiscountAmountCents       *int64                 `json:"maxDiscountAmountCents" binding:"omitempty,min=0"`
+	Value                        float64                `json:"value"` // major units for fixed_amount; plain percentage for percentage
+	MaxDiscountAmount            *float64               `json:"maxDiscountAmount" binding:"omitempty,min=0"`
 	AppliesTo                    entity.ScopeType       `json:"appliesTo" binding:"required,oneof=all_products specific_products specific_categories specific_collections specific_variant"`
-	MinPurchaseAmountCents       *int64                 `json:"minPurchaseAmountCents" binding:"omitempty,min=0"`
+	MinPurchaseAmount            *float64               `json:"minPurchaseAmount" binding:"omitempty,min=0"`
 	MinQuantity                  *int                   `json:"minQuantity" binding:"omitempty,min=1"`
 	CustomerEligibility          entity.EligibilityType `json:"customerEligibility" binding:"omitempty,oneof=everyone new_customers specific_segment"`
 	CustomerSegmentID            *uint                  `json:"customerSegmentId" binding:"omitempty"`
@@ -36,10 +36,10 @@ type UpdateDiscountCodeRequest struct {
 	Title                        *string                 `json:"title" binding:"omitempty,max=255"`
 	Description                  *string                 `json:"description" binding:"omitempty"`
 	DiscountType                 *entity.DiscountType    `json:"discountType" binding:"omitempty,oneof=percentage fixed_amount free_shipping buy_x_get_y"`
-	Value                        *int64                  `json:"value" binding:"omitempty"`
-	MaxDiscountAmountCents       *int64                  `json:"maxDiscountAmountCents" binding:"omitempty,min=0"`
+	Value                        *float64                `json:"value" binding:"omitempty"` // major units for fixed_amount; plain percentage for percentage
+	MaxDiscountAmount            *float64                `json:"maxDiscountAmount" binding:"omitempty,min=0"`
 	AppliesTo                    *entity.ScopeType       `json:"appliesTo" binding:"omitempty,oneof=all_products specific_products specific_categories specific_collections specific_variant"`
-	MinPurchaseAmountCents       *int64                  `json:"minPurchaseAmountCents" binding:"omitempty,min=0"`
+	MinPurchaseAmount            *float64                `json:"minPurchaseAmount" binding:"omitempty,min=0"`
 	MinQuantity                  *int                    `json:"minQuantity" binding:"omitempty,min=1"`
 	CustomerEligibility          *entity.EligibilityType `json:"customerEligibility" binding:"omitempty,oneof=everyone new_customers specific_segment"`
 	CustomerSegmentID            *uint                   `json:"customerSegmentId" binding:"omitempty"`
@@ -63,7 +63,7 @@ type UpdateDiscountCodeStatusRequest struct {
 
 // ListDiscountCodesRequest represents query parameters for listing discount codes
 type ListDiscountCodesRequest struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	SellerID     uint
 	IsActive     *bool                `form:"isActive"`
 	DiscountType *entity.DiscountType `form:"discountType"`

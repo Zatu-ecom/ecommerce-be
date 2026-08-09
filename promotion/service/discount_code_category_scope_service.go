@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
@@ -114,7 +114,7 @@ func (s *DiscountCodeCategoryScopeServiceImpl) GetCategories(
 			DiscountCodeID: req.DiscountCodeID,
 		},
 		Categories: make([]model.DiscountCodeCategoryResponse, len(categories)),
-		Pagination: common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}
 
 	for i, c := range categories {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/service"
 	"ecommerce-be/user/utils/constant"
@@ -29,7 +29,7 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -41,7 +41,7 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 	// Get addresses
 	addresses, err := h.addressService.GetAddresses(c, userID.(uint))
 	if err != nil {
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_GET_ADDRESSES_MSG+": "+err.Error(),
@@ -49,7 +49,7 @@ func (h *AddressHandler) GetAddresses(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(
+	commonModel.SuccessResponse(
 		c,
 		http.StatusOK,
 		constant.ADDRESSES_RETRIEVED_MSG,
@@ -64,7 +64,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -76,7 +76,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_ADDRESS_ID_MSG,
@@ -89,7 +89,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	address, err := h.addressService.GetAddressByID(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusNotFound,
 				err.Error(),
@@ -97,7 +97,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_GET_ADDRESSES_MSG+": "+err.Error(),
@@ -105,7 +105,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_RETRIEVED_MSG, map[string]any{
+	commonModel.SuccessResponse(c, http.StatusOK, constant.ADDRESS_RETRIEVED_MSG, map[string]any{
 		constant.ADDRESS_FIELD_NAME: address,
 	})
 }
@@ -115,7 +115,7 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -126,12 +126,12 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 
 	var req model.AddressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   constant.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -144,7 +144,7 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 	// Add address
 	address, err := h.addressService.AddAddress(c, userID.(uint), req)
 	if err != nil {
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_ADD_ADDRESS_MSG+": "+err.Error(),
@@ -152,7 +152,7 @@ func (h *AddressHandler) AddAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(
+	commonModel.SuccessResponse(
 		c,
 		http.StatusCreated,
 		constant.ADDRESS_CREATED_MSG,
@@ -167,7 +167,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -179,7 +179,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_ADDRESS_ID_MSG,
@@ -190,12 +190,12 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 
 	var req model.AddressUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   constant.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -209,7 +209,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	address, err := h.addressService.UpdateAddress(c, addressID, userID.(uint), req)
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusNotFound,
 				err.Error(),
@@ -217,7 +217,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusForbidden,
 			constant.PERMISSION_DENIED_MSG,
@@ -226,7 +226,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_UPDATED_MSG, map[string]any{
+	commonModel.SuccessResponse(c, http.StatusOK, constant.ADDRESS_UPDATED_MSG, map[string]any{
 		constant.ADDRESS_FIELD_NAME: address,
 	})
 }
@@ -236,7 +236,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -248,7 +248,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_ADDRESS_ID_MSG,
@@ -261,7 +261,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	err = h.addressService.DeleteAddress(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusNotFound,
 				err.Error(),
@@ -270,7 +270,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 			return
 		}
 		if err.Error() == constant.CANNOT_DELETE_ONLY_DEFAULT_ADDRESS_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constant.CANNOT_DELETE_DEFAULT_MSG,
@@ -278,7 +278,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_DELETE_ADDRESS_MSG+": "+err.Error(),
@@ -286,7 +286,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.ADDRESS_DELETED_MSG, nil)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.ADDRESS_DELETED_MSG, nil)
 }
 
 // SetDefaultAddress handles setting an address as the default address
@@ -294,7 +294,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -306,7 +306,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 	// Get address ID from path parameter
 	addressID, err := getAddressIDParam(c)
 	if err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_ADDRESS_ID_MSG,
@@ -319,7 +319,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 	address, err := h.addressService.SetDefaultAddress(c, addressID, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.ADDRESS_NOT_FOUND_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusNotFound,
 				err.Error(),
@@ -327,7 +327,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_SET_DEFAULT_ADDRESS_MSG+": "+err.Error(),
@@ -335,7 +335,7 @@ func (h *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(
+	commonModel.SuccessResponse(
 		c,
 		http.StatusOK,
 		constant.DEFAULT_ADDRESS_UPDATED_MSG,

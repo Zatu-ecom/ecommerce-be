@@ -37,7 +37,7 @@ func (s *CartCouponTestSuite) TestScopedCouponAppliesToEligibleItems() {
 	response := s.applyCouponOK("SCOPEHIT")
 	cart := response["data"].(map[string]any)
 	s.Require().Len(cart["appliedCoupons"].([]any), 1)
-	s.Equal(float64(9990), cart["summary"].(map[string]any)["couponDiscount"])
+	s.Equal(int64(9990), helpers.MoneyCents(cart["summary"].(map[string]any)["couponDiscount"]))
 }
 
 func (s *CartCouponTestSuite) TestScopedCouponOnlyDiscountsEligibleLines() {
@@ -55,5 +55,5 @@ func (s *CartCouponTestSuite) TestScopedCouponOnlyDiscountsEligibleLines() {
 	response := s.applyCouponOK("SCOPEMIX")
 	cart := response["data"].(map[string]any)
 	// 10% of eligible line only (99900)
-	s.Equal(float64(9990), cart["summary"].(map[string]any)["couponDiscount"])
+	s.Equal(int64(9990), helpers.MoneyCents(cart["summary"].(map[string]any)["couponDiscount"]))
 }

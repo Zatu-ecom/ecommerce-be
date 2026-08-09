@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 
+	commonModel "ecommerce-be/common/model"
 	inventoryService "ecommerce-be/inventory/service"
 	"ecommerce-be/order/entity"
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/repository"
 	promotionService "ecommerce-be/promotion/service"
+	userFactory "ecommerce-be/user/factory"
 	userModel "ecommerce-be/user/model"
 	userRepository "ecommerce-be/user/repository"
 	userService "ecommerce-be/user/service"
@@ -53,6 +55,7 @@ type OrderServiceImpl struct {
 	inventoryReserveSvc inventoryService.InventoryReservationService
 	addressSvc          userService.AddressService
 	userRepo            userRepository.UserRepository
+	userSvc             userService.UserService
 	couponApplySvc      promotionService.CouponApplyService
 }
 
@@ -66,6 +69,16 @@ type createOrderContext struct {
 	billingAddress  *userModel.AddressResponse
 }
 
+// orderCurrency resolves the seller's base currency for order Money rendering.
+// Order presentation stays in the seller's base currency until FX (FR-010).
+func (s *OrderServiceImpl) orderCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
 func NewOrderService(
 	cartSvc CartService,
 	orderRepo repository.OrderRepository,
@@ -73,6 +86,7 @@ func NewOrderService(
 	inventoryReserveSvc inventoryService.InventoryReservationService,
 	addressSvc userService.AddressService,
 	userRepo userRepository.UserRepository,
+	userSvc userService.UserService,
 	couponApplySvc promotionService.CouponApplyService,
 ) OrderService {
 	return &OrderServiceImpl{
@@ -82,6 +96,7 @@ func NewOrderService(
 		inventoryReserveSvc: inventoryReserveSvc,
 		addressSvc:          addressSvc,
 		userRepo:            userRepo,
+		userSvc:             userSvc,
 		couponApplySvc:      couponApplySvc,
 	}
 }

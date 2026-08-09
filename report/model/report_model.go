@@ -1,11 +1,18 @@
 package model
 
+import (
+	commonModel "ecommerce-be/common/model"
+)
+
+// MetricFloat is a metric with a Money value (for monetary metrics like revenue
+// and average order value) plus trend metadata. Non-monetary float metrics
+// (percentages) stay plain numbers.
 type MetricFloat struct {
-	Value            float64 `json:"value"`
-	FormattedValue   string  `json:"formatted_value"`
-	PercentageChange float64 `json:"percentage_change"`
-	Trend            string  `json:"trend"`
-	ComparisonText   string  `json:"comparison_text"`
+	Value            commonModel.Money `json:"value"`
+	FormattedValue   string            `json:"formatted_value"`
+	PercentageChange float64           `json:"percentage_change"`
+	Trend            string            `json:"trend"`
+	ComparisonText   string            `json:"comparison_text"`
 }
 
 type MetricInt struct {
@@ -24,10 +31,10 @@ type ReportSummaryResponse struct {
 }
 
 type ReportTrendsResponse struct {
-	Interval        string    `json:"interval"`
-	Labels          []string  `json:"labels"`
-	RevenueData     []float64 `json:"revenue_data"`
-	OrderVolumeData []int     `json:"order_volume_data"`
+	Interval        string              `json:"interval"`
+	Labels          []string            `json:"labels"`
+	RevenueData     []commonModel.Money `json:"revenue_data"`
+	OrderVolumeData []int               `json:"order_volume_data"`
 }
 
 type OrderStatusDistribution struct {
@@ -41,11 +48,11 @@ type ReportOrderDistributionResponse struct {
 }
 
 type TopSellingProduct struct {
-	ProductID        string  `json:"product_id"`
-	Name             string  `json:"name"`
-	SKU              string  `json:"sku"`
-	QuantitySold     int     `json:"quantity_sold"`
-	RevenueGenerated float64 `json:"revenue_generated"`
+	ProductID        string            `json:"product_id"`
+	Name             string            `json:"name"`
+	SKU              string            `json:"sku"`
+	QuantitySold     int               `json:"quantity_sold"`
+	RevenueGenerated commonModel.Money `json:"revenue_generated"`
 }
 
 type ReportTopSellersResponse struct {
@@ -59,17 +66,17 @@ type ReportCustomerRetentionResponse struct {
 }
 
 type PromotionPerformanceItem struct {
-	PromotionID      string  `json:"promotion_id"`
-	Name             string  `json:"name"`
-	TimesUsed        int     `json:"times_used"`
-	RevenueGenerated float64 `json:"revenue_generated"`
-	DiscountGiven    float64 `json:"discount_given"`
+	PromotionID      string            `json:"promotion_id"`
+	Name             string            `json:"name"`
+	TimesUsed        int               `json:"times_used"`
+	RevenueGenerated commonModel.Money `json:"revenue_generated"`
+	DiscountGiven    commonModel.Money `json:"discount_given"`
 }
 
 type PromotionGlobalMetrics struct {
-	TotalDiscountAmount       float64 `json:"total_discount_amount"`
-	TotalOrdersWithPromo      int     `json:"total_orders_with_promo"`
-	PromoUsageRatePercentage  float64 `json:"promo_usage_rate_percentage"`
+	TotalDiscountAmount      commonModel.Money `json:"total_discount_amount"`
+	TotalOrdersWithPromo     int               `json:"total_orders_with_promo"`
+	PromoUsageRatePercentage float64           `json:"promo_usage_rate_percentage"`
 }
 
 type ReportPromotionPerformanceResponse struct {

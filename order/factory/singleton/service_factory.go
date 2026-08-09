@@ -67,6 +67,7 @@ func (f *ServiceFactory) initialize() {
 			inventoryReservationSvc,
 			addressSvc,
 			userRepo,
+			userSvc,
 			couponApplySvc,
 		)
 		f.guestCartService = service.NewGuestCartService(

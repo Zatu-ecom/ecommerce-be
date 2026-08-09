@@ -7,6 +7,7 @@ import (
 	fileGateway "ecommerce-be/file/gateway"
 	productSingleton "ecommerce-be/product/factory/singleton"
 	"ecommerce-be/promotion/service"
+	userSingleton "ecommerce-be/user/factory/singleton"
 )
 
 // ServiceFactory manages all service singleton instances
@@ -84,6 +85,7 @@ func (f *ServiceFactory) initialize() {
 			f.promotionCollectionService,
 			collectionProductService,
 			promotionScopeEligibilityServiceFactory,
+			userSingleton.GetInstance().GetUserService(),
 		)
 
 		f.saleService = service.NewSaleService(
@@ -94,6 +96,7 @@ func (f *ServiceFactory) initialize() {
 		f.discountCodeService = service.NewDiscountCodeService(
 			f.repoFactory.GetDiscountCodeRepository(),
 			f.repoFactory.GetDiscountCodeUsageRepository(),
+			userSingleton.GetInstance().GetUserService(),
 		)
 
 		f.discountCodeProductService = service.NewDiscountCodeProductScopeService(
@@ -122,6 +125,7 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetDiscountCodeVariantScopeRepository(),
 			f.repoFactory.GetDiscountCodeCategoryScopeRepository(),
 			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
+			userSingleton.GetInstance().GetUserService(),
 		)
 
 		f.promotionCronService = service.NewPromotionCronService(

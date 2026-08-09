@@ -4,12 +4,12 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/order/entity"
 )
 
 // PaginationResponse alias for common pagination response.
-type PaginationResponse = common.PaginationResponse
+type PaginationResponse = commonModel.PaginationResponse
 
 // ============================================================================
 // Request Models
@@ -37,7 +37,7 @@ type CancelOrderRequest struct {
 
 // ListOrdersRequest is used for query binding from list order endpoints.
 type ListOrdersRequest struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	Status   *string `form:"status"`
 	FromDate *string `form:"fromDate"`
 	ToDate   *string `form:"toDate"`
@@ -46,7 +46,7 @@ type ListOrdersRequest struct {
 
 // ListOrdersFilter is a parsed/sanitized filter object for repository usage.
 type ListOrdersFilter struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	Status   *entity.OrderStatus
 	FromDate *time.Time
 	ToDate   *time.Time
@@ -96,13 +96,13 @@ type OrderCustomerResponse struct {
 }
 
 type ItemPromotionBreakdownResponse struct {
-	PromotionID   *uint  `json:"promotionId"`
-	PromotionName string `json:"promotionName"`
-	PromotionType string `json:"promotionType"`
-	DiscountCents int64  `json:"discountCents"`
-	OriginalCents int64  `json:"originalCents"`
-	FinalCents    int64  `json:"finalCents"`
-	FreeQuantity  int    `json:"freeQuantity"`
+	PromotionID   *uint             `json:"promotionId"`
+	PromotionName string            `json:"promotionName"`
+	PromotionType string            `json:"promotionType"`
+	Discount      commonModel.Money `json:"discount"`
+	Original      commonModel.Money `json:"original"`
+	Final         commonModel.Money `json:"final"`
+	FreeQuantity  int               `json:"freeQuantity"`
 }
 
 type OrderItemResponse struct {
@@ -115,8 +115,8 @@ type OrderItemResponse struct {
 	ImageURL                  *string                          `json:"imageUrl"`
 	ImageFileID               *string                          `json:"imageFileId,omitempty"`
 	Quantity                  int                              `json:"quantity"`
-	UnitPriceCents            int64                            `json:"unitPriceCents"`
-	LineTotalCents            int64                            `json:"lineTotalCents"`
+	UnitPrice                 commonModel.Money                `json:"unitPrice"`
+	LineTotal                 commonModel.Money                `json:"lineTotal"`
 	Attributes                map[string]any                   `json:"attributes"`
 	AppliedPromotionBreakdown []ItemPromotionBreakdownResponse `json:"appliedPromotionBreakdown"`
 }
@@ -134,35 +134,36 @@ type OrderAddressResponse struct {
 }
 
 type OrderPromotionResponse struct {
-	PromotionID           *uint  `json:"promotionId"`
-	PromotionName         string `json:"promotionName"`
-	PromotionType         string `json:"promotionType"`
-	DiscountCents         int64  `json:"discountCents"`
-	ShippingDiscountCents int64  `json:"shippingDiscountCents"`
-	IsStackable           *bool  `json:"isStackable"`
-	Priority              int    `json:"priority"`
+	PromotionID      *uint             `json:"promotionId"`
+	PromotionName    string            `json:"promotionName"`
+	PromotionType    string            `json:"promotionType"`
+	Discount         commonModel.Money `json:"discount"`
+	ShippingDiscount commonModel.Money `json:"shippingDiscount"`
+	IsStackable      *bool             `json:"isStackable"`
+	Priority         int               `json:"priority"`
 }
 
 type OrderCouponResponse struct {
-	DiscountCodeID        *uint   `json:"discountCodeId,omitempty"`
-	CouponCode            string  `json:"couponCode"`
-	CouponTitle           *string `json:"couponTitle,omitempty"`
-	DiscountType          string  `json:"discountType"`
-	DiscountValue         *int64  `json:"discountValue,omitempty"`
-	DiscountCents         int64   `json:"discountCents"`
-	ShippingDiscountCents int64   `json:"shippingDiscountCents"`
-	IsCombinable          *bool   `json:"isCombinable,omitempty"`
+	DiscountCodeID   *uint              `json:"discountCodeId,omitempty"`
+	CouponCode       string             `json:"couponCode"`
+	CouponTitle      *string            `json:"couponTitle,omitempty"`
+	DiscountType     string             `json:"discountType"`
+	DiscountValue    *commonModel.Money `json:"discountValue,omitempty"`
+	Discount         commonModel.Money  `json:"discount"`
+	ShippingDiscount commonModel.Money  `json:"shippingDiscount"`
+	IsCombinable     *bool              `json:"isCombinable,omitempty"`
 }
 
 type OrderResponse struct {
 	ID                uint                     `json:"id"`
 	OrderNumber       string                   `json:"orderNumber"`
 	Status            entity.OrderStatus       `json:"status"`
-	SubtotalCents     int64                    `json:"subtotalCents"`
-	DiscountCents     int64                    `json:"discountCents"`
-	ShippingCents     int64                    `json:"shippingCents"`
-	TaxCents          int64                    `json:"taxCents"`
-	TotalCents        int64                    `json:"totalCents"`
+	Currency          commonModel.CurrencyInfo `json:"currency"`
+	Subtotal          commonModel.Money        `json:"subtotal"`
+	Discount          commonModel.Money        `json:"discount"`
+	Shipping          commonModel.Money        `json:"shipping"`
+	Tax               commonModel.Money        `json:"tax"`
+	Total             commonModel.Money        `json:"total"`
 	FulfillmentType   entity.FulfillmentType   `json:"fulfillmentType"`
 	PlacedAt          *time.Time               `json:"placedAt"`
 	PaidAt            *time.Time               `json:"paidAt"`
@@ -177,17 +178,18 @@ type OrderResponse struct {
 
 // OrderListResponse is a lightweight order summary for list APIs.
 type OrderListResponse struct {
-	ID              uint                   `json:"id"`
-	OrderNumber     string                 `json:"orderNumber"`
-	Status          entity.OrderStatus     `json:"status"`
-	TotalCents      int64                  `json:"totalCents"`
-	SubtotalCents   int64                  `json:"subtotalCents"`
-	DiscountCents   int64                  `json:"discountCents"`
-	FulfillmentType entity.FulfillmentType `json:"fulfillmentType"`
-	PlacedAt        *time.Time             `json:"placedAt"`
-	PaidAt          *time.Time             `json:"paidAt"`
-	CreatedAt       time.Time              `json:"createdAt"`
-	Customer        *OrderCustomerResponse `json:"customer,omitempty"`
+	ID              uint                     `json:"id"`
+	OrderNumber     string                   `json:"orderNumber"`
+	Status          entity.OrderStatus       `json:"status"`
+	Currency        commonModel.CurrencyInfo `json:"currency"`
+	Total           commonModel.Money        `json:"total"`
+	Subtotal        commonModel.Money        `json:"subtotal"`
+	Discount        commonModel.Money        `json:"discount"`
+	FulfillmentType entity.FulfillmentType   `json:"fulfillmentType"`
+	PlacedAt        *time.Time               `json:"placedAt"`
+	PaidAt          *time.Time               `json:"paidAt"`
+	CreatedAt       time.Time                `json:"createdAt"`
+	Customer        *OrderCustomerResponse   `json:"customer,omitempty"`
 }
 
 type UpdateStatusResponse struct {

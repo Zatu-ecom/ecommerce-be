@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
@@ -11,6 +12,8 @@ import (
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	productUtils "ecommerce-be/product/utils"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // ProductQueryService defines the interface for product query operations
@@ -60,6 +63,7 @@ type ProductQueryServiceImpl struct {
 	productOptionService    ProductOptionService
 	productMediaService     ProductMediaService
 	wishlistItemService     WishlistItemService
+	userSvc                 userService.UserService
 }
 
 // NewProductQueryService creates a new instance of ProductQueryService
@@ -72,6 +76,7 @@ func NewProductQueryService(
 	productOptionService ProductOptionService,
 	productMediaService ProductMediaService,
 	wishlistItemService WishlistItemService,
+	userSvc userService.UserService,
 ) *ProductQueryServiceImpl {
 	return &ProductQueryServiceImpl{
 		productRepo:             productRepo,
@@ -82,7 +87,21 @@ func NewProductQueryService(
 		productOptionService:    productOptionService,
 		productMediaService:     productMediaService,
 		wishlistItemService:     wishlistItemService,
+		userSvc:                 userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency. When sellerID is nil it
+// falls back to the first available seller's default (used for anonymous reads).
+func (s *ProductQueryServiceImpl) sellerCurrency(ctx context.Context, sellerID *uint) (commonModel.CurrencyInfo, error) {
+	if sellerID == nil {
+		return commonModel.CurrencyInfo{}, nil
+	}
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, *sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }
 
 /*
@@ -98,6 +117,24 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 ) (*model.ProductsResponse, error) {
 	// Validate and set default pagination values
 	page, limit = s.validatePaginationParams(page, limit)
+
+	// Convert major-unit price filters to cents using the seller's currency.
+	if filter.MinPrice != nil || filter.MaxPrice != nil {
+		ccy, err := s.sellerCurrency(ctx, filter.SellerID)
+		if err != nil {
+			return nil, err
+		}
+		if filter.MinPrice != nil {
+			if cents, err := ccy.ToCents(*filter.MinPrice); err == nil {
+				filter.MinPriceCents = &cents
+			}
+		}
+		if filter.MaxPrice != nil {
+			if cents, err := ccy.ToCents(*filter.MaxPrice); err == nil {
+				filter.MaxPriceCents = &cents
+			}
+		}
+	}
 
 	// Fetch products from repository with filters
 	products, total, err := s.productRepo.FindAll(ctx, filter, page, limit)
@@ -195,7 +232,12 @@ func (s *ProductQueryServiceImpl) buildProductResponsesWithVariants(
 			continue
 		}
 
-		productResp := factory.BuildProductResponse(&product, variantAgg)
+		ccy, err := s.sellerCurrency(ctx, &product.SellerID)
+		if err != nil {
+			return nil, err
+		}
+
+		productResp := factory.BuildProductResponse(&product, variantAgg, ccy)
 
 		// Attach media; always set a non-nil slice so JSON encodes [] not null.
 		media := mediaByProductID[product.ID]
@@ -251,8 +293,15 @@ func (s *ProductQueryServiceImpl) buildDetailedProductResponse(
 		return nil, err
 	}
 
+	// Resolve the product's seller currency for Money rendering.
+	sid := product.SellerID
+	ccy, err := s.sellerCurrency(ctx, &sid)
+	if err != nil {
+		return nil, err
+	}
+
 	// Use factory to build base product response with variant aggregation
-	response := factory.BuildProductResponse(product, variantAgg)
+	response := factory.BuildProductResponse(product, variantAgg, ccy)
 
 	// Enhance with additional details for the detailed view
 	attrResponse, err := s.productAttributeService.GetProductAttributes(ctx, product.ID)
@@ -346,6 +395,26 @@ func (s *ProductQueryServiceImpl) SearchProducts(
 	// Validate and set default pagination values
 	page, limit = s.validatePaginationParams(page, limit)
 
+	// Convert major-unit price filters to cents using the seller's currency.
+	// The search filters carry minPrice/maxPrice as major units; the repository
+	// compares price_cents, so the conversion happens here.
+	if sellerID, ok := filters["sellerId"].(uint); ok {
+		ccy, err := s.sellerCurrency(ctx, &sellerID)
+		if err != nil {
+			return nil, err
+		}
+		if minPrice, ok := filters["minPrice"].(float64); ok && minPrice > 0 {
+			if cents, err := ccy.ToCents(minPrice); err == nil {
+				filters["minPrice"] = cents
+			}
+		}
+		if maxPrice, ok := filters["maxPrice"].(float64); ok && maxPrice > 0 {
+			if cents, err := ccy.ToCents(maxPrice); err == nil {
+				filters["maxPrice"] = cents
+			}
+		}
+	}
+
 	// Fetch products from repository with search query and filters
 	products, total, err := s.productRepo.Search(ctx, query, filters, page, limit)
 	if err != nil {
@@ -397,11 +466,16 @@ func (s *ProductQueryServiceImpl) GetProductFilters(
 	}
 
 	// Build filters using factory methods
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	filters := &model.ProductFilters{
 		Brands:       factory.BuildBrandFilters(brands),
 		Categories:   s.buildCategoryFiltersHierarchy(categories),
 		Attributes:   factory.BuildAttributeFilters(attributes),
-		PriceRange:   factory.BuildPriceRangeFilter(priceRange),
+		PriceRange:   factory.BuildPriceRangeFilter(priceRange, ccy),
 		VariantTypes: factory.BuildVariantTypeFilters(variantOptions),
 		StockStatus:  factory.BuildStockStatusFilter(stockStatus),
 	}
@@ -552,7 +626,12 @@ func (s *ProductQueryServiceImpl) buildRelatedProductItems(
 	for _, result := range scoredResults {
 		scoredItem := factory.BuildRelatedProductItemScored(&result)
 		if agg, ok := aggregations[result.ProductID]; ok {
-			factory.ApplyCommerceFieldsFromAggregation(&scoredItem.ProductResponse, agg)
+			sid := result.SellerID
+			ccy, err := s.sellerCurrency(ctx, &sid)
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			factory.ApplyCommerceFieldsFromAggregation(&scoredItem.ProductResponse, agg, ccy)
 		}
 		relatedItems = append(relatedItems, scoredItem)
 		strategiesUsedMap[result.StrategyUsed] = true

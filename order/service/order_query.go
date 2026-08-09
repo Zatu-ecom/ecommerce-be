@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/order/entity"
 	orderError "ecommerce-be/order/error"
 	"ecommerce-be/order/factory"
@@ -34,7 +34,15 @@ func (s *OrderServiceImpl) GetOrderByID(
 	if shouldIncludeCustomer(role) {
 		customer, _ = s.buildOrderCustomer(ctx, order.UserID)
 	}
-	return factory.BuildOrderResponseFromEntity(order, customer), nil
+	sellerID := uint(0)
+	if order.SellerID != nil {
+		sellerID = *order.SellerID
+	}
+	ccy, err := s.orderCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.BuildOrderResponseFromEntity(order, customer, ccy), nil
 }
 
 // ListOrders fetches role-scoped order summaries with common pagination.
@@ -67,13 +75,22 @@ func (s *OrderServiceImpl) ListOrders(
 	out := make([]model.OrderListResponse, 0, len(orders))
 	includeCustomer := shouldIncludeCustomer(role)
 	for _, order := range orders {
+		sellerID := uint(0)
+		if order.SellerID != nil {
+			sellerID = *order.SellerID
+		}
+		ccy, err := s.orderCurrency(ctx, sellerID)
+		if err != nil {
+			return nil, err
+		}
 		row := model.OrderListResponse{
 			ID:              order.ID,
 			OrderNumber:     order.OrderNumber,
 			Status:          order.Status,
-			TotalCents:      order.TotalCents,
-			SubtotalCents:   order.SubtotalCents,
-			DiscountCents:   order.DiscountCents,
+			Currency:        ccy,
+			Total:           commonModel.NewMoney(order.TotalCents, ccy),
+			Subtotal:        commonModel.NewMoney(order.SubtotalCents, ccy),
+			Discount:        commonModel.NewMoney(order.DiscountCents, ccy),
 			FulfillmentType: order.FulfillmentType,
 			PlacedAt:        order.PlacedAt,
 			PaidAt:          order.PaidAt,
@@ -88,7 +105,7 @@ func (s *OrderServiceImpl) ListOrders(
 
 	return &model.PaginatedOrdersResponse{
 		Orders:     out,
-		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
 }
 

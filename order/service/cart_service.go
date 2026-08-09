@@ -466,7 +466,7 @@ func (s *CartServiceImpl) buildPromotionRequest(
 			return nil, orderError.ErrVariantNotFound
 		}
 
-		variantPriceCents := int64(variant.Price * 100) // Convert floating price format to cents
+		variantPriceCents := variant.Price.AmountCents // Already integer minor units (money standardization)
 		lineTotal := variantPriceCents * int64(item.Quantity)
 		promoReq.SubtotalCents += lineTotal
 

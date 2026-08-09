@@ -26,7 +26,7 @@ func (s *OrderSuite) TestCheckoutSnapshotsAppliedCouponAndRecordsUsage() {
 	applied := coupons[0].(map[string]any)
 	s.Equal("CHKOUT10", applied["couponCode"])
 	s.Equal("percentage", applied["discountType"])
-	s.Greater(applied["discountCents"].(float64), float64(0))
+	s.Greater(helpers.MoneyCents(applied["discount"]), int64(0))
 
 	var snap orderEntity.OrderAppliedCoupon
 	s.Require().NoError(
@@ -62,8 +62,8 @@ func (s *OrderSuite) TestCheckoutOrderDiscountIncludesCoupon() {
 	s.applyCoupon("CHKDISC")
 
 	orderData := s.createOrderOK()
-	s.Greater(orderData["discountCents"].(float64), float64(0))
-	s.Greater(orderData["subtotalCents"].(float64), orderData["totalCents"].(float64))
+	s.Greater(helpers.MoneyCents(orderData["discount"]), int64(0))
+	s.Greater(helpers.MoneyCents(orderData["subtotal"]), helpers.MoneyCents(orderData["total"]))
 }
 
 func (s *OrderSuite) TestConvertedCartCouponsNotOnNewActiveCart() {

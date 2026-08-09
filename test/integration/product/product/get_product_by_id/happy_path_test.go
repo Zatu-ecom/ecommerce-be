@@ -253,8 +253,8 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 		// Verify price range
 		priceRange := product["priceRange"].(map[string]any)
-		minPrice := priceRange["min"].(float64)
-		maxPrice := priceRange["max"].(float64)
+		minPrice := moneyAmount(priceRange["min"])
+		maxPrice := moneyAmount(priceRange["max"])
 		assert.True(t, minPrice <= maxPrice, "Min price should be <= max price")
 	})
 
@@ -293,7 +293,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 				assert.NotNil(t, packageOption["quantity"], "Package option should have quantity")
 
 				// Verify price is positive
-				price := packageOption["price"].(float64)
+				price := moneyAmount(packageOption["price"])
 				assert.True(t, price > 0, "Package option price should be positive")
 			}
 		}
@@ -360,7 +360,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		assert.Equal(t, false, product["hasVariants"])
-		assert.Equal(t, 55.50, product["price"])
+		assert.Equal(t, 55.50, moneyAmount(product["price"]))
 		assert.Equal(t, true, product["allowPurchase"])
 
 		variants, ok := product["variants"].([]any)

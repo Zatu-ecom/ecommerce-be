@@ -81,8 +81,10 @@ func (b *DiscountCodePayloadBuilder) EndsAt(rfc3339 string) *DiscountCodePayload
 	return b
 }
 
+// MinPurchaseCents sets the minimum purchase threshold. It accepts cents and
+// converts to major units for the API (seller currency = INR 2dp in tests).
 func (b *DiscountCodePayloadBuilder) MinPurchaseCents(cents int64) *DiscountCodePayloadBuilder {
-	b.payload["minPurchaseAmountCents"] = cents
+	b.payload["minPurchaseAmount"] = float64(cents) / 100.0
 	return b
 }
 

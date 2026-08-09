@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/config"
+	commonModel "ecommerce-be/common/model"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -17,7 +17,7 @@ type WishlistService interface {
 	GetWishlistByID(
 		ctx context.Context,
 		userID, wishlistID uint,
-		params common.BaseListParams,
+		params commonModel.BaseListParams,
 	) (*model.WishlistDetailResponse, error)
 	CreateWishlist(
 		ctx context.Context,
@@ -74,7 +74,7 @@ func (s *WishlistServiceImpl) GetAllWishlists(
 func (s *WishlistServiceImpl) GetWishlistByID(
 	ctx context.Context,
 	userID, wishlistID uint,
-	params common.BaseListParams,
+	params commonModel.BaseListParams,
 ) (*model.WishlistDetailResponse, error) {
 	// Get wishlist to verify ownership and get basic info
 	wishlist, err := s.wishlistRepo.FindByID(ctx, wishlistID)
@@ -183,7 +183,7 @@ func (s *WishlistServiceImpl) GetWishlistByID(
 		Name:       wishlist.Name,
 		IsDefault:  wishlist.IsDefault,
 		Items:      wishlistItems,
-		Pagination: common.NewPaginationResponse(page, pageSize, totalItems),
+		Pagination: commonModel.NewPaginationResponse(page, pageSize, totalItems),
 		CreatedAt:  wishlist.CreatedAt,
 		UpdatedAt:  wishlist.UpdatedAt,
 	}, nil

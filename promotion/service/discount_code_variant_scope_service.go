@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	productRepo "ecommerce-be/product/repository"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
@@ -155,7 +155,7 @@ func (s *DiscountCodeVariantScopeServiceImpl) GetVariants(
 				}{
 					productID: v.ProductID,
 					sku:       v.SKU,
-					price:     fmt.Sprintf("%.2f", v.Price),
+					price:     fmt.Sprintf("%.2f", float64(v.PriceCents)/100.0),
 				}
 			}
 		}
@@ -166,7 +166,7 @@ func (s *DiscountCodeVariantScopeServiceImpl) GetVariants(
 			DiscountCodeID: req.DiscountCodeID,
 		},
 		Variants:   make([]model.DiscountCodeVariantResponse, len(rows)),
-		Pagination: common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}
 
 	for i, row := range rows {

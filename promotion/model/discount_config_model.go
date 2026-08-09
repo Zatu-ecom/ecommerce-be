@@ -1,13 +1,15 @@
 package model
 
-// PercentageDiscountConfig represents the configuration for percentage_discount promotion type
+// PercentageDiscountConfig represents the configuration for percentage_discount promotion type.
+// Money fields use *_cents keys (parsed from stored discount_config JSONB).
 type PercentageDiscountConfig struct {
 	Percentage       float64 `json:"percentage"                   binding:"required,min=0.01,max=100"`
 	MaxDiscountCents *int64  `json:"max_discount_cents,omitempty" binding:"omitempty,min=0"`
 	MinOrderCents    *int64  `json:"min_order_cents,omitempty"    binding:"omitempty,min=0"`
 }
 
-// FixedAmountConfig represents the configuration for fixed_amount promotion type
+// FixedAmountConfig represents the configuration for fixed_amount promotion type.
+// AmountCents is parsed from the stored amount_cents JSONB key.
 type FixedAmountConfig struct {
 	AmountCents   int64  `json:"amount_cents"              binding:"required,min=1"`
 	MinOrderCents *int64 `json:"min_order_cents,omitempty" binding:"omitempty,min=0"`

@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // VariantQueryService defines the interface for variant read operations
@@ -95,6 +98,7 @@ type VariantQueryServiceImpl struct {
 	optionService       ProductOptionService
 	validatorService    ProductValidatorService
 	variantMediaService VariantMediaService
+	userSvc             userService.UserService
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
@@ -104,6 +108,7 @@ func NewVariantQueryService(
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 	variantMediaService VariantMediaService,
+	userSvc userService.UserService,
 ) VariantQueryService {
 	return &VariantQueryServiceImpl{
 		variantRepo:         variantRepo,
@@ -111,7 +116,17 @@ func NewVariantQueryService(
 		optionService:       optionService,
 		validatorService:    validatorService,
 		variantMediaService: variantMediaService,
+		userSvc:             userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for Money rendering.
+func (s *VariantQueryServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }
 
 // GetVariantByID retrieves detailed information about a specific variant
@@ -213,8 +228,24 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 		optionsResponse,
 	)
 
+	// Resolve the seller's currency for Money rendering.
+	var effectiveSellerID uint
+	if sellerID != nil {
+		effectiveSellerID = *sellerID
+	} else {
+		product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, 0)
+		if err != nil {
+			return nil, err
+		}
+		effectiveSellerID = product.SellerID
+	}
+	ccy, err := s.sellerCurrency(ctx, effectiveSellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build response
-	response := factory.BuildVariantResponse(variant, selectedOptions)
+	response := factory.BuildVariantResponse(variant, selectedOptions, ccy)
 
 	// Check wishlist status if user is logged in
 	if userID != nil {
@@ -245,7 +276,17 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 		return []model.VariantDetailResponse{}, nil
 	}
 
-	responses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+	// Resolve the product's seller currency for Money rendering.
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, 0)
+	if err != nil {
+		return nil, err
+	}
+	ccy, err := s.sellerCurrency(ctx, product.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions, ccy)
 
 	// Batch-enrich with media.
 	variantIDs := make([]uint, len(responses))
@@ -300,9 +341,22 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 		return nil, err
 	}
 
+	// Resolve the effective seller for option scoping and currency. When the
+	// token seller is 0 (admin read), fall back to the product owner.
+	effectiveSellerID := sellerID
+	if effectiveSellerID == 0 && product != nil {
+		effectiveSellerID = product.SellerID
+	}
+
 	// Get product options
-	sellerIDPtr := &sellerID
+	sellerIDPtr := &effectiveSellerID
 	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, sellerIDPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve the seller's currency for Money rendering.
+	ccy, err := s.sellerCurrency(ctx, effectiveSellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +368,7 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 	)
 
 	// Build and return response
-	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+	return factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy), nil
 }
 
 /***********************************************
@@ -344,6 +398,26 @@ func (s *VariantQueryServiceImpl) ListVariants(
 		request.SortOrder = "desc"
 	}
 
+	// Convert major-unit price filters to cents using the seller's currency.
+	var ccy commonModel.CurrencyInfo
+	if sellerID != nil {
+		var err error
+		ccy, err = s.sellerCurrency(ctx, *sellerID)
+		if err != nil {
+			return nil, err
+		}
+		if request.MinPrice != nil {
+			if cents, err := ccy.ToCents(*request.MinPrice); err == nil {
+				request.MinPriceCents = &cents
+			}
+		}
+		if request.MaxPrice != nil {
+			if cents, err := ccy.ToCents(*request.MaxPrice); err == nil {
+				request.MaxPriceCents = &cents
+			}
+		}
+	}
+
 	// Call repository to get filtered variants with options in one query (prevents N+1)
 	variantsWithOptions, total, err := s.variantRepo.ListVariantsWithFilters(
 		ctx,
@@ -356,7 +430,7 @@ func (s *VariantQueryServiceImpl) ListVariants(
 	}
 
 	// Build response using factory method (reduces code duplication)
-	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions, ccy)
 
 	// Check wishlist status for each variant if user is logged in
 	if userID != nil && len(variantResponses) > 0 {

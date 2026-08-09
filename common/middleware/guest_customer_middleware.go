@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +45,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 
 			_, role, exists := auth.GetUserRoleFromContext(c)
 			if !exists {
-				common.ErrorWithCode(
+				commonModel.ErrorWithCode(
 					c,
 					http.StatusForbidden,
 					constants.ROLE_NOT_FOUND_MSG,
@@ -57,7 +57,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 
 			// Only customers can access cart routes
 			if role != constants.CUSTOMER_ROLE_NAME {
-				common.ErrorWithCode(
+				commonModel.ErrorWithCode(
 					c,
 					http.StatusForbidden,
 					"Access denied: customer role required",
@@ -75,7 +75,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 		// Device ID is MANDATORY for guest identification
 		deviceID := c.GetHeader(constants.DEVICE_ID_HEADER)
 		if deviceID == "" || len(strings.TrimSpace(deviceID)) == 0 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.DEVICE_ID_REQUIRED_MSG,
@@ -89,7 +89,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 
 		// Validate device ID length (UUID v4 is 36 chars, allow some flexibility)
 		if len(deviceID) < 8 || len(deviceID) > 64 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.DEVICE_ID_INVALID_MSG,
@@ -103,7 +103,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 		database := db.GetDB()
 		sellerIDHeader := c.GetHeader(constants.SELLER_ID_HEADER)
 		if sellerIDHeader == "" || len(strings.TrimSpace(sellerIDHeader)) == 0 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.SELLER_ID_REQUIRED_MSG,
@@ -118,7 +118,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 		// Parse seller ID to uint
 		sellerID64, err := strconv.ParseUint(sellerIDHeader, 10, 32)
 		if err != nil || sellerID64 == 0 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.SELLER_ID_INVALID_MSG,
@@ -133,7 +133,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 		// Validate seller using the cached validation method
 		sellerData, validationErr := auth.ValidateSellerCompleteCached(database, sellerID)
 		if validationErr != nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				validationErr.Error(),
@@ -155,7 +155,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 				errorCode = constants.INVALID_SELLER_CODE
 			}
 
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				accessErr.Error(),

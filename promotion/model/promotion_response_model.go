@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 )
 
@@ -19,16 +19,16 @@ type PromotionResponse struct {
 	Description *string `json:"description,omitempty"`
 
 	// Promotion Mechanics
-	PromotionType  entity.PromotionType   `json:"promotionType"`
-	DiscountConfig map[string]any `json:"discountConfig"`
+	PromotionType  entity.PromotionType `json:"promotionType"`
+	DiscountConfig map[string]any       `json:"discountConfig"`
 
 	// Scope
 	AppliesTo entity.ScopeType `json:"appliesTo"`
 
 	// Conditions
-	MinPurchaseAmountCents *int64 `json:"minPurchaseAmountCents,omitempty"`
-	MinQuantity            *int   `json:"minQuantity,omitempty"`
-	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents,omitempty"`
+	MinPurchaseAmount *commonModel.Money `json:"minPurchaseAmount,omitempty"`
+	MinQuantity       *int               `json:"minQuantity,omitempty"`
+	MaxDiscountAmount *commonModel.Money `json:"maxDiscountAmount,omitempty"`
 
 	// Customer Eligibility
 	EligibleFor       entity.EligibilityType `json:"eligibleFor"`
@@ -80,6 +80,6 @@ type PromotionResponse struct {
 
 // ListPromotionsResponse represents the paginated response for listing promotions
 type ListPromotionsResponse struct {
-	Promotions []*PromotionResponse   `json:"promotions"`
-	Pagination common.PaginationResponse `json:"pagination"`
+	Promotions []*PromotionResponse           `json:"promotions"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }

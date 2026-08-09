@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 )
 
@@ -13,10 +13,10 @@ type DiscountCodeResponse struct {
 	Title                        *string                `json:"title,omitempty"`
 	Description                  *string                `json:"description,omitempty"`
 	DiscountType                 entity.DiscountType    `json:"discountType"`
-	Value                        int64                  `json:"value"`
-	MaxDiscountAmountCents       *int64                 `json:"maxDiscountAmountCents,omitempty"`
+	Value                        any                    `json:"value"` // Money for fixed_amount; plain number for percentage
+	MaxDiscountAmount            *commonModel.Money     `json:"maxDiscountAmount,omitempty"`
 	AppliesTo                    entity.ScopeType       `json:"appliesTo"`
-	MinPurchaseAmountCents       *int64                 `json:"minPurchaseAmountCents,omitempty"`
+	MinPurchaseAmount            *commonModel.Money     `json:"minPurchaseAmount,omitempty"`
 	MinQuantity                  *int                   `json:"minQuantity,omitempty"`
 	CustomerEligibility          entity.EligibilityType `json:"customerEligibility"`
 	CustomerSegmentID            *uint                  `json:"customerSegmentId,omitempty"`
@@ -38,6 +38,6 @@ type DiscountCodeResponse struct {
 
 // ListDiscountCodesResponse is the paginated list response for discount codes
 type ListDiscountCodesResponse struct {
-	DiscountCodes []DiscountCodeResponse    `json:"discountCodes"`
-	Pagination    common.PaginationResponse `json:"pagination"`
+	DiscountCodes []DiscountCodeResponse         `json:"discountCodes"`
+	Pagination    commonModel.PaginationResponse `json:"pagination"`
 }

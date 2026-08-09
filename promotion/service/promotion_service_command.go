@@ -24,6 +24,29 @@ func (s *PromotionServiceImpl) CreatePromotion(
 ) (*model.PromotionResponse, error) {
 	log.InfoWithContext(ctx, "Creating new promotion")
 
+	// Resolve seller currency and convert major-unit config money keys to cents
+	// (strategies read *_cents keys from discount_config JSONB).
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	config := req.DiscountConfig
+	if config == nil {
+		config = map[string]any{}
+	}
+	// Fold request-level thresholds into the config so they persist with the JSONB.
+	if req.MinPurchaseAmount != nil {
+		config["min_purchase_amount"] = *req.MinPurchaseAmount
+	}
+	if req.MaxDiscountAmount != nil {
+		config["max_discount_amount"] = *req.MaxDiscountAmount
+	}
+	convertedConfig, err := factory.ConvertConfigMoneyToCents(config, ccy)
+	if err != nil {
+		return nil, commonError.ErrValidation.WithMessage(err.Error())
+	}
+	req.DiscountConfig = convertedConfig
+
 	// Validate discount config using strategy pattern
 	strategy := promotionStrategy.GetPromotionStrategy(req.PromotionType)
 	if strategy == nil {
@@ -79,7 +102,7 @@ func (s *PromotionServiceImpl) CreatePromotion(
 	log.InfoWithContext(ctx, "Promotion created successfully")
 
 	// Convert entity to response
-	response := factory.PromotionEntityToResponse(promotion)
+	response := factory.PromotionEntityToResponse(promotion, ccy)
 	return response, nil
 }
 
@@ -91,6 +114,19 @@ func (s *PromotionServiceImpl) UpdatePromotion(
 	sellerID uint,
 ) (*model.PromotionResponse, error) {
 	log.InfoWithContext(ctx, fmt.Sprintf("Updating promotion %d", id))
+
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	// Convert major-unit config money keys to cents before validation/update.
+	if req.DiscountConfig != nil {
+		converted, err := factory.ConvertConfigMoneyToCents(*req.DiscountConfig, ccy)
+		if err != nil {
+			return nil, commonError.ErrValidation.WithMessage(err.Error())
+		}
+		req.DiscountConfig = &converted
+	}
 
 	return db.WithTransactionResult(
 		ctx,
@@ -120,7 +156,7 @@ func (s *PromotionServiceImpl) UpdatePromotion(
 			}
 
 			log.InfoWithContext(txCtx, fmt.Sprintf("Promotion updated successfully: %d", id))
-			return factory.PromotionEntityToResponse(updated), nil
+			return factory.PromotionEntityToResponse(updated, ccy), nil
 		},
 	)
 }
@@ -244,7 +280,11 @@ func (s *PromotionServiceImpl) UpdateStatus(
 	}
 
 	existing.Status = req.Status
-	return factory.PromotionEntityToResponse(existing), nil
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.PromotionEntityToResponse(existing, ccy), nil
 }
 
 // DeletePromotion deletes a promotion and its dependent scope rows in a transaction

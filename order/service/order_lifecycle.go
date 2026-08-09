@@ -136,7 +136,7 @@ func (s *OrderServiceImpl) executeCreateOrderTransaction(
 				return nil, err
 			}
 
-			return s.loadCreateOrderResponse(txCtx, order.ID)
+			return s.loadCreateOrderResponse(txCtx, order.ID, sellerID)
 		},
 	)
 }
@@ -234,12 +234,12 @@ func (s *OrderServiceImpl) recordCouponUsagesFromCart(
 	if s.couponApplySvc == nil || cart == nil || len(cart.AppliedCoupons) == 0 {
 		return nil
 	}
-	original := cart.Summary.AfterDiscount + cart.Summary.CouponDiscount
+	original := cart.Summary.AfterDiscount.AmountCents + cart.Summary.CouponDiscount.AmountCents
 	records := make([]promotionModel.CouponUsageRecord, 0, len(cart.AppliedCoupons))
 	for _, c := range cart.AppliedCoupons {
 		records = append(records, promotionModel.CouponUsageRecord{
 			DiscountCodeID:      c.DiscountCodeID,
-			DiscountAmountCents: c.Discount + c.ShippingDiscount,
+			DiscountAmountCents: c.Discount.AmountCents + c.ShippingDiscount.AmountCents,
 			OriginalAmountCents: original,
 		})
 	}
@@ -255,7 +255,7 @@ func (s *OrderServiceImpl) buildCreateOrderEntity(
 ) *entity.Order {
 	shippingCents := int64(0)
 	if createCtx.cartSnapshot.Summary.Shipping != nil {
-		shippingCents = *createCtx.cartSnapshot.Summary.Shipping
+		shippingCents = createCtx.cartSnapshot.Summary.Shipping.AmountCents
 	}
 	return mapper.BuildOrderEntity(
 		userID,
@@ -263,11 +263,11 @@ func (s *OrderServiceImpl) buildCreateOrderEntity(
 		createCtx.fulfillmentType,
 		createCtx.orderStatus,
 		req.Metadata,
-		createCtx.cartSnapshot.Summary.Subtotal,
-		createCtx.cartSnapshot.Summary.TotalDiscount,
+		createCtx.cartSnapshot.Summary.Subtotal.AmountCents,
+		createCtx.cartSnapshot.Summary.TotalDiscount.AmountCents,
 		shippingCents,
-		createCtx.cartSnapshot.Summary.Tax,
-		createCtx.cartSnapshot.Summary.Total,
+		createCtx.cartSnapshot.Summary.Tax.AmountCents,
+		createCtx.cartSnapshot.Summary.Total.AmountCents,
 		now,
 	)
 }
@@ -309,6 +309,7 @@ func (s *OrderServiceImpl) handleCreateOrderReservation(
 func (s *OrderServiceImpl) loadCreateOrderResponse(
 	txCtx context.Context,
 	orderID uint,
+	sellerID uint,
 ) (*model.OrderResponse, error) {
 	freshOrder, err := s.orderRepo.FindOrderByID(txCtx, orderID)
 	if err != nil {
@@ -317,7 +318,11 @@ func (s *OrderServiceImpl) loadCreateOrderResponse(
 	if freshOrder == nil {
 		return nil, orderError.ErrOrderNotFound
 	}
-	return factory.BuildOrderResponseFromEntity(freshOrder, nil), nil
+	ccy, err := s.orderCurrency(txCtx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.BuildOrderResponseFromEntity(freshOrder, nil, ccy), nil
 }
 
 // UpdateOrderStatus validates transition and applies inventory/cart side effects atomically.

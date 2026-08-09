@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/factory"
@@ -113,7 +113,7 @@ func (s *InventoryQueryServiceImpl) GetInventories(
 	}
 
 	return &model.InventoryResponseWithPagination{
-		PaginationResponse: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		PaginationResponse: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 		Inventories:        responses,
 	}, nil
 }

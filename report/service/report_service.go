@@ -107,6 +107,6 @@ func (s *reportService) GetSalesTrends(
 		return nil, err
 	}
 
-	res := s.salesTrendsBuilder.Build(metrics, periods.CurrStart, periods.CurrEnd, interval)
+	res := s.salesTrendsBuilder.Build(metrics, periods.CurrStart, periods.CurrEnd, interval, factory.ReportCurrency())
 	return res, nil
 }

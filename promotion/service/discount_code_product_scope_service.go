@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	productRepo "ecommerce-be/product/repository"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
@@ -133,7 +133,7 @@ func (s *DiscountCodeProductScopeServiceImpl) GetProducts(
 			DiscountCodeID: req.DiscountCodeID,
 		},
 		Products:   make([]model.DiscountCodeProductResponse, len(products)),
-		Pagination: common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}
 
 	for i, p := range products {

@@ -3,11 +3,11 @@ package handler
 import (
 	"net/http"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	baseHandler "ecommerce-be/common/handler"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
@@ -143,11 +143,11 @@ func (h *ConfigHandler) GetAdapterSchema(c *gin.Context) {
 // ListConfigs handles GET /storage-config
 func (h *ConfigHandler) ListConfigs(c *gin.Context) {
 	if c.Query(constant.FILE_LIST_SELLER_ID_FIELD) != "" {
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.FILE_LIST_VALIDATION_ERR_MSG,
-			[]common.ValidationError{{
+			[]commonModel.ValidationError{{
 				Field:   constant.FILE_LIST_SELLER_ID_FIELD,
 				Message: constant.FILE_LIST_SELLER_ID_ERR_MSG,
 			}},

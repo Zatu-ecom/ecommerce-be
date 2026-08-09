@@ -8,7 +8,7 @@
 
 Standardize all money handling across the platform: clients **send** monetary amounts as major units in the **seller's selected (base) currency**; the backend validates fractional precision against that currency's `decimalDigits`, converts to **integer minor units (cents)**, and persists + calculates **only in cents**; every response returns a **shared nested `Money` object** (`amount` + `amountCents` + `formatted`) plus parent `currency` metadata (`code`/`symbol`/`decimalDigits`). Shared contracts (API envelope, pagination, validation error, `Money`, `CurrencyInfo`) move into a new pure `common/model` package with Java-style encapsulation (type + all methods in one file). Catalog `price` columns become `price_cents`.
 
-Technical approach: build `common/model` first (relocate `common/response.go` contracts + add `money.go`/`currency.go`), add a `user` mapper to `CurrencyInfo`, migrate `product_variant.price`/`package_option.price` → `price_cents` with a `ROUND(price*100)` backfill, then convert product → cart/order → promotion/report money I/O module-by-module with cross-module Testcontainers integration tests per the constitution (TDD, integration-first). Coordinated breaking change with frontend.
+Technical approach: build `common/model` first (relocate `common/response.go` contracts + add `money.go`/`currency.go`), add a `user` mapper to `CurrencyInfo`, migrate `product_variant.price`/`package_option.price` → `price_cents` with a `ROUND(price*100)` backfill, then convert product → cart/order → promotion/report money I/O module-by-module with module-scoped Testcontainers integration tests per the constitution (TDD, integration-first). Coordinated breaking change with frontend.
 
 ## Technical Context
 

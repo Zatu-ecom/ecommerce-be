@@ -1,6 +1,7 @@
 package promotionStrategy
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/factory"
 	"ecommerce-be/promotion/model"
@@ -71,8 +72,10 @@ func ApplyDiscountToSummary(
 	}
 
 	// Append to the top-level applied promotions list (do not replace — stacking is supported)
+	// The cart response builder re-renders Money from the cart's currency, so a
+	// zero CurrencyInfo is fine for this intermediate DTO.
 	summary.AppliedPromotions = append(summary.AppliedPromotions, model.PromotionValidationResult{
-		Promotion:        factory.PromotionEntityToResponse(promotion),
+		Promotion:        factory.PromotionEntityToResponse(promotion, commonModel.CurrencyInfo{}),
 		IsValid:          true,
 		DiscountCents:    totalDiscountCents,
 		ShippingDiscount: shippingDiscount,

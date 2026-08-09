@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/model"
@@ -15,17 +16,37 @@ func NormalizeDiscountCode(code string) string {
 	return strings.ToUpper(strings.TrimSpace(code))
 }
 
+// convertValueToCents interprets a major-unit value in the seller's currency.
+// For percentage discounts the value stays a plain number (FR-009); for
+// fixed_amount it is converted to integer minor units.
+func convertValueToCents(
+	discountType entity.DiscountType,
+	value float64,
+	ccy commonModel.CurrencyInfo,
+) (int64, error) {
+	if discountType == entity.DiscountPercentage {
+		// Percentage stays as-is, stored in the shared value column as a plain number.
+		return int64(value), nil
+	}
+	return ccy.ToCents(value)
+}
+
 // DiscountCodeRequestToEntity maps a create request to a DiscountCode entity.
 func DiscountCodeRequestToEntity(
 	req model.CreateDiscountCodeRequest,
 	sellerID uint,
+	ccy commonModel.CurrencyInfo,
 ) (*entity.DiscountCode, error) {
 	startsAt, endsAt, err := parseDiscountCodeDateRange(req.StartsAt, req.EndsAt)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := validateDiscountCodeValue(req.DiscountType, req.Value, req.Metadata); err != nil {
+	valueCents, err := convertValueToCents(req.DiscountType, req.Value, ccy)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateDiscountCodeValue(req.DiscountType, valueCents, req.Metadata); err != nil {
 		return nil, err
 	}
 
@@ -78,10 +99,10 @@ func DiscountCodeRequestToEntity(
 		Title:                        req.Title,
 		Description:                  req.Description,
 		DiscountType:                 req.DiscountType,
-		Value:                        req.Value,
-		MaxDiscountAmountCents:       req.MaxDiscountAmountCents,
+		Value:                        valueCents,
+		MaxDiscountAmountCents:       majorToCentsPtr(req.MaxDiscountAmount, ccy),
 		AppliesTo:                    req.AppliesTo,
-		MinPurchaseAmountCents:       req.MinPurchaseAmountCents,
+		MinPurchaseAmountCents:       majorToCentsPtr(req.MinPurchaseAmount, ccy),
 		MinQuantity:                  req.MinQuantity,
 		CustomerEligibility:          eligibility,
 		CustomerSegmentID:            req.CustomerSegmentID,
@@ -101,11 +122,25 @@ func DiscountCodeRequestToEntity(
 	return code, nil
 }
 
+// majorToCentsPtr converts an optional major-unit amount to cents via the
+// currency. Invalid precision is returned as an error through the caller.
+func majorToCentsPtr(major *float64, ccy commonModel.CurrencyInfo) *int64 {
+	if major == nil {
+		return nil
+	}
+	cents, err := ccy.ToCents(*major)
+	if err != nil {
+		return nil
+	}
+	return &cents
+}
+
 // ApplyUpdateDiscountCodeRequest applies partial updates onto an existing entity.
 // Code is intentionally immutable and is never changed here.
 func ApplyUpdateDiscountCodeRequest(
 	existing *entity.DiscountCode,
 	req model.UpdateDiscountCodeRequest,
+	ccy commonModel.CurrencyInfo,
 ) (*entity.DiscountCode, error) {
 	discountType := existing.DiscountType
 	if req.DiscountType != nil {
@@ -114,7 +149,11 @@ func ApplyUpdateDiscountCodeRequest(
 
 	value := existing.Value
 	if req.Value != nil {
-		value = *req.Value
+		converted, err := convertValueToCents(discountType, *req.Value, ccy)
+		if err != nil {
+			return nil, err
+		}
+		value = converted
 	}
 
 	metadata := map[string]any(existing.Metadata)
@@ -168,14 +207,18 @@ func ApplyUpdateDiscountCodeRequest(
 	}
 	existing.DiscountType = discountType
 	existing.Value = value
-	if req.MaxDiscountAmountCents != nil {
-		existing.MaxDiscountAmountCents = req.MaxDiscountAmountCents
+	if req.MaxDiscountAmount != nil {
+		if cents := majorToCentsPtr(req.MaxDiscountAmount, ccy); cents != nil {
+			existing.MaxDiscountAmountCents = cents
+		}
 	}
 	if req.AppliesTo != nil {
 		existing.AppliesTo = *req.AppliesTo
 	}
-	if req.MinPurchaseAmountCents != nil {
-		existing.MinPurchaseAmountCents = req.MinPurchaseAmountCents
+	if req.MinPurchaseAmount != nil {
+		if cents := majorToCentsPtr(req.MinPurchaseAmount, ccy); cents != nil {
+			existing.MinPurchaseAmountCents = cents
+		}
 	}
 	if req.MinQuantity != nil {
 		existing.MinQuantity = req.MinQuantity
@@ -223,7 +266,10 @@ func ApplyUpdateDiscountCodeRequest(
 }
 
 // DiscountCodeEntityToResponse maps an entity to the API response model.
-func DiscountCodeEntityToResponse(code *entity.DiscountCode) *model.DiscountCodeResponse {
+func DiscountCodeEntityToResponse(
+	code *entity.DiscountCode,
+	ccy commonModel.CurrencyInfo,
+) *model.DiscountCodeResponse {
 	isActive := true
 	if code.IsActive != nil {
 		isActive = *code.IsActive
@@ -245,6 +291,14 @@ func DiscountCodeEntityToResponse(code *entity.DiscountCode) *model.DiscountCode
 		metadata = map[string]any{}
 	}
 
+	// Value: Money for fixed_amount, plain number for percentage (FR-009).
+	var value any
+	if code.DiscountType == entity.DiscountPercentage {
+		value = float64(code.Value)
+	} else {
+		value = commonModel.NewMoney(code.Value, ccy)
+	}
+
 	return &model.DiscountCodeResponse{
 		ID:                           code.ID,
 		SellerID:                     code.SellerID,
@@ -252,10 +306,10 @@ func DiscountCodeEntityToResponse(code *entity.DiscountCode) *model.DiscountCode
 		Title:                        code.Title,
 		Description:                  code.Description,
 		DiscountType:                 code.DiscountType,
-		Value:                        code.Value,
-		MaxDiscountAmountCents:       code.MaxDiscountAmountCents,
+		Value:                        value,
+		MaxDiscountAmount:            centsToMoneyPtr(code.MaxDiscountAmountCents, ccy),
 		AppliesTo:                    code.AppliesTo,
-		MinPurchaseAmountCents:       code.MinPurchaseAmountCents,
+		MinPurchaseAmount:            centsToMoneyPtr(code.MinPurchaseAmountCents, ccy),
 		MinQuantity:                  code.MinQuantity,
 		CustomerEligibility:          code.CustomerEligibility,
 		CustomerSegmentID:            code.CustomerSegmentID,
@@ -274,6 +328,15 @@ func DiscountCodeEntityToResponse(code *entity.DiscountCode) *model.DiscountCode
 		CreatedAt:                    code.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:                    code.UpdatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+// centsToMoneyPtr wraps an optional cents value as a Money pointer.
+func centsToMoneyPtr(cents *int64, ccy commonModel.CurrencyInfo) *commonModel.Money {
+	if cents == nil {
+		return nil
+	}
+	m := commonModel.NewMoney(*cents, ccy)
+	return &m
 }
 
 func parseDiscountCodeDateRange(startsAt string, endsAt *string) (time.Time, *time.Time, error) {

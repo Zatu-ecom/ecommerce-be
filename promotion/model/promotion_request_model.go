@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 )
 
@@ -14,16 +14,16 @@ type CreatePromotionRequest struct {
 	Description *string `json:"description" binding:"omitempty"`
 
 	// Promotion Mechanics
-	PromotionType  entity.PromotionType   `json:"promotionType"  binding:"required,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
-	DiscountConfig map[string]any `json:"discountConfig" binding:"required"`
+	PromotionType  entity.PromotionType `json:"promotionType"  binding:"required,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
+	DiscountConfig map[string]any       `json:"discountConfig" binding:"required"`
 
 	// Scope
 	AppliesTo entity.ScopeType `json:"appliesTo" binding:"required,oneof=all_products specific_products specific_categories specific_collections"`
 
 	// Conditions
-	MinPurchaseAmountCents *int64 `json:"minPurchaseAmountCents" binding:"omitempty,min=0"`
-	MinQuantity            *int   `json:"minQuantity"            binding:"omitempty,min=1"`
-	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents" binding:"omitempty,min=0"`
+	MinPurchaseAmount *float64 `json:"minPurchaseAmount" binding:"omitempty,min=0"`
+	MinQuantity       *int     `json:"minQuantity"        binding:"omitempty,min=1"`
+	MaxDiscountAmount *float64 `json:"maxDiscountAmount"  binding:"omitempty,min=0"`
 
 	// Customer Eligibility
 	EligibleFor       entity.EligibilityType `json:"eligibleFor"       binding:"omitempty,oneof=everyone new_customers specific_segment"`
@@ -67,14 +67,14 @@ type UpdatePromotionRequest struct {
 	Slug        *string `json:"slug"        binding:"omitempty,max=255"`
 	Description *string `json:"description" binding:"omitempty"`
 
-	PromotionType  *entity.PromotionType   `json:"promotionType"  binding:"omitempty,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
-	DiscountConfig *map[string]any `json:"discountConfig" binding:"omitempty"`
+	PromotionType  *entity.PromotionType `json:"promotionType"  binding:"omitempty,oneof=percentage_discount fixed_amount buy_x_get_y free_shipping bundle tiered flash_sale"`
+	DiscountConfig *map[string]any       `json:"discountConfig" binding:"omitempty"`
 
 	AppliesTo *entity.ScopeType `json:"appliesTo" binding:"omitempty,oneof=all_products specific_products specific_categories specific_collections"`
 
-	MinPurchaseAmountCents *int64 `json:"minPurchaseAmountCents" binding:"omitempty,min=0"`
-	MinQuantity            *int   `json:"minQuantity"            binding:"omitempty,min=1"`
-	MaxDiscountAmountCents *int64 `json:"maxDiscountAmountCents" binding:"omitempty,min=0"`
+	MinPurchaseAmount *float64 `json:"minPurchaseAmount" binding:"omitempty,min=0"`
+	MinQuantity       *int     `json:"minQuantity"        binding:"omitempty,min=1"`
+	MaxDiscountAmount *float64 `json:"maxDiscountAmount"  binding:"omitempty,min=0"`
 
 	EligibleFor       *entity.EligibilityType `json:"eligibleFor"       binding:"omitempty,oneof=everyone new_customers specific_segment"`
 	CustomerSegmentID *uint                   `json:"customerSegmentId" binding:"omitempty"`
@@ -107,7 +107,7 @@ type UpdateStatusRequest struct {
 
 // ListPromotionsRequest represents query parameters for listing promotions
 type ListPromotionsRequest struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	SellerID      uint
 	Status        *entity.CampaignStatus `form:"status"`
 	PromotionType *entity.PromotionType  `form:"promotionType"`

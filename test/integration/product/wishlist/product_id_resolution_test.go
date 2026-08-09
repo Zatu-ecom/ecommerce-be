@@ -52,12 +52,12 @@ func TestProductIDResolutionForWishlistItem(t *testing.T) {
 		(102, 'ResolutionTest Other', 4, 'TestBrand', 'RES-OTHER', 'Other single variant', 'Another single variant product', 2, NOW(), NOW())
 		ON CONFLICT (id) DO NOTHING;
 
-		INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-		(200, 100, 'RES-SINGLE-200', 10.00, true, true, true),
-		(201, 101, 'RES-MULTI-201', 10.00, true, true, true),
-		(202, 101, 'RES-MULTI-202', 15.00, true, false, false),
-		(203, 101, 'RES-MULTI-203', 20.00, true, false, false),
-		(204, 102, 'RES-OTHER-204', 25.00, true, true, true)
+		INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+		(200, 100, 'RES-SINGLE-200', 1000, true, true, true),
+		(201, 101, 'RES-MULTI-201', 1000, true, true, true),
+		(202, 101, 'RES-MULTI-202', 1500, true, false, false),
+		(203, 101, 'RES-MULTI-203', 2000, true, false, false),
+		(204, 102, 'RES-OTHER-204', 2500, true, true, true)
 		ON CONFLICT (id) DO NOTHING;
 
 		SELECT setval('product_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM product), 102));
