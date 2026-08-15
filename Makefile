@@ -1,4 +1,4 @@
-.PHONY: help build build-dev run run-dev stop clean logs test migrate docker-up docker-down docker-restart
+.PHONY: help build build-dev run run-dev stop clean logs test migrate docker-up docker-down docker-restart arch-check
 
 # Default target
 help:
@@ -177,6 +177,17 @@ test-pretty:
 test-json:
 	@echo "🧪 Running tests with JSON output..."
 	go test ./test/integration/... -json 2>&1 | tee test-results.json
+
+# Architecture guard: common/model must remain pure (no domain imports).
+# Money/currency standardization — violates the modular-monolith dependency rule.
+arch-check:
+	@echo "🏗️  Checking common/model has no domain imports..."
+	@if go list -f '{{.ImportPath}} {{.Imports}}' ./common/model | grep -E 'ecommerce-be/(user|product|order|promotion|report|payment|inventory|notification|file|fulfillment|subscription)'; then \
+		echo "❌ common/model must NOT import domain modules"; \
+		exit 1; \
+	else \
+		echo "✅ common/model is pure (no domain imports)"; \
+	fi
 
 # Re-run only failed tests from the last test-all run
 test-failed:

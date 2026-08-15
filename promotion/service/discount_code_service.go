@@ -4,13 +4,15 @@ import (
 	"context"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/factory"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // DiscountCodeService defines seller-facing discount-code CRUD operations.
@@ -48,17 +50,30 @@ type DiscountCodeService interface {
 type DiscountCodeServiceImpl struct {
 	discountCodeRepo repository.DiscountCodeRepository
 	usageRepo        repository.DiscountCodeUsageRepository
+	userSvc          userService.UserService
 }
 
 // NewDiscountCodeService creates a new DiscountCodeService.
 func NewDiscountCodeService(
 	discountCodeRepo repository.DiscountCodeRepository,
 	usageRepo repository.DiscountCodeUsageRepository,
+	userSvc userService.UserService,
 ) DiscountCodeService {
 	return &DiscountCodeServiceImpl{
 		discountCodeRepo: discountCodeRepo,
 		usageRepo:        usageRepo,
+		userSvc:          userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+// Writes always use the seller base currency (never buyer-preferred) per FR-001.
+func (s *DiscountCodeServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }
 
 func (s *DiscountCodeServiceImpl) CreateDiscountCode(
@@ -81,7 +96,12 @@ func (s *DiscountCodeServiceImpl) CreateDiscountCode(
 		return nil, promoErrors.ErrDiscountCodeExists
 	}
 
-	code, err := factory.DiscountCodeRequestToEntity(req, sellerID)
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err := factory.DiscountCodeRequestToEntity(req, sellerID, ccy)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +115,7 @@ func (s *DiscountCodeServiceImpl) CreateDiscountCode(
 		return nil, err
 	}
 
-	return factory.DiscountCodeEntityToResponse(code), nil
+	return factory.DiscountCodeEntityToResponse(code, ccy), nil
 }
 
 func (s *DiscountCodeServiceImpl) UpdateDiscountCode(
@@ -111,7 +131,12 @@ func (s *DiscountCodeServiceImpl) UpdateDiscountCode(
 		return nil, err
 	}
 
-	code, err = factory.ApplyUpdateDiscountCodeRequest(code, req)
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err = factory.ApplyUpdateDiscountCodeRequest(code, req, ccy)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +146,7 @@ func (s *DiscountCodeServiceImpl) UpdateDiscountCode(
 		return nil, err
 	}
 
-	return factory.DiscountCodeEntityToResponse(code), nil
+	return factory.DiscountCodeEntityToResponse(code, ccy), nil
 }
 
 func (s *DiscountCodeServiceImpl) DeleteDiscountCode(
@@ -159,7 +184,11 @@ func (s *DiscountCodeServiceImpl) GetDiscountCodeByID(
 	if err != nil {
 		return nil, err
 	}
-	return factory.DiscountCodeEntityToResponse(code), nil
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.DiscountCodeEntityToResponse(code, ccy), nil
 }
 
 func (s *DiscountCodeServiceImpl) ListDiscountCodes(
@@ -181,14 +210,19 @@ func (s *DiscountCodeServiceImpl) ListDiscountCodes(
 		return nil, err
 	}
 
+	ccy, err := s.sellerCurrency(ctx, req.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	responses := make([]model.DiscountCodeResponse, 0, len(codes))
 	for _, code := range codes {
-		responses = append(responses, *factory.DiscountCodeEntityToResponse(code))
+		responses = append(responses, *factory.DiscountCodeEntityToResponse(code, ccy))
 	}
 
 	return &model.ListDiscountCodesResponse{
 		DiscountCodes: responses,
-		Pagination:    common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination:    commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}, nil
 }
 
@@ -205,14 +239,22 @@ func (s *DiscountCodeServiceImpl) UpdateStatus(
 		return nil, err
 	}
 
-	if err := s.discountCodeRepo.UpdateActive(ctx, id, req.IsActive); err != nil {
+	if err := s.discountCodeRepo.UpdateActive(ctx, id, sellerID, req.IsActive); err != nil {
 		log.ErrorWithContext(ctx, "Failed to update discount code status", err)
 		return nil, err
 	}
 
 	isActive := req.IsActive
 	code.IsActive = &isActive
-	return factory.DiscountCodeEntityToResponse(code), nil
+	if !isActive {
+		autoStart := false
+		code.AutoStart = &autoStart
+	}
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.DiscountCodeEntityToResponse(code, ccy), nil
 }
 
 func (s *DiscountCodeServiceImpl) findOwnedOrNotFound(

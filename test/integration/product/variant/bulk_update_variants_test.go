@@ -81,7 +81,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w2 := client.Get(t, variant2URL)
 		response2 := helpers.AssertSuccessResponse(t, w2, http.StatusOK)
 		variant2Data := helpers.GetResponseData(t, response2, "variant")
-		assert.Equal(t, 1299.99, variant2Data["price"].(float64))
+		assert.Equal(t, 1299.99, moneyAmount(variant2Data["price"]))
 
 		variant3URL := fmt.Sprintf("/api/product/%d/variant/3", productID)
 		w3 := client.Get(t, variant3URL)
@@ -126,7 +126,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		w1 := client.Get(t, variant1URL)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1Data := helpers.GetResponseData(t, response1, "variant")
-		assert.Equal(t, 1099.99, variant1Data["price"].(float64))
+		assert.Equal(t, 1099.99, moneyAmount(variant1Data["price"]))
 
 		variant2URL := fmt.Sprintf("/api/product/%d/variant/2", productID)
 		w2 := client.Get(t, variant2URL)
@@ -174,7 +174,7 @@ func TestBulkUpdateVariants(t *testing.T) {
 		expectedPrices := map[uint]float64{1: 1199.99, 2: 1299.99, 3: 1399.99, 4: 1499.99}
 		for variantID, expectedPrice := range expectedPrices {
 			variantData := getAndVerifyVariant(t, client, uint(productID), variantID)
-			assert.Equal(t, expectedPrice, variantData["price"].(float64))
+			assert.Equal(t, expectedPrice, moneyAmount(variantData["price"]))
 		}
 	})
 
@@ -227,10 +227,10 @@ func TestBulkUpdateVariants(t *testing.T) {
 
 		// Verify prices were updated
 		variant10Data := getAndVerifyVariant(t, client, uint(productID), 10)
-		assert.Equal(t, 29.99, variant10Data["price"].(float64))
+		assert.Equal(t, 29.99, moneyAmount(variant10Data["price"]))
 
 		variant11Data := getAndVerifyVariant(t, client, uint(productID), 11)
-		assert.Equal(t, 31.99, variant11Data["price"].(float64))
+		assert.Equal(t, 31.99, moneyAmount(variant11Data["price"]))
 	})
 
 	t.Run("Success - Update multiple variants with all fields", func(t *testing.T) {

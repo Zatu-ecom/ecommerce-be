@@ -40,8 +40,8 @@ func (s *CartCouponTestSuite) TestStackingAllowsCouponWhenPromoAllowsCoupons() {
 	s.Require().Len(cart["appliedCoupons"].([]any), 1)
 	s.Require().NotEmpty(cart["appliedPromotions"].([]any))
 	summary := cart["summary"].(map[string]any)
-	s.Greater(summary["promotionDiscount"].(float64), float64(0))
-	s.Greater(summary["couponDiscount"].(float64), float64(0))
+	s.Greater(helpers.MoneyCents(summary["promotionDiscount"]), int64(0))
+	s.Greater(helpers.MoneyCents(summary["couponDiscount"]), int64(0))
 }
 
 func (s *CartCouponTestSuite) TestStackingTwoCombinableCoupons() {

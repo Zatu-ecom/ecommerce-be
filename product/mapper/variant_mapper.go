@@ -5,14 +5,15 @@ import "ecommerce-be/product/entity"
 // VariantAggregation represents aggregated variant data for a product.
 // MainImage has been removed — product images are now managed through the
 // product_media table and returned via ProductResponse.Media.
+// Prices are integer minor units (cents).
 type VariantAggregation struct {
 	HasVariants         bool
 	TotalVariants       int
 	OptionDerivedCount  int
 	ProductOptionsCount int
-	DefaultPrice        float64
-	MinPrice            float64
-	MaxPrice            float64
+	DefaultPriceCents   int64
+	MinPriceCents       int64
+	MaxPriceCents       int64
 	AllowPurchase       bool // At least one variant allows purchase
 	IsPopular           bool // At least one variant is popular
 	OptionNames         []string
@@ -60,5 +61,5 @@ type VariantBasicInfoRow struct {
 	CategoryID  uint
 	BaseSKU     string
 	SellerID    uint
-	Price       float64
+	PriceCents  int64
 }

@@ -4,9 +4,20 @@ import (
 	"fmt"
 	"math"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/report/model"
 	"ecommerce-be/report/repository"
 )
+
+// reportCurrency is the default presentation currency for global reports.
+// The report endpoint is global (no seller scope) until seller-scoped reports
+// land; per FR-010 all money presentation uses a consistent currency.
+var reportCurrency = commonModel.CurrencyInfo{Code: "USD", Symbol: "$", DecimalDigits: 2}
+
+// ReportCurrency returns the default presentation currency for global reports.
+func ReportCurrency() commonModel.CurrencyInfo {
+	return reportCurrency
+}
 
 type SummaryResponseBuilder struct{}
 
@@ -18,24 +29,26 @@ func (b *SummaryResponseBuilder) Build(
 	currMetrics, prevMetrics *repository.SummaryMetrics,
 	compText string,
 ) *model.ReportSummaryResponse {
-	var currAOV, prevAOV float64
+	var currAOVCents, prevAOVCents int64
 
 	if currMetrics.TotalOrders > 0 {
-		currAOV = float64(currMetrics.TotalRevenue) / float64(currMetrics.TotalOrders) / 100.0
+		currAOVCents = currMetrics.TotalRevenue / int64(currMetrics.TotalOrders)
 	}
 	if prevMetrics.TotalOrders > 0 {
-		prevAOV = float64(prevMetrics.TotalRevenue) / float64(prevMetrics.TotalOrders) / 100.0
+		prevAOVCents = prevMetrics.TotalRevenue / int64(prevMetrics.TotalOrders)
 	}
 
-	totalRevenueFloat := float64(currMetrics.TotalRevenue) / 100.0
-	prevRevenueFloat := float64(prevMetrics.TotalRevenue) / 100.0
+	currRevenue := commonModel.NewMoney(currMetrics.TotalRevenue, reportCurrency)
+	prevRevenue := commonModel.NewMoney(prevMetrics.TotalRevenue, reportCurrency)
+	currAOV := commonModel.NewMoney(currAOVCents, reportCurrency)
+	prevAOV := commonModel.NewMoney(prevAOVCents, reportCurrency)
 
 	return &model.ReportSummaryResponse{
 		TotalRevenue: model.MetricFloat{
-			Value:            totalRevenueFloat,
-			FormattedValue:   fmt.Sprintf("$%.2f", totalRevenueFloat),
-			PercentageChange: b.calculatePercentageChange(prevRevenueFloat, totalRevenueFloat),
-			Trend:            b.calculateTrend(prevRevenueFloat, totalRevenueFloat),
+			Value:            currRevenue,
+			FormattedValue:   currRevenue.Formatted,
+			PercentageChange: b.calculatePercentageChange(prevRevenue.Amount, currRevenue.Amount),
+			Trend:            b.calculateTrend(prevRevenue.Amount, currRevenue.Amount),
 			ComparisonText:   compText,
 		},
 		TotalOrders: model.MetricInt{
@@ -53,9 +66,9 @@ func (b *SummaryResponseBuilder) Build(
 		},
 		AverageOrderValue: model.MetricFloat{
 			Value:            currAOV,
-			FormattedValue:   fmt.Sprintf("$%.2f", currAOV),
-			PercentageChange: b.calculatePercentageChange(prevAOV, currAOV),
-			Trend:            b.calculateTrend(prevAOV, currAOV),
+			FormattedValue:   currAOV.Formatted,
+			PercentageChange: b.calculatePercentageChange(prevAOV.Amount, currAOV.Amount),
+			Trend:            b.calculateTrend(prevAOV.Amount, currAOV.Amount),
 			ComparisonText:   compText,
 		},
 		TotalCustomers: model.MetricInt{

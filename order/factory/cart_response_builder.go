@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"strconv"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/order/entity"
 	"ecommerce-be/order/model"
 	productModel "ecommerce-be/product/model"
 	promotionModel "ecommerce-be/promotion/model"
+	userFactory "ecommerce-be/user/factory"
 	userModel "ecommerce-be/user/model"
 )
 
@@ -24,20 +26,21 @@ func BuildCartResponse(
 	currencyMap *userModel.CurrencyResponse,
 	variantMap map[uint]productModel.VariantDetailResponse,
 ) *model.CartResponse {
+	ccy := userFactory.ToCurrencyInfo(currencyMap)
 	response := &model.CartResponse{
-		CartBase:            buildCartBase(cart, currencyMap),
-		Summary:             buildCartSummary(len(items), promo, coupon, currencyMap),
+		CartBase:            buildCartBase(cart, ccy),
+		Summary:             buildCartSummary(len(items), promo, coupon, ccy),
 		Items:               make([]model.CartItemWithPricingResponse, len(items)),
-		AppliedPromotions:   buildAppliedPromotions(promo, currencyMap),
-		AppliedCoupons:      buildAppliedCoupons(coupon, appliedRows, currencyMap),
-		AvailablePromotions: buildAvailablePromotions(promo, currencyMap),
-		AvailableCoupons:    buildAvailableCoupons(available, currencyMap),
+		AppliedPromotions:   buildAppliedPromotions(promo, ccy),
+		AppliedCoupons:      buildAppliedCoupons(coupon, appliedRows, ccy),
+		AvailablePromotions: buildAvailablePromotions(promo, ccy),
+		AvailableCoupons:    buildAvailableCoupons(available, ccy),
 	}
 
 	itemPromoMap := buildItemPromotionMap(promo)
 	for i, item := range items {
 		response.Summary.ItemCount += item.Quantity
-		itemResp, err := buildCartItemResponse(item, itemPromoMap, currencyMap, variantMap)
+		itemResp, err := buildCartItemResponse(item, itemPromoMap, ccy, variantMap)
 		if err != nil {
 			return nil
 		}
@@ -50,7 +53,7 @@ func BuildCartResponse(
 
 func buildAppliedPromotions(
 	promo *promotionModel.AppliedPromotionSummary,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) []model.AppliedPromotionInfo {
 	if promo == nil || len(promo.AppliedPromotions) == 0 {
 		return nil
@@ -62,35 +65,20 @@ func buildAppliedPromotions(
 			continue
 		}
 
-		info := model.AppliedPromotionInfo{
+		applied = append(applied, model.AppliedPromotionInfo{
 			PromotionID:      p.Promotion.ID,
 			Name:             p.Promotion.Name,
 			Type:             string(p.Promotion.PromotionType),
-			Discount:         p.DiscountCents,
-			ShippingDiscount: p.ShippingDiscount,
-		}
-		if p.DiscountCents > 0 {
-			info.DiscountFormatted = formatCurrencyWithSymbol(
-				p.DiscountCents,
-				currencyMap.Symbol,
-				currencyMap.DecimalDigits,
-			)
-		}
-		if p.ShippingDiscount > 0 {
-			info.ShippingDiscountFormatted = formatCurrencyWithSymbol(
-				p.ShippingDiscount,
-				currencyMap.Symbol,
-				currencyMap.DecimalDigits,
-			)
-		}
-		applied = append(applied, info)
+			Discount:         commonModel.NewMoney(p.DiscountCents, ccy),
+			ShippingDiscount: commonModel.NewMoney(p.ShippingDiscount, ccy),
+		})
 	}
 	return applied
 }
 
 func buildAvailablePromotions(
 	promo *promotionModel.AppliedPromotionSummary,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) []model.AvailablePromotionInfo {
 	if promo == nil || len(promo.SkippedPromotions) == 0 {
 		return nil
@@ -102,38 +90,26 @@ func buildAvailablePromotions(
 			continue
 		}
 
-		info := model.AvailablePromotionInfo{
+		available = append(available, model.AvailablePromotionInfo{
 			ID:               skipped.Promotion.ID,
 			Name:             skipped.Promotion.Name,
 			Type:             string(skipped.Promotion.PromotionType),
 			Reason:           skipped.Reason,
 			Requirement:      skipped.Requirement,
-			PotentialSavings: skipped.PotentialSavings,
-		}
-		if skipped.PotentialSavings > 0 {
-			info.PotentialSavingsFormatted = formatCurrencyWithSymbol(
-				skipped.PotentialSavings,
-				currencyMap.Symbol,
-				currencyMap.DecimalDigits,
-			)
-		}
-		available = append(available, info)
+			PotentialSavings: commonModel.NewMoney(skipped.PotentialSavings, ccy),
+		})
 	}
 	return available
 }
 
 func buildCartBase(
 	cart *entity.Cart,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) model.CartBase {
 	return model.CartBase{
-		ID:     cart.ID,
-		UserID: cart.UserID,
-		Currency: model.CurrencyInfo{
-			Code:          currencyMap.Code,
-			Symbol:        currencyMap.Symbol,
-			DecimalDigits: currencyMap.DecimalDigits,
-		},
+		ID:       cart.ID,
+		UserID:   cart.UserID,
+		Currency: ccy,
 		Metadata: cart.Metadata,
 	}
 }
@@ -142,18 +118,13 @@ func buildCartSummary(
 	uniqueItems int,
 	promo *promotionModel.AppliedPromotionSummary,
 	coupon *promotionModel.AppliedCouponSummary,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) model.CartSummary {
 	couponDiscount := int64(0)
 	couponCount := 0
-	shippingDiscount := int64(0)
 	if coupon != nil {
 		couponDiscount = coupon.TotalDiscountCents
 		couponCount = len(coupon.AppliedCoupons)
-		shippingDiscount = coupon.ShippingDiscount
-	}
-	if promo != nil {
-		shippingDiscount += promo.ShippingDiscount
 	}
 
 	totalDiscount := promo.TotalDiscountCents + couponDiscount
@@ -161,58 +132,26 @@ func buildCartSummary(
 	if afterDiscount < 0 {
 		afterDiscount = 0
 	}
-	// Shipping is not yet in total; free-shipping coupons reduce shippingDiscount for display
-	_ = shippingDiscount
 	total := afterDiscount
 
 	return model.CartSummary{
-		ItemCount:   0,
-		UniqueItems: uniqueItems,
-		Subtotal:    promo.OriginalSubtotal,
-		SubtotalFormatted: formatCurrencyWithSymbol(
-			promo.OriginalSubtotal,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
+		ItemCount:         0,
+		UniqueItems:       uniqueItems,
+		Subtotal:          commonModel.NewMoney(promo.OriginalSubtotal, ccy),
 		PromotionCount:    len(promo.AppliedPromotions),
-		PromotionDiscount: promo.TotalDiscountCents,
-		PromotionDiscountFormatted: formatCurrencyWithSymbol(
-			promo.TotalDiscountCents,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
-		CouponCount:    couponCount,
-		CouponDiscount: couponDiscount,
-		CouponDiscountFormatted: formatCurrencyWithSymbol(
-			couponDiscount,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
-		TotalDiscount: totalDiscount,
-		TotalDiscountFormatted: formatCurrencyWithSymbol(
-			totalDiscount,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
-		AfterDiscount: afterDiscount,
-		AfterDiscountFormatted: formatCurrencyWithSymbol(
-			afterDiscount,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
-		Total: total,
-		TotalFormatted: formatCurrencyWithSymbol(
-			total,
-			currencyMap.Symbol,
-			currencyMap.DecimalDigits,
-		),
+		PromotionDiscount: commonModel.NewMoney(promo.TotalDiscountCents, ccy),
+		CouponCount:       couponCount,
+		CouponDiscount:    commonModel.NewMoney(couponDiscount, ccy),
+		TotalDiscount:     commonModel.NewMoney(totalDiscount, ccy),
+		AfterDiscount:     commonModel.NewMoney(afterDiscount, ccy),
+		Total:             commonModel.NewMoney(total, ccy),
 	}
 }
 
 func buildAppliedCoupons(
 	coupon *promotionModel.AppliedCouponSummary,
 	appliedRows []entity.CartAppliedCoupon,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) []model.AppliedCouponInfo {
 	if coupon == nil || len(coupon.AppliedCoupons) == 0 {
 		return []model.AppliedCouponInfo{}
@@ -232,29 +171,22 @@ func buildAppliedCoupons(
 		if c.DiscountCode.Title != nil {
 			title = *c.DiscountCode.Title
 		}
-		info := model.AppliedCouponInfo{
+		out = append(out, model.AppliedCouponInfo{
 			ID:               rowByCodeID[c.DiscountCode.ID],
 			DiscountCodeID:   c.DiscountCode.ID,
 			Code:             c.DiscountCode.Code,
 			Title:            title,
 			DiscountType:     string(c.DiscountCode.DiscountType),
-			Discount:         c.DiscountCents,
-			ShippingDiscount: c.ShippingDiscount,
-		}
-		info.DiscountFormatted = formatCurrencyWithSymbol(
-			c.DiscountCents, currencyMap.Symbol, currencyMap.DecimalDigits,
-		)
-		info.ShippingDiscountFormatted = formatCurrencyWithSymbol(
-			c.ShippingDiscount, currencyMap.Symbol, currencyMap.DecimalDigits,
-		)
-		out = append(out, info)
+			Discount:         commonModel.NewMoney(c.DiscountCents, ccy),
+			ShippingDiscount: commonModel.NewMoney(c.ShippingDiscount, ccy),
+		})
 	}
 	return out
 }
 
 func buildAvailableCoupons(
 	available *promotionModel.AvailableCouponsResponse,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) *model.CartAvailableCouponsResponse {
 	if available == nil {
 		return nil
@@ -269,17 +201,20 @@ func buildAvailableCoupons(
 			Code:                         a.Code,
 			Title:                        a.Title,
 			DiscountType:                 a.DiscountType,
-			Value:                        a.Value,
-			MaxDiscountAmountCents:       a.MaxDiscountAmountCents,
-			PotentialDiscount:            a.PotentialDiscount,
-			MinPurchaseAmountCents:       a.MinPurchaseAmountCents,
+			Value:                        commonModel.NewMoney(a.Value, ccy),
+			PotentialDiscount:            commonModel.NewMoney(a.PotentialDiscount, ccy),
 			CanCombineWithOtherDiscounts: a.CanCombineWithOtherDiscounts,
 			StartsAt:                     a.StartsAt,
 			EndsAt:                       a.EndsAt,
 		}
-		info.PotentialDiscountFormatted = formatCurrencyWithSymbol(
-			a.PotentialDiscount, currencyMap.Symbol, currencyMap.DecimalDigits,
-		)
+		if a.MaxDiscountAmountCents != nil {
+			m := commonModel.NewMoney(*a.MaxDiscountAmountCents, ccy)
+			info.MaxDiscountAmount = &m
+		}
+		if a.MinPurchaseAmountCents != nil {
+			m := commonModel.NewMoney(*a.MinPurchaseAmountCents, ccy)
+			info.MinPurchaseAmount = &m
+		}
 		out.Applicable = append(out.Applicable, info)
 	}
 	for _, n := range available.NotApplicable {
@@ -303,7 +238,7 @@ func buildItemPromotionMap(
 func buildCartItemResponse(
 	item entity.CartItem,
 	itemPromoMap map[string]promotionModel.CartItemSummary,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 	variantMap map[uint]productModel.VariantDetailResponse,
 ) (model.CartItemWithPricingResponse, error) {
 	itemIDStr := strconv.Itoa(int(item.ID))
@@ -320,7 +255,7 @@ func buildCartItemResponse(
 		lineTotal = unitPrice * int64(item.Quantity)
 		discountedLineTotal = summaryItem.FinalPriceCents
 		totalItemDiscount = summaryItem.TotalDiscountCents
-		appliedPromos = buildAppliedPromotionInfos(summaryItem, currencyMap)
+		appliedPromos = buildAppliedPromotionInfos(summaryItem, ccy)
 	}
 
 	variant, ok := variantMap[item.VariantID]
@@ -360,17 +295,17 @@ func buildCartItemResponse(
 			Quantity:  item.Quantity,
 			Variant:   variantInfo,
 		},
-		UnitPrice:              unitPrice,
-		LineTotal:              lineTotal,
-		TotalPromotionDiscount: totalItemDiscount,
-		DiscountedLineTotal:    discountedLineTotal,
+		UnitPrice:              commonModel.NewMoney(unitPrice, ccy),
+		LineTotal:              commonModel.NewMoney(lineTotal, ccy),
+		TotalPromotionDiscount: commonModel.NewMoney(totalItemDiscount, ccy),
+		DiscountedLineTotal:    commonModel.NewMoney(discountedLineTotal, ccy),
 		AppliedPromotions:      appliedPromos,
 	}, nil
 }
 
 func buildAppliedPromotionInfos(
 	summaryItem promotionModel.CartItemSummary,
-	currencyMap *userModel.CurrencyResponse,
+	ccy commonModel.CurrencyInfo,
 ) []model.ItemAppliedPromotionInfo {
 	appliedPromos := make([]model.ItemAppliedPromotionInfo, 0, len(summaryItem.AppliedPromotions))
 	for _, p := range summaryItem.AppliedPromotions {
@@ -378,37 +313,27 @@ func buildAppliedPromotionInfos(
 			PromotionID: p.PromotionID,
 			Name:        p.PromotionName,
 			Type:        "applied_promotion", // Generic type for now
-			Discount:    p.DiscountCents,
-			DiscountFormatted: formatCurrencyWithSymbol(
-				p.DiscountCents,
-				currencyMap.Symbol,
-				currencyMap.DecimalDigits,
-			),
+			Discount:    commonModel.NewMoney(p.DiscountCents, ccy),
 		})
 	}
 	return appliedPromos
 }
 
 func attachSavingsIfAny(summary *model.CartSummary) {
-	if summary.TotalDiscount <= 0 || summary.Subtotal <= 0 {
+	if summary.TotalDiscount.AmountCents <= 0 || summary.Subtotal.AmountCents <= 0 {
 		return
 	}
 
-	percentage := float64(summary.TotalDiscount) / float64(summary.Subtotal) * 100
+	percentage := float64(summary.TotalDiscount.AmountCents) / float64(summary.Subtotal.AmountCents) * 100
 	summary.Savings = &model.SavingsInfo{
 		Amount:     summary.TotalDiscount,
 		Percentage: percentage,
 		Message: fmt.Sprintf(
 			"You're saving %s (%.0f%% off)!",
-			summary.TotalDiscountFormatted,
+			summary.TotalDiscount.Formatted,
 			percentage,
 		),
 	}
-}
-
-func formatCurrencyWithSymbol(cents int64, symbol string, decimalDigits int) string {
-	formatStr := fmt.Sprintf("%%s%%.%df", decimalDigits)
-	return fmt.Sprintf(formatStr, symbol, float64(cents)/100.0)
 }
 
 func variantMediaURLs(media []productModel.VariantMediaResponse) []string {

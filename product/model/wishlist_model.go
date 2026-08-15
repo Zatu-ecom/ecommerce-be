@@ -1,9 +1,8 @@
 package model
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"time"
-
-	"ecommerce-be/common"
 )
 
 // ============================================================================
@@ -52,11 +51,11 @@ type WishlistProductItem struct {
 // Uses WishlistProductItem for per-item metadata with full product details
 // Pagination is top-level (not nested inside a sub-object)
 type WishlistDetailResponse struct {
-	ID         uint                      `json:"id"`
-	Name       string                    `json:"name"`
-	IsDefault  bool                      `json:"isDefault"`
-	Items      []WishlistProductItem     `json:"items"`      // Paginated items with product details
-	Pagination common.PaginationResponse `json:"pagination"` // Pagination metadata
-	CreatedAt  time.Time                 `json:"createdAt"`
-	UpdatedAt  time.Time                 `json:"updatedAt"`
+	ID         uint                           `json:"id"`
+	Name       string                         `json:"name"`
+	IsDefault  bool                           `json:"isDefault"`
+	Items      []WishlistProductItem          `json:"items"`      // Paginated items with product details
+	Pagination commonModel.PaginationResponse `json:"pagination"` // Pagination metadata
+	CreatedAt  time.Time                      `json:"createdAt"`
+	UpdatedAt  time.Time                      `json:"updatedAt"`
 }

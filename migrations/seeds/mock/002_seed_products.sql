@@ -325,49 +325,50 @@ ON CONFLICT (option_id, value) DO UPDATE SET
 -- Reset sequence for product_option_value
 SELECT setval('product_option_value_id_seq', (SELECT MAX(id) FROM product_option_value));
 
--- Insert Product Variants (sku, price, images, allow_purchase, is_default)
+-- Insert Product Variants (sku, price_cents, allow_purchase, is_default)
+-- Prices are integer minor units (price_cents) per money standardization.
 -- Images are no longer stored on product_variant (migration 020 dropped the column).
 -- Attach variant images via POST /api/product/:productId/variant/:variantId/media.
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
 -- iPhone 15 Pro variants (2 colors × 2 storage = 4 variants)
-(1, 1, 'IPHONE-15-PRO-NAT-128', 999.00, true, true, true),
-(2, 1, 'IPHONE-15-PRO-NAT-256', 1099.00, true, false, false),
-(3, 1, 'IPHONE-15-PRO-BLU-128', 999.00, true, false, false),
-(4, 1, 'IPHONE-15-PRO-BLU-256', 1099.00, true, false, false),
+(1, 1, 'IPHONE-15-PRO-NAT-128', 99900, true, true, true),
+(2, 1, 'IPHONE-15-PRO-NAT-256', 109900, true, false, false),
+(3, 1, 'IPHONE-15-PRO-BLU-128', 99900, true, false, false),
+(4, 1, 'IPHONE-15-PRO-BLU-256', 109900, true, false, false),
 
 -- Samsung S24 variants
-(5, 2, 'SAMSUNG-S24-BLK-128', 799.00, true, true, true),
-(6, 2, 'SAMSUNG-S24-BLK-256', 899.00, true, false, false),
+(5, 2, 'SAMSUNG-S24-BLK-128', 79900, true, true, true),
+(6, 2, 'SAMSUNG-S24-BLK-256', 89900, true, false, false),
 
 -- MacBook Pro variants
-(7, 3, 'MBP-16-M3-SB-16-512', 2499.00, true, true, true),
-(8, 3, 'MBP-16-M3-SLV-16-512', 2499.00, true, false, false),
+(7, 3, 'MBP-16-M3-SB-16-512', 249900, true, true, true),
+(8, 3, 'MBP-16-M3-SLV-16-512', 249900, true, false, false),
 
 -- Sony Headphones variants
-(19, 4, 'SONY-WH1000XM5-BLK', 399.99, true, true, true),
-(20, 4, 'SONY-WH1000XM5-SLV', 399.99, true, false, false),
+(19, 4, 'SONY-WH1000XM5-BLK', 39999, true, true, true),
+(20, 4, 'SONY-WH1000XM5-SLV', 39999, true, false, false),
 
 -- T-Shirt variants
-(9, 5, 'NIKE-TSHIRT-BLK-M', 29.99, true, true, true),
-(10, 5, 'NIKE-TSHIRT-WHT-M', 29.99, true, false, false),
-(11, 5, 'NIKE-TSHIRT-BLK-L', 29.99, true, false, false),
+(9, 5, 'NIKE-TSHIRT-BLK-M', 2999, true, true, true),
+(10, 5, 'NIKE-TSHIRT-WHT-M', 2999, true, false, false),
+(11, 5, 'NIKE-TSHIRT-BLK-L', 2999, true, false, false),
 
 -- Summer Dress variants
-(12, 6, 'ZARA-DRESS-BLUE-M', 49.99, true, true, true),
-(13, 6, 'ZARA-DRESS-PINK-M', 49.99, true, false, false),
+(12, 6, 'ZARA-DRESS-BLUE-M', 4999, true, true, true),
+(13, 6, 'ZARA-DRESS-PINK-M', 4999, true, false, false),
 
 -- Running Shoes variants
-(14, 7, 'ADIDAS-RUN-BW-9', 89.99, true, true, true),
-(15, 7, 'ADIDAS-RUN-BW-10', 89.99, true, false, false),
+(14, 7, 'ADIDAS-RUN-BW-9', 8999, true, true, true),
+(15, 7, 'ADIDAS-RUN-BW-10', 8999, true, false, false),
 
 -- Sofa variants
-(16, 8, 'IKEA-SOFA-GRAY-FAB', 899.00, true, true, true),
-(17, 8, 'IKEA-SOFA-BEIGE-FAB', 899.00, true, false, false),
+(16, 8, 'IKEA-SOFA-GRAY-FAB', 89900, true, true, true),
+(17, 8, 'IKEA-SOFA-BEIGE-FAB', 89900, true, false, false),
 
 -- Mattress (single variant)
-(18, 9, 'CASPER-MATTRESS-Q-FOAM', 799.00, true, true, true)
+(18, 9, 'CASPER-MATTRESS-Q-FOAM', 79900, true, true, true)
 ON CONFLICT (id) DO UPDATE SET
-    price = EXCLUDED.price,
+    price_cents = EXCLUDED.price_cents,
     is_popular = EXCLUDED.is_popular,
     updated_at = NOW();
 
@@ -424,15 +425,15 @@ INSERT INTO variant_option_value (variant_id, option_id, option_value_id) VALUES
 ON CONFLICT (variant_id, option_id, option_value_id) DO UPDATE SET
     updated_at = NOW();
 
--- Insert Package Options (bundle deals with name, description, price, quantity)
-INSERT INTO package_option (id, product_id, name, description, price, quantity) VALUES
-(1, 1, 'iPhone 15 Pro Complete Bundle', 'iPhone with case and screen protector', 1099.00, 1),
-(2, 3, 'MacBook Pro Pro Pack', 'MacBook with accessories', 2699.00, 1),
-(3, 5, 'T-Shirt 3-Pack', 'Buy 3 t-shirts and save', 75.00, 3),
-(4, 8, 'Living Room Set', 'Complete living room furniture', 1999.00, 1)
+-- Insert Package Options (bundle deals with name, description, price_cents, quantity)
+INSERT INTO package_option (id, product_id, name, description, price_cents, quantity) VALUES
+(1, 1, 'iPhone 15 Pro Complete Bundle', 'iPhone with case and screen protector', 109900, 1),
+(2, 3, 'MacBook Pro Pro Pack', 'MacBook with accessories', 269900, 1),
+(3, 5, 'T-Shirt 3-Pack', 'Buy 3 t-shirts and save', 7500, 3),
+(4, 8, 'Living Room Set', 'Complete living room furniture', 199900, 1)
 ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
-    price = EXCLUDED.price,
+    price_cents = EXCLUDED.price_cents,
     quantity = EXCLUDED.quantity,
     updated_at = NOW();
 

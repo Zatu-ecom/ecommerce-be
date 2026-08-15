@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
-	"ecommerce-be/product/factory"
 	prodErrors "ecommerce-be/product/error"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	productHelper "ecommerce-be/product/utils/helper"
@@ -188,7 +188,7 @@ func (s *CollectionProductServiceImpl) GetProducts(
 
 	return &model.GetCollectionProductsResponse{
 		Products:   responses,
-		Pagination: common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}, nil
 }
 

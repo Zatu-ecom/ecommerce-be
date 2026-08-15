@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,7 +49,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 			_, role, exists := auth.GetUserRoleFromContext(c)
 
 			if !exists {
-				common.ErrorWithCode(
+				commonModel.ErrorWithCode(
 					c,
 					http.StatusForbidden,
 					constants.ROLE_NOT_FOUND_MSG,
@@ -80,7 +80,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 		// Validate that seller ID is provided and not empty/whitespace
 		// Handles: "", "  ", null header
 		if sellerIDHeader == "" || len(strings.TrimSpace(sellerIDHeader)) == 0 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.SELLER_ID_REQUIRED_MSG,
@@ -97,7 +97,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 		// Handles: "abc", "null", "-1", "1.5", etc. → returns error
 		sellerID, err := strconv.ParseUint(sellerIDHeader, 10, 32)
 		if err != nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.SELLER_ID_INVALID_MSG,
@@ -110,7 +110,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 		// Validate seller ID is greater than 0
 		// Handles: "0" → returns error
 		if sellerID == 0 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.SELLER_ID_INVALID_MSG,
@@ -128,7 +128,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 		// - All other seller validations
 		sellerData, validationErr := auth.ValidateSellerCompleteCached(database, uint(sellerID))
 		if validationErr != nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				validationErr.Error(),
@@ -150,7 +150,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 				errorCode = constants.INVALID_SELLER_CODE
 			}
 
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				accessErr.Error(),

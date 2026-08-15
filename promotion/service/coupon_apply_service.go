@@ -6,6 +6,7 @@ import (
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/factory"
@@ -13,6 +14,8 @@ import (
 	"ecommerce-be/promotion/repository"
 	discountCodeStrategy "ecommerce-be/promotion/service/discountCodeStrategy"
 	promoConstant "ecommerce-be/promotion/utils/constant"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // CouponApplyService orchestrates cart coupon validation and calculation.
@@ -47,6 +50,7 @@ type CouponApplyServiceImpl struct {
 	variantScopeRepo    repository.DiscountCodeVariantScopeRepository
 	categoryScopeRepo   repository.DiscountCodeCategoryScopeRepository
 	collectionScopeRepo repository.DiscountCodeCollectionScopeRepository
+	userSvc             userService.UserService
 }
 
 func NewCouponApplyService(
@@ -56,6 +60,7 @@ func NewCouponApplyService(
 	variantScopeRepo repository.DiscountCodeVariantScopeRepository,
 	categoryScopeRepo repository.DiscountCodeCategoryScopeRepository,
 	collectionScopeRepo repository.DiscountCodeCollectionScopeRepository,
+	userSvc userService.UserService,
 ) CouponApplyService {
 	return &CouponApplyServiceImpl{
 		discountCodeRepo:    discountCodeRepo,
@@ -64,7 +69,18 @@ func NewCouponApplyService(
 		variantScopeRepo:    variantScopeRepo,
 		categoryScopeRepo:   categoryScopeRepo,
 		collectionScopeRepo: collectionScopeRepo,
+		userSvc:             userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for Money rendering of
+// available coupons (read-side, seller base currency per FR-010).
+func (s *CouponApplyServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }
 
 func (s *CouponApplyServiceImpl) ValidateCouponForCart(
@@ -124,6 +140,11 @@ func (s *CouponApplyServiceImpl) ApplyCouponsToCart(
 		return summary, nil
 	}
 
+	ccy, err := s.sellerCurrency(ctx, req.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	codes := make([]*entity.DiscountCode, 0, len(req.AppliedDiscountCodeIDs))
 	for _, id := range req.AppliedDiscountCodeIDs {
 		dc, err := s.discountCodeRepo.FindByID(ctx, id)
@@ -143,7 +164,7 @@ func (s *CouponApplyServiceImpl) ApplyCouponsToCart(
 
 		if err := s.validateCouponRules(ctx, dc, &partialReq); err != nil {
 			summary.SkippedCoupons = append(summary.SkippedCoupons, model.SkippedCouponResult{
-				DiscountCode: factory.DiscountCodeEntityToResponse(dc),
+				DiscountCode: factory.DiscountCodeEntityToResponse(dc, ccy),
 				Reason:       err.Error(),
 			})
 			continue
@@ -157,14 +178,14 @@ func (s *CouponApplyServiceImpl) ApplyCouponsToCart(
 		merch, ship, err := strategy.Calculate(ctx, dc, req, eligible)
 		if err != nil || merch+ship <= 0 {
 			summary.SkippedCoupons = append(summary.SkippedCoupons, model.SkippedCouponResult{
-				DiscountCode: factory.DiscountCodeEntityToResponse(dc),
+				DiscountCode: factory.DiscountCodeEntityToResponse(dc, ccy),
 				Reason:       promoErrors.COUPON_NOT_APPLICABLE_MSG,
 			})
 			continue
 		}
 
 		summary.AppliedCoupons = append(summary.AppliedCoupons, model.CouponValidationResult{
-			DiscountCode:     factory.DiscountCodeEntityToResponse(dc),
+			DiscountCode:     factory.DiscountCodeEntityToResponse(dc, ccy),
 			IsValid:          true,
 			DiscountCents:    merch,
 			ShippingDiscount: ship,
@@ -318,6 +339,13 @@ func (s *CouponApplyServiceImpl) validateCouponRules(
 	req *model.CouponCartRequest,
 ) error {
 	if dc.IsActive == nil || !*dc.IsActive {
+		// A future-dated code with auto_start is stored as inactive until the
+		// cron sweep activates it. Report the date condition so a scheduled
+		// coupon is not mislabeled as invalid.
+		now := time.Now().UTC()
+		if dc.StartsAt != nil && now.Before(dc.StartsAt.UTC()) {
+			return promoErrors.ErrCouponNotStarted
+		}
 		return promoErrors.ErrInvalidCoupon
 	}
 	if dc.SellerID != req.SellerID {

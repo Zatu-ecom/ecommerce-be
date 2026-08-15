@@ -46,8 +46,8 @@ func NewCartHandler(
 // @Security BearerAuth
 // @Param request body model.AddCartItemRequest true "Add Cart Item Request"
 // @Success 201 {object} common.StandardResponse{data=model.CartResponse}
-// @Failure 401 {object} common.ErrorResponse
-// @Failure 400 {object} common.ErrorResponse
+// @Failure 401 {object} commonModel.ErrorResponse
+// @Failure 400 {object} commonModel.ErrorResponse
 // @Router /api/cart/item [post]
 func (h *CartHandler) AddToCart(c *gin.Context) {
 	// 1. Get user context

@@ -1,10 +1,10 @@
 package auth
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"net/http"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 
@@ -17,7 +17,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Get the Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				constants.AUTHENTICATION_REQUIRED_MSG,
@@ -30,7 +30,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Check if the header has the Bearer prefix
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != constants.BEARER_PREFIX {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				constants.INVALID_AUTH_FORMAT_MSG,
@@ -45,7 +45,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		// Check if token is blacklisted
 		if cache.IsTokenBlacklisted(tokenString) {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				constants.TOKEN_REVOKED_MSG,
@@ -57,7 +57,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		claims, err := ParseToken(tokenString, secret)
 		if err != nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				constants.TOKEN_INVALID_MSG,
@@ -70,7 +70,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Validate required JWT fields (all fields except SellerID are required)
 		// Check for nil pointers to detect missing fields
 		if claims.UserID == nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				"Invalid token: UserID is required",
@@ -81,7 +81,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		if claims.Email == nil || *claims.Email == "" {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				"Invalid token: Email is required",
@@ -92,7 +92,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		if claims.RoleID == nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				"Invalid token: RoleID is required",
@@ -103,7 +103,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		if claims.RoleName == nil || *claims.RoleName == "" {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				"Invalid token: RoleName is required",
@@ -114,7 +114,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		if claims.RoleLevel == nil {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusUnauthorized,
 				"Invalid token: RoleLevel is required",

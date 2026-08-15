@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -92,7 +92,7 @@ func (s *CurrencyServiceImpl) GetAllCurrencies(
 
 	return &model.CurrencyListResponse{
 		Currencies: currencyResponses,
-		Pagination: common.PaginationResponse{
+		Pagination: commonModel.PaginationResponse{
 			CurrentPage:  filter.Page,
 			ItemsPerPage: filter.Limit,
 			TotalItems:   totalItems,

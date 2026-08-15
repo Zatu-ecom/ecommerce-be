@@ -1,5 +1,9 @@
 package model
 
+import (
+	commonModel "ecommerce-be/common/model"
+)
+
 // VariantOptionResponse represents the selected option for a variant
 type VariantOptionResponse struct {
 	OptionID          uint   `json:"optionId"`
@@ -28,17 +32,18 @@ type WishlistItemInfo struct {
 
 // VariantDetailResponse represents detailed variant information
 type VariantDetailResponse struct {
-	ID              uint                    `json:"id"`
-	ProductID       uint                    `json:"productId,omitempty"`
-	Product         ProductBasicInfo        `json:"product,omitzero"`
-	SKU             string                  `json:"sku"`
-	Price           float64                 `json:"price"`
-	AllowPurchase   bool                    `json:"allowPurchase"`
-	IsPopular       bool                    `json:"isPopular"`
-	IsDefault       bool                    `json:"isDefault"`
-	IsWishlisted    bool                    `json:"isWishlisted"`
-	WishlistItems   []WishlistItemInfo      `json:"wishlistItems,omitempty"`
-	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
+	ID              uint                     `json:"id"`
+	ProductID       uint                     `json:"productId,omitempty"`
+	Product         ProductBasicInfo         `json:"product,omitzero"`
+	SKU             string                   `json:"sku"`
+	Price           commonModel.Money        `json:"price"`
+	Currency        commonModel.CurrencyInfo `json:"currency,omitempty"`
+	AllowPurchase   bool                     `json:"allowPurchase"`
+	IsPopular       bool                     `json:"isPopular"`
+	IsDefault       bool                     `json:"isDefault"`
+	IsWishlisted    bool                     `json:"isWishlisted"`
+	WishlistItems   []WishlistItemInfo       `json:"wishlistItems,omitempty"`
+	SelectedOptions []VariantOptionResponse  `json:"selectedOptions"`
 	// Media is always a JSON array (never null). Items ordered by display_order ASC, id ASC.
 	// Items whose file data cannot be resolved are silently omitted.
 	Media     []VariantMediaResponse `json:"media"`
@@ -48,15 +53,16 @@ type VariantDetailResponse struct {
 
 // VariantResponse represents simplified variant information
 type VariantResponse struct {
-	ID              uint                    `json:"id"`
-	SKU             string                  `json:"sku"`
-	Price           float64                 `json:"price"`
-	AllowPurchase   bool                    `json:"allowPurchase"`
-	IsPopular       bool                    `json:"isPopular"`
-	IsDefault       bool                    `json:"isDefault"`
-	IsWishlisted    bool                    `json:"isWishlisted"`
-	SelectedOptions []VariantOptionResponse `json:"selectedOptions"`
-	Media           []VariantMediaResponse  `json:"media"`
+	ID              uint                     `json:"id"`
+	SKU             string                   `json:"sku"`
+	Price           commonModel.Money        `json:"price"`
+	Currency        commonModel.CurrencyInfo `json:"currency,omitempty"`
+	AllowPurchase   bool                     `json:"allowPurchase"`
+	IsPopular       bool                     `json:"isPopular"`
+	IsDefault       bool                     `json:"isDefault"`
+	IsWishlisted    bool                     `json:"isWishlisted"`
+	SelectedOptions []VariantOptionResponse  `json:"selectedOptions"`
+	Media           []VariantMediaResponse   `json:"media"`
 }
 
 // FindVariantByOptionsRequest represents the request to find a variant by options
@@ -171,10 +177,10 @@ type BulkUpdateVariantsRequest struct {
 
 // BulkUpdateVariantSummary represents a single variant summary in response
 type BulkUpdateVariantSummary struct {
-	ID            uint    `json:"id"`
-	SKU           string  `json:"sku"`
-	Price         float64 `json:"price"`
-	AllowPurchase bool    `json:"allowPurchase"`
+	ID            uint              `json:"id"`
+	SKU           string            `json:"sku"`
+	Price         commonModel.Money `json:"price"`
+	AllowPurchase bool              `json:"allowPurchase"`
 }
 
 // BulkUpdateVariantsResponse represents the response for bulk update
@@ -196,9 +202,13 @@ type ListVariantsRequest struct {
 	// Supports format: ?categoryIds=1,2,3
 	CategoryIDs string `form:"categoryIds"`
 
-	// Price range filters
+	// Price range filters (major units in seller currency; server converts to cents)
 	MinPrice *float64 `form:"minPrice" binding:"omitempty,gte=0"`
 	MaxPrice *float64 `form:"maxPrice" binding:"omitempty,gte=0"`
+
+	// Internal cents for repository filtering (set by service after currency conversion)
+	MinPriceCents *int64 `json:"-"`
+	MaxPriceCents *int64 `json:"-"`
 
 	// Availability and status filters
 	AllowPurchase *bool `form:"allowPurchase"`

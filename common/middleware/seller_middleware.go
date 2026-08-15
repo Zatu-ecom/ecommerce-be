@@ -3,11 +3,11 @@ package middleware
 import (
 	"net/http"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +30,7 @@ func SellerAuth() gin.HandlerFunc {
 		// Check if user has seller-level access or higher
 		roleLevel, _, exists := auth.GetUserRoleFromContext(c)
 		if !exists || !auth.HasRequiredRoleLevel(roleLevel, constants.SELLER_ROLE_LEVEL) {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				constants.INSUFFICIENT_PERMISSIONS_MSG,
@@ -44,7 +44,7 @@ func SellerAuth() gin.HandlerFunc {
 		if roleLevel == constants.SELLER_ROLE_LEVEL {
 			sellerID, hasSellerID := auth.GetSellerIDFromContext(c)
 			if !hasSellerID {
-				common.ErrorWithCode(
+				commonModel.ErrorWithCode(
 					c,
 					http.StatusForbidden,
 					constants.INVALID_SELLER_MSG,
@@ -57,7 +57,7 @@ func SellerAuth() gin.HandlerFunc {
 			// OPTIMIZED: Single query validation with complete seller data
 			sellerData, err := auth.ValidateSellerCompleteCached(db, sellerID)
 			if err != nil {
-				common.ErrorWithCode(
+				commonModel.ErrorWithCode(
 					c,
 					http.StatusForbidden,
 					err.Error(),
@@ -76,7 +76,7 @@ func SellerAuth() gin.HandlerFunc {
 				default:
 					errorCode = constants.INVALID_SELLER_CODE
 				}
-				common.ErrorWithCode(c, http.StatusForbidden, validationErr.Error(), errorCode)
+				commonModel.ErrorWithCode(c, http.StatusForbidden, validationErr.Error(), errorCode)
 				c.Abort()
 				return
 			}

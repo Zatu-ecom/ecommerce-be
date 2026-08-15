@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/repository"
@@ -415,7 +415,7 @@ func (s *InventoryReservationServiceImpl) callGetInventories(
 		sellerId,
 		model.GetInventoriesFilter{
 			GetInventoriesBase: model.GetInventoriesBase{
-				BaseListParams: common.BaseListParams{
+				BaseListParams: commonModel.BaseListParams{
 					Page:     1,
 					PageSize: len(inventoryIDs),
 				},

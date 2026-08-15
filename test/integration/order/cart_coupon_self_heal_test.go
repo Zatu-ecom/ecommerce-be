@@ -19,7 +19,7 @@ func (s *CartCouponTestSuite) TestSelfHealRemovesDeactivatedCoupon() {
 	cart := response["data"].(map[string]any)
 	s.Empty(cart["appliedCoupons"])
 	s.Equal(float64(0), cart["summary"].(map[string]any)["couponCount"])
-	s.Equal(float64(0), cart["summary"].(map[string]any)["couponDiscount"])
+	s.Equal(int64(0), helpers.MoneyCents(cart["summary"].(map[string]any)["couponDiscount"]))
 	s.Equal(int64(0), s.countCartAppliedCoupons())
 }
 
@@ -44,9 +44,9 @@ func (s *CartCouponTestSuite) TestSelfHealRemovesWhenMinPurchaseNoLongerMet() {
 	s.addCartItem(1, 1) // 99900 cents
 	s.applyCouponOK("HEALMIN")
 
-	minPurchase := int64(200000)
+	minPurchase := float64(2000.00) // major units → 200000 cents (INR)
 	s.updateDiscountCode(codeID, map[string]any{
-		"minPurchaseAmountCents": minPurchase,
+		"minPurchaseAmount": minPurchase,
 	})
 
 	response := s.getCartOK()

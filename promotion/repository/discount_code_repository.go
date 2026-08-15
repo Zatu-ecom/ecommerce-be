@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"ecommerce-be/common/db"
 	"ecommerce-be/promotion/entity"
@@ -28,11 +29,13 @@ type DiscountCodeRepository interface {
 	FindByCode(ctx context.Context, sellerID uint, code string) (*entity.DiscountCode, error)
 	List(ctx context.Context, filters ListDiscountCodeFilter) ([]*entity.DiscountCode, int64, error)
 	Update(ctx context.Context, code *entity.DiscountCode) error
-	UpdateActive(ctx context.Context, id uint, isActive bool) error
+	UpdateActive(ctx context.Context, id uint, sellerID uint, isActive bool) error
 	Delete(ctx context.Context, id uint) error
 	CountUsage(ctx context.Context, discountCodeID uint) (int64, error)
 	IncrementUsage(ctx context.Context, discountCodeID uint) error
 	IncrementUsageAtomically(ctx context.Context, discountCodeID uint, usageLimit int) (bool, error)
+	AutoStartDiscountCodes(ctx context.Context, now time.Time) (int64, error)
+	AutoEndDiscountCodes(ctx context.Context, now time.Time) (int64, error)
 }
 
 // DiscountCodeRepositoryImpl implements DiscountCodeRepository
@@ -141,6 +144,8 @@ func (r *DiscountCodeRepositoryImpl) Update(ctx context.Context, code *entity.Di
 			"StartsAt",
 			"EndsAt",
 			"IsActive",
+			"AutoStart",
+			"AutoEnd",
 			"Metadata",
 			"UpdatedAt",
 		).
@@ -150,12 +155,48 @@ func (r *DiscountCodeRepositoryImpl) Update(ctx context.Context, code *entity.Di
 func (r *DiscountCodeRepositoryImpl) UpdateActive(
 	ctx context.Context,
 	id uint,
+	sellerID uint,
 	isActive bool,
 ) error {
+	updates := map[string]any{"is_active": isActive}
+	// Prevent cron from re-activating a manually deactivated code.
+	if !isActive {
+		updates["auto_start"] = false
+	}
 	return db.DB(ctx).
 		Model(&entity.DiscountCode{}).
-		Where("id = ?", id).
-		Update("is_active", isActive).Error
+		Where("id = ? AND seller_id = ?", id, sellerID).
+		Updates(updates).Error
+}
+
+// AutoStartDiscountCodes activates inactive codes whose start window has begun.
+func (r *DiscountCodeRepositoryImpl) AutoStartDiscountCodes(
+	ctx context.Context,
+	now time.Time,
+) (int64, error) {
+	result := db.DB(ctx).Model(&entity.DiscountCode{}).
+		Where("is_active = ?", false).
+		Where("auto_start = ?", true).
+		Where("starts_at <= ?", now).
+		Where("ends_at IS NULL OR ends_at > ?", now).
+		Update("is_active", true)
+
+	return result.RowsAffected, result.Error
+}
+
+// AutoEndDiscountCodes deactivates active codes whose end window has passed.
+func (r *DiscountCodeRepositoryImpl) AutoEndDiscountCodes(
+	ctx context.Context,
+	now time.Time,
+) (int64, error) {
+	result := db.DB(ctx).Model(&entity.DiscountCode{}).
+		Where("is_active = ?", true).
+		Where("auto_end = ?", true).
+		Where("ends_at IS NOT NULL").
+		Where("ends_at <= ?", now).
+		Update("is_active", false)
+
+	return result.RowsAffected, result.Error
 }
 
 func (r *DiscountCodeRepositoryImpl) Delete(ctx context.Context, id uint) error {

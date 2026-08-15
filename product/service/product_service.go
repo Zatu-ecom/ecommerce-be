@@ -4,16 +4,19 @@ import (
 	"context"
 	"sort"
 
-	commonHelper "ecommerce-be/common/helper"
-	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/db"
+	commonError "ecommerce-be/common/error"
+	commonHelper "ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
-	"ecommerce-be/product/validator"
 	productUtils "ecommerce-be/product/utils"
+	"ecommerce-be/product/validator"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // ProductService defines the interface for product-related business logic
@@ -48,6 +51,7 @@ type ProductServiceImpl struct {
 	productOptionService    ProductOptionService
 	productAttributeService ProductAttributeService
 	packageOptionService    PackageOptionService
+	userSvc                 userService.UserService
 }
 
 // NewProductService creates a new instance of ProductService
@@ -62,6 +66,7 @@ func NewProductService(
 	productOptionService ProductOptionService,
 	productAttributeService ProductAttributeService,
 	packageOptionService PackageOptionService,
+	userSvc userService.UserService,
 ) ProductService {
 	return &ProductServiceImpl{
 		productRepo:             productRepo,
@@ -74,7 +79,32 @@ func NewProductService(
 		productOptionService:    productOptionService,
 		productAttributeService: productAttributeService,
 		packageOptionService:    packageOptionService,
+		userSvc:                 userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+func (s *ProductServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
+// resolveSellerCurrency resolves the currency for a price write. When the token
+// seller is 0 (admin acting on behalf of a seller), it falls back to the product
+// owner's sellerID so the write is interpreted in the product's base currency.
+func (s *ProductServiceImpl) resolveSellerCurrency(
+	ctx context.Context,
+	product *entity.Product,
+	tokenSellerID uint,
+) (commonModel.CurrencyInfo, error) {
+	sellerID := tokenSellerID
+	if sellerID == 0 && product != nil {
+		sellerID = product.SellerID
+	}
+	return s.sellerCurrency(ctx, sellerID)
 }
 
 /***********************************************
@@ -105,12 +135,17 @@ func (s *ProductServiceImpl) CreateProduct(
 	}
 
 	result.product.Category = result.category
+	ccy, err := s.resolveSellerCurrency(ctx, result.product, sellerID)
+	if err != nil {
+		return nil, err
+	}
 	return s.buildProductResponseFromModels(
 		result.product,
 		result.variants,
 		result.options,
 		result.attributes,
 		result.packageOptions,
+		ccy,
 	), nil
 }
 
@@ -253,18 +288,19 @@ func (s *ProductServiceImpl) buildProductResponseFromModels(
 	options []model.ProductOptionDetailResponse,
 	attributes []model.ProductAttributeResponse,
 	packageOptions []entity.PackageOption,
+	ccy commonModel.CurrencyInfo,
 ) *model.ProductResponse {
 	publicVariants := productUtils.FilterPublicVariants(variants)
 	variantAgg := calculateVariantAggFromModels(variants, len(options))
 
 	// Use factory builder for base response
-	response := factory.BuildProductResponse(product, variantAgg)
+	response := factory.BuildProductResponse(product, variantAgg, ccy)
 
 	// Add detailed fields from services (not included in base builder)
 	response.Options = options
 	response.Variants = publicVariants
 	response.Attributes = attributes
-	response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions)
+	response.PackageOptions = factory.BuildPackageOptionResponses(packageOptions, ccy)
 
 	return &response
 }
@@ -279,7 +315,7 @@ func calculateVariantAggFromModels(
 	agg := &mapper.VariantAggregation{
 		ProductOptionsCount: productOptionsCount,
 		OptionDerivedCount:  len(publicVariants),
-		DefaultPrice:        productUtils.DeriveProductPrice(variants),
+		DefaultPriceCents:   productUtils.DeriveProductPriceCents(variants),
 		AllowPurchase:       productUtils.DeriveAllowPurchase(variants),
 		IsPopular:           productUtils.DeriveIsPopular(variants),
 		OptionNames:         []string{},
@@ -287,16 +323,16 @@ func calculateVariantAggFromModels(
 	}
 
 	if len(publicVariants) > 0 {
-		minPrice := publicVariants[0].Price
-		maxPrice := publicVariants[0].Price
+		minPrice := publicVariants[0].Price.AmountCents
+		maxPrice := publicVariants[0].Price.AmountCents
 		optionValuesMap := make(map[string]map[string]bool)
 
 		for _, v := range publicVariants {
-			if v.Price < minPrice {
-				minPrice = v.Price
+			if v.Price.AmountCents < minPrice {
+				minPrice = v.Price.AmountCents
 			}
-			if v.Price > maxPrice {
-				maxPrice = v.Price
+			if v.Price.AmountCents > maxPrice {
+				maxPrice = v.Price.AmountCents
 			}
 			for _, opt := range v.SelectedOptions {
 				if optionValuesMap[opt.OptionName] == nil {
@@ -306,8 +342,8 @@ func calculateVariantAggFromModels(
 			}
 		}
 
-		agg.MinPrice = minPrice
-		agg.MaxPrice = maxPrice
+		agg.MinPriceCents = minPrice
+		agg.MaxPriceCents = maxPrice
 
 		for optName, valuesSet := range optionValuesMap {
 			agg.OptionNames = append(agg.OptionNames, optName)
@@ -368,7 +404,7 @@ func (s *ProductServiceImpl) UpdateProduct(
 			if err := s.productRepo.Update(txCtx, product); err != nil {
 				return err
 			}
-			return s.applyProductCommerceUpdates(txCtx, product.ID, req)
+			return s.applyProductCommerceUpdates(txCtx, product, *sellerId, req)
 		})
 	} else if err = s.productRepo.Update(ctx, product); err != nil {
 		return nil, err
@@ -386,10 +422,11 @@ func (s *ProductServiceImpl) UpdateProduct(
 
 func (s *ProductServiceImpl) applyProductCommerceUpdates(
 	ctx context.Context,
-	productID uint,
+	product *entity.Product,
+	sellerID uint,
 	req model.ProductUpdateRequest,
 ) error {
-	variants, err := s.variantRepo.FindVariantsByProductID(ctx, productID)
+	variants, err := s.variantRepo.FindVariantsByProductID(ctx, product.ID)
 	if err != nil {
 		return err
 	}
@@ -398,18 +435,26 @@ func (s *ProductServiceImpl) applyProductCommerceUpdates(
 	}
 
 	if req.Price != nil {
+		ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+		if err != nil {
+			return err
+		}
+		priceCents, err := ccy.ToCents(*req.Price)
+		if err != nil {
+			return commonError.ErrValidation.WithMessage(err.Error())
+		}
 		defaultVariant := findDefaultVariantEntity(variants)
 		if defaultVariant == nil {
 			return commonError.ErrValidation.WithMessage("default variant not found")
 		}
-		defaultVariant.Price = *req.Price
+		defaultVariant.PriceCents = priceCents
 		if err := s.variantRepo.UpdateVariant(ctx, defaultVariant); err != nil {
 			return err
 		}
 	}
 
 	if req.AllowPurchase != nil || req.IsPopular != nil {
-		return s.variantRepo.UpdateAllVariantsFlags(ctx, productID, req.AllowPurchase, req.IsPopular)
+		return s.variantRepo.UpdateAllVariantsFlags(ctx, product.ID, req.AllowPurchase, req.IsPopular)
 	}
 
 	return nil

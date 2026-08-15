@@ -259,7 +259,7 @@ func (o *cartOperations) buildPromotionRequest(
 			return nil, orderError.ErrVariantNotFound
 		}
 
-		variantPriceCents := int64(variant.Price * 100)
+		variantPriceCents := variant.Price.AmountCents
 		lineTotal := variantPriceCents * int64(item.Quantity)
 		promoReq.SubtotalCents += lineTotal
 
