@@ -488,6 +488,83 @@ func (s *OrderServiceImpl) createSellerStatusHistoryEntry(
 	)
 }
 
+// AttachTransactionID links our internal payment transaction id to the order.
+func (s *OrderServiceImpl) AttachTransactionID(
+	ctx context.Context,
+	orderID, sellerID uint,
+	transactionID string,
+) error {
+	order, err := s.orderRepo.FindOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order == nil || order.SellerID == nil || *order.SellerID != sellerID {
+		return orderError.ErrOrderNotFound
+	}
+	return s.orderRepo.UpdateOrderTransactionID(ctx, orderID, transactionID)
+}
+
+// ConfirmPaymentByTransactionID marks a pending order confirmed once its payment is captured.
+func (s *OrderServiceImpl) ConfirmPaymentByTransactionID(
+	ctx context.Context,
+	transactionID string,
+) error {
+	order, err := s.orderRepo.FindOrderByTransactionID(ctx, transactionID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return nil
+	}
+	if order.Status != entity.ORDER_STATUS_PENDING {
+		// Not pending (already confirmed/failed) — no-op so late webhooks don't regress.
+		return nil
+	}
+
+	now := time.Now().UTC()
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		prev := order.Status
+		target := entity.ORDER_STATUS_CONFIRMED
+		txID := transactionID
+		req := model.UpdateOrderStatusRequest{
+			Status:        target,
+			TransactionID: &txID,
+		}
+		return s.applyUpdateOrderStatusTx(txCtx, order, *order.SellerID,
+			prev, target, now, req)
+	})
+}
+
+// FailPaymentByTransactionID marks a pending order failed when its payment fails.
+func (s *OrderServiceImpl) FailPaymentByTransactionID(
+	ctx context.Context,
+	transactionID, reason string,
+) error {
+	order, err := s.orderRepo.FindOrderByTransactionID(ctx, transactionID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return nil
+	}
+	if order.Status != entity.ORDER_STATUS_PENDING {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		prev := order.Status
+		target := entity.ORDER_STATUS_FAILED
+		failureReason := reason
+		req := model.UpdateOrderStatusRequest{
+			Status:        target,
+			FailureReason: &failureReason,
+		}
+		return s.applyUpdateOrderStatusTx(txCtx, order, *order.SellerID,
+			prev, target, now, req)
+	})
+}
+
 // CancelOrder performs customer-initiated cancellation with reservation release.
 func (s *OrderServiceImpl) CancelOrder(
 	ctx context.Context,

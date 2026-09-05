@@ -2,6 +2,7 @@ package payment
 
 import (
 	"ecommerce-be/common"
+	"ecommerce-be/payment/route"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +24,8 @@ func NewContainer(router *gin.Engine) *common.Container {
 }
 
 /* Register all modules (Categories, Products, Attributes, etc.) */
-// TODO: we have to implement payment service and this the start point for that
 func addModules(c *common.Container) {
-
+	c.RegisterModule(route.NewPaymentModule())
+	c.RegisterModule(route.NewWebhookModule())
+	c.RegisterModule(route.NewGatewayModule())
 }

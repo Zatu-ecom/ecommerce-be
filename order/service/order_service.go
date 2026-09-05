@@ -46,6 +46,13 @@ type OrderService interface {
 		orderID uint,
 		req model.CancelOrderRequest,
 	) (*model.UpdateStatusResponse, error)
+
+	// AttachTransactionID links our internal payment transaction id to the order.
+	AttachTransactionID(ctx context.Context, orderID, sellerID uint, transactionID string) error
+	// ConfirmPaymentByTransactionID confirms a pending order (pending → confirmed + paid_at).
+	ConfirmPaymentByTransactionID(ctx context.Context, transactionID string) error
+	// FailPaymentByTransactionID fails a pending order (pending → failed).
+	FailPaymentByTransactionID(ctx context.Context, transactionID, reason string) error
 }
 
 type OrderServiceImpl struct {
