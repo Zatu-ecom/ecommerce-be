@@ -2,7 +2,9 @@
 
 Base path: `/api/payment`. All responses use the standard envelope
 `{ "success": bool, "message": string, "data": ... }` (errors add `code` / `errors`).
-All authenticated endpoints require `X-Correlation-ID` (enforced by middleware).
+Authenticated endpoints require `X-Correlation-ID` (enforced by middleware).
+Inbound webhooks are exempt: the server auto-generates a correlation ID when the
+header is missing.
 
 ## Customer & Seller Payment APIs
 
@@ -127,6 +129,8 @@ Public callback from Razorpay (no auth middleware; authenticity via signature).
 Headers:
 
 - `X-Razorpay-Signature`: `HMAC-SHA256(raw body, webhook_secret)` hex-encoded.
+- `X-Correlation-ID` is **not** required. If omitted, the server generates one and
+  echoes it on the response.
 
 Body: raw JSON as sent by Razorpay.
 

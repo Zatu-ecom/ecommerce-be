@@ -42,6 +42,15 @@ func (s *PaymentSuite) postWebhook(rawBody []byte, signature string) *httptest.R
 	return client.PostRaw(s.T(), WebhookAPIEndpoint, rawBody)
 }
 
+func (s *PaymentSuite) postWebhookWithoutCorrelationID(rawBody []byte, signature string) *httptest.ResponseRecorder {
+	client := helpers.NewAPIClient(s.server)
+	client.SetHeader("X-Correlation-ID", "")
+	if signature != "" {
+		client.SetHeader("X-Razorpay-Signature", signature)
+	}
+	return client.PostRaw(s.T(), WebhookAPIEndpoint, rawBody)
+}
+
 // ─── Webhook: payment.captured ─────────────────────────────────────────────────
 // Scenario: A captured payment webhook arrives for an initiated payment.
 // Validates: transaction completed, order confirmed, event recorded.
@@ -114,6 +123,24 @@ func (s *PaymentSuite) TestWebhookRejectsInvalidSignature() {
 
 	s.verifyTransactionStatus(txID, "pending")
 	s.verifyOrderStatus(orderID, "pending")
+}
+
+// ─── Webhook: No X-Correlation-ID ──────────────────────────────────────────────
+// Scenario: Razorpay delivers a webhook without X-Correlation-ID.
+// Validates: the skip rule auto-generates a correlation ID and the webhook is processed.
+func (s *PaymentSuite) TestWebhookWorksWithoutCorrelationID() {
+	orderID := s.initiatePaymentForOrder()
+	txID := s.transactionIDForOrder(orderID)
+	sessionID := s.sessionIDForTransaction(txID)
+
+	rawBody := webhookPayload("payment.captured", "pay_no_corr", sessionID, 10000)
+	w := s.postWebhookWithoutCorrelationID(rawBody, signWebhook(rawBody))
+	s.Require().Equal(http.StatusOK, w.Code, "webhook should be accepted without X-Correlation-ID")
+	s.Require().NotEmpty(w.Header().Get("X-Correlation-ID"), "server should generate a correlation ID")
+
+	s.verifyTransactionStatus(txID, "completed")
+	s.verifyOrderStatus(orderID, "confirmed")
+	s.verifyEventExists(txID, "captured")
 }
 
 // ─── Webhook: Duplicate Idempotency ────────────────────────────────────────────

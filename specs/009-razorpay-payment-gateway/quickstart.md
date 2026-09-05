@@ -54,6 +54,7 @@ signature = hex( HMAC_SHA256( raw_body, webhook_secret ) )
 ```
 
 Then POST to `/api/payment/webhooks/razorpay` with header `X-Razorpay-Signature: <signature>`.
+`X-Correlation-ID` is optional; the server generates one when it is omitted.
 
 ## Environment
 
