@@ -1,7 +1,11 @@
 package payment
 
 import (
+	"time"
+
 	"ecommerce-be/common"
+	"ecommerce-be/common/cron"
+	"ecommerce-be/payment/factory/singleton"
 	"ecommerce-be/payment/route"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +18,9 @@ func NewContainer(router *gin.Engine) *common.Container {
 
 	/* Register all modules (Categories, Products, Attributes, etc.) */
 	addModules(c)
+
+	/* Register schedulers */
+	registerScheduler()
 
 	/* Register routes for each module */
 	for _, module := range c.Modules {
@@ -28,4 +35,16 @@ func addModules(c *common.Container) {
 	c.RegisterModule(route.NewPaymentModule())
 	c.RegisterModule(route.NewWebhookModule())
 	c.RegisterModule(route.NewGatewayModule())
+}
+
+/* registerScheduler registers recurring background jobs */
+func registerScheduler() {
+	// Heal abandoned checkouts and stuck refunds every 5 minutes.
+	// cron.Init() runs in main.go before containers; in tests the scheduler
+	// is nil and registration is a logged no-op (same as promotion).
+	_ = cron.RegisterIntervalJob(
+		5*time.Minute,
+		"payment.reconcile_pending",
+		singleton.GetInstance().GetServiceFactory().GetReconcileService().ReconcilePending,
+	)
 }

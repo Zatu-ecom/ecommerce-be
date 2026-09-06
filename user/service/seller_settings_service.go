@@ -98,10 +98,20 @@ func (s *SellerSettingsServiceImpl) Create(
 		BusinessCountryID:            req.BusinessCountryID,
 		BaseCurrencyID:               req.BaseCurrencyID,
 		DisplayPricesInBuyerCurrency: false,
+		PaymentsEnvironment:          entity.PaymentsEnvironmentSandbox,
 		BaseEntity: commonEntity.BaseEntity{
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+	}
+
+	// Set payments environment when provided (validated by request binding;
+	// re-checked here for direct service callers).
+	if req.PaymentsEnvironment != "" {
+		if !isValidPaymentsEnvironment(req.PaymentsEnvironment) {
+			return nil, userErrors.ErrInvalidPaymentsEnvironment
+		}
+		settings.PaymentsEnvironment = req.PaymentsEnvironment
 	}
 
 	// Set settlement currency (defaults to base currency if not provided)
@@ -178,6 +188,13 @@ func (s *SellerSettingsServiceImpl) Update(
 		settings.DisplayPricesInBuyerCurrency = *req.DisplayPricesInBuyerCurrency
 	}
 
+	if req.PaymentsEnvironment != nil {
+		if !isValidPaymentsEnvironment(*req.PaymentsEnvironment) {
+			return nil, userErrors.ErrInvalidPaymentsEnvironment
+		}
+		settings.PaymentsEnvironment = *req.PaymentsEnvironment
+	}
+
 	settings.UpdatedAt = time.Now()
 
 	// Save changes
@@ -213,6 +230,12 @@ func (s *SellerSettingsServiceImpl) ValidateSettingsData(
 	}
 
 	return nil
+}
+
+// isValidPaymentsEnvironment reports whether mode is a supported checkout mode.
+func isValidPaymentsEnvironment(mode string) bool {
+	return mode == entity.PaymentsEnvironmentSandbox ||
+		mode == entity.PaymentsEnvironmentProduction
 }
 
 // ExistsBySellerID checks if settings exist for a seller

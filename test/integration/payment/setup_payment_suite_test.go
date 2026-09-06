@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 
 	"ecommerce-be/payment/entity"
@@ -23,6 +25,10 @@ const (
 	TestKeyID         = "rzp_test_aaaaaaaaaaaaaaaa"
 	TestKeySecret     = "test_key_secret_00000000000000000000"
 	TestWebhookSecret = "test_webhook_secret_0000000000000000"
+
+	// SecondSellerWebhookSecret gives seller 3 a DIFFERENT provider secret so
+	// webhook tenant-isolation tests can prove cross-seller signatures fail.
+	SecondSellerWebhookSecret = "second_seller_webhook_secret_000000"
 )
 
 // PaymentSuite holds shared state for payment integration tests.
@@ -42,10 +48,24 @@ type PaymentSuite struct {
 type fakeRazorpayServer struct {
 	server *httptest.Server
 	orders map[string]string // receipt → order id
+
+	mu sync.Mutex
+	// Programmable remote state for reconciliation tests (GET /orders/{id},
+	// GET /payments/{id}). Absent ids read as open/created.
+	orderStatus   map[string]string // order id → status (created|paid|...)
+	orderAmount   map[string]int64
+	orderCurrency map[string]string
+	paymentStatus map[string]string // payment id → status (authorized|captured|failed)
 }
 
 func newFakeRazorpay() *fakeRazorpayServer {
-	f := &fakeRazorpayServer{orders: map[string]string{}}
+	f := &fakeRazorpayServer{
+		orders:        map[string]string{},
+		orderStatus:   map[string]string{},
+		orderAmount:   map[string]int64{},
+		orderCurrency: map[string]string{},
+		paymentStatus: map[string]string{},
+	}
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/orders":
@@ -72,11 +92,64 @@ func newFakeRazorpay() *fakeRazorpayServer {
 			_, _ = w.Write([]byte(fmt.Sprintf(
 				`{"id":"refund_fake_%d","amount":%d,"currency":"INR","status":"processing"}`,
 				req.Amount, req.Amount)))
+		case r.Method == http.MethodGet && r.URL.Path == "/orders" && r.URL.Query().Get("count") == "1":
+			// GET /orders?count=1 → credential probe for TestConnection.
+			// Only the suite-seeded test keys authenticate.
+			user, pass, _ := r.BasicAuth()
+			if user != TestKeyID || pass != TestKeySecret {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":{"code":"BAD_REQUEST_ERROR","description":"Invalid key"}}`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"entity":"collection","count":1,"items":[]}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/orders/") && r.URL.Path != "/orders": // GET /orders/{id} → remote order status for reconciliation.
+			orderID := strings.TrimPrefix(r.URL.Path, "/orders/")
+			f.mu.Lock()
+			status := f.orderStatus[orderID]
+			amount, hasAmount := f.orderAmount[orderID]
+			currency := f.orderCurrency[orderID]
+			f.mu.Unlock()
+			if status == "" {
+				status = "created" // still open by default
+			}
+			if !hasAmount {
+				amount = 99900
+			}
+			if currency == "" {
+				currency = "INR"
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(fmt.Sprintf(
+				`{"id":%q,"amount":%d,"currency":%q,"status":%q}`,
+				orderID, amount, currency, status)))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/payments/"):
+			// GET /payments/{id} → remote payment status for reconciliation.
+			paymentID := strings.TrimPrefix(r.URL.Path, "/payments/")
+			f.mu.Lock()
+			status := f.paymentStatus[paymentID]
+			f.mu.Unlock()
+			if status == "" {
+				status = "authorized" // open by default
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(fmt.Sprintf(
+				`{"id":%q,"amount":99900,"currency":"INR","status":%q}`,
+				paymentID, status)))
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	return f
+}
+
+// setRemoteOrderStatus programs the fake provider's order state.
+func (f *fakeRazorpayServer) setRemoteOrderStatus(orderID, status string, amount int64, currency string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orderStatus[orderID] = status
+	f.orderAmount[orderID] = amount
+	f.orderCurrency[orderID] = currency
 }
 
 func (f *fakeRazorpayServer) close() {
@@ -85,7 +158,13 @@ func (f *fakeRazorpayServer) close() {
 
 // signWebhook computes the Razorpay X-Razorpay-Signature for a raw body.
 func signWebhook(rawBody []byte) string {
-	mac := hmac.New(sha256.New, []byte(TestWebhookSecret))
+	return signWebhookWithSecret(rawBody, TestWebhookSecret)
+}
+
+// signWebhookWithSecret signs a raw body with an explicit secret (for
+// cross-seller isolation tests).
+func signWebhookWithSecret(rawBody []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(rawBody)
 	return hex.EncodeToString(mac.Sum(nil))
 }
@@ -147,7 +226,7 @@ func (s *PaymentSuite) seedSellerGatewayConfig() {
 	err := s.container.DB.Where("code = ?", "razorpay").First(&gateway).Error
 	s.Require().NoError(err)
 
-	// Credentials are field-level encrypted at rest; the adapter's DecryptSensitive
+	// Credentials are field-level encrypted at rest; the adapter's Decrypt
 	// uses the same ENCRYPTION_KEY. For tests we store the values via the same
 	// code path used in production (encrypted), so decryption round-trips.
 	encrypted := map[string]any{
@@ -163,7 +242,32 @@ func (s *PaymentSuite) seedSellerGatewayConfig() {
 		Credentials: encrypted,
 		IsActive:    true,
 		Priority:    1,
-		Country:     "IN",
+	}
+	s.Require().NoError(s.container.DB.Create(&config).Error)
+}
+
+// seedSecondSellerGatewayConfig inserts an active sandbox config for seller 3
+// with a DIFFERENT webhook secret, for tenant-isolation tests. Seller 3 needs
+// no orders or payments of its own: its secret is only ever tried against
+// seller 2's transactions (and must fail).
+func (s *PaymentSuite) seedSecondSellerGatewayConfig() {
+	var gateway entity.PaymentGateway
+	err := s.container.DB.Where("code = ?", "razorpay").First(&gateway).Error
+	s.Require().NoError(err)
+
+	encrypted := map[string]any{
+		"key_id":         "rzp_test_bbbbbbbbbbbbbbbb",
+		"key_secret":     encryptForTest("second_seller_key_secret_0000000000"),
+		"webhook_secret": encryptForTest(SecondSellerWebhookSecret),
+	}
+
+	config := entity.PaymentGatewayConfig{
+		SellerID:    helpers.SellerUserID, // seller id 3
+		GatewayID:   gateway.ID,
+		Environment: entity.EnvironmentSandbox,
+		Credentials: encrypted,
+		IsActive:    true,
+		Priority:    1,
 	}
 	s.Require().NoError(s.container.DB.Create(&config).Error)
 }

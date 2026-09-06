@@ -6,7 +6,7 @@ import (
 )
 
 // encryptForTest encrypts a value using the resolved ENCRYPTION_KEY so the
-// adapter's DecryptSensitive can round-trip it during tests. If no key is
+// adapter's Decrypt can round-trip it during tests. If no key is
 // configured, it stores plaintext (round-trip still works for sandbox tests).
 func encryptForTest(plaintext string) string {
 	key := gateway.ResolveEncryptionKey()

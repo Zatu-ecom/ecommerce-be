@@ -8,6 +8,8 @@ import (
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
+	"ecommerce-be/payment/entity"
+	paymenterrors "ecommerce-be/payment/error"
 	paymentModel "ecommerce-be/payment/model"
 	paymentService "ecommerce-be/payment/service"
 	paymentConstant "ecommerce-be/payment/utils/constant"
@@ -92,7 +94,9 @@ func (h *GatewayHandler) ConfigureGateway(c *gin.Context) {
 	h.Success(c, http.StatusOK, paymentConstant.GATEWAY_CONFIGURED_MSG, nil)
 }
 
-// DeactivateGateway disables the seller's config for a provider.
+// DeactivateGateway disables one environment of the seller's config.
+// Query ?environment= is required: deactivating both environments by accident
+// must be impossible.
 func (h *GatewayHandler) DeactivateGateway(c *gin.Context) {
 	sellerID, ok := h.sellerID(c)
 	if !ok {
@@ -100,9 +104,39 @@ func (h *GatewayHandler) DeactivateGateway(c *gin.Context) {
 	}
 
 	code := c.Param(paymentConstant.PARAM_CODE)
-	if err := h.gatewayService.Deactivate(c, sellerID, code); err != nil {
+	environment := entity.GatewayEnvironment(c.Query(paymentConstant.QUERY_ENVIRONMENT))
+	if environment != entity.EnvironmentSandbox && environment != entity.EnvironmentProduction {
+		h.HandleError(c, paymenterrors.ErrorGatewayValidation.WithMessagef(
+			"query environment is required (sandbox|production)"), paymentConstant.FAILED_TO_DEACTIVATE_GATEWAY_MSG)
+		return
+	}
+	if err := h.gatewayService.Deactivate(c, sellerID, code, environment); err != nil {
 		h.HandleError(c, err, paymentConstant.FAILED_TO_DEACTIVATE_GATEWAY_MSG)
 		return
 	}
 	h.Success(c, http.StatusOK, paymentConstant.GATEWAY_DEACTIVATED_MSG, nil)
+}
+
+// TestGateway probes credentials against the provider without persisting.
+// The handler binds JSON and delegates; all provider logic lives in the
+// service/adapter layers.
+func (h *GatewayHandler) TestGateway(c *gin.Context) {
+	sellerID, ok := h.sellerID(c)
+	if !ok {
+		return
+	}
+
+	code := c.Param(paymentConstant.PARAM_CODE)
+	var req paymentModel.TestGatewayRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	resp, err := h.gatewayService.TestConnection(c, sellerID, code, req)
+	if err != nil {
+		h.HandleError(c, err, paymentConstant.FAILED_TO_TEST_GATEWAY_MSG)
+		return
+	}
+	h.Success(c, http.StatusOK, paymentConstant.GATEWAY_TESTED_MSG, resp)
 }

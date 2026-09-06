@@ -11,13 +11,30 @@ import (
 )
 
 type PaymentGatewayConfigRepository interface {
-	FindBySellerAndGateway(
+	// FindBySellerGatewayAndEnvironment loads one environment row.
+	// Returns (nil, nil) when the seller never configured that environment.
+	// Callers must always scope by environment — never First() without it.
+	FindBySellerGatewayAndEnvironment(
 		ctx context.Context,
 		sellerID, gatewayID uint,
+		environment entity.GatewayEnvironment,
 	) (*entity.PaymentGatewayConfig, error)
+	// FindAllBySellerAndGateway loads both environment rows (sandbox/production).
+	FindAllBySellerAndGateway(
+		ctx context.Context,
+		sellerID, gatewayID uint,
+	) ([]entity.PaymentGatewayConfig, error)
 	FindActiveBySeller(
 		ctx context.Context,
 		sellerID uint,
+	) ([]entity.PaymentGatewayConfig, error)
+	// FindActiveBySellerAndEnvironment loads the seller's active configs for one
+	// environment, highest priority first, with gateways preloaded. This is the
+	// initiate-time selection set: no environment fallback, ever.
+	FindActiveBySellerAndEnvironment(
+		ctx context.Context,
+		sellerID uint,
+		environment entity.GatewayEnvironment,
 	) ([]entity.PaymentGatewayConfig, error)
 	FindAllForGateway(ctx context.Context, gatewayID uint) ([]entity.PaymentGatewayConfig, error)
 	UpsertConfig(ctx context.Context, config *entity.PaymentGatewayConfig) error
@@ -30,14 +47,15 @@ func NewPaymentGatewayConfigRepository() PaymentGatewayConfigRepository {
 	return &PaymentGatewayConfigRepositoryImpl{}
 }
 
-func (r *PaymentGatewayConfigRepositoryImpl) FindBySellerAndGateway(
+func (r *PaymentGatewayConfigRepositoryImpl) FindBySellerGatewayAndEnvironment(
 	ctx context.Context,
 	sellerID, gatewayID uint,
+	environment entity.GatewayEnvironment,
 ) (*entity.PaymentGatewayConfig, error) {
 	var config entity.PaymentGatewayConfig
 	err := db.DB(ctx).
 		Preload("Gateway").
-		Where("seller_id = ? AND gateway_id = ?", sellerID, gatewayID).
+		Where("seller_id = ? AND gateway_id = ? AND environment = ?", sellerID, gatewayID, environment).
 		First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -47,6 +65,23 @@ func (r *PaymentGatewayConfigRepositoryImpl) FindBySellerAndGateway(
 	}
 
 	return &config, nil
+}
+
+func (r *PaymentGatewayConfigRepositoryImpl) FindAllBySellerAndGateway(
+	ctx context.Context,
+	sellerID, gatewayID uint,
+) ([]entity.PaymentGatewayConfig, error) {
+	var configs []entity.PaymentGatewayConfig
+	err := db.DB(ctx).
+		Preload("Gateway").
+		Where("seller_id = ? AND gateway_id = ?", sellerID, gatewayID).
+		Order("environment ASC").
+		Find(&configs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return configs, nil
 }
 
 func (r *PaymentGatewayConfigRepositoryImpl) FindActiveBySeller(
@@ -68,8 +103,25 @@ func (r *PaymentGatewayConfigRepositoryImpl) FindActiveBySeller(
 
 // FindAllForGateway returns all configs for a gateway (used to resolve the webhook
 // secret). Ordered by seller_id so behavior is deterministic in tests.
-func (r *PaymentGatewayConfigRepositoryImpl) FindAllForGateway(
+func (r *PaymentGatewayConfigRepositoryImpl) FindActiveBySellerAndEnvironment(
 	ctx context.Context,
+	sellerID uint,
+	environment entity.GatewayEnvironment,
+) ([]entity.PaymentGatewayConfig, error) {
+	var configs []entity.PaymentGatewayConfig
+	err := db.DB(ctx).
+		Preload("Gateway").
+		Where("seller_id = ? AND environment = ? AND is_active = ?", sellerID, environment, true).
+		Order("priority DESC").
+		Find(&configs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return configs, nil
+}
+
+func (r *PaymentGatewayConfigRepositoryImpl) FindAllForGateway(ctx context.Context,
 	gatewayID uint,
 ) ([]entity.PaymentGatewayConfig, error) {
 	var configs []entity.PaymentGatewayConfig

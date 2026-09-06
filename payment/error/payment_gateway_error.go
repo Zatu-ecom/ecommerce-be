@@ -85,4 +85,18 @@ var (
 		Message:    constant.GATEWAY_UNSUPPORTED_CURRENCY_MESSAGE,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	ErrorGatewayUnsupportedCountry = &error.AppError{
+		Code:       constant.GATEWAY_UNSUPPORTED_COUNTRY_CODE,
+		Message:    constant.GATEWAY_UNSUPPORTED_COUNTRY_MESSAGE,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrorEncryptionKeyMissing fails credential encrypt/decrypt closed: no
+	// plaintext secrets are ever stored or used when the key is absent.
+	ErrorEncryptionKeyMissing = &error.AppError{
+		Code:       constant.ENCRYPTION_KEY_MISSING_CODE,
+		Message:    constant.ENCRYPTION_KEY_MISSING_MESSAGE,
+		StatusCode: http.StatusInternalServerError,
+	}
 )

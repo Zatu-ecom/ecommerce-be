@@ -31,5 +31,6 @@ func (m *GatewayModule) RegisterRoutes(router *gin.Engine) {
 		routes.GET("/:code", sellerAuth, m.gatewayHandler.GetGateway)
 		routes.PUT("/:code/configure", sellerAuth, m.gatewayHandler.ConfigureGateway)
 		routes.DELETE("/:code/configure", sellerAuth, m.gatewayHandler.DeactivateGateway)
+		routes.POST("/:code/test", sellerAuth, m.gatewayHandler.TestGateway)
 	}
 }

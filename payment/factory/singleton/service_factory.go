@@ -11,7 +11,7 @@ import (
 	orderService "ecommerce-be/order/service"
 	"ecommerce-be/payment/factory"
 	"ecommerce-be/payment/service"
-	gateway "ecommerce-be/payment/service/payment_gateway"
+	"ecommerce-be/payment/service/payment_gateway/razorpay"
 	userSingleton "ecommerce-be/user/factory/singleton"
 	userService "ecommerce-be/user/service"
 )
@@ -24,6 +24,7 @@ type ServiceFactory struct {
 	paymentService        service.PaymentService
 	webhookService        service.WebhookService
 	paymentGatewayService service.PaymentGatewayService
+	reconcileService      service.ReconcileService
 
 	fileDisplayGateway filegateway.FileDisplayGateway
 	orderService       orderService.OrderService
@@ -41,11 +42,24 @@ func NewServiceFactory(repoFactory *RepositoryFactory) *ServiceFactory {
 func (f *ServiceFactory) initialize() {
 	f.once.Do(func() {
 		// Razorpay adapter with configurable base URL for tests.
-		razorpay := gateway.NewRazorpayGateway(os.Getenv("RAZORPAY_BASE_URL"))
+		//
+		// EXTENSION POINT — adding a provider (e.g. Stripe) is exactly:
+		//   1. New folder payment/service/payment_gateway/{code}/ implementing
+		//      the gateway.PaymentGateway interface (credentials codec,
+		//      Initiate/Refund/Test, PeekLocators, NormalizeWebhook,
+		//      FetchRemoteStatus) + unit tests under test/payment/.
+		//   2. Seed rows: payment_gateway + payment_gateway_field +
+		//      payment_gateway_country/currency joins (code-matched subselects).
+		//   3. One argument below: NewPaymentGatewayFactory(repo, razorpay, stripe).
+		// This razorpay.New call is the ONLY provider import in payment
+		// factories. Orchestrators (payment/service/*.go, handlers, routes)
+		// must never import provider packages — enforced by
+		// test/payment/ocp_boundaries_test.go.
+		razorpayAdapter := razorpay.New(os.Getenv("RAZORPAY_BASE_URL"))
 
 		f.paymentGatewayFactory = factory.NewPaymentGatewayFactory(
 			f.repoFactory.GetPaymentGatewayRepository(),
-			razorpay,
+			razorpayAdapter,
 		)
 
 		// Cross-module dependencies via service interfaces only (no repo access).
@@ -59,6 +73,7 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetPaymentTransactionRepository(),
 			f.repoFactory.GetPaymentTransactionEventRepository(),
 			f.repoFactory.GetPaymentRefundRepository(),
+			f.repoFactory.GetPaymentWebhookLogRepository(),
 			f.repoFactory.GetPaymentGatewayRepository(),
 			f.repoFactory.GetPaymentGatewayConfigRepository(),
 			f.paymentGatewayFactory,
@@ -79,7 +94,18 @@ func (f *ServiceFactory) initialize() {
 			f.repoFactory.GetPaymentGatewayRepository(),
 			f.repoFactory.GetPaymentGatewayFieldRepository(),
 			f.repoFactory.GetPaymentGatewayConfigRepository(),
+			f.paymentGatewayFactory,
+			f.userService,
 			f.fileDisplayGateway,
+		)
+		f.reconcileService = service.NewReconcileService(
+			f.repoFactory.GetPaymentTransactionRepository(),
+			f.repoFactory.GetPaymentRefundRepository(),
+			f.repoFactory.GetPaymentTransactionEventRepository(),
+			f.repoFactory.GetPaymentGatewayRepository(),
+			f.repoFactory.GetPaymentGatewayConfigRepository(),
+			f.paymentGatewayFactory,
+			f.orderService,
 		)
 	})
 }
@@ -106,6 +132,12 @@ func (f *ServiceFactory) GetWebhookService() service.WebhookService {
 func (f *ServiceFactory) GetPaymentGatewayService() service.PaymentGatewayService {
 	f.initialize()
 	return f.paymentGatewayService
+}
+
+// GetReconcileService returns the singleton payment reconciliation worker.
+func (f *ServiceFactory) GetReconcileService() service.ReconcileService {
+	f.initialize()
+	return f.reconcileService
 }
 
 // GetFileDisplayGateway returns the file display gateway for resolving logo files.

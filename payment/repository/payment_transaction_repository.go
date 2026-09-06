@@ -11,6 +11,7 @@ import (
 	paymenterrors "ecommerce-be/payment/error"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // PaymentTransactionRepository handles data access for payment transactions.
@@ -29,6 +30,7 @@ type PaymentTransactionRepository interface {
 		ctx context.Context,
 		sellerID uint,
 		page, pageSize int,
+		status entity.TransactionStatus,
 	) ([]entity.PaymentTransaction, int64, error)
 	// UpdateStatusIfCurrent conditionally transitions status; returns true if a row changed.
 	UpdateStatusIfCurrent(
@@ -37,6 +39,15 @@ type PaymentTransactionRepository interface {
 		from, to entity.TransactionStatus,
 		patch map[string]any,
 	) (bool, error)
+	// ListPendingForReconcile returns pending transactions older than olderThan
+	// for the reconciliation cron. Rows are locked FOR UPDATE SKIP LOCKED so
+	// concurrent cron instances never process the same row. Callers MUST run
+	// inside a transaction for the lock to be held; limit <= 0 defaults to 100.
+	ListPendingForReconcile(
+		ctx context.Context,
+		olderThan time.Time,
+		limit int,
+	) ([]entity.PaymentTransaction, error)
 }
 
 type PaymentTransactionRepositoryImpl struct{}
@@ -120,6 +131,7 @@ func (r *PaymentTransactionRepositoryImpl) FindBySellerID(
 	ctx context.Context,
 	sellerID uint,
 	page, pageSize int,
+	status entity.TransactionStatus,
 ) ([]entity.PaymentTransaction, int64, error) {
 	var transactions []entity.PaymentTransaction
 	var total int64
@@ -136,6 +148,9 @@ func (r *PaymentTransactionRepositoryImpl) FindBySellerID(
 
 	query := db.DB(ctx).Model(&entity.PaymentTransaction{}).
 		Where("seller_id = ?", sellerID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -184,4 +199,29 @@ func (r *PaymentTransactionRepositoryImpl) mapNotFound(err error) error {
 		return paymenterrors.ErrorPaymentTransactionNotFound
 	}
 	return err
+}
+
+// defaultReconcileBatchSize bounds one cron pass (multi-instance safe with
+// SKIP LOCKED; the next tick picks up the remainder).
+const defaultReconcileBatchSize = 100
+
+func (r *PaymentTransactionRepositoryImpl) ListPendingForReconcile(
+	ctx context.Context,
+	olderThan time.Time,
+	limit int,
+) ([]entity.PaymentTransaction, error) {
+	if limit <= 0 {
+		limit = defaultReconcileBatchSize
+	}
+	var txns []entity.PaymentTransaction
+	err := db.DB(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+		Where("status = ? AND created_at < ?", entity.TransactionStatusPending, olderThan).
+		Order("id ASC").
+		Limit(limit).
+		Find(&txns).Error
+	if err != nil {
+		return nil, err
+	}
+	return txns, nil
 }

@@ -31,10 +31,14 @@ func (m *PaymentModule) RegisterRoutes(router *gin.Engine) {
 	{
 		// Customer: initiate payment for an order + view own payment status.
 		routes.POST("/initiate", customerAuth, m.paymentHandler.InitiatePayment)
+		// Customer or seller: CustomerAuth admits sellers by role level
+		// (seller > customer); ownership is enforced per role in the service
+		// (customer → user_id, seller → seller_id, unknown → 404).
 		routes.GET("/transactions/:transactionId", customerAuth, m.paymentHandler.GetPaymentStatus)
 
-		// Seller: list own transactions + issue refunds.
+		// Seller: list own transactions + issue refunds + webhook ledger.
 		routes.GET("/transactions", sellerAuth, m.paymentHandler.ListSellerTransactions)
 		routes.POST("/refunds", sellerAuth, m.paymentHandler.Refund)
+		routes.GET("/webhook-logs", sellerAuth, m.paymentHandler.ListWebhookLogs)
 	}
 }

@@ -13,7 +13,6 @@ func gormOnConflictConfig() clause.OnConflict {
 			"credentials",
 			"is_active",
 			"priority",
-			"country",
 			"updated_at",
 		}),
 	}

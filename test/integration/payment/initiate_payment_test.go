@@ -18,9 +18,11 @@ const (
 // ─── Initiate Payment: Happy Path ──────────────────────────────────────────────
 // Scenario: A customer initiates payment for their own pending order.
 // Validates:
-// 1. A payment_transaction is created with reference_type=order.
-// 2. The order's transaction_id is written.
-// 3. The response returns gatewaySessionId, keyId, amountCents and currency.
+//  1. A payment_transaction is created with reference_type=order.
+//  2. The order's transaction_id is written.
+//  3. The response returns gatewaySessionId, amountCents, currency and a
+//     generic checkout payload (gatewayCode + fields.keyId/orderId) with NO
+//     top-level keyId (provider-agnostic contract).
 func (s *PaymentSuite) TestInitiatePaymentReturnsCheckoutSession() {
 	orderID := s.createPendingOrder(helpers.CustomerUserID)
 
@@ -35,10 +37,19 @@ func (s *PaymentSuite) TestInitiatePaymentReturnsCheckoutSession() {
 
 	s.Assert().NotEmpty(data["transactionId"], "transactionId required")
 	s.Assert().NotEmpty(data["gatewaySessionId"], "gatewaySessionId required")
-	s.Assert().NotEmpty(data["keyId"], "keyId required")
 	s.Assert().Equal(float64(99900), data["amountCents"], "amountCents should match order total (₹999.00)")
 	s.Assert().Equal("INR", data["currency"], "currency should be seller base currency INR")
 	s.Assert().Equal("pending", data["status"], "status should be pending")
+
+	// Generic checkout contract: no provider-named top-level fields.
+	s.Assert().Nil(data["keyId"], "top-level keyId must not exist on the initiate contract")
+	checkout, ok := data["checkout"].(map[string]any)
+	s.Require().True(ok, "checkout should be an object")
+	s.Assert().Equal("razorpay", checkout["gatewayCode"], "checkout gatewayCode should be razorpay")
+	fields, ok := checkout["fields"].(map[string]any)
+	s.Require().True(ok, "checkout.fields should be an object")
+	s.Assert().NotEmpty(fields["keyId"], "checkout.fields.keyId required")
+	s.Assert().NotEmpty(fields["orderId"], "checkout.fields.orderId required")
 
 	// Verify the transaction row exists with reference_type=order.
 	s.verifyTransactionRow(data["transactionId"].(string), orderID)
@@ -88,6 +99,66 @@ func (s *PaymentSuite) TestInitiatePaymentRejectsDuplicate() {
 		"orderId": orderID,
 	})
 	helpers.AssertErrorResponse(s.T(), second, http.StatusConflict)
+}
+
+// ─── Initiate Payment: Production Mode Without Production Config ───────────────
+// Scenario: The seller's store runs in production mode but only a sandbox
+// gateway config exists.
+// Validates: checkout is blocked with GATEWAY_NOT_CONFIGURED (never silently
+// falls back to sandbox credentials for a live order).
+func (s *PaymentSuite) TestInitiatePaymentRejectsProductionWithoutProductionConfig() {
+	seller2 := s.sellerClientFor(helpers.Seller2Email, helpers.Seller2Password)
+
+	// Flip store mode to production; restore sandbox afterwards so later tests
+	// keep the suite-seeded sandbox behavior.
+	w := seller2.Put(s.T(), "/api/user/seller/settings", map[string]any{
+		"paymentsEnvironment": "production",
+	})
+	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+	defer func() {
+		w := seller2.Put(s.T(), "/api/user/seller/settings", map[string]any{
+			"paymentsEnvironment": "sandbox",
+		})
+		helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
+	}()
+
+	orderID := s.createPendingOrder(helpers.CustomerUserID)
+	resp := helpers.AssertErrorResponse(s.T(), s.customerClient.Post(s.T(), InitiatePaymentAPIEndpoint, map[string]any{
+		"orderId": orderID,
+	}), http.StatusBadRequest)
+	s.Assert().Equal("GATEWAY_NOT_CONFIGURED", resp["code"], "production without prod keys must not use sandbox")
+}
+
+// ─── Initiate Payment: Invalid paymentMethodType ─────────────────────────────
+// Scenario: A customer sends an optional paymentMethodType the selected gateway
+// does not support.
+// Validates: rejection with 400.
+func (s *PaymentSuite) TestInitiatePaymentRejectsUnsupportedPaymentMethodType() {
+	orderID := s.createPendingOrder(helpers.CustomerUserID)
+
+	w := s.customerClient.Post(s.T(), InitiatePaymentAPIEndpoint, map[string]any{
+		"orderId":           orderID,
+		"paymentMethodType": "bitcoin",
+	})
+	helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+}
+
+// ─── Initiate Payment: Correlation ID Required ───────────────────────────────
+// Scenario: A customer initiates payment without X-Correlation-ID.
+// Validates: rejection with 400 CORRELATION_ID_REQUIRED (only the public
+// webhook route is exempt from the correlation requirement).
+func (s *PaymentSuite) TestInitiatePaymentRequiresCorrelationID() {
+	orderID := s.createPendingOrder(helpers.CustomerUserID)
+
+	client := helpers.NewAPIClient(s.server)
+	token := helpers.Login(s.T(), client, helpers.CustomerEmail, helpers.CustomerPassword)
+	client.SetToken(token)
+	client.SetHeader("X-Correlation-ID", "")
+	w := client.Post(s.T(), InitiatePaymentAPIEndpoint, map[string]any{
+		"orderId": orderID,
+	})
+	resp := helpers.AssertErrorResponse(s.T(), w, http.StatusBadRequest)
+	s.Assert().Equal("CORRELATION_ID_REQUIRED", resp["code"], "authenticated APIs must require correlation id")
 }
 
 // ─── List Transactions: Seller Isolation ───────────────────────────────────────

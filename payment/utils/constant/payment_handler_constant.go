@@ -10,6 +10,8 @@ const (
 	GATEWAY_FETCHED_MSG        = "Gateway fetched"
 	GATEWAY_CONFIGURED_MSG     = "Gateway configured"
 	GATEWAY_DEACTIVATED_MSG    = "Gateway deactivated"
+	GATEWAY_TESTED_MSG         = "Credentials accepted"
+	WEBHOOK_LOGS_FETCHED_MSG   = "Webhook logs fetched"
 	WEBHOOK_RECEIVED_MSG       = "received"
 )
 
@@ -23,6 +25,8 @@ const (
 	FAILED_TO_GET_GATEWAY_MSG        = "Failed to get gateway"
 	FAILED_TO_CONFIGURE_GATEWAY_MSG  = "Failed to configure gateway"
 	FAILED_TO_DEACTIVATE_GATEWAY_MSG = "Failed to deactivate gateway"
+	FAILED_TO_TEST_GATEWAY_MSG       = "Failed to test gateway"
+	FAILED_TO_LIST_WEBHOOK_LOGS_MSG  = "Failed to list webhook logs"
 	FAILED_TO_READ_WEBHOOK_BODY_MSG  = "Failed to read webhook body"
 )
 
@@ -34,11 +38,9 @@ const (
 
 // Query params.
 const (
-	QUERY_PAGE      = "page"
-	QUERY_PAGE_SIZE = "pageSize"
-)
-
-// Webhook header.
-const (
-	WEBHOOK_SIGNATURE_HEADER = "X-Razorpay-Signature"
+	QUERY_PAGE        = "page"
+	QUERY_PAGE_SIZE   = "pageSize"
+	QUERY_ENVIRONMENT = "environment"
+	QUERY_STATUS      = "status"
+	QUERY_EVENT_TYPE  = "eventType"
 )

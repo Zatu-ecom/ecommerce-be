@@ -2,14 +2,16 @@
 -- Description: Core payment gateway catalog for the payment module
 -- Environment: ALL (core data) — the gateway catalog must exist whenever the backend runs
 -- Notes: Idempotent upserts keyed on the natural unique columns.
+--   010-payment-gateway-platform: geo support moved from VARCHAR[] columns to
+--   payment_gateway_country / payment_gateway_currency FK join tables.
 
 -- ============================================================================
 -- 1. PAYMENT GATEWAY - Razorpay
 -- ============================================================================
 INSERT INTO payment_gateway (
     code, name, description, logo_file_id, is_active,
-    supported_countries, supported_currencies, supported_payment_methods,
-    webhook_url, created_at, updated_at
+    supported_payment_methods,
+    created_at, updated_at
 )
 VALUES (
     'razorpay',
@@ -17,10 +19,7 @@ VALUES (
     'Leading payment solution in India with support for cards, UPI, wallets, netbanking, EMI and Pay Later.',
     NULL,  -- logo uploaded later via file service
     TRUE,
-    ARRAY['IN'],
-    ARRAY['INR'],
     ARRAY['card', 'upi', 'wallet', 'netbanking', 'emi', 'cardless_emi', 'paylater'],
-    NULL,
     NOW(),
     NOW()
 )
@@ -30,14 +29,28 @@ SET
     description = EXCLUDED.description,
     logo_file_id = EXCLUDED.logo_file_id,
     is_active = EXCLUDED.is_active,
-    supported_countries = EXCLUDED.supported_countries,
-    supported_currencies = EXCLUDED.supported_currencies,
     supported_payment_methods = EXCLUDED.supported_payment_methods,
-    webhook_url = EXCLUDED.webhook_url,
     updated_at = NOW();
 
 -- ============================================================================
--- 2. PAYMENT GATEWAY FIELD - Razorpay configuration fields
+-- 2. PAYMENT GATEWAY GEO - Razorpay serves India (IN) settling in INR
+-- ============================================================================
+INSERT INTO payment_gateway_country (gateway_id, country_id)
+SELECT g.id, c.id
+FROM payment_gateway g
+JOIN country c ON c.code = 'IN'
+WHERE g.code = 'razorpay'
+ON CONFLICT (gateway_id, country_id) DO NOTHING;
+
+INSERT INTO payment_gateway_currency (gateway_id, currency_id)
+SELECT g.id, cur.id
+FROM payment_gateway g
+JOIN currency cur ON cur.code = 'INR'
+WHERE g.code = 'razorpay'
+ON CONFLICT (gateway_id, currency_id) DO NOTHING;
+
+-- ============================================================================
+-- 3. PAYMENT GATEWAY FIELD - Razorpay configuration fields
 -- ============================================================================
 INSERT INTO payment_gateway_field (
     gateway_id, field_name, display_name, field_type, description, placeholder,

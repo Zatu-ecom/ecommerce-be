@@ -60,7 +60,9 @@ func (s *PaymentSuite) TestWebhookCapturedCompletesPaymentAndConfirmsOrder() {
 	sessionID := s.sessionIDForTransaction(txID)
 	paymentID := "pay_captured_1"
 
-	rawBody := webhookPayload("payment.captured", paymentID, sessionID, 10000)
+	// The captured amount must equal the transaction amount: the apply path
+	// refuses completion on amount/currency mismatch (wrong-order capture).
+	rawBody := webhookPayload("payment.captured", paymentID, sessionID, float64(s.amountCentsForTransaction(txID)))
 	w := s.postWebhook(rawBody, signWebhook(rawBody))
 	s.Require().Equal(http.StatusOK, w.Code, "webhook should be accepted")
 
@@ -133,7 +135,7 @@ func (s *PaymentSuite) TestWebhookWorksWithoutCorrelationID() {
 	txID := s.transactionIDForOrder(orderID)
 	sessionID := s.sessionIDForTransaction(txID)
 
-	rawBody := webhookPayload("payment.captured", "pay_no_corr", sessionID, 10000)
+	rawBody := webhookPayload("payment.captured", "pay_no_corr", sessionID, float64(s.amountCentsForTransaction(txID)))
 	w := s.postWebhookWithoutCorrelationID(rawBody, signWebhook(rawBody))
 	s.Require().Equal(http.StatusOK, w.Code, "webhook should be accepted without X-Correlation-ID")
 	s.Require().NotEmpty(w.Header().Get("X-Correlation-ID"), "server should generate a correlation ID")
@@ -152,7 +154,7 @@ func (s *PaymentSuite) TestWebhookDuplicateIsIdempotent() {
 	sessionID := s.sessionIDForTransaction(txID)
 	paymentID := "pay_dup_1"
 
-	rawBody := webhookPayload("payment.captured", paymentID, sessionID, 10000)
+	rawBody := webhookPayload("payment.captured", paymentID, sessionID, float64(s.amountCentsForTransaction(txID)))
 	sig := signWebhook(rawBody)
 
 	first := s.postWebhook(rawBody, sig)
@@ -172,6 +174,116 @@ func (s *PaymentSuite) TestWebhookDuplicateIsIdempotent() {
 		Count(&count).Error
 	s.Require().NoError(err)
 	assert.Equal(s.T(), int64(1), count, "captured event should be recorded exactly once")
+}
+
+// ─── Webhook: Amount Mismatch Does Not Complete ───────────────────────────────
+// Scenario: A captured webhook arrives whose amount differs from our
+// transaction (wrong-order capture).
+// Validates: transaction stays pending, order stays pending, webhook log is
+// recorded as failed. HTTP is still 200 (provider stops retrying).
+func (s *PaymentSuite) TestWebhookAmountMismatchDoesNotComplete() {
+	orderID := s.initiatePaymentForOrder()
+	txID := s.transactionIDForOrder(orderID)
+	sessionID := s.sessionIDForTransaction(txID)
+
+	wrongAmount := float64(s.amountCentsForTransaction(txID)) - 1
+	rawBody := webhookPayload("payment.captured", "pay_mismatch_1", sessionID, wrongAmount)
+	w := s.postWebhook(rawBody, signWebhook(rawBody))
+	s.Require().Equal(http.StatusOK, w.Code)
+
+	s.verifyTransactionStatus(txID, "pending")
+	s.verifyOrderStatus(orderID, "pending")
+
+	// No captured event recorded.
+	var count int64
+	err := s.container.DB.Table("payment_transaction_event").
+		Where("transaction_id = (SELECT id FROM payment_transaction WHERE transaction_id = ?) AND event_type = ?",
+			txID, "captured").
+		Count(&count).Error
+	s.Require().NoError(err)
+	assert.Equal(s.T(), int64(0), count, "mismatched capture must not record a captured event")
+
+	// Webhook log recorded as failed.
+	var logStatus string
+	err = s.container.DB.Table("payment_webhook_log").
+		Select("status").
+		Where("transaction_id = (SELECT id FROM payment_transaction WHERE transaction_id = ?)", txID).
+		Order("id DESC").
+		Limit(1).
+		Scan(&logStatus).Error
+	s.Require().NoError(err)
+	assert.Equal(s.T(), "failed", logStatus, "mismatched capture must fail the webhook log")
+}
+
+// ─── Webhook: Wrong-Seller Signature ─────────────────────────────────────────
+// Scenario: A webhook for seller A's payment arrives signed with seller B's
+// webhook secret (well-formed HMAC under the wrong key).
+// Validates: 401, no state change, and nothing persisted (verification
+// happens before any write).
+func (s *PaymentSuite) TestWebhookRejectsWrongSellerSignature() {
+	orderID := s.initiatePaymentForOrder()
+	txID := s.transactionIDForOrder(orderID)
+	sessionID := s.sessionIDForTransaction(txID)
+
+	s.seedSecondSellerGatewayConfig()
+
+	rawBody := webhookPayload("payment.captured", "pay_wrong_seller", sessionID, float64(s.amountCentsForTransaction(txID)))
+	w := s.postWebhook(rawBody, signWebhookWithSecret(rawBody, SecondSellerWebhookSecret))
+	s.Require().Equal(http.StatusUnauthorized, w.Code)
+
+	s.verifyTransactionStatus(txID, "pending")
+	s.verifyOrderStatus(orderID, "pending")
+	s.verifyWebhookLogCount(txID, 0)
+}
+
+// ─── Webhook: Two-Seller Isolation ───────────────────────────────────────────
+// Scenario: Two sellers hold different webhook secrets for the same provider.
+// Validates: B's signature cannot complete A's payment, while A's own
+// signature completes it (tenant-safe verification).
+func (s *PaymentSuite) TestWebhookTwoSellerIsolation() {
+	orderID := s.initiatePaymentForOrder()
+	txID := s.transactionIDForOrder(orderID)
+	sessionID := s.sessionIDForTransaction(txID)
+
+	s.seedSecondSellerGatewayConfig()
+
+	rawBody := webhookPayload("payment.captured", "pay_isolation_1", sessionID, float64(s.amountCentsForTransaction(txID)))
+
+	// B's signature on A's payment → 401, still pending.
+	w := s.postWebhook(rawBody, signWebhookWithSecret(rawBody, SecondSellerWebhookSecret))
+	s.Require().Equal(http.StatusUnauthorized, w.Code)
+	s.verifyTransactionStatus(txID, "pending")
+
+	// A's own signature on the same body → 200, completed + confirmed.
+	w = s.postWebhook(rawBody, signWebhook(rawBody))
+	s.Require().Equal(http.StatusOK, w.Code)
+	s.verifyTransactionStatus(txID, "completed")
+	s.verifyOrderStatus(orderID, "confirmed")
+}
+
+// ─── Webhook: Unknown Gateway Code ───────────────────────────────────────────
+// Scenario: A webhook arrives for a provider code that does not exist.
+// Validates: 404.
+func (s *PaymentSuite) TestWebhookUnknownCodeReturns404() {
+	rawBody := webhookPayload("payment.captured", "pay_unknown_code", "order_unknown_code", 10000)
+	client := helpers.NewAPIClient(s.server)
+	client.SetHeader("X-Razorpay-Signature", signWebhook(rawBody))
+	w := client.PostRaw(s.T(), "/api/payment/webhooks/stripe", rawBody)
+	s.Require().Equal(http.StatusNotFound, w.Code)
+}
+
+// ─── Webhook: Unmatched Delivery Persists Nothing ────────────────────────────
+// Scenario: A validly-signed webhook arrives that matches no transaction
+// (initiate still in flight or unknown ids).
+// Validates: 200 with zero webhook-log rows written (no unverified persist).
+func (s *PaymentSuite) TestWebhookWithoutTransactionPersistsNothing() {
+	before := s.webhookLogCount()
+
+	rawBody := webhookPayload("payment.captured", "pay_ghost_1", "order_ghost_1", 99900)
+	w := s.postWebhook(rawBody, signWebhook(rawBody))
+	s.Require().Equal(http.StatusOK, w.Code, "unmatched delivery must be a 200 no-op")
+
+	s.Assert().Equal(before, s.webhookLogCount(), "unmatched delivery must persist no rows")
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -207,6 +319,17 @@ func (s *PaymentSuite) sessionIDForTransaction(transactionID string) string {
 	return sessionID
 }
 
+func (s *PaymentSuite) amountCentsForTransaction(transactionID string) int64 {
+	var amountCents int64
+	err := s.container.DB.Table("payment_transaction").
+		Select("amount_cents").
+		Where("transaction_id = ?", transactionID).
+		Scan(&amountCents).Error
+	s.Require().NoError(err)
+	s.Require().Positive(amountCents, "transaction should have a positive amount")
+	return amountCents
+}
+
 func (s *PaymentSuite) verifyTransactionStatus(transactionID, status string) {
 	var stored string
 	err := s.container.DB.Table("payment_transaction").
@@ -235,4 +358,20 @@ func (s *PaymentSuite) verifyEventExists(transactionID, eventType string) {
 		Count(&count).Error
 	s.Require().NoError(err)
 	assert.Equal(s.T(), int64(1), count, "event %s should be recorded", eventType)
+}
+
+func (s *PaymentSuite) webhookLogCount() int64 {
+	var count int64
+	err := s.container.DB.Table("payment_webhook_log").Count(&count).Error
+	s.Require().NoError(err)
+	return count
+}
+
+func (s *PaymentSuite) verifyWebhookLogCount(transactionID string, want int64) {
+	var count int64
+	err := s.container.DB.Table("payment_webhook_log").
+		Where("transaction_id = (SELECT id FROM payment_transaction WHERE transaction_id = ?)", transactionID).
+		Count(&count).Error
+	s.Require().NoError(err)
+	assert.Equal(s.T(), want, count, "webhook log count mismatch")
 }

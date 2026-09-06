@@ -4,6 +4,12 @@ import (
 	"ecommerce-be/common/db"
 )
 
+// Payments environment modes for the payment gateway platform.
+const (
+	PaymentsEnvironmentSandbox    = "sandbox"
+	PaymentsEnvironmentProduction = "production"
+)
+
 // SellerSettings contains business configuration for a seller
 type SellerSettings struct {
 	db.BaseEntity
@@ -16,4 +22,9 @@ type SellerSettings struct {
 
 	// Display preferences
 	DisplayPricesInBuyerCurrency bool `json:"displayPricesInBuyerCurrency" gorm:"default:false"` // Convert prices for buyers
+
+	// PaymentsEnvironment selects which gateway credential set checkout uses:
+	// 'sandbox' (default) or 'production'. Frozen onto each payment_transaction
+	// at initiate time so a later toggle never reinterprets old payments.
+	PaymentsEnvironment string `json:"paymentsEnvironment" gorm:"size:20;not null;default:sandbox"`
 }

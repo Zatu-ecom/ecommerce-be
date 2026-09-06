@@ -10,6 +10,7 @@ import (
 	paymenterrors "ecommerce-be/payment/error"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // PaymentRefundRepository handles data access for payment refunds.
@@ -29,6 +30,13 @@ type PaymentRefundRepository interface {
 		from, to entity.RefundStatus,
 		patch map[string]any,
 	) (bool, error)
+	// ListStuckRefunds returns pending/processing refunds older than olderThan
+	// for the reconciliation cron. FOR UPDATE SKIP LOCKED; limit <= 0 → 100.
+	ListStuckRefunds(
+		ctx context.Context,
+		olderThan time.Time,
+		limit int,
+	) ([]entity.PaymentRefund, error)
 }
 
 type PaymentRefundRepositoryImpl struct{}
@@ -114,4 +122,30 @@ func (r *PaymentRefundRepositoryImpl) UpdateStatusIfCurrent(
 		return false, result.Error
 	}
 	return result.RowsAffected == 1, nil
+}
+
+// defaultStuckRefundBatchSize bounds one cron pass (see transaction repo).
+const defaultStuckRefundBatchSize = 100
+
+func (r *PaymentRefundRepositoryImpl) ListStuckRefunds(
+	ctx context.Context,
+	olderThan time.Time,
+	limit int,
+) ([]entity.PaymentRefund, error) {
+	if limit <= 0 {
+		limit = defaultStuckRefundBatchSize
+	}
+	var refunds []entity.PaymentRefund
+	err := db.DB(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+		Where("status IN ? AND created_at < ?",
+			[]entity.RefundStatus{entity.RefundStatusPending, entity.RefundStatusProcessing},
+			olderThan).
+		Order("id ASC").
+		Limit(limit).
+		Find(&refunds).Error
+	if err != nil {
+		return nil, err
+	}
+	return refunds, nil
 }

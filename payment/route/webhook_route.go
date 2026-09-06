@@ -22,9 +22,11 @@ func NewWebhookModule() *WebhookModule {
 }
 
 // RegisterRoutes registers webhook routes under /api/payment/webhooks.
+// One generic route serves every provider (:code selects the adapter);
+// provider callbacks stay unauthenticated by design (signature is the auth).
 func (m *WebhookModule) RegisterRoutes(router *gin.Engine) {
 	webhooks := router.Group("/api/payment/webhooks")
 	{
-		webhooks.POST("/razorpay", m.webhookHandler.HandleRazorpay)
+		webhooks.POST("/:code", m.webhookHandler.HandleWebhook)
 	}
 }

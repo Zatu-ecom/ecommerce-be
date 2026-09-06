@@ -15,6 +15,8 @@ const (
 	REFUND_NOT_ALLOWED_MESSAGE            = "Refund not allowed for this payment"
 	GATEWAY_NOT_CONFIGURED_MESSAGE        = "Payment gateway is not configured for this seller"
 	GATEWAY_UNSUPPORTED_CURRENCY_MESSAGE  = "Payment gateway does not support the seller's country or currency"
+	GATEWAY_UNSUPPORTED_COUNTRY_MESSAGE   = "Payment gateway does not support the seller's country"
+	ENCRYPTION_KEY_MISSING_MESSAGE        = "Payment gateway encryption is not configured"
 )
 
 // Gateway code constants
@@ -56,19 +58,4 @@ const (
 	EVENT_SOURCE_WEBHOOK = "webhook"
 	EVENT_SOURCE_SYSTEM  = "system"
 	EVENT_SOURCE_ADMIN   = "admin"
-)
-
-// Razorpay webhook events
-const (
-	RAZORPAY_EVENT_PAYMENT_AUTHORIZED = "payment.authorized"
-	RAZORPAY_EVENT_PAYMENT_CAPTURED   = "payment.captured"
-	RAZORPAY_EVENT_PAYMENT_FAILED     = "payment.failed"
-	RAZORPAY_EVENT_REFUND_CREATED     = "refund.created"
-	RAZORPAY_EVENT_REFUND_PROCESSED   = "refund.processed"
-	RAZORPAY_EVENT_REFUND_FAILED      = "refund.failed"
-)
-
-// Razorpay API base URL
-const (
-	RAZORPAY_BASE_URL = "https://api.razorpay.com/v1"
 )

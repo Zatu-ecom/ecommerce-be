@@ -81,6 +81,7 @@ func (h *PaymentHandler) GetPaymentStatus(c *gin.Context) {
 }
 
 // ListSellerTransactions lists the authenticated seller's payments.
+// Supports server-side ?status= filtering; list rows never carry events.
 func (h *PaymentHandler) ListSellerTransactions(c *gin.Context) {
 	sellerID, exists := auth.GetSellerIDFromContext(c)
 	if !exists {
@@ -90,8 +91,9 @@ func (h *PaymentHandler) ListSellerTransactions(c *gin.Context) {
 
 	page := parsePositiveInt(c.Query(paymentConstant.QUERY_PAGE), 1)
 	pageSize := parsePositiveInt(c.Query(paymentConstant.QUERY_PAGE_SIZE), 20)
+	status := c.Query(paymentConstant.QUERY_STATUS)
 
-	txns, total, err := h.paymentService.ListSellerTransactions(c, sellerID, page, pageSize)
+	txns, total, err := h.paymentService.ListSellerTransactions(c, sellerID, page, pageSize, status)
 	if err != nil {
 		h.HandleError(c, err, paymentConstant.FAILED_TO_LIST_TRANSACTIONS_MSG)
 		return
@@ -99,6 +101,33 @@ func (h *PaymentHandler) ListSellerTransactions(c *gin.Context) {
 
 	h.Success(c, http.StatusOK, paymentConstant.TRANSACTIONS_FETCHED_MSG, map[string]any{
 		"items":    txns,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
+}
+
+// ListWebhookLogs lists the authenticated seller's webhook deliveries.
+func (h *PaymentHandler) ListWebhookLogs(c *gin.Context) {
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, commonError.ErrSellerDataMissing, constants.SELLER_DATA_MISSING_MSG)
+		return
+	}
+
+	page := parsePositiveInt(c.Query(paymentConstant.QUERY_PAGE), 1)
+	pageSize := parsePositiveInt(c.Query(paymentConstant.QUERY_PAGE_SIZE), 20)
+	status := c.Query(paymentConstant.QUERY_STATUS)
+	eventType := c.Query(paymentConstant.QUERY_EVENT_TYPE)
+
+	logs, total, err := h.paymentService.ListWebhookLogs(c, sellerID, page, pageSize, status, eventType)
+	if err != nil {
+		h.HandleError(c, err, paymentConstant.FAILED_TO_LIST_WEBHOOK_LOGS_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, paymentConstant.WEBHOOK_LOGS_FETCHED_MSG, map[string]any{
+		"items":    logs,
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
