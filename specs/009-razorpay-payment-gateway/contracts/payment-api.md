@@ -1,5 +1,14 @@
 # API Contracts: Razorpay Payment Gateway Integration
 
+> **SUPERSEDED by `specs/010-payment-gateway-platform/`** for checkout and
+> webhook contracts. The platform redesign intentionally breaks from this
+> document: initiate returns generic `checkout: { gatewayCode, fields }` (no
+> top-level `keyId`), webhooks live at `POST /api/payment/webhooks/:code`
+> (no `HandleRazorpay`), and gateway configuration is dual-environment
+> (`sandbox` + `production`) with masked hints and a test-connection endpoint.
+> Read [`010/contracts/payment-api.md`](../../010-payment-gateway-platform/contracts/payment-api.md)
+> as the source of truth; this file is kept for historical context only.
+
 Base path: `/api/payment`. All responses use the standard envelope
 `{ "success": bool, "message": string, "data": ... }` (errors add `code` / `errors`).
 Authenticated endpoints require `X-Correlation-ID` (enforced by middleware).
