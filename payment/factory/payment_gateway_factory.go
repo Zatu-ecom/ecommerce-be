@@ -8,16 +8,26 @@ import (
 	gateway "ecommerce-be/payment/service/payment_gateway"
 )
 
+// PaymentGatewayFactory selects provider adapters by payment_gateway.code.
+// Adding a new gateway is purely additive: new adapter + one registry entry.
 type PaymentGatewayFactory struct {
 	paymentGatewayRepository repository.PaymentGatewayRepository
-	cashfreeGateway          *gateway.CashfreeGateway
+	registry                 map[string]gateway.PaymentGateway
 }
 
 func NewPaymentGatewayFactory(
-	cashfreeGateway *gateway.CashfreeGateway,
+	paymentGatewayRepository repository.PaymentGatewayRepository,
+	adapters ...gateway.PaymentGateway,
 ) *PaymentGatewayFactory {
+	registry := make(map[string]gateway.PaymentGateway, len(adapters))
+	for _, adapter := range adapters {
+		if adapter != nil {
+			registry[adapter.Code()] = adapter
+		}
+	}
 	return &PaymentGatewayFactory{
-		cashfreeGateway: cashfreeGateway,
+		paymentGatewayRepository: paymentGatewayRepository,
+		registry:                 registry,
 	}
 }
 
@@ -25,25 +35,29 @@ func (f *PaymentGatewayFactory) GetPaymentGateway(
 	ctx context.Context,
 	gatewayID uint,
 ) (gateway.PaymentGateway, error) {
-	gateway, err := f.paymentGatewayRepository.FindById(ctx, gatewayID)
+	gatewayEntity, err := f.paymentGatewayRepository.FindById(ctx, gatewayID)
 	if err != nil {
 		return nil, err
 	}
 
-	if !gateway.IsActive {
+	if !gatewayEntity.IsActive {
 		return nil, paymenterrors.ErrorPaymentGatewayNotActive
 	}
 
-	return f.getGatewayByCode(gateway.Code)
+	return f.getGatewayByCode(gatewayEntity.Code)
+}
+
+func (f *PaymentGatewayFactory) GetPaymentGatewayByCode(
+	code string,
+) (gateway.PaymentGateway, error) {
+	return f.getGatewayByCode(code)
 }
 
 func (f *PaymentGatewayFactory) getGatewayByCode(
 	code string,
 ) (gateway.PaymentGateway, error) {
-	switch code {
-	case f.cashfreeGateway.Code:
-		return f.cashfreeGateway, nil
-	default:
-		return nil, paymenterrors.ErrorPaymentGatewayNotFound
+	if adapter, ok := f.registry[code]; ok {
+		return adapter, nil
 	}
+	return nil, paymenterrors.ErrorPaymentGatewayNotSupported
 }

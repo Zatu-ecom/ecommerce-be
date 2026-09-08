@@ -142,36 +142,16 @@ test-pretty:
 	@echo "🔍 Checking for gotestsum..."
 	@which gotestsum >/dev/null || (echo "📦 Installing gotestsum..." && go install gotest.tools/gotestsum@latest)
 	@echo "🧪 Running tests with gotestsum for a formatted summary..."
-	@$$(go env GOPATH)/bin/gotestsum --format pkgname -- -v -timeout=15m ./test/integration/... 2>&1 | tee /tmp/test_output.txt; \
-	echo ""; \
-	echo "=========================================="; \
-	echo "           📊 TEST SUMMARY"; \
-	echo "=========================================="; \
-	echo ""; \
-	TOTAL=$$(grep -oE 'DONE [0-9]+' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
-	TOTAL=$${TOTAL:-0}; \
-	LEAF_FAILED=$$(grep -Fe '--- FAIL:' /tmp/test_output.txt 2>/dev/null | grep -v '^===' | grep '/' | wc -l || true); \
-	LEAF_FAILED=$${LEAF_FAILED:-0}; \
-	ALL_FAILED=$$(grep -cFe '--- FAIL:' /tmp/test_output.txt 2>/dev/null || true); \
-	ALL_FAILED=$${ALL_FAILED:-0}; \
-	if [ "$$LEAF_FAILED" -gt 0 ]; then FAILED=$$LEAF_FAILED; else FAILED=$$ALL_FAILED; fi; \
-	SKIPPED=$$(grep -oE '[0-9]+ skipped' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
-	SKIPPED=$${SKIPPED:-0}; \
-	PASSED=$$((TOTAL - FAILED - SKIPPED)); \
-	echo "📈 Total:  $$TOTAL"; \
-	echo "✅ Passed: $$PASSED"; \
-	echo "⏭️  Skipped: $$SKIPPED"; \
-	echo "❌ Failed: $$FAILED"; \
-	echo ""; \
-	if [ "$$FAILED" -gt 0 ]; then \
-		echo "=========================================="; \
-		echo "           ❌ FAILED TESTS"; \
-		echo "=========================================="; \
-		grep -Fe '--- FAIL:' /tmp/test_output.txt | grep -v '^===' | grep '/' | sed 's/^    //' | sort -u; \
-	else \
-		echo "🎉 All tests passed!"; \
+	@rm -f /tmp/.gotestsum_exit; \
+	{ $$(go env GOPATH)/bin/gotestsum --format pkgname --junitfile /tmp/test_report.xml -- -v -timeout=15m ./test/integration/... 2>&1; echo $$? > /tmp/.gotestsum_exit; } | tee /tmp/test_output.txt; \
+	GOTESTSUM_EXIT=$$(cat /tmp/.gotestsum_exit); \
+	python3 scripts/summarize_junit.py /tmp/test_report.xml; \
+	SUMMARY_EXIT=$$?; \
+	if [ "$$GOTESTSUM_EXIT" -ne 0 ] && [ "$$SUMMARY_EXIT" -eq 0 ]; then \
+		echo "⚠️  gotestsum exited ($$GOTESTSUM_EXIT) but the report shows no failures (e.g. setup aborted)"; \
+		exit "$$GOTESTSUM_EXIT"; \
 	fi; \
-	[ "$$FAILED" -eq 0 ]
+	exit "$$SUMMARY_EXIT"
 
 # Run tests with JSON output for CI/CD
 test-json:

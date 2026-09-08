@@ -101,6 +101,7 @@ func BuildSellerSettingsResponse(settings *entity.SellerSettings) *model.SellerS
 		BaseCurrencyID:               settings.BaseCurrencyID,
 		SettlementCurrencyID:         settings.SettlementCurrencyID,
 		DisplayPricesInBuyerCurrency: settings.DisplayPricesInBuyerCurrency,
+		PaymentsEnvironment:          settings.PaymentsEnvironment,
 		CreatedAt:                    settings.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:                    settings.UpdatedAt.Format(time.RFC3339),
 	}
@@ -141,9 +142,14 @@ func BuildSellerSettingsEntity(
 		BusinessCountryID:            req.BusinessCountryID,
 		BaseCurrencyID:               req.BaseCurrencyID,
 		DisplayPricesInBuyerCurrency: false,
+		PaymentsEnvironment:          entity.PaymentsEnvironmentSandbox,
 	}
 	settings.CreatedAt = now
 	settings.UpdatedAt = now
+
+	if req.PaymentsEnvironment != "" {
+		settings.PaymentsEnvironment = req.PaymentsEnvironment
+	}
 
 	if req.SettlementCurrencyID != nil {
 		settings.SettlementCurrencyID = *req.SettlementCurrencyID

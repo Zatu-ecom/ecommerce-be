@@ -130,9 +130,9 @@ func Logger() gin.HandlerFunc {
 	}
 }
 
-// CorrelationID middleware ensures every request has a correlation ID
-// If not provided in header, generates a new UUID
-// This is mandatory for all requests
+// CorrelationID middleware requires X-Correlation-ID on the request.
+// Missing or invalid values are rejected with 400. Use UnlessSkipped with
+// GenerateCorrelationID for routes that cannot send the header (webhooks).
 func CorrelationID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		correlationID := c.GetHeader(constants.CORRELATION_ID_HEADER)

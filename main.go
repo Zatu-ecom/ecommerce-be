@@ -65,7 +65,11 @@ func main() {
 
 	/* Apply middleware */
 	router.Use(middleware.CORS())
-	router.Use(middleware.CorrelationID()) // Mandatory correlation ID middleware
+	router.Use(middleware.UnlessSkipped(
+		middleware.CorrelationIDWebhookSkipRules,
+		middleware.CorrelationID(),
+		middleware.GenerateCorrelationID(),
+	))
 	router.Use(middleware.Logger())
 
 	/* Register modules */
