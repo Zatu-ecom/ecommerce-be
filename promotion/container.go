@@ -35,6 +35,8 @@ func addModules(c *common.Container) {
 	c.RegisterModule(routes.NewPromotionScopeModule())
 	c.RegisterModule(routes.NewSaleModule())
 	c.RegisterModule(routes.NewPromotionModule())
+	c.RegisterModule(routes.NewDiscountCodeScopeModule())
+	c.RegisterModule(routes.NewDiscountCodeModule())
 }
 
 // registerScheduler registers recurring background jobs

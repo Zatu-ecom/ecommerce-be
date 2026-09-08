@@ -63,7 +63,7 @@ func (s *ReportSuite) TestGetSummaryReport_TrendFlatAndDown() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Assert Revenue (150 vs 150) -> flat
-	s.Equal(150.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(150.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(0.0, responseBody.Data.TotalRevenue.PercentageChange)
 	s.Equal("flat", responseBody.Data.TotalRevenue.Trend)
 
@@ -127,7 +127,7 @@ func (s *ReportSuite) TestGetSummaryReport_TrendUp() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Assert Revenue (300 vs 100) -> up (+200%)
-	s.Equal(300.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(300.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(200.0, responseBody.Data.TotalRevenue.PercentageChange)
 	s.Equal("up", responseBody.Data.TotalRevenue.Trend)
 
@@ -204,7 +204,7 @@ func (s *ReportSuite) TestGetSummaryReport_WithDateFilters() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Assert Revenue in Custom "Current" window (200.00) vs "Prev" window (50.00) => +300%
-	s.Equal(200.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(200.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(300.0, responseBody.Data.TotalRevenue.PercentageChange)
 	s.Equal("up", responseBody.Data.TotalRevenue.Trend)
 }
@@ -250,7 +250,7 @@ func (s *ReportSuite) TestGetSummaryReport_LastXFilter() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Assert Revenue "Last 10 Days" vs "10 days prior to that" => 200 vs 100 (+100%)
-	s.Equal(200.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(200.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(100.0, responseBody.Data.TotalRevenue.PercentageChange)
 	s.Equal("vs previous 10 days", responseBody.Data.TotalRevenue.ComparisonText)
 
@@ -305,9 +305,9 @@ func (s *ReportSuite) TestGetSummaryReport_EmptyState() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Ensure no panics occurred and fields default to 0
-	s.Equal(0.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(0.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(0, responseBody.Data.TotalOrders.Value)
-	s.Equal(0.0, responseBody.Data.AverageOrderValue.Value)
+	s.Equal(0.0, responseBody.Data.AverageOrderValue.Value.Amount)
 	s.Equal(0, responseBody.Data.TotalCustomers.Value)
 }
 
@@ -338,7 +338,7 @@ func (s *ReportSuite) TestGetSummaryReport_CompareFalse() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &responseBody))
 
 	// Without comparison, PercentageChange stays 0 and trend "flat"
-	s.Equal(100.0, responseBody.Data.TotalRevenue.Value)
+	s.Equal(100.0, responseBody.Data.TotalRevenue.Value.Amount)
 	s.Equal(0.0, responseBody.Data.TotalRevenue.PercentageChange)
 	s.Equal("flat", responseBody.Data.TotalRevenue.Trend)
 }
@@ -378,7 +378,7 @@ func (s *ReportSuite) TestGetSummaryReport_TimeRanges() {
 	s.Require().NoError(json.Unmarshal(res.Body.Bytes(), &bodyToday))
 
 	// Today's total is 100.00
-	s.Equal(100.0, bodyToday.Data.TotalRevenue.Value)
+	s.Equal(100.0, bodyToday.Data.TotalRevenue.Value.Amount)
 
 	// Test "yesterday"
 	resYest := s.adminClient.Get(s.T(), "/api/report/summary?time_range=yesterday")
@@ -390,7 +390,7 @@ func (s *ReportSuite) TestGetSummaryReport_TimeRanges() {
 	s.Require().NoError(json.Unmarshal(resYest.Body.Bytes(), &bodyYest))
 
 	// Yesterday's total is 50.00
-	s.Equal(50.0, bodyYest.Data.TotalRevenue.Value)
+	s.Equal(50.0, bodyYest.Data.TotalRevenue.Value.Amount)
 
 	// Test "this_week"
 	resThisWeek := s.adminClient.Get(s.T(), "/api/report/summary?time_range=this_week")

@@ -36,7 +36,7 @@ func (PromotionUsage) TableName() string {
 
 // DiscountCodeUsage tracks when and how discount codes are used in orders
 type DiscountCodeUsage struct {
-	db.BaseEntity
+	ID uint `json:"id" gorm:"primaryKey"`
 
 	// References
 	DiscountCodeID uint `json:"discountCodeId" gorm:"column:discount_code_id;not null;index"`

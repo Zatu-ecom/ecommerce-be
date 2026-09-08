@@ -54,6 +54,21 @@ type UserService interface {
 		ctx context.Context,
 		sellerID uint,
 	) (*model.CurrencyResponse, error)
+
+	// GetSellerPaymentsEnvironment returns the seller's checkout mode
+	// (sandbox|production) for the payment gateway platform. Defaults to
+	// sandbox when settings are absent — checkout never assumes live mode.
+	GetSellerPaymentsEnvironment(
+		ctx context.Context,
+		sellerID uint,
+	) (string, error)
+
+	// GetSellerBusinessCountryID returns the seller's registered business
+	// country id, used for gateway geo matching at checkout.
+	GetSellerBusinessCountryID(
+		ctx context.Context,
+		sellerID uint,
+	) (uint, error)
 }
 
 // UserServiceImpl implements the UserService interface
@@ -485,4 +500,33 @@ func (s *UserServiceImpl) GetSellerDefaultCurrency(
 	}
 
 	return currencyRes, nil
+}
+
+// GetSellerPaymentsEnvironment returns the seller's payment checkout mode.
+// Missing settings fail safe to sandbox: production credentials must be
+// explicitly configured AND explicitly selected before live money moves.
+func (s *UserServiceImpl) GetSellerPaymentsEnvironment(
+	ctx context.Context,
+	sellerID uint,
+) (string, error) {
+	sellerSettings, err := s.sellerSettingsService.GetBySellerID(ctx, sellerID)
+	if err != nil {
+		return entity.PaymentsEnvironmentSandbox, nil
+	}
+	if sellerSettings == nil || sellerSettings.PaymentsEnvironment == "" {
+		return entity.PaymentsEnvironmentSandbox, nil
+	}
+	return sellerSettings.PaymentsEnvironment, nil
+}
+
+// GetSellerBusinessCountryID returns the seller's registered business country id.
+func (s *UserServiceImpl) GetSellerBusinessCountryID(
+	ctx context.Context,
+	sellerID uint,
+) (uint, error) {
+	sellerSettings, err := s.sellerSettingsService.GetBySellerID(ctx, sellerID)
+	if err != nil {
+		return 0, err
+	}
+	return sellerSettings.BusinessCountryID, nil
 }

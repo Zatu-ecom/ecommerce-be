@@ -4,6 +4,7 @@ import (
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	inventorySingleton "ecommerce-be/inventory/factory/singleton"
 	orderSingleton "ecommerce-be/order/factory/singleton"
+	paymentSingleton "ecommerce-be/payment/factory/singleton"
 	productSingleton "ecommerce-be/product/factory/singleton"
 	promotionSingleton "ecommerce-be/promotion/factory/singleton"
 	reportSingleton "ecommerce-be/report/factory/singleton"
@@ -18,6 +19,7 @@ func ResetAllModuleSingletons() {
 	productSingleton.ResetInstance()
 	inventorySingleton.ResetInstance()
 	orderSingleton.ResetInstance()
+	paymentSingleton.ResetInstance()
 	promotionSingleton.ResetInstance()
 	reportSingleton.ResetInstance()
 	fileSingleton.ResetInstance()

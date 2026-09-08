@@ -7,19 +7,26 @@ import (
 	fileGateway "ecommerce-be/file/gateway"
 	productSingleton "ecommerce-be/product/factory/singleton"
 	"ecommerce-be/promotion/service"
+	userSingleton "ecommerce-be/user/factory/singleton"
 )
 
 // ServiceFactory manages all service singleton instances
 type ServiceFactory struct {
 	repoFactory *RepositoryFactory
 
-	promotionService           service.PromotionService
-	promotionProductService    *service.PromotionProductScopeServiceImpl
-	promotionVariantService    *service.PromotionVariantScopeServiceImpl
-	promotionCategoryService   *service.PromotionCategoryScopeServiceImpl
-	promotionCollectionService *service.PromotionCollectionScopeServiceImpl
-	promotionCronService       service.PromotionCronService
-	saleService                service.SaleService
+	promotionService              service.PromotionService
+	promotionProductService       *service.PromotionProductScopeServiceImpl
+	promotionVariantService       *service.PromotionVariantScopeServiceImpl
+	promotionCategoryService      *service.PromotionCategoryScopeServiceImpl
+	promotionCollectionService    *service.PromotionCollectionScopeServiceImpl
+	promotionCronService          service.PromotionCronService
+	saleService                   service.SaleService
+	discountCodeService           service.DiscountCodeService
+	discountCodeProductService    service.DiscountCodeProductScopeService
+	discountCodeVariantService    service.DiscountCodeVariantScopeService
+	discountCodeCategoryService   service.DiscountCodeCategoryScopeService
+	discountCodeCollectionService service.DiscountCodeCollectionScopeService
+	couponApplyService            service.CouponApplyService
 
 	once sync.Once
 }
@@ -78,6 +85,7 @@ func (f *ServiceFactory) initialize() {
 			f.promotionCollectionService,
 			collectionProductService,
 			promotionScopeEligibilityServiceFactory,
+			userSingleton.GetInstance().GetUserService(),
 		)
 
 		f.saleService = service.NewSaleService(
@@ -85,7 +93,45 @@ func (f *ServiceFactory) initialize() {
 			fileGateway.NewDisplayGateway(fileSingleton.GetInstance().GetFileReadService()),
 		)
 
-		f.promotionCronService = service.NewPromotionCronService(promotionRepo)
+		f.discountCodeService = service.NewDiscountCodeService(
+			f.repoFactory.GetDiscountCodeRepository(),
+			f.repoFactory.GetDiscountCodeUsageRepository(),
+			userSingleton.GetInstance().GetUserService(),
+		)
+
+		f.discountCodeProductService = service.NewDiscountCodeProductScopeService(
+			f.repoFactory.GetDiscountCodeProductScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+			productSingleton.GetInstance().GetProductRepository(),
+		)
+		f.discountCodeVariantService = service.NewDiscountCodeVariantScopeService(
+			f.repoFactory.GetDiscountCodeVariantScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+			productSingleton.GetInstance().GetVariantRepository(),
+		)
+		f.discountCodeCategoryService = service.NewDiscountCodeCategoryScopeService(
+			f.repoFactory.GetDiscountCodeCategoryScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
+		f.discountCodeCollectionService = service.NewDiscountCodeCollectionScopeService(
+			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
+
+		f.couponApplyService = service.NewCouponApplyService(
+			f.repoFactory.GetDiscountCodeRepository(),
+			f.repoFactory.GetDiscountCodeUsageRepository(),
+			f.repoFactory.GetDiscountCodeProductScopeRepository(),
+			f.repoFactory.GetDiscountCodeVariantScopeRepository(),
+			f.repoFactory.GetDiscountCodeCategoryScopeRepository(),
+			f.repoFactory.GetDiscountCodeCollectionScopeRepository(),
+			userSingleton.GetInstance().GetUserService(),
+		)
+
+		f.promotionCronService = service.NewPromotionCronService(
+			promotionRepo,
+			f.repoFactory.GetDiscountCodeRepository(),
+		)
 	})
 }
 
@@ -122,4 +168,34 @@ func (f *ServiceFactory) GetPromotionCronService() service.PromotionCronService 
 func (f *ServiceFactory) GetSaleService() service.SaleService {
 	f.initialize()
 	return f.saleService
+}
+
+func (f *ServiceFactory) GetDiscountCodeService() service.DiscountCodeService {
+	f.initialize()
+	return f.discountCodeService
+}
+
+func (f *ServiceFactory) GetDiscountCodeProductScopeService() service.DiscountCodeProductScopeService {
+	f.initialize()
+	return f.discountCodeProductService
+}
+
+func (f *ServiceFactory) GetDiscountCodeVariantScopeService() service.DiscountCodeVariantScopeService {
+	f.initialize()
+	return f.discountCodeVariantService
+}
+
+func (f *ServiceFactory) GetDiscountCodeCategoryScopeService() service.DiscountCodeCategoryScopeService {
+	f.initialize()
+	return f.discountCodeCategoryService
+}
+
+func (f *ServiceFactory) GetDiscountCodeCollectionScopeService() service.DiscountCodeCollectionScopeService {
+	f.initialize()
+	return f.discountCodeCollectionService
+}
+
+func (f *ServiceFactory) GetCouponApplyService() service.CouponApplyService {
+	f.initialize()
+	return f.couponApplyService
 }

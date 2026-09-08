@@ -45,7 +45,7 @@ func TestAddPackageOption(t *testing.T) {
 		assert.Equal(t, float64(productID), packageOption["productId"])
 		assert.Equal(t, "Holiday Bundle", packageOption["name"])
 		assert.Equal(t, "Seasonal t-shirt bundle", packageOption["description"])
-		assert.Equal(t, 89.99, packageOption["price"])
+		assert.Equal(t, 89.99, moneyAmount(packageOption["price"]))
 		assert.Equal(t, float64(2), packageOption["quantity"])
 		assert.NotNil(t, packageOption["createdAt"])
 		assert.NotNil(t, packageOption["updatedAt"])

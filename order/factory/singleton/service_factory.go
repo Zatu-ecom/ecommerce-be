@@ -33,7 +33,10 @@ func NewServiceFactory(repoFactory *RepositoryFactory) *ServiceFactory {
 func (f *ServiceFactory) initialize() {
 	f.once.Do(func() {
 		// Get external service dependencies
-		promotionSvc := promotionFactory.GetInstance().GetPromotionService()
+		promoFactoryInst := promotionFactory.GetInstance()
+		promotionSvc := promoFactoryInst.GetPromotionService()
+		couponApplySvc := promoFactoryInst.GetCouponApplyService()
+		discountCodeRepo := promoFactoryInst.GetDiscountCodeRepository()
 		inventorySvc := inventoryFactory.GetInstance().GetInventoryQueryService()
 		inventoryReservationSvc := inventoryFactory.GetInstance().GetInventoryReservationService()
 		variantQuerySvc := productFactory.GetInstance().GetVariantQueryService()
@@ -47,11 +50,12 @@ func (f *ServiceFactory) initialize() {
 		orderRepo := f.repoFactory.GetOrderRepository()
 		orderHistoryRepo := f.repoFactory.GetOrderHistoryRepository()
 
-		// Initialize services
 		f.cartService = service.NewCartService(
 			cartRepo,
 			orderRepo,
 			promotionSvc,
+			couponApplySvc,
+			discountCodeRepo,
 			inventorySvc,
 			variantQuerySvc,
 			userSvc,
@@ -63,6 +67,8 @@ func (f *ServiceFactory) initialize() {
 			inventoryReservationSvc,
 			addressSvc,
 			userRepo,
+			userSvc,
+			couponApplySvc,
 		)
 		f.guestCartService = service.NewGuestCartService(
 			cartRepo,

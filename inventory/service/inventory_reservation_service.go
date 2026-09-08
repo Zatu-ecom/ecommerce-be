@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
-	"ecommerce-be/common/constants"
+	"ecommerce-be/common/auth"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/repository"
@@ -384,7 +384,9 @@ func (s *InventoryReservationServiceImpl) manageInventoryQuantity(
 	}
 
 	reason := "Inventory " + strings.ToLower(string(transactionType)) + " for reservation ID "
-	userId := ctx.Value(constants.USER_ID_KEY).(uint)
+	// Webhook-driven (system) order transitions have no authenticated user in context;
+	// fall back to 0 so inventory movements are attributed to the system actor.
+	userId, _ := auth.GetUserIDFromContext(ctx)
 	var manageInventoryRequests []model.ManageInventoryRequest
 	for _, reservation := range reservationEntities {
 		inv := mapInventory[reservation.InventoryID]
@@ -415,7 +417,7 @@ func (s *InventoryReservationServiceImpl) callGetInventories(
 		sellerId,
 		model.GetInventoriesFilter{
 			GetInventoriesBase: model.GetInventoriesBase{
-				BaseListParams: common.BaseListParams{
+				BaseListParams: commonModel.BaseListParams{
 					Page:     1,
 					PageSize: len(inventoryIDs),
 				},

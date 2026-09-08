@@ -74,43 +74,43 @@ func DeriveIsPopular(all []model.VariantDetailResponse) bool {
 	return false
 }
 
-// DeriveProductPrice returns the default variant price for product-level display.
-func DeriveProductPrice(all []model.VariantDetailResponse) float64 {
+// DeriveProductPriceCents returns the default variant price (cents) for product-level display.
+func DeriveProductPriceCents(all []model.VariantDetailResponse) int64 {
 	if def := FindDefaultVariant(all); def != nil {
-		return def.Price
+		return def.Price.AmountCents
 	}
 	return 0
 }
 
-// DerivePriceRange builds listing price range from public variants or default price for simple products.
-func DerivePriceRange(
+// DerivePriceRangeCents builds listing price range (cents) from public variants or default price for simple products.
+func DerivePriceRangeCents(
 	public []model.VariantDetailResponse,
-	defaultPrice float64,
+	defaultPriceCents int64,
 	hasVariants bool,
-) *model.PriceRange {
+) *model.PriceRangeCents {
 	if !hasVariants {
-		if defaultPrice == 0 {
+		if defaultPriceCents == 0 {
 			return nil
 		}
-		return &model.PriceRange{Min: defaultPrice, Max: defaultPrice}
+		return &model.PriceRangeCents{MinCents: defaultPriceCents, MaxCents: defaultPriceCents}
 	}
 
 	if len(public) == 0 {
 		return nil
 	}
 
-	minPrice := public[0].Price
-	maxPrice := public[0].Price
+	minPrice := public[0].Price.AmountCents
+	maxPrice := public[0].Price.AmountCents
 	for _, v := range public[1:] {
-		if v.Price < minPrice {
-			minPrice = v.Price
+		if v.Price.AmountCents < minPrice {
+			minPrice = v.Price.AmountCents
 		}
-		if v.Price > maxPrice {
-			maxPrice = v.Price
+		if v.Price.AmountCents > maxPrice {
+			maxPrice = v.Price.AmountCents
 		}
 	}
 
-	return &model.PriceRange{Min: minPrice, Max: maxPrice}
+	return &model.PriceRangeCents{MinCents: minPrice, MaxCents: maxPrice}
 }
 
 // ApplyAggregationSemantics sets HasVariants, TotalVariants, and price range on aggregation
@@ -127,8 +127,8 @@ func ApplyAggregationSemantics(agg *mapper.VariantAggregation) {
 		return
 	}
 
-	if agg.DefaultPrice > 0 {
-		agg.MinPrice = agg.DefaultPrice
-		agg.MaxPrice = agg.DefaultPrice
+	if agg.DefaultPriceCents > 0 {
+		agg.MinPriceCents = agg.DefaultPriceCents
+		agg.MaxPriceCents = agg.DefaultPriceCents
 	}
 }

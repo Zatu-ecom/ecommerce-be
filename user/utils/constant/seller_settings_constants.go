@@ -4,16 +4,18 @@ package constant
 // SELLER SETTINGS ERROR CODES
 // ========================================
 const (
-	SELLER_SETTINGS_NOT_FOUND_CODE = "SELLER_SETTINGS_NOT_FOUND"
-	SELLER_SETTINGS_EXISTS_CODE    = "SELLER_SETTINGS_EXISTS"
+	SELLER_SETTINGS_NOT_FOUND_CODE    = "SELLER_SETTINGS_NOT_FOUND"
+	SELLER_SETTINGS_EXISTS_CODE       = "SELLER_SETTINGS_EXISTS"
+	INVALID_PAYMENTS_ENVIRONMENT_CODE = "INVALID_PAYMENTS_ENVIRONMENT"
 )
 
 // ========================================
 // SELLER SETTINGS ERROR MESSAGES
 // ========================================
 const (
-	SELLER_SETTINGS_NOT_FOUND_MSG = "Seller settings not found"
-	SELLER_SETTINGS_EXISTS_MSG    = "Seller settings already exist"
+	SELLER_SETTINGS_NOT_FOUND_MSG    = "Seller settings not found"
+	SELLER_SETTINGS_EXISTS_MSG       = "Seller settings already exist"
+	INVALID_PAYMENTS_ENVIRONMENT_MSG = "paymentsEnvironment must be sandbox or production"
 )
 
 // ========================================

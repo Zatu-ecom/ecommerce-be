@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	factory "ecommerce-be/inventory/factory"
@@ -189,7 +189,7 @@ func (s *LocationServiceImpl) GetAllLocations(
 	if totalCount == 0 {
 		return &model.LocationsResponse{
 			Locations:  []model.LocationResponse{},
-			Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, 0),
+			Pagination: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, 0),
 		}, nil
 	}
 
@@ -220,7 +220,7 @@ func (s *LocationServiceImpl) GetAllLocations(
 	}
 
 	// Build paginated response
-	pagination := common.NewPaginationResponse(filter.Page, filter.PageSize, totalCount)
+	pagination := commonModel.NewPaginationResponse(filter.Page, filter.PageSize, totalCount)
 
 	return &model.LocationsResponse{
 		Locations:  locationResponses,

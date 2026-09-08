@@ -12,15 +12,16 @@ import (
 )
 
 // TestGetWishlistByID tests the Get Wishlist By ID (GET /api/product/wishlist/:id) API
-// This endpoint retrieves a single wishlist with paginated products.
+// This endpoint retrieves a single wishlist with paginated items.
 //
 // Endpoint: GET /api/product/wishlist/:id
 // Query Params: page (default: 1), pageSize (default: 20, max: 100)
 // Authentication: Required (Customer Auth only)
 //
 // Response includes:
-//   - Wishlist details (id, name, isDefault, itemCount, timestamps)
-//   - Paginated products with full details
+//   - Wishlist details (id, name, isDefault, timestamps)
+//   - Paginated items array with per-item metadata (wishlistItemId, variantId, addedAt) + full product
+//   - Top-level pagination
 func TestGetWishlistByID(t *testing.T) {
 	// Setup test containers
 	containers := setup.SetupTestContainers(t)
@@ -64,40 +65,22 @@ func TestGetWishlistByID(t *testing.T) {
 	aliceWishlist2 := helpers.GetResponseData(t, response, "wishlist")
 	aliceWishlistID2 := uint(aliceWishlist2["id"].(float64))
 
-	// Add items to first wishlist (need to get variant IDs first)
-	// Get products from seller 2
-	client.SetHeader("X-Seller-ID", "2")
-	w = client.Get(t, "/api/product?page=1&pageSize=5")
-	response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-	data := response["data"].(map[string]any)
+	// Add items to first wishlist using known variant IDs from seed data
+	// Seed data has variants: 1 (iPhone 15 Pro), 5 (Samsung S24), 9 (Nike T-Shirt)
+	variantIDs := []uint{1, 5, 9}
+	addedVariantIDs := make([]uint, 0, len(variantIDs))
 
-	// Add first 3 product variants to wishlist
-	// Note: We track added variants for verification in HP-001 test
-	addedVariantIDs := make([]uint, 0, 3)
-	if resultsRaw, ok := data["results"]; ok && resultsRaw != nil {
-		products := resultsRaw.([]any)
-		for i := 0; i < 3 && i < len(products); i++ {
-			product := products[i].(map[string]any)
-			if variantsRaw, ok := product["variants"]; ok && variantsRaw != nil {
-				variants := variantsRaw.([]any)
-				if len(variants) > 0 {
-					variant := variants[0].(map[string]any)
-					variantID := uint(variant["id"].(float64))
-					addedVariantIDs = append(addedVariantIDs, variantID)
-
-					// Add to wishlist
-					addReq := map[string]any{
-						"variantId": variantID,
-					}
-					w = client.Post(
-						t,
-						fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID),
-						addReq,
-					)
-					helpers.AssertSuccessResponse(t, w, http.StatusCreated)
-				}
-			}
+	for _, variantID := range variantIDs {
+		addReq := map[string]any{
+			"variantId": variantID,
 		}
+		w = client.Post(
+			t,
+			fmt.Sprintf("/api/product/wishlist/%d/item", aliceWishlistID),
+			addReq,
+		)
+		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+		addedVariantIDs = append(addedVariantIDs, variantID)
 	}
 
 	// Login as Michael (user 6) and create wishlist for authorization tests
@@ -116,12 +99,12 @@ func TestGetWishlistByID(t *testing.T) {
 	// Happy Path Scenarios
 	// ============================================================================
 
-	t.Run("HP-001: Get wishlist by ID with products", func(t *testing.T) {
+	t.Run("HP-001: Get wishlist by ID with items", func(t *testing.T) {
 		// Login as Alice
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		// Get wishlist with products
+		// Get wishlist with items
 		w := client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 
 		// Assert response
@@ -132,27 +115,37 @@ func TestGetWishlistByID(t *testing.T) {
 		assert.Equal(t, float64(aliceWishlistID), wishlist["id"].(float64), "ID should match")
 		assert.Equal(t, "Alice Tech Wishlist", wishlist["name"], "Name should match")
 		assert.True(t, wishlist["isDefault"].(bool), "First wishlist should be default")
-		assert.NotNil(t, wishlist["itemCount"], "Should have itemCount")
 		assert.NotNil(t, wishlist["createdAt"], "Should have createdAt")
 		assert.NotNil(t, wishlist["updatedAt"], "Should have updatedAt")
 
-		// Validate products - handle the case where products may be a struct or map
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			assert.NotNil(t, productsData["products"], "Should have products array")
-			assert.NotNil(t, productsData["pagination"], "Should have pagination")
+		// Validate items array
+		itemsData, ok := wishlist["items"].([]any)
+		assert.True(t, ok, "Items field should be an array")
+		assert.GreaterOrEqual(t, len(itemsData), 1, "Should have at least 1 item")
 
-			// Validate pagination
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.NotNil(t, paginationRaw["currentPage"], "Should have currentPage")
-				assert.NotNil(t, paginationRaw["totalItems"], "Should have totalItems")
-				assert.NotNil(t, paginationRaw["itemsPerPage"], "Should have itemsPerPage")
-			}
+		// Validate each item has required metadata fields
+		for _, itemRaw := range itemsData {
+			item := itemRaw.(map[string]any)
+			assert.NotNil(t, item["wishlistItemId"], "Item should have wishlistItemId")
+			assert.NotNil(t, item["variantId"], "Item should have variantId")
+			assert.NotNil(t, item["addedAt"], "Item should have addedAt")
+			assert.NotNil(t, item["product"], "Item should have product object")
+
+			product, ok := item["product"].(map[string]any)
+			assert.True(t, ok, "Product should be a map")
+			assert.NotNil(t, product["id"], "Product should have id")
+			assert.NotNil(t, product["name"], "Product should have name")
 		}
+
+		// Validate pagination at top level
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.NotNil(t, pagination["currentPage"], "Should have currentPage")
+		assert.NotNil(t, pagination["totalItems"], "Should have totalItems")
+		assert.NotNil(t, pagination["itemsPerPage"], "Should have itemsPerPage")
 	})
 
-	t.Run("HP-002: Get empty wishlist (no products)", func(t *testing.T) {
+	t.Run("HP-002: Get empty wishlist (no items)", func(t *testing.T) {
 		// Login as Alice
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
@@ -165,37 +158,30 @@ func TestGetWishlistByID(t *testing.T) {
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
 		// Validate empty state
-		assert.Equal(t, float64(0), wishlist["itemCount"].(float64), "itemCount should be 0")
 		assert.False(t, wishlist["isDefault"].(bool), "Second wishlist should not be default")
 
-		// Validate empty products
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			// Products array may be nil or empty
-			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]any)
-				assert.Equal(t, 0, len(productsList), "Products array should be empty")
-			}
+		// Validate empty items array
+		itemsData, ok := wishlist["items"].([]any)
+		assert.True(t, ok, "Items field should be an array")
+		assert.Equal(t, 0, len(itemsData), "Items array should be empty")
 
-			// Validate pagination for empty state
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.Equal(
-					t,
-					float64(0),
-					paginationRaw["totalItems"].(float64),
-					"totalItems should be 0",
-				)
-				assert.Equal(
-					t,
-					float64(0),
-					paginationRaw["totalPages"].(float64),
-					"totalPages should be 0",
-				)
-				assert.False(t, paginationRaw["hasNext"].(bool), "hasNext should be false")
-				assert.False(t, paginationRaw["hasPrev"].(bool), "hasPrev should be false")
-			}
-		}
+		// Validate pagination for empty state at top level
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(0),
+			pagination["totalItems"].(float64),
+			"totalItems should be 0",
+		)
+		assert.Equal(
+			t,
+			float64(0),
+			pagination["totalPages"].(float64),
+			"totalPages should be 0",
+		)
+		assert.False(t, pagination["hasNext"].(bool), "hasNext should be false")
+		assert.False(t, pagination["hasPrev"].(bool), "hasPrev should be false")
 	})
 
 	t.Run("HP-003: Get default wishlist by ID", func(t *testing.T) {
@@ -245,27 +231,21 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		// Validate pagination
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			pagination, pOk := productsData["pagination"].(map[string]any)
-			assert.True(t, pOk, "Pagination should be a map")
-			if pOk {
-				assert.Equal(
-					t,
-					float64(1),
-					pagination["currentPage"].(float64),
-					"currentPage should be 1",
-				)
-				assert.Equal(
-					t,
-					float64(2),
-					pagination["itemsPerPage"].(float64),
-					"itemsPerPage should be 2",
-				)
-			}
-		}
+		// Validate pagination at top level
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(1),
+			pagination["currentPage"].(float64),
+			"currentPage should be 1",
+		)
+		assert.Equal(
+			t,
+			float64(2),
+			pagination["itemsPerPage"].(float64),
+			"itemsPerPage should be 2",
+		)
 	})
 
 	t.Run("HP-006: Get wishlist with default pagination values", func(t *testing.T) {
@@ -280,27 +260,21 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		// Validate default pagination
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			pagination, pOk := productsData["pagination"].(map[string]any)
-			assert.True(t, pOk, "Pagination should be a map")
-			if pOk {
-				assert.Equal(
-					t,
-					float64(1),
-					pagination["currentPage"].(float64),
-					"Default currentPage should be 1",
-				)
-				assert.Equal(
-					t,
-					float64(20),
-					pagination["itemsPerPage"].(float64),
-					"Default itemsPerPage should be 20",
-				)
-			}
-		}
+		// Validate default pagination at top level
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(1),
+			pagination["currentPage"].(float64),
+			"Default currentPage should be 1",
+		)
+		assert.Equal(
+			t,
+			float64(20),
+			pagination["itemsPerPage"].(float64),
+			"Default itemsPerPage should be 20",
+		)
 	})
 
 	// ============================================================================
@@ -414,7 +388,6 @@ func TestGetWishlistByID(t *testing.T) {
 
 		w := client.Get(t, "/api/product/wishlist/0")
 
-		// ID 0 is invalid - should return 400 Bad Request
 		helpers.AssertErrorResponse(t, w, http.StatusNotFound)
 	})
 
@@ -444,33 +417,28 @@ func TestGetWishlistByID(t *testing.T) {
 			fmt.Sprintf("/api/product/wishlist/%d?page=100&pageSize=20", aliceWishlistID),
 		)
 
-		// Should return 200 with empty products array
+		// Should return 200 with empty items array
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]any)
-				assert.Equal(
-					t,
-					0,
-					len(productsList),
-					"Products array should be empty for page beyond total",
-				)
-			}
+		itemsData, ok := wishlist["items"].([]any)
+		assert.True(t, ok, "Items field should be an array")
+		assert.Equal(
+			t,
+			0,
+			len(itemsData),
+			"Items array should be empty for page beyond total",
+		)
 
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.Equal(
-					t,
-					float64(100),
-					paginationRaw["currentPage"].(float64),
-					"currentPage should be 100",
-				)
-				assert.False(t, paginationRaw["hasNext"].(bool), "hasNext should be false")
-			}
-		}
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(100),
+			pagination["currentPage"].(float64),
+			"currentPage should be 100",
+		)
+		assert.False(t, pagination["hasNext"].(bool), "hasNext should be false")
 	})
 
 	t.Run("EDGE-003: Get wishlist with pageSize exceeding max capped to 100", func(t *testing.T) {
@@ -485,18 +453,14 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.Equal(
-					t,
-					float64(100),
-					paginationRaw["itemsPerPage"].(float64),
-					"pageSize should be capped to 100",
-				)
-			}
-		}
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(100),
+			pagination["itemsPerPage"].(float64),
+			"pageSize should be capped to 100",
+		)
 	})
 
 	t.Run("EDGE-004: Get wishlist with pageSize zero uses default", func(t *testing.T) {
@@ -510,18 +474,14 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.Equal(
-					t,
-					float64(20),
-					paginationRaw["itemsPerPage"].(float64),
-					"pageSize should default to 20",
-				)
-			}
-		}
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(20),
+			pagination["itemsPerPage"].(float64),
+			"pageSize should default to 20",
+		)
 	})
 
 	t.Run("EDGE-005: Get wishlist with negative page uses default", func(t *testing.T) {
@@ -535,18 +495,14 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				assert.Equal(
-					t,
-					float64(1),
-					paginationRaw["currentPage"].(float64),
-					"page should default to 1",
-				)
-			}
-		}
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		assert.Equal(
+			t,
+			float64(1),
+			pagination["currentPage"].(float64),
+			"page should default to 1",
+		)
 	})
 
 	// ============================================================================
@@ -614,7 +570,7 @@ func TestGetWishlistByID(t *testing.T) {
 	// Business Logic Scenarios
 	// ============================================================================
 
-	t.Run("BL-001: itemCount matches actual items in wishlist", func(t *testing.T) {
+	t.Run("BL-001: pagination totalItems matches actual items in wishlist", func(t *testing.T) {
 		// Login as Alice
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
@@ -624,47 +580,42 @@ func TestGetWishlistByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		itemCount := int(wishlist["itemCount"].(float64))
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if paginationRaw, pOk := productsData["pagination"].(map[string]any); pOk {
-				totalItems := int(paginationRaw["totalItems"].(float64))
-				// itemCount should equal totalItems in pagination
-				assert.Equal(
-					t,
-					itemCount,
-					totalItems,
-					"itemCount should match pagination totalItems",
-				)
-			}
-		}
+		itemsData, ok := wishlist["items"].([]any)
+		assert.True(t, ok, "Items field should be an array")
+
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+
+		totalItems := int(pagination["totalItems"].(float64))
+		// pagination.totalItems equals total items in DB (not just current page)
+		assert.GreaterOrEqual(t, totalItems, len(itemsData), "totalItems should be >= items on page")
 	})
 
-	t.Run("BL-002: Products have required fields", func(t *testing.T) {
+	t.Run("BL-002: Items have required fields", func(t *testing.T) {
 		// Login as Alice
 		token := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
 		client.SetToken(token)
 
-		// Get wishlist with products
+		// Get wishlist with items
 		w := client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		productsData, ok := wishlist["products"].(map[string]any)
-		assert.True(t, ok, "Products field should be a map")
-		if ok {
-			if productsListRaw := productsData["products"]; productsListRaw != nil {
-				productsList := productsListRaw.([]any)
-				if len(productsList) > 0 {
-					product := productsList[0].(map[string]any)
+		itemsData, ok := wishlist["items"].([]any)
+		assert.True(t, ok, "Items field should be an array")
+		if len(itemsData) > 0 {
+			item := itemsData[0].(map[string]any)
 
-					// Verify product has required fields
-					assert.NotNil(t, product["id"], "Product should have id")
-					assert.NotNil(t, product["name"], "Product should have name")
-					assert.NotNil(t, product["variants"], "Product should have variants")
-				}
-			}
+			// Verify item has metadata fields
+			assert.NotNil(t, item["wishlistItemId"], "Item should have wishlistItemId")
+			assert.NotNil(t, item["variantId"], "Item should have variantId")
+			assert.NotNil(t, item["addedAt"], "Item should have addedAt")
+
+			// Verify nested product has required fields
+			product, ok := item["product"].(map[string]any)
+			assert.True(t, ok, "Product should be a map")
+			assert.NotNil(t, product["id"], "Product should have id")
+			assert.NotNil(t, product["name"], "Product should have name")
 		}
 	})
 
@@ -694,57 +645,43 @@ func TestGetWishlistByID(t *testing.T) {
 		token := helpers.Login(t, client, helpers.Customer2Email, helpers.Customer2Password)
 		client.SetToken(token)
 
-		// Get initial item count
+		// Get initial item count from pagination
 		w := client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID))
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		initialCount := int(wishlist["itemCount"].(float64))
 
-		// Get a variant to add
-		client.SetHeader("X-Seller-ID", "3")
-		w = client.Get(t, "/api/product?page=1&pageSize=1")
-		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-		data := response["data"].(map[string]any)
+		pagination, ok := wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		initialCount := int(pagination["totalItems"].(float64))
 
-		if resultsRaw, ok := data["results"]; ok && resultsRaw != nil {
-			products := resultsRaw.([]any)
-			if len(products) > 0 {
-				product := products[0].(map[string]any)
-				if variantsRaw, vOk := product["variants"]; vOk && variantsRaw != nil {
-					variants := variantsRaw.([]any)
-					if len(variants) > 0 {
-						variant := variants[0].(map[string]any)
-						variantID := uint(variant["id"].(float64))
-
-						// Add item to wishlist
-						addReq := map[string]any{
-							"variantId": variantID,
-						}
-						w = client.Post(
-							t,
-							fmt.Sprintf("/api/product/wishlist/%d/item", michaelWishlistID),
-							addReq,
-						)
-						helpers.AssertSuccessResponse(t, w, http.StatusCreated)
-
-						// Get wishlist again - should have one more item
-						w = client.Get(
-							t,
-							fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID),
-						)
-						response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
-						wishlist = helpers.GetResponseData(t, response, "wishlist")
-						newCount := int(wishlist["itemCount"].(float64))
-
-						assert.Equal(
-							t,
-							initialCount+1,
-							newCount,
-							"itemCount should increase by 1 after adding item",
-						)
-					}
-				}
-			}
+		// Add an item to Michael's wishlist using known variant ID from seed data
+		addReq := map[string]any{
+			"variantId": uint(14), // Running shoes variant
 		}
+		w = client.Post(
+			t,
+			fmt.Sprintf("/api/product/wishlist/%d/item", michaelWishlistID),
+			addReq,
+		)
+		helpers.AssertSuccessResponse(t, w, http.StatusCreated)
+
+		// Get wishlist again - should have one more item
+		w = client.Get(
+			t,
+			fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID),
+		)
+		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		wishlist = helpers.GetResponseData(t, response, "wishlist")
+
+		pagination, ok = wishlist["pagination"].(map[string]any)
+		assert.True(t, ok, "Pagination should be at top level")
+		newCount := int(pagination["totalItems"].(float64))
+
+		assert.Equal(
+			t,
+			initialCount+1,
+			newCount,
+			"totalItems should increase by 1 after adding item",
+		)
 	})
 }

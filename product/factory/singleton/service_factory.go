@@ -6,6 +6,8 @@ import (
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	filegw "ecommerce-be/file/gateway"
 	"ecommerce-be/product/service"
+	userFactory "ecommerce-be/user/factory/singleton"
+	userService "ecommerce-be/user/service"
 )
 
 // ServiceFactory manages all service singleton instances
@@ -52,6 +54,9 @@ func (f *ServiceFactory) initialize() {
 		productAttrRepo := f.repoFactory.GetProductAttributeRepository()
 		packageOptionRepo := f.repoFactory.GetPackageOptionRepository()
 
+		// Get user service for seller-currency resolution (price writes/reads).
+		userSvc := f.GetUserService()
+
 		// Initialize validator service first (used by other services)
 		f.validatorService = service.NewProductValidatorService(productRepo)
 
@@ -67,6 +72,8 @@ func (f *ServiceFactory) initialize() {
 		f.wishlistItemService = service.NewWishlistItemService(
 			f.repoFactory.GetWishlistItemRepository(),
 			f.repoFactory.GetWishlistRepository(),
+			variantRepo,
+			productRepo,
 		)
 
 		// Initialize ProductFileGateway early — both VariantMediaService and
@@ -95,6 +102,7 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.validatorService,
 			f.variantMediaService,
+			userSvc,
 		)
 
 		// Initialize VariantService with VariantQueryService dependency
@@ -103,6 +111,7 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.validatorService,
 			f.variantQueryService,
+			userSvc,
 		)
 
 		// Initialize VariantBulkService for bulk operations
@@ -110,6 +119,7 @@ func (f *ServiceFactory) initialize() {
 			variantRepo,
 			f.productOptionService,
 			f.validatorService,
+			userSvc,
 		)
 
 		f.categoryService = service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
@@ -124,6 +134,7 @@ func (f *ServiceFactory) initialize() {
 			packageOptionRepo,
 			productRepo,
 			f.validatorService,
+			userSvc,
 		)
 
 		// Initialize Collection services
@@ -145,7 +156,7 @@ func (f *ServiceFactory) initialize() {
 			productFileGateway,
 		)
 
-		// Initialize ProductQueryService with VariantQueryService and media service
+		// Initialize ProductQueryService with VariantQueryService, media service, and wishlist service
 		f.productQueryService = service.NewProductQueryService(
 			productRepo,
 			f.variantQueryService,
@@ -154,13 +165,16 @@ func (f *ServiceFactory) initialize() {
 			f.packageOptionService,
 			f.productOptionService,
 			f.productMediaService,
+			f.wishlistItemService,
+			userSvc,
 		)
 
-		// Initialize WishlistService (needs ProductQueryService for product details)
+		// Initialize WishlistService (needs ProductQueryService + VariantQueryService for product details)
 		f.wishlistService = service.NewWishlistService(
 			f.repoFactory.GetWishlistRepository(),
 			f.repoFactory.GetWishlistItemRepository(),
 			f.productQueryService,
+			f.variantQueryService,
 		)
 
 		// Initialize RecentlyViewedService with repository and ProductQueryService.
@@ -183,6 +197,7 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.productAttributeService,
 			f.packageOptionService,
+			userSvc,
 		)
 	})
 }
@@ -297,4 +312,12 @@ func (f *ServiceFactory) GetVariantMediaService() service.VariantMediaService {
 func (f *ServiceFactory) GetRecentlyViewedService() service.RecentlyViewedService {
 	f.initialize()
 	return f.recentlyViewedService
+}
+
+// GetUserService returns the user module's user service for currency resolution
+// (GetSellerDefaultCurrency / GetPreferredCurrency). Product price writes resolve
+// the seller's base currency through this accessor; common/model must never
+// import the user module.
+func (f *ServiceFactory) GetUserService() userService.UserService {
+	return userFactory.GetInstance().GetUserService()
 }

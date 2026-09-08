@@ -15,6 +15,7 @@ import (
 	"ecommerce-be/order/mapper"
 	"ecommerce-be/order/model"
 	orderUtils "ecommerce-be/order/utils"
+	promotionModel "ecommerce-be/promotion/model"
 )
 
 const reservationExpiresInMinutes = 5
@@ -135,7 +136,7 @@ func (s *OrderServiceImpl) executeCreateOrderTransaction(
 				return nil, err
 			}
 
-			return s.loadCreateOrderResponse(txCtx, order.ID)
+			return s.loadCreateOrderResponse(txCtx, order.ID, sellerID)
 		},
 	)
 }
@@ -175,6 +176,32 @@ func (s *OrderServiceImpl) persistOrderSnapshotGraph(
 		return nil, err
 	}
 
+	orderCoupons := factory.BuildOrderAppliedCouponsFromCartSnapshot(
+		order.ID,
+		createCtx.cartSnapshot,
+	)
+	if err := s.orderRepo.CreateOrderAppliedCoupons(txCtx, orderCoupons); err != nil {
+		return nil, err
+	}
+
+	appliedCouponIDs := make([]uint, 0, len(createCtx.cartSnapshot.AppliedCoupons))
+	for _, c := range createCtx.cartSnapshot.AppliedCoupons {
+		appliedCouponIDs = append(appliedCouponIDs, c.DiscountCodeID)
+	}
+	if err := s.cartSvc.RevalidateCouponsForCheckout(
+		txCtx,
+		userID,
+		sellerID,
+		createCtx.lockedCart.ID,
+		appliedCouponIDs,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := s.recordCouponUsagesFromCart(txCtx, order.ID, userID, createCtx.cartSnapshot); err != nil {
+		return nil, err
+	}
+
 	itemPromotions := factory.BuildOrderItemAppliedPromotionsFromCartSnapshot(
 		order.ID,
 		createCtx.cartSnapshot,
@@ -199,6 +226,26 @@ func (s *OrderServiceImpl) persistOrderSnapshotGraph(
 	return order, nil
 }
 
+func (s *OrderServiceImpl) recordCouponUsagesFromCart(
+	txCtx context.Context,
+	orderID, userID uint,
+	cart *model.CartResponse,
+) error {
+	if s.couponApplySvc == nil || cart == nil || len(cart.AppliedCoupons) == 0 {
+		return nil
+	}
+	original := cart.Summary.AfterDiscount.AmountCents + cart.Summary.CouponDiscount.AmountCents
+	records := make([]promotionModel.CouponUsageRecord, 0, len(cart.AppliedCoupons))
+	for _, c := range cart.AppliedCoupons {
+		records = append(records, promotionModel.CouponUsageRecord{
+			DiscountCodeID:      c.DiscountCodeID,
+			DiscountAmountCents: c.Discount.AmountCents + c.ShippingDiscount.AmountCents,
+			OriginalAmountCents: original,
+		})
+	}
+	return s.couponApplySvc.RecordCouponUsages(txCtx, orderID, userID, records)
+}
+
 // buildCreateOrderEntity maps request/cart snapshot totals into the persisted order row.
 func (s *OrderServiceImpl) buildCreateOrderEntity(
 	userID, sellerID uint,
@@ -208,7 +255,7 @@ func (s *OrderServiceImpl) buildCreateOrderEntity(
 ) *entity.Order {
 	shippingCents := int64(0)
 	if createCtx.cartSnapshot.Summary.Shipping != nil {
-		shippingCents = *createCtx.cartSnapshot.Summary.Shipping
+		shippingCents = createCtx.cartSnapshot.Summary.Shipping.AmountCents
 	}
 	return mapper.BuildOrderEntity(
 		userID,
@@ -216,11 +263,11 @@ func (s *OrderServiceImpl) buildCreateOrderEntity(
 		createCtx.fulfillmentType,
 		createCtx.orderStatus,
 		req.Metadata,
-		createCtx.cartSnapshot.Summary.Subtotal,
-		createCtx.cartSnapshot.Summary.TotalDiscount,
+		createCtx.cartSnapshot.Summary.Subtotal.AmountCents,
+		createCtx.cartSnapshot.Summary.TotalDiscount.AmountCents,
 		shippingCents,
-		createCtx.cartSnapshot.Summary.Tax,
-		createCtx.cartSnapshot.Summary.Total,
+		createCtx.cartSnapshot.Summary.Tax.AmountCents,
+		createCtx.cartSnapshot.Summary.Total.AmountCents,
 		now,
 	)
 }
@@ -262,6 +309,7 @@ func (s *OrderServiceImpl) handleCreateOrderReservation(
 func (s *OrderServiceImpl) loadCreateOrderResponse(
 	txCtx context.Context,
 	orderID uint,
+	sellerID uint,
 ) (*model.OrderResponse, error) {
 	freshOrder, err := s.orderRepo.FindOrderByID(txCtx, orderID)
 	if err != nil {
@@ -270,7 +318,11 @@ func (s *OrderServiceImpl) loadCreateOrderResponse(
 	if freshOrder == nil {
 		return nil, orderError.ErrOrderNotFound
 	}
-	return factory.BuildOrderResponseFromEntity(freshOrder, nil), nil
+	ccy, err := s.orderCurrency(txCtx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.BuildOrderResponseFromEntity(freshOrder, nil, ccy), nil
 }
 
 // UpdateOrderStatus validates transition and applies inventory/cart side effects atomically.
@@ -434,6 +486,83 @@ func (s *OrderServiceImpl) createSellerStatusHistoryEntry(
 			req.Metadata,
 		),
 	)
+}
+
+// AttachTransactionID links our internal payment transaction id to the order.
+func (s *OrderServiceImpl) AttachTransactionID(
+	ctx context.Context,
+	orderID, sellerID uint,
+	transactionID string,
+) error {
+	order, err := s.orderRepo.FindOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order == nil || order.SellerID == nil || *order.SellerID != sellerID {
+		return orderError.ErrOrderNotFound
+	}
+	return s.orderRepo.UpdateOrderTransactionID(ctx, orderID, transactionID)
+}
+
+// ConfirmPaymentByTransactionID marks a pending order confirmed once its payment is captured.
+func (s *OrderServiceImpl) ConfirmPaymentByTransactionID(
+	ctx context.Context,
+	transactionID string,
+) error {
+	order, err := s.orderRepo.FindOrderByTransactionID(ctx, transactionID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return nil
+	}
+	if order.Status != entity.ORDER_STATUS_PENDING {
+		// Not pending (already confirmed/failed) — no-op so late webhooks don't regress.
+		return nil
+	}
+
+	now := time.Now().UTC()
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		prev := order.Status
+		target := entity.ORDER_STATUS_CONFIRMED
+		txID := transactionID
+		req := model.UpdateOrderStatusRequest{
+			Status:        target,
+			TransactionID: &txID,
+		}
+		return s.applyUpdateOrderStatusTx(txCtx, order, *order.SellerID,
+			prev, target, now, req)
+	})
+}
+
+// FailPaymentByTransactionID marks a pending order failed when its payment fails.
+func (s *OrderServiceImpl) FailPaymentByTransactionID(
+	ctx context.Context,
+	transactionID, reason string,
+) error {
+	order, err := s.orderRepo.FindOrderByTransactionID(ctx, transactionID)
+	if err != nil {
+		return err
+	}
+	if order == nil {
+		return nil
+	}
+	if order.Status != entity.ORDER_STATUS_PENDING {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+		prev := order.Status
+		target := entity.ORDER_STATUS_FAILED
+		failureReason := reason
+		req := model.UpdateOrderStatusRequest{
+			Status:        target,
+			FailureReason: &failureReason,
+		}
+		return s.applyUpdateOrderStatusTx(txCtx, order, *order.SellerID,
+			prev, target, now, req)
+	})
 }
 
 // CancelOrder performs customer-initiated cancellation with reservation release.

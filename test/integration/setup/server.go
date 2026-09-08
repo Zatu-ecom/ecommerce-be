@@ -86,7 +86,11 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 	router.Use(gin.Recovery())
 
 	// 9. Apply middleware (same as main.go)
-	router.Use(middleware.CorrelationID())
+	router.Use(middleware.UnlessSkipped(
+		middleware.CorrelationIDWebhookSkipRules,
+		middleware.CorrelationID(),
+		middleware.GenerateCorrelationID(),
+	))
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
 

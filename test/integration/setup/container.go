@@ -35,9 +35,13 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 		postgres.WithUsername("user"),
 		postgres.WithPassword("password"),
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(5*time.Minute),
+			wait.ForAll(
+				wait.ForLog("database system is ready to accept connections").
+					WithOccurrence(2).
+					WithStartupTimeout(5*time.Minute),
+				wait.ForListeningPort("5432/tcp").
+					WithStartupTimeout(5*time.Minute),
+			),
 		),
 	)
 	if err != nil {
@@ -68,7 +72,10 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 
 	// Connect to the database with GORM (retry: postgres can report ready before accepting TCP)
 	var gormDB *gorm.DB
-	const maxDBAttempts = 10
+	const maxDBAttempts = 15
+	// Brief pause after the log-based wait — under parallel test load the port
+	// can still refuse connections for a moment.
+	time.Sleep(500 * time.Millisecond)
 	for attempt := 1; attempt <= maxDBAttempts; attempt++ {
 		gormDB, err = gorm.Open(gormpostgres.Open(connStr), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
@@ -90,7 +97,7 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 		if attempt == maxDBAttempts {
 			t.Fatalf("failed to connect to database after %d attempts: %v", maxDBAttempts, err)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
 	}
 
 	// Get Redis connection details

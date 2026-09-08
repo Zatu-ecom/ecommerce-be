@@ -39,9 +39,13 @@ func (r *AddressRepositoryImpl) Create(ctx context.Context, address *entity.Addr
 	if count == 0 || address.IsDefault {
 		// If this is the first address or marked as default
 		tx := db.DB(ctx).Begin()
-		// Reset all existing addresses to non-default if this one is default
+		// Reset all existing addresses to non-default if this one is default.
+		// Use UpdateColumn to skip Address BeforeSave/BeforeUpdate hooks that
+		// validate Type on an empty model (would fail with invalid address type).
 		if address.IsDefault {
-			if err := tx.Model(&entity.Address{}).Where("user_id = ?", address.UserID).Update("is_default", false).Error; err != nil {
+			if err := tx.Model(&entity.Address{}).
+				Where("user_id = ?", address.UserID).
+				UpdateColumn("is_default", false).Error; err != nil {
 				tx.Rollback()
 				return err
 			}
@@ -98,11 +102,11 @@ func (r *AddressRepositoryImpl) FindByUserID(
 func (r *AddressRepositoryImpl) Update(ctx context.Context, address *entity.Address) error {
 	tx := db.DB(ctx).Begin()
 
-	// If setting as default, reset other addresses
+	// If setting as default, reset other addresses (skip hooks — empty model).
 	if address.IsDefault {
 		if err := tx.Model(&entity.Address{}).
 			Where("user_id = ? AND id != ?", address.UserID, address.ID).
-			Update("is_default", false).Error; err != nil {
+			UpdateColumn("is_default", false).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -161,8 +165,10 @@ func (r *AddressRepositoryImpl) Delete(ctx context.Context, id uint, userID uint
 func (r *AddressRepositoryImpl) SetDefault(ctx context.Context, id uint, userID uint) error {
 	tx := db.DB(ctx).Begin()
 
-	// Reset all addresses to non-default
-	if err := tx.Model(&entity.Address{}).Where("user_id = ?", userID).Update("is_default", false).Error; err != nil {
+	// Reset all addresses to non-default (skip hooks — empty model).
+	if err := tx.Model(&entity.Address{}).
+		Where("user_id = ?", userID).
+		UpdateColumn("is_default", false).Error; err != nil {
 		tx.Rollback()
 		return err
 	}

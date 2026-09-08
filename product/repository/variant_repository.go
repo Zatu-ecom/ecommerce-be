@@ -564,9 +564,9 @@ func (r *VariantRepositoryImpl) loadAllVariantFlags(
 	aggregation *mapper.VariantAggregation,
 ) error {
 	var flags struct {
-		DefaultPrice  float64
-		AllowPurchase bool
-		IsPopular     bool
+		DefaultPriceCents int64
+		AllowPurchase     bool
+		IsPopular         bool
 	}
 	err := db.DB(ctx).Model(&entity.ProductVariant{}).
 		Select(productQuery.VARIANT_ALL_FLAGS_AGGREGATION_QUERY).
@@ -575,7 +575,7 @@ func (r *VariantRepositoryImpl) loadAllVariantFlags(
 	if err != nil {
 		return err
 	}
-	aggregation.DefaultPrice = flags.DefaultPrice
+	aggregation.DefaultPriceCents = flags.DefaultPriceCents
 	aggregation.AllowPurchase = flags.AllowPurchase
 	aggregation.IsPopular = flags.IsPopular
 	return nil
@@ -587,8 +587,8 @@ func (r *VariantRepositoryImpl) loadOptionDerivedPriceRange(
 	aggregation *mapper.VariantAggregation,
 ) error {
 	var priceAgg struct {
-		MinPrice float64
-		MaxPrice float64
+		MinPriceCents int64
+		MaxPriceCents int64
 	}
 	err := db.DB(ctx).Table("product_variant pv").
 		Select(productQuery.VARIANT_OPTION_DERIVED_PRICE_AGGREGATION_QUERY).
@@ -599,8 +599,8 @@ func (r *VariantRepositoryImpl) loadOptionDerivedPriceRange(
 		return err
 	}
 	if aggregation.OptionDerivedCount > 0 {
-		aggregation.MinPrice = priceAgg.MinPrice
-		aggregation.MaxPrice = priceAgg.MaxPrice
+		aggregation.MinPriceCents = priceAgg.MinPriceCents
+		aggregation.MaxPriceCents = priceAgg.MaxPriceCents
 	}
 	return nil
 }
@@ -710,10 +710,10 @@ func (r *VariantRepositoryImpl) loadBatchAllVariantFlags(
 	result map[uint]*mapper.VariantAggregation,
 ) error {
 	var rows []struct {
-		ProductID     uint
-		DefaultPrice  float64
-		AllowPurchase bool
-		IsPopular     bool
+		ProductID         uint
+		DefaultPriceCents int64
+		AllowPurchase     bool
+		IsPopular         bool
 	}
 	err := db.DB(ctx).Model(&entity.ProductVariant{}).
 		Select(productQuery.VARIANT_BATCH_ALL_FLAGS_AGGREGATION_QUERY).
@@ -725,7 +725,7 @@ func (r *VariantRepositoryImpl) loadBatchAllVariantFlags(
 	}
 	for _, row := range rows {
 		if result[row.ProductID] != nil {
-			result[row.ProductID].DefaultPrice = row.DefaultPrice
+			result[row.ProductID].DefaultPriceCents = row.DefaultPriceCents
 			result[row.ProductID].AllowPurchase = row.AllowPurchase
 			result[row.ProductID].IsPopular = row.IsPopular
 		}
@@ -739,9 +739,9 @@ func (r *VariantRepositoryImpl) loadBatchOptionDerivedPriceRanges(
 	result map[uint]*mapper.VariantAggregation,
 ) error {
 	var rows []struct {
-		ProductID uint
-		MinPrice  float64
-		MaxPrice  float64
+		ProductID    uint
+		MinPriceCents int64
+		MaxPriceCents int64
 	}
 	err := db.DB(ctx).Table("product_variant pv").
 		Select(productQuery.VARIANT_BATCH_OPTION_DERIVED_PRICE_AGGREGATION_QUERY).
@@ -754,8 +754,8 @@ func (r *VariantRepositoryImpl) loadBatchOptionDerivedPriceRanges(
 	}
 	for _, row := range rows {
 		if result[row.ProductID] != nil && result[row.ProductID].OptionDerivedCount > 0 {
-			result[row.ProductID].MinPrice = row.MinPrice
-			result[row.ProductID].MaxPrice = row.MaxPrice
+			result[row.ProductID].MinPriceCents = row.MinPriceCents
+			result[row.ProductID].MaxPriceCents = row.MaxPriceCents
 		}
 	}
 	return nil
@@ -1038,12 +1038,12 @@ func (r *VariantRepositoryImpl) applyPriceAndStatusFilters(
 	query *gorm.DB,
 	filters *model.ListVariantsRequest,
 ) *gorm.DB {
-	// Apply price range filters
-	if filters.MinPrice != nil {
-		query = query.Where("product_variant.price >= ?", *filters.MinPrice)
+	// Apply price range filters (converted to cents by the service layer)
+	if filters.MinPriceCents != nil {
+		query = query.Where("product_variant.price_cents >= ?", *filters.MinPriceCents)
 	}
-	if filters.MaxPrice != nil {
-		query = query.Where("product_variant.price <= ?", *filters.MaxPrice)
+	if filters.MaxPriceCents != nil {
+		query = query.Where("product_variant.price_cents <= ?", *filters.MaxPriceCents)
 	}
 
 	// Apply status filters
@@ -1257,7 +1257,7 @@ func (r *VariantRepositoryImpl) GetProductBasicInfoByVariantIDs(
 			"product.category_id as category_id",
 			"product.base_sku as base_sku",
 			"product.seller_id as seller_id",
-			"product_variant.price as price",
+			"product_variant.price_cents as price_cents",
 		).
 		Joins("INNER JOIN product ON product.id = product_variant.product_id").
 		Where("product_variant.id IN ?", variantIDs)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/report/model"
 	"ecommerce-be/report/repository"
 )
@@ -19,6 +20,7 @@ func (b *SalesTrendsResponseBuilder) Build(
 	startDate time.Time,
 	endDate time.Time,
 	interval string,
+	ccy commonModel.CurrencyInfo,
 ) *model.ReportTrendsResponse {
 	// Create lookup mechanism
 	metricsMap := make(map[string]repository.TrendMetric)
@@ -29,7 +31,7 @@ func (b *SalesTrendsResponseBuilder) Build(
 	res := &model.ReportTrendsResponse{
 		Interval:        interval,
 		Labels:          []string{},
-		RevenueData:     []float64{},
+		RevenueData:     []commonModel.Money{},
 		OrderVolumeData: []int{},
 	}
 
@@ -96,10 +98,10 @@ func (b *SalesTrendsResponseBuilder) Build(
 		res.Labels = append(res.Labels, label)
 
 		if data, ok := metricsMap[dbKey]; ok {
-			res.RevenueData = append(res.RevenueData, data.TotalRevenue)
+			res.RevenueData = append(res.RevenueData, commonModel.NewMoney(data.TotalRevenue, ccy))
 			res.OrderVolumeData = append(res.OrderVolumeData, data.TotalOrders)
 		} else {
-			res.RevenueData = append(res.RevenueData, 0.0)
+			res.RevenueData = append(res.RevenueData, commonModel.Zero(ccy))
 			res.OrderVolumeData = append(res.OrderVolumeData, 0)
 		}
 

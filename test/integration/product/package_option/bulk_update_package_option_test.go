@@ -85,11 +85,11 @@ func TestBulkUpdatePackageOptions(t *testing.T) {
 			switch optID {
 			case opt1ID:
 				assert.Equal(t, "Updated Bundle A", optMap["name"])
-				assert.Equal(t, 55.0, optMap["price"])
+				assert.Equal(t, 55.0, moneyAmount(optMap["price"]))
 				assert.Equal(t, float64(4), optMap["quantity"])
 			case opt2ID:
 				assert.Equal(t, "Updated Bundle B", optMap["name"])
-				assert.Equal(t, 65.0, optMap["price"])
+				assert.Equal(t, 65.0, moneyAmount(optMap["price"]))
 				assert.Equal(t, float64(5), optMap["quantity"])
 			}
 		}

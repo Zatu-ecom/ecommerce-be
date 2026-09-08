@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 )
@@ -95,7 +95,7 @@ func (s *RecentlyViewedServiceImpl) GetRecentlyViewedProducts(
 	if len(entries) == 0 {
 		return &model.ProductsResponse{
 			Products:   []model.ProductResponse{},
-			Pagination: common.NewPaginationResponse(1, limit, 0),
+			Pagination: commonModel.NewPaginationResponse(1, limit, 0),
 		}, nil
 	}
 

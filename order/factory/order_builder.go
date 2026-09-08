@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/order/entity"
 	"ecommerce-be/order/mapper"
 	"ecommerce-be/order/model"
@@ -23,7 +24,7 @@ func BuildOrderFromCartSnapshot(
 ) *entity.Order {
 	shipping := int64(0)
 	if cart.Summary.Shipping != nil {
-		shipping = *cart.Summary.Shipping
+		shipping = cart.Summary.Shipping.AmountCents
 	}
 
 	return mapper.BuildOrderEntity(
@@ -32,11 +33,11 @@ func BuildOrderFromCartSnapshot(
 		fulfillmentType,
 		status,
 		metadata,
-		cart.Summary.Subtotal,
-		cart.Summary.TotalDiscount,
+		cart.Summary.Subtotal.AmountCents,
+		cart.Summary.TotalDiscount.AmountCents,
 		shipping,
-		cart.Summary.Tax,
-		cart.Summary.Total,
+		cart.Summary.Tax.AmountCents,
+		cart.Summary.Total.AmountCents,
 		now,
 	)
 }
@@ -65,8 +66,8 @@ func BuildOrderItemsFromCartSnapshot(
 			ImageURL:       imageURL,
 			ImageFileID:    imageFileID,
 			Quantity:       item.Quantity,
-			UnitPriceCents: item.UnitPrice,
-			LineTotalCents: item.LineTotal,
+			UnitPriceCents: item.UnitPrice.AmountCents,
+			LineTotalCents: item.LineTotal.AmountCents,
 			Attributes:     db.JSONMap{},
 		})
 	}
@@ -120,10 +121,37 @@ func BuildOrderAppliedPromotionsFromCartSnapshot(
 			PromotionID:           &promoID,
 			PromotionName:         promo.Name,
 			PromotionType:         promo.Type,
-			DiscountCents:         promo.Discount,
-			ShippingDiscountCents: promo.ShippingDiscount,
+			DiscountCents:         promo.Discount.AmountCents,
+			ShippingDiscountCents: promo.ShippingDiscount.AmountCents,
 			IsStackable:           nil,
 			Priority:              0,
+			Metadata:              db.JSONMap{},
+		})
+	}
+	return result
+}
+
+// BuildOrderAppliedCouponsFromCartSnapshot snapshots cart-level applied coupons.
+func BuildOrderAppliedCouponsFromCartSnapshot(
+	orderID uint,
+	cart *model.CartResponse,
+) []entity.OrderAppliedCoupon {
+	result := make([]entity.OrderAppliedCoupon, 0, len(cart.AppliedCoupons))
+	for _, coupon := range cart.AppliedCoupons {
+		codeID := coupon.DiscountCodeID
+		title := coupon.Title
+		var titlePtr *string
+		if title != "" {
+			titlePtr = &title
+		}
+		result = append(result, entity.OrderAppliedCoupon{
+			OrderID:               orderID,
+			DiscountCodeID:        &codeID,
+			CouponCode:            coupon.Code,
+			CouponTitle:           titlePtr,
+			DiscountType:          coupon.DiscountType,
+			DiscountCents:         coupon.Discount.AmountCents,
+			ShippingDiscountCents: coupon.ShippingDiscount.AmountCents,
 			Metadata:              db.JSONMap{},
 		})
 	}
@@ -153,9 +181,9 @@ func BuildOrderItemAppliedPromotionsFromCartSnapshot(
 				PromotionID:   &promotionID,
 				PromotionName: promo.Name,
 				PromotionType: promo.Type,
-				DiscountCents: promo.Discount,
-				OriginalCents: cartItem.LineTotal,
-				FinalCents:    cartItem.DiscountedLineTotal,
+				DiscountCents: promo.Discount.AmountCents,
+				OriginalCents: cartItem.LineTotal.AmountCents,
+				FinalCents:    cartItem.DiscountedLineTotal.AmountCents,
 				FreeQuantity:  0,
 				Metadata:      db.JSONMap{},
 			})
@@ -168,16 +196,18 @@ func BuildOrderItemAppliedPromotionsFromCartSnapshot(
 func BuildOrderResponseFromEntity(
 	order *entity.Order,
 	customer *model.OrderCustomerResponse,
+	ccy commonModel.CurrencyInfo,
 ) *model.OrderResponse {
 	resp := &model.OrderResponse{
 		ID:                order.ID,
 		OrderNumber:       order.OrderNumber,
 		Status:            order.Status,
-		SubtotalCents:     order.SubtotalCents,
-		DiscountCents:     order.DiscountCents,
-		ShippingCents:     order.ShippingCents,
-		TaxCents:          order.TaxCents,
-		TotalCents:        order.TotalCents,
+		Currency:          ccy,
+		Subtotal:          commonModel.NewMoney(order.SubtotalCents, ccy),
+		Discount:          commonModel.NewMoney(order.DiscountCents, ccy),
+		Shipping:          commonModel.NewMoney(order.ShippingCents, ccy),
+		Tax:               commonModel.NewMoney(order.TaxCents, ccy),
+		Total:             commonModel.NewMoney(order.TotalCents, ccy),
 		FulfillmentType:   order.FulfillmentType,
 		PlacedAt:          order.PlacedAt,
 		PaidAt:            order.PaidAt,
@@ -187,6 +217,7 @@ func BuildOrderResponseFromEntity(
 		Items:             make([]model.OrderItemResponse, 0, len(order.Items)),
 		Addresses:         make([]model.OrderAddressResponse, 0, len(order.Addresses)),
 		AppliedPromotions: make([]model.OrderPromotionResponse, 0, len(order.AppliedPromotions)),
+		AppliedCoupons:    make([]model.OrderCouponResponse, 0, len(order.AppliedCoupons)),
 	}
 
 	itemPromoByItemID := map[uint][]model.ItemPromotionBreakdownResponse{}
@@ -197,9 +228,9 @@ func BuildOrderResponseFromEntity(
 				PromotionID:   p.PromotionID,
 				PromotionName: p.PromotionName,
 				PromotionType: p.PromotionType,
-				DiscountCents: p.DiscountCents,
-				OriginalCents: p.OriginalCents,
-				FinalCents:    p.FinalCents,
+				Discount:      commonModel.NewMoney(p.DiscountCents, ccy),
+				Original:      commonModel.NewMoney(p.OriginalCents, ccy),
+				Final:         commonModel.NewMoney(p.FinalCents, ccy),
 				FreeQuantity:  p.FreeQuantity,
 			},
 		)
@@ -216,8 +247,8 @@ func BuildOrderResponseFromEntity(
 			ImageURL:                  item.ImageURL,
 			ImageFileID:               item.ImageFileID,
 			Quantity:                  item.Quantity,
-			UnitPriceCents:            item.UnitPriceCents,
-			LineTotalCents:            item.LineTotalCents,
+			UnitPrice:                 commonModel.NewMoney(item.UnitPriceCents, ccy),
+			LineTotal:                 commonModel.NewMoney(item.LineTotalCents, ccy),
 			Attributes:                map[string]any(item.Attributes),
 			AppliedPromotionBreakdown: itemPromoByItemID[item.ID],
 		})
@@ -239,17 +270,39 @@ func BuildOrderResponseFromEntity(
 
 	for _, promo := range order.AppliedPromotions {
 		resp.AppliedPromotions = append(resp.AppliedPromotions, model.OrderPromotionResponse{
-			PromotionID:           promo.PromotionID,
-			PromotionName:         promo.PromotionName,
-			PromotionType:         promo.PromotionType,
-			DiscountCents:         promo.DiscountCents,
-			ShippingDiscountCents: promo.ShippingDiscountCents,
-			IsStackable:           promo.IsStackable,
-			Priority:              promo.Priority,
+			PromotionID:      promo.PromotionID,
+			PromotionName:    promo.PromotionName,
+			PromotionType:    promo.PromotionType,
+			Discount:         commonModel.NewMoney(promo.DiscountCents, ccy),
+			ShippingDiscount: commonModel.NewMoney(promo.ShippingDiscountCents, ccy),
+			IsStackable:      promo.IsStackable,
+			Priority:         promo.Priority,
+		})
+	}
+
+	for _, coupon := range order.AppliedCoupons {
+		resp.AppliedCoupons = append(resp.AppliedCoupons, model.OrderCouponResponse{
+			DiscountCodeID:   coupon.DiscountCodeID,
+			CouponCode:       coupon.CouponCode,
+			CouponTitle:      coupon.CouponTitle,
+			DiscountType:     coupon.DiscountType,
+			DiscountValue:    moneyPtr(coupon.DiscountValue, ccy),
+			Discount:         commonModel.NewMoney(coupon.DiscountCents, ccy),
+			ShippingDiscount: commonModel.NewMoney(coupon.ShippingDiscountCents, ccy),
+			IsCombinable:     coupon.IsCombinable,
 		})
 	}
 
 	return resp
+}
+
+// moneyPtr wraps an optional cents value as a Money pointer.
+func moneyPtr(cents *int64, ccy commonModel.CurrencyInfo) *commonModel.Money {
+	if cents == nil {
+		return nil
+	}
+	m := commonModel.NewMoney(*cents, ccy)
+	return &m
 }
 
 func buildVariantName(options []model.VariantOptionInfo) *string {

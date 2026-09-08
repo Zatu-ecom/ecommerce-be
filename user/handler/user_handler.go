@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/cache"
 	commonerrors "ecommerce-be/common/error"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/service"
 	"ecommerce-be/user/utils/constant"
@@ -37,12 +37,12 @@ func NewUserHandler(
 func (h *UserHandler) Register(c *gin.Context) {
 	var req model.UserRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   constant.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -55,11 +55,11 @@ func (h *UserHandler) Register(c *gin.Context) {
 	authResponse, err := h.userService.Register(c, req)
 	if err != nil {
 		if err.Error() == constant.USER_EXISTS_MSG {
-			common.ErrorWithCode(c, http.StatusConflict, err.Error(), constant.USER_EXISTS_CODE)
+			commonModel.ErrorWithCode(c, http.StatusConflict, err.Error(), constant.USER_EXISTS_CODE)
 			return
 		}
 		if err.Error() == constant.PASSWORD_MISMATCH_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				err.Error(),
@@ -67,7 +67,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_REGISTER_USER_MSG+": "+err.Error(),
@@ -75,14 +75,14 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusCreated, constant.REGISTER_SUCCESS_MSG, authResponse)
+	commonModel.SuccessResponse(c, http.StatusCreated, constant.REGISTER_SUCCESS_MSG, authResponse)
 }
 
 // Login handles user authentication
 func (h *UserHandler) Login(c *gin.Context) {
 	var req model.UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_REQUEST_FORMAT_MSG,
@@ -94,7 +94,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	authResponse, err := h.userService.Login(c, req)
 	if err != nil {
 		if err.Error() == constant.ACCOUNT_DEACTIVATED_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				err.Error(),
@@ -102,7 +102,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.INVALID_CREDENTIALS_MSG,
@@ -111,7 +111,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.LOGIN_SUCCESS_MSG, authResponse)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.LOGIN_SUCCESS_MSG, authResponse)
 }
 
 // RefreshToken handles token refresh
@@ -119,7 +119,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.TOKEN_INVALID_MSG,
@@ -130,7 +130,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 
 	email, exists := c.Get(constant.EMAIL_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.TOKEN_INVALID_MSG,
@@ -146,7 +146,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 		email.(string),
 	)
 	if err != nil {
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_REFRESH_TOKEN_MSG+": "+err.Error(),
@@ -154,7 +154,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.TOKEN_REFRESHED_MSG, tokenResponse)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.TOKEN_REFRESHED_MSG, tokenResponse)
 }
 
 // GetProfile handles retrieving user profile
@@ -162,7 +162,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -175,10 +175,10 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	profileResponse, err := h.userService.GetProfile(c, userID.(uint))
 	if err != nil {
 		if err.Error() == constant.USER_NOT_FOUND_MSG {
-			common.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.USER_NOT_FOUND_CODE)
+			commonModel.ErrorWithCode(c, http.StatusNotFound, err.Error(), constant.USER_NOT_FOUND_CODE)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_GET_PROFILE_MSG+": "+err.Error(),
@@ -186,7 +186,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_RETRIEVED_MSG,
+	commonModel.SuccessResponse(c, http.StatusOK, constant.PROFILE_RETRIEVED_MSG,
 		map[string]any{
 			constant.USER_FIELD_NAME: profileResponse,
 		})
@@ -197,7 +197,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -208,12 +208,12 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	var req model.UserUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   constant.REQUEST_FIELD_NAME,
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -226,7 +226,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	// Update profile
 	userResponse, err := h.userService.UpdateProfile(c, userID.(uint), req)
 	if err != nil {
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			constant.FAILED_TO_UPDATE_PROFILE_MSG+": "+err.Error(),
@@ -234,7 +234,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.PROFILE_UPDATED_MSG,
+	commonModel.SuccessResponse(c, http.StatusOK, constant.PROFILE_UPDATED_MSG,
 		map[string]any{
 			constant.USER_FIELD_NAME: userResponse,
 		})
@@ -245,7 +245,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get(constant.USER_ID_KEY)
 	if !exists {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusUnauthorized,
 			constant.AUTHENTICATION_REQUIRED_MSG,
@@ -256,7 +256,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	var req model.UserPasswordChangeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_REQUEST_FORMAT_MSG,
@@ -267,7 +267,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	// Check if new password and confirm password match
 	if req.NewPassword != req.ConfirmPassword {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.PASSWORD_MISMATCH_MSG,
@@ -279,7 +279,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	// Change password
 	if err := h.userService.ChangePassword(c, userID.(uint), req); err != nil {
 		if err.Error() == constant.INVALID_CURRENT_PASSWORD_MSG {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				err.Error(),
@@ -287,7 +287,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			"Failed to change password: "+err.Error(),
@@ -295,7 +295,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.PASSWORD_CHANGED_MSG, nil)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.PASSWORD_CHANGED_MSG, nil)
 }
 
 // Logout handles user logout
@@ -303,7 +303,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	// Get token from Authorization header
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.NO_TOKEN_PROVIDED_MSG,
@@ -315,7 +315,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	// Check if the header has the Bearer prefix
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.INVALID_AUTH_FORMAT_MSG,
@@ -335,7 +335,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 		// Continue anyway, as this is not critical
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.LOGOUT_SUCCESS_MSG, nil)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.LOGOUT_SUCCESS_MSG, nil)
 }
 
 // ForgotPassword handles password reset request
@@ -344,12 +344,12 @@ func (h *UserHandler) Logout(c *gin.Context) {
 func (h *UserHandler) ForgotPassword(c *gin.Context) {
 	var req model.ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   "email",
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -361,7 +361,7 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 
 	_, err := h.passwordResetService.ForgotPassword(c, req)
 	if err != nil {
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			"Failed to process password reset request: "+err.Error(),
@@ -371,19 +371,19 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 
 	// Always return the same success message regardless of whether the email exists
 	// This prevents user enumeration attacks
-	common.SuccessResponse(c, http.StatusOK, constant.FORGOT_PASSWORD_SUCCESS_MSG, nil)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.FORGOT_PASSWORD_SUCCESS_MSG, nil)
 }
 
 // ResetPassword handles password reset with a token
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	var req model.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []common.ValidationError
-		validationErrors = append(validationErrors, common.ValidationError{
+		var validationErrors []commonModel.ValidationError
+		validationErrors = append(validationErrors, commonModel.ValidationError{
 			Field:   "request",
 			Message: err.Error(),
 		})
-		common.ErrorWithValidation(
+		commonModel.ErrorWithValidation(
 			c,
 			http.StatusBadRequest,
 			constant.VALIDATION_FAILED_MSG,
@@ -395,7 +395,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 
 	// Check if new password and confirm password match
 	if req.NewPassword != req.ConfirmPassword {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constant.PASSWORD_MISMATCH_MSG,
@@ -408,7 +408,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		// Use errors.As to properly detect AppError types instead of string comparison
 		var appErr *commonerrors.AppError
 		if errors.As(err, &appErr) {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				appErr.StatusCode,
 				appErr.Message,
@@ -416,7 +416,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 			)
 			return
 		}
-		common.ErrorResp(
+		commonModel.ErrorResp(
 			c,
 			http.StatusInternalServerError,
 			"Failed to reset password: "+err.Error(),
@@ -424,5 +424,5 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, http.StatusOK, constant.RESET_PASSWORD_SUCCESS_MSG, nil)
+	commonModel.SuccessResponse(c, http.StatusOK, constant.RESET_PASSWORD_SUCCESS_MSG, nil)
 }

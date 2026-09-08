@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/user/entity"
 	"ecommerce-be/user/model"
 	"ecommerce-be/user/repository"
@@ -128,7 +128,7 @@ func (s *UserQueryServiceImpl) buildListResponse(
 
 	return &model.ListUsersResponse{
 		Users:      userResponses,
-		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}
 }
 

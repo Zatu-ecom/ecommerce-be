@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 
+	commonError "ecommerce-be/common/error"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // PackageOptionService defines the interface for package option business logic
@@ -61,6 +65,7 @@ type PackageOptionServiceImpl struct {
 	packageOptionRepo repository.PackageOptionRepository
 	productRepo       repository.ProductRepository
 	validatorService  ProductValidatorService
+	userSvc           userService.UserService
 }
 
 // NewPackageOptionService creates a new instance of PackageOptionService
@@ -68,12 +73,38 @@ func NewPackageOptionService(
 	packageOptionRepo repository.PackageOptionRepository,
 	productRepo repository.ProductRepository,
 	validatorService ProductValidatorService,
+	userSvc userService.UserService,
 ) PackageOptionService {
 	return &PackageOptionServiceImpl{
 		packageOptionRepo: packageOptionRepo,
 		productRepo:       productRepo,
 		validatorService:  validatorService,
+		userSvc:           userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+func (s *PackageOptionServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
+// resolveSellerCurrency resolves the currency for a price write. When the token
+// seller is 0 (admin acting on behalf of a seller), it falls back to the product
+// owner's sellerID so the write is interpreted in the product's base currency.
+func (s *PackageOptionServiceImpl) resolveSellerCurrency(
+	ctx context.Context,
+	product *entity.Product,
+	tokenSellerID uint,
+) (commonModel.CurrencyInfo, error) {
+	sellerID := tokenSellerID
+	if sellerID == 0 && product != nil {
+		sellerID = product.SellerID
+	}
+	return s.sellerCurrency(ctx, sellerID)
 }
 
 // AddPackageOption adds a new package option to a product
@@ -83,12 +114,20 @@ func (s *PackageOptionServiceImpl) AddPackageOption(
 	sellerID uint,
 	req model.PackageOptionCreateRequest,
 ) (*model.PackageOptionResponse, error) {
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
-	packageOption := factory.BuildPackageOptionFromCreateRequest(productID, req)
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	packageOption, err := factory.BuildPackageOptionFromCreateRequest(productID, req, ccy)
+	if err != nil {
+		return nil, commonError.ErrValidation.WithMessage(err.Error())
+	}
 	if err := s.packageOptionRepo.Create(ctx, packageOption); err != nil {
 		return nil, err
 	}
@@ -98,7 +137,7 @@ func (s *PackageOptionServiceImpl) AddPackageOption(
 		return nil, err
 	}
 
-	return factory.BuildPackageOptionResponse(created), nil
+	return factory.BuildPackageOptionResponse(created, ccy), nil
 }
 
 // UpdatePackageOption updates an existing package option
@@ -109,7 +148,7 @@ func (s *PackageOptionServiceImpl) UpdatePackageOption(
 	sellerID uint,
 	req model.PackageOptionUpdateRequest,
 ) (*model.PackageOptionResponse, error) {
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +162,14 @@ func (s *PackageOptionServiceImpl) UpdatePackageOption(
 		return nil, prodErrors.ErrPackageOptionNotFound
 	}
 
-	factory.ApplyPackageOptionUpdate(packageOption, req)
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := factory.ApplyPackageOptionUpdate(packageOption, req, ccy); err != nil {
+		return nil, commonError.ErrValidation.WithMessage(err.Error())
+	}
 	if err := s.packageOptionRepo.Update(ctx, packageOption); err != nil {
 		return nil, err
 	}
@@ -133,7 +179,7 @@ func (s *PackageOptionServiceImpl) UpdatePackageOption(
 		return nil, err
 	}
 
-	return factory.BuildPackageOptionResponse(updated), nil
+	return factory.BuildPackageOptionResponse(updated, ccy), nil
 }
 
 // DeletePackageOption removes a package option from a product
@@ -165,7 +211,7 @@ func (s *PackageOptionServiceImpl) GetPackageOptions(
 	ctx context.Context,
 	productID uint,
 ) (*model.PackageOptionsResponse, error) {
-	_, err := s.productRepo.FindByID(ctx, productID)
+	product, err := s.productRepo.FindByID(ctx, productID)
 	if err != nil {
 		return nil, prodErrors.ErrProductNotFound
 	}
@@ -175,7 +221,12 @@ func (s *PackageOptionServiceImpl) GetPackageOptions(
 		return nil, err
 	}
 
-	return factory.BuildPackageOptionsListResponse(packageOptions), nil
+	ccy, err := s.sellerCurrency(ctx, product.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return factory.BuildPackageOptionsListResponse(packageOptions, ccy), nil
 }
 
 // BulkUpdatePackageOptions updates multiple package options for a product
@@ -185,7 +236,12 @@ func (s *PackageOptionServiceImpl) BulkUpdatePackageOptions(
 	sellerID uint,
 	req model.BulkUpdatePackageOptionsRequest,
 ) (*model.BulkUpdatePackageOptionsResponse, error) {
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +259,9 @@ func (s *PackageOptionServiceImpl) BulkUpdatePackageOptions(
 			continue
 		}
 
-		factory.ApplyBulkPackageOptionUpdate(packageOption, item)
+		if err := factory.ApplyBulkPackageOptionUpdate(packageOption, item, ccy); err != nil {
+			return nil, commonError.ErrValidation.WithMessage(err.Error())
+		}
 		if err := s.packageOptionRepo.Update(ctx, packageOption); err != nil {
 			return nil, err
 		}
@@ -214,7 +272,7 @@ func (s *PackageOptionServiceImpl) BulkUpdatePackageOptions(
 
 	return &model.BulkUpdatePackageOptionsResponse{
 		UpdatedCount:   updatedCount,
-		PackageOptions: factory.BuildPackageOptionResponses(updatedOptions),
+		PackageOptions: factory.BuildPackageOptionResponses(updatedOptions, ccy),
 	}, nil
 }
 
@@ -229,12 +287,20 @@ func (s *PackageOptionServiceImpl) CreatePackageOptionsBulk(
 		return []entity.PackageOption{}, nil
 	}
 
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
-	packageOptions := factory.CreatePackageOptionsFromRequests(productID, requests)
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	packageOptions, err := factory.CreatePackageOptionsFromRequests(productID, requests, ccy)
+	if err != nil {
+		return nil, commonError.ErrValidation.WithMessage(err.Error())
+	}
 	if err := s.packageOptionRepo.BulkCreate(ctx, packageOptions); err != nil {
 		return nil, err
 	}

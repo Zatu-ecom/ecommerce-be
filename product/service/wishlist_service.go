@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/config"
+	commonModel "ecommerce-be/common/model"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -17,7 +17,7 @@ type WishlistService interface {
 	GetWishlistByID(
 		ctx context.Context,
 		userID, wishlistID uint,
-		params common.BaseListParams,
+		params commonModel.BaseListParams,
 	) (*model.WishlistDetailResponse, error)
 	CreateWishlist(
 		ctx context.Context,
@@ -37,6 +37,7 @@ type WishlistServiceImpl struct {
 	wishlistRepo        repository.WishlistRepository
 	wishlistItemRepo    repository.WishlistItemRepository
 	productQueryService ProductQueryService
+	variantQueryService VariantQueryService
 }
 
 // NewWishlistService creates a new instance of WishlistService
@@ -44,11 +45,13 @@ func NewWishlistService(
 	wishlistRepo repository.WishlistRepository,
 	wishlistItemRepo repository.WishlistItemRepository,
 	productQueryService ProductQueryService,
+	variantQueryService VariantQueryService,
 ) WishlistService {
 	return &WishlistServiceImpl{
 		wishlistRepo:        wishlistRepo,
 		wishlistItemRepo:    wishlistItemRepo,
 		productQueryService: productQueryService,
+		variantQueryService: variantQueryService,
 	}
 }
 
@@ -66,11 +69,12 @@ func (s *WishlistServiceImpl) GetAllWishlists(
 }
 
 // GetWishlistByID retrieves a wishlist with paginated products
-// Uses ProductQueryService to get full product details for wishlist items
+// Returns items with per-wishlist-item metadata (wishlistItemId, variantId, addedAt)
+// alongside full resolved ProductResponse for each item
 func (s *WishlistServiceImpl) GetWishlistByID(
 	ctx context.Context,
 	userID, wishlistID uint,
-	params common.BaseListParams,
+	params commonModel.BaseListParams,
 ) (*model.WishlistDetailResponse, error) {
 	// Get wishlist to verify ownership and get basic info
 	wishlist, err := s.wishlistRepo.FindByID(ctx, wishlistID)
@@ -88,8 +92,8 @@ func (s *WishlistServiceImpl) GetWishlistByID(
 	page := params.Page
 	pageSize := params.PageSize
 
-	// Get variant IDs from wishlist items with pagination
-	variantIDs, totalItems, err := s.wishlistItemRepo.FindVariantIDsByWishlistID(
+	// Get wishlist items with full metadata (ID, variant_id, created_at)
+	items, totalItems, err := s.wishlistItemRepo.FindWishlistItemsByWishlistID(
 		ctx,
 		wishlistID,
 		page,
@@ -99,45 +103,89 @@ func (s *WishlistServiceImpl) GetWishlistByID(
 		return nil, err
 	}
 
-	// Build products response
-	var productsResponse model.ProductsResponse
+	// Build wishlist product items
+	wishlistItems := make([]model.WishlistProductItem, 0, len(items))
 
-	if len(variantIDs) > 0 {
-		// Get products using the variant IDs filter
-		filter := model.GetProductsFilter{
-			VariantIDs: variantIDs,
+	if len(items) > 0 {
+		// Collect variant IDs for batch product resolution
+		variantIDs := make([]uint, len(items))
+		for i, item := range items {
+			variantIDs[i] = item.VariantID
 		}
-		// Use page 1 and high limit since we already paginated variant IDs
-		// This fetches products for the paginated variant IDs
+
+		// Step 1: Get basic info (variantID → productID) for all wishlist variant IDs.
+		// This bridges the gap since GetAllProducts returns summary products without
+		// full Variants populated (Variants is nil in listing responses).
+		basicInfo, err := s.variantQueryService.GetProductBasicInfoByVariantIDs(
+			ctx,
+			variantIDs,
+			nil,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Build variantID → productID map and collect unique product IDs
+		variantToProductID := make(map[uint]uint, len(basicInfo))
+		uniqueProductIDs := make([]uint, 0, len(basicInfo))
+		seenProductIDs := make(map[uint]struct{}, len(basicInfo))
+		for _, row := range basicInfo {
+			variantToProductID[row.VariantID] = row.ProductID
+			if _, seen := seenProductIDs[row.ProductID]; !seen {
+				seenProductIDs[row.ProductID] = struct{}{}
+				uniqueProductIDs = append(uniqueProductIDs, row.ProductID)
+			}
+		}
+
+		// Step 2: Get full product details using product IDs filter
+		filter := model.GetProductsFilter{
+			IDs: uniqueProductIDs,
+		}
 		products, err := s.productQueryService.GetAllProducts(
 			ctx,
 			1,
-			len(variantIDs),
+			len(uniqueProductIDs),
 			filter,
 			&userID,
 		)
 		if err != nil {
 			return nil, err
 		}
-		productsResponse = model.ProductsResponse{
-			Products:   products.Products,
-			Pagination: common.NewPaginationResponse(page, pageSize, totalItems),
+
+		// Build a map of productID -> ProductResponse for O(1) lookup
+		productByID := make(map[uint]model.ProductResponse, len(products.Products))
+		for _, p := range products.Products {
+			productByID[p.ID] = p
 		}
-	} else {
-		productsResponse = model.ProductsResponse{
-			Products:   []model.ProductResponse{},
-			Pagination: common.NewPaginationResponse(page, pageSize, 0),
+
+		// Step 3: Build items list preserving the order from the query.
+		// Use variantToProductID to find the correct product for each item.
+		for _, item := range items {
+			productID, found := variantToProductID[item.VariantID]
+			if !found {
+				continue // Skip if no product found for this variant
+			}
+			product, found := productByID[productID]
+			if !found {
+				continue // Skip if product details not available
+			}
+			wishlistItems = append(wishlistItems, model.WishlistProductItem{
+				WishlistItemID: item.ID,
+				VariantID:      item.VariantID,
+				AddedAt:        item.CreatedAt,
+				Product:        product,
+			})
 		}
 	}
 
 	return &model.WishlistDetailResponse{
-		ID:        wishlist.ID,
-		Name:      wishlist.Name,
-		IsDefault: wishlist.IsDefault,
-		ItemCount: int(totalItems),
-		Products:  productsResponse,
-		CreatedAt: wishlist.CreatedAt,
-		UpdatedAt: wishlist.UpdatedAt,
+		ID:         wishlist.ID,
+		Name:       wishlist.Name,
+		IsDefault:  wishlist.IsDefault,
+		Items:      wishlistItems,
+		Pagination: commonModel.NewPaginationResponse(page, pageSize, totalItems),
+		CreatedAt:  wishlist.CreatedAt,
+		UpdatedAt:  wishlist.UpdatedAt,
 	}, nil
 }
 
