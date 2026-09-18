@@ -1,0 +1,50 @@
+# Quickstart: Caching Infrastructure (local verification)
+
+Audience: engineers implementing or reviewing `012-caching-infrastructure`. Full behavior contract: [pre-spec.md](./pre-spec.md).
+
+## 1. Start the stack
+
+```bash
+# Postgres + volatile cache + durable KV (two roles; Redis until cutover)
+docker compose up -d postgres cache-volatile cache-durable
+docker compose ps   # both KV roles healthy, app NOT depending on volatile
+```
+
+## 2. Run the conformance suite (works from Phase 0 on)
+
+```bash
+# Against Redis profiles (default)
+go test ./test/integration/cachekit/ -run TestCachekitConformance -v
+
+# Against Dragonfly profiles (same suite, second backend)
+KV_BACKEND=dragonfly go test ./test/integration/cachekit/ -run TestCachekitConformance -v
+```
+
+Green on both backends is the cutover gate (T1–T17). Never float image tags — compose, Testcontainers, and CI pin identical tags.
+
+## 3. Exercise flags locally (all default off)
+
+```bash
+CACHE_ENABLED=true CACHE_PRODUCT_DETAIL=true go run .
+# Same product twice → second response served without DB query (check debug logs/metrics).
+# Update the product as seller → next read reflects the write (miss + refill).
+CACHE_SET_WRITES=false go run .   # serve reads, skip all domain SETs (write-shed drill)
+```
+
+Enable one flag at a time; staging before any shared environment.
+
+## 4. Simulate the incident modes
+
+```bash
+# Dead volatile backend → reads still 200 from DB (T7/T14 behavior)
+docker compose stop cache-volatile && <browse catalog> && docker compose start cache-volatile
+# Flood one-off queries → markers only, no big SETs, memory flat (T13 behavior)
+```
+
+## 5. Observe
+
+Per-`(module, op, store)` hit/miss/error/latency counters; `cache_set_async_dropped`, `cache_set_generation_dropped`, `cache_write_shed_active`, `cache_fill_inflight`. Pollution signature to watch: miss ≈100% + climbing SET rate on one namespace → shed writes, investigate query shapes.
+
+## 6. Cutover drill (staging)
+
+Flip `CACHE_ADDR`/`KV_ADDR` to the Dragonfly pair, bake, compare error rate + p99 against baseline; revert is the same two variables back. No deploy in either direction.
