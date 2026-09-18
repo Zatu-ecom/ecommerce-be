@@ -19,8 +19,8 @@ import (
 	"ecommerce-be/file/utils"
 	"ecommerce-be/file/utils/constant"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 

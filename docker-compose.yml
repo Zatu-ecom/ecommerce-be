@@ -22,7 +22,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Cache
+  # Redis Cache (legacy single instance - retained one release as rollback, see 012)
   redis:
     image: redis:7-alpine
     container_name: ecommerce-redis
@@ -44,6 +44,106 @@ services:
       timeout: 3s
       retries: 5
 
+  # Volatile cache role (012): evictable, restart-losable, fail-open.
+  # No snapshot volume by design - losing this data on restart is expected.
+  cache-volatile:
+    image: redis:7-alpine
+    container_name: ecommerce-cache-volatile
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory ${CACHE_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "${CACHE_PORT:-6380}:6379"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Durable KV role (012): scheduler queue, idempotency, denylist, limiter, versions.
+  # noeviction + snapshots - pressure must fail loud, never drop jobs.
+  cache-durable:
+    image: redis:7-alpine
+    container_name: ecommerce-cache-durable
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory ${KV_MAXMEMORY:-512mb}
+      --maxmemory-policy noeviction
+      --save "900 1 300 10"
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "${KV_PORT:-6381}:6379"
+    volumes:
+      - kv_data:/data
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # DragonflyDB volatile role (012 cutover candidate - opt-in via profile).
+  # Start with: docker compose --profile dragonfly up -d
+  # NOTE: cache_mode defaults to false (unbounded growth) - always set it explicitly.
+  dragonfly-volatile:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.40.0
+    container_name: ecommerce-dragonfly-volatile
+    restart: unless-stopped
+    profiles:
+      - dragonfly
+    command: >
+      --requirepass=${REDIS_PASSWORD}
+      --cache_mode=true
+      --maxmemory=${CACHE_MAXMEMORY:-256mb}
+      --dbnum 1
+    ports:
+      - "${DRAGONFLY_CACHE_PORT:-6390}:6379"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "-p", "6379", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # DragonflyDB durable role (012 cutover candidate - opt-in via profile).
+  # cache_mode left false (default = no eviction) + snapshots for restart recovery.
+  dragonfly-durable:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.40.0
+    container_name: ecommerce-dragonfly-durable
+    restart: unless-stopped
+    profiles:
+      - dragonfly
+    command: >
+      --requirepass=${REDIS_PASSWORD}
+      --dir=/data
+      --dbfilename=dump
+      --snapshot_cron="*/30 * * * *"
+      --maxmemory=${KV_MAXMEMORY:-512mb}
+      --dbnum 1
+    ports:
+      - "${DRAGONFLY_KV_PORT:-6391}:6379"
+    volumes:
+      - dragonfly_kv_data:/data
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "-p", "6379", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   # Application (Run ONLY - No Build)
   app:
     # CRITICAL CHANGE: No 'build' context here.
@@ -61,11 +161,15 @@ services:
     # Dynamic runtime variables only
     environment:
       REDIS_ADDR: ${REDIS_HOST}:${REDIS_PORT}
+      CACHE_ADDR: ${CACHE_HOST:-cache-volatile}:${CACHE_PORT:-6380}
+      KV_ADDR: ${KV_HOST:-cache-durable}:${KV_PORT:-6381}
+      CACHE_MAXMEMORY: ${CACHE_MAXMEMORY:-256mb}
+      KV_MAXMEMORY: ${KV_MAXMEMORY:-512mb}
       
+    # 012: HTTP boots on Postgres only - never blocked by either KV role (C12).
+    # Scheduler readiness on durable KV is enforced in code, not compose.
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - ecommerce-network
@@ -109,3 +213,7 @@ volumes:
     name: ecommerce-postgres-data
   redis_data:
     name: ecommerce-redis-data
+  kv_data:
+    name: ecommerce-kv-data
+  dragonfly_kv_data:
+    name: ecommerce-dragonfly-kv-data

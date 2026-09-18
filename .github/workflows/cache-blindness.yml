@@ -1,0 +1,59 @@
+name: Cache Provider Blindness
+
+# 012: no cache-backend client specifics may leak outside
+# common/cachekit/provider/ (plus test files). Fails the build otherwise.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 012-caching-infrastructure
+
+jobs:
+  provider-blindness:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Reject provider imports outside cachekit/provider
+        run: |
+          # Transitional allowlist (Phase 1): legacy shims rewired in Phase 2 (T016, T030).
+          # Any NEW file importing a provider client fails the build.
+          LEAKS=$(grep -rn "go-redis\|rueidis\|redigo\|dgryski/go-rendezvous" \
+            --include="*.go" common product inventory order user file payment promotion report notification fulfillment subscription \
+            | grep -v "common/cachekit/provider/" \
+            | grep -v "common/cache/redis.go" \
+            | grep -v "common/scheduler/" \
+            | grep -v "file/service/upload_service.go" \
+            | grep -v "_test.go" || true)
+          if [ -n "$LEAKS" ]; then
+            echo "❌ Cache provider leak outside common/cachekit/provider/:"
+            echo "$LEAKS"
+            exit 1
+          fi
+          echo "✅ No provider leaks."
+
+      - name: Reject raw redis client outside cachekit
+        run: |
+          LEAKS=$(grep -rn "redis\.Client\|GetRedisClient()" \
+            --include="*.go" common product inventory order user file payment promotion report notification fulfillment subscription \
+            | grep -v "common/cachekit/" \
+            | grep -v "common/cache/" \
+            | grep -v "common/scheduler/" \
+            | grep -v "_test.go" || true)
+          if [ -n "$LEAKS" ]; then
+            echo "❌ Raw redis client outside cachekit (+ legacy shims):"
+            echo "$LEAKS"
+            exit 1
+          fi
+          echo "✅ No raw client leaks (legacy common/cache + scheduler shims allowed until Phase 2)."
+
+      - name: Reject legacy v8 client
+        run: |
+          if grep -rn "go-redis/redis/v8" --include="*.go" . | grep -v vendor/ | grep -q .; then
+            echo "❌ go-redis v8 still referenced."
+            exit 1
+          fi
+          echo "✅ No v8 references."

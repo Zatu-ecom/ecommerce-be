@@ -8,7 +8,7 @@ import (
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 	"ecommerce-be/common/auth"
 	commonErr "ecommerce-be/common/error"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // Scheduler handles scheduling delayed jobs to Redis for future execution.
@@ -72,7 +72,7 @@ func (s *Scheduler) Schedule(ctx context.Context, job Job, after time.Duration) 
 	pipe.Set(ctx, jobKey, data, after+time.Hour) // TTL = execution time + 1 hour buffer
 
 	// Add to sorted set for scheduling
-	pipe.ZAdd(ctx, delayedJobsKey, &redis.Z{
+	pipe.ZAdd(ctx, delayedJobsKey, redis.Z{
 		Score:  float64(executeAt),
 		Member: data,
 	})

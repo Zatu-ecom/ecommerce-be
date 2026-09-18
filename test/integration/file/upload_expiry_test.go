@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -328,7 +329,7 @@ func (s *UploadSuite) assertCorrelationIDInSchedulerJob(
 ) {
 	s.T().Helper()
 
-	ctx := s.container.RedisClient.Context()
+	ctx := context.Background()
 
 	allMembers, redisErr := s.container.RedisClient.ZRange(ctx, "delayed_jobs", 0, -1).Result()
 	if redisErr != nil {

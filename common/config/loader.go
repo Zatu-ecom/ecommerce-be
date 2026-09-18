@@ -18,6 +18,7 @@ func Load() (*Config, error) {
 			Server:        loadServerConfig(),
 			Database:      loadDatabaseConfig(),
 			Redis:         loadRedisConfig(),
+			Cache:         loadCacheFlags(),
 			Auth:          loadAuthConfig(),
 			App:           loadAppConfig(),
 			Log:           loadLogConfig(),
@@ -57,9 +58,10 @@ func (c *Config) Validate() error {
 		return errors.New("DB_PORT is required")
 	}
 
-	// Redis validation
+	// Redis validation (legacy single instance; role addrs validated for presence
+	// in cachekit constructors, never as boot blockers for the volatile role)
 	if c.Redis.Host == "" {
-		return errors.New("REDIS_ADDR is required")
+		return errors.New("REDIS_HOST is required")
 	}
 
 	// Auth validation

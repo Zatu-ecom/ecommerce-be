@@ -17,13 +17,13 @@
 
 **Purpose**: Dependencies, two-role backend topology in compose/CI, config plumbing, baselines
 
-- [ ] T001 Swap `github.com/go-redis/redis/v8` → `github.com/redis/go-redis/v9` in `go.mod`/`go.sum` (`go get`, `go mod tidy`, `go build ./...`)
-- [ ] T002 [P] Add volatile + durable KV services named `cache-volatile`/`cache-durable` to `docker-compose.yml` (Redis profiles now; Dragonfly profiles alongside, pinned tags, `cache_mode`/snapshot flags per research.md R3; app depends on Postgres only)
-- [ ] T003 [P] Extend `test/integration/setup/container.go` + `server.go` with a second KV container profile (generic container, pinned tags, `PING` wait; select backend via env per quickstart.md)
-- [ ] T004 Add `CACHE_ADDR`/`KV_ADDR`, pool/timeout/retry settings to `common/config/redis.go` (+ loader validation, `.env`/`.env.test` entries)
-- [ ] T005 [P] Add all `CACHE_*` feature flags (default off) to config in `common/config/` per pre-spec §8.5
-- [ ] T006 Capture DB QPS + latency baselines for auth/catalog paths and record in `specs/012-caching-infrastructure/baselines.md` (Phase 0 exit criterion)
-- [ ] T007 [P] Add provider-blindness CI grep (pre-spec §12 Phase 0) to `.github/workflows/` (fail on provider imports/types outside `common/cachekit/provider/` and test files)
+- [X] T001 Swap `github.com/go-redis/redis/v8` → `github.com/redis/go-redis/v9` in `go.mod`/`go.sum` (`go get`, `go mod tidy`, `go build ./...`)
+- [X] T002 [P] Add volatile + durable KV services named `cache-volatile`/`cache-durable` to `docker-compose.yml` (Redis profiles now; Dragonfly profiles alongside, pinned tags, `cache_mode`/snapshot flags per research.md R3; app depends on Postgres only)
+- [X] T003 [P] Extend `test/integration/setup/container.go` + `server.go` with a second KV container profile (generic container, pinned tags, `PING` wait; select backend via env per quickstart.md)
+- [X] T004 Add `CACHE_ADDR`/`KV_ADDR`, pool/timeout/retry settings to `common/config/redis.go` (+ loader validation, `.env`/`.env.test` entries)
+- [X] T005 [P] Add all `CACHE_*` feature flags (default off) to config in `common/config/` per pre-spec §8.5
+- [X] T006 Capture DB QPS + latency baselines for auth/catalog paths and record in `specs/012-caching-infrastructure/baselines.md` (Phase 0 exit criterion)
+- [X] T007 [P] Add provider-blindness CI grep (pre-spec §12 Phase 0) to `.github/workflows/` (fail on provider imports/types outside `common/cachekit/provider/` and test files)
 
 ---
 

@@ -9,7 +9,7 @@ import (
 	"ecommerce-be/common/scheduler"
 	fileService "ecommerce-be/file/service"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +36,7 @@ func FastForwardExpiry(t *testing.T, redisClient *redis.Client, fileObjectID uin
 
 	for _, m := range members {
 		if matchesFileObjectID(m, fileObjectID) {
-			err := redisClient.ZAdd(ctx, "delayed_jobs", &redis.Z{
+			err := redisClient.ZAdd(ctx, "delayed_jobs", redis.Z{
 				Score:  float64(time.Now().Add(-1 * time.Second).Unix()),
 				Member: m,
 			}).Err()

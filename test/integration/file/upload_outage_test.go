@@ -16,7 +16,7 @@ import (
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
