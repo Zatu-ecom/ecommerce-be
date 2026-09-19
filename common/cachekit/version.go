@@ -25,6 +25,35 @@ func BumpVersion(ctx context.Context, d Durable, versionKey string) (uint64, err
 	return d.Incr(ctx, versionKey)
 }
 
+// BumpSellerVersion mints the seller-scoped counter key for family and bumps
+// it on durable KV in one call. Prefer it for seller families
+// (productlist, collectionlist, categories); platform keys
+// (attributes:all:ver, gateway:catalog:all:ver, geo:*:active:ver) keep
+// literal keys with BumpVersion.
+func BumpSellerVersion(ctx context.Context, d Durable, sellerID uint, family string) (uint64, error) {
+	verKey, err := VersionKey(sellerID, family)
+	if err != nil {
+		return 0, err
+	}
+	return BumpVersion(ctx, d, verKey)
+}
+
+// ReadVersion returns the durable counter as the version suffix readers
+// embed in list keys ("0" when never bumped — all readers agree, which is
+// all that matters). The error mirrors the backend read: callers fall back
+// to an unversioned key on ErrUnavailable and keep serving from the database
+// path (fail-open); a corrupt counter also degrades to "0".
+func ReadVersion(ctx context.Context, d Durable, versionKey string) (string, error) {
+	raw, err := d.Get(ctx, versionKey)
+	if err != nil || len(raw) == 0 {
+		return "0", err
+	}
+	if _, err := ParseVersion(raw); err != nil {
+		return "0", err
+	}
+	return string(raw), nil
+}
+
 // GenerationKeyFor derives the co-located generation marker for a volatile
 // entity key, e.g. GenerationKeyFor("seller:7:product:42") →
 // "seller:7:product:42:gen". The marker lives on the SAME backend as the

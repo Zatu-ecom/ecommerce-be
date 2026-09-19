@@ -168,12 +168,5 @@ func (s *CatalogCache) bumpCatalogVersion(ctx context.Context) {
 
 // readCatalogVersion reads the durable catalog version ("0" when unset).
 func readCatalogVersion(ctx context.Context, d cachekit.Durable) (string, error) {
-	raw, err := d.Get(ctx, "gateway:catalog:all:ver")
-	if err != nil || len(raw) == 0 {
-		return "0", err
-	}
-	if _, err := cachekit.ParseVersion(raw); err != nil {
-		return "0", err
-	}
-	return string(raw), nil
+	return cachekit.ReadVersion(ctx, d, "gateway:catalog:all:ver")
 }

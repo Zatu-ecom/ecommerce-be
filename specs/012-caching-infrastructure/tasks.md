@@ -147,13 +147,13 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T043 [P] [US3] Conformance T8 full matrix (entity miss + version bump per write incl. all §5.7 nested rows) in `test/integration/product/invalidation_test.go`
-- [ ] T044 [P] [US3] Erasure test (hard delete → exact keys gone, no globs/tombstones) in `test/integration/user/cache_erasure_test.go`
+- [X] T043 [P] [US3] Conformance T8 full matrix (entity miss + version bump per write incl. all §5.7 nested rows) in `test/integration/product/invalidation_test.go`
+- [X] T044 [P] [US3] Erasure test (hard delete → exact keys gone, no globs/tombstones) in `test/integration/user/cache_erasure_test.go`
 
 ### Implementation for User Story 3
 
-- [ ] T045 [US3] Durable version-counter helpers in `common/cachekit/version.go` (durable KV placement) + `productlist:ver`/`collectionlist:ver`/geo/gateway/category version wiring in write paths
-- [ ] T046 [US3] Remaining hooks: seller-validation invalidation on `user.is_active`/subscription/plan writers (incl. non-HTTP writers), currency/settings/geo/gateway exact-`Del`s, user-delete purge (depends on T045)
+- [X] T045 [US3] Durable version-counter helpers in `common/cachekit/version.go` (durable KV placement) + `productlist:ver`/`collectionlist:ver`/geo/gateway/category version wiring in write paths
+- [X] T046 [US3] Remaining hooks: seller-validation invalidation on `user.is_active`/subscription/plan writers (incl. non-HTTP writers), currency/settings/geo/gateway exact-`Del`s, user-delete purge (depends on T045)
 
 **Checkpoint**: US3 green; staleness bounds hold per resource; no cross-seller leakage.
 

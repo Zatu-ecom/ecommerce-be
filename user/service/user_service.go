@@ -286,15 +286,22 @@ func (s *UserServiceImpl) UpdateProfile(
 		return nil, err
 	}
 
-	// Invalidate seller cache if user is associated with a seller
+	// Invalidate seller cache if user is associated with a seller. The ctx
+	// variant targets the volatile cachekit role (the legacy no-ctx Del hit
+	// the single Redis and silently missed).
 	if user.SellerID != 0 {
-		if err := cache.InvalidateSellerDetailsCache(user.SellerID); err != nil {
+		if err := cache.InvalidateSellerDetailsCacheCtx(ctx, user.SellerID); err != nil {
 			// Log the error but don't fail the request
 			log.Printf(
 				"Failed to invalidate seller details cache for seller %d: %v",
 				user.SellerID,
 				err,
 			)
+		}
+		// A currency change retires the user's exact preference entry
+		// (post-commit, exact key — never a glob).
+		if req.CurrencyID != nil && s.currencyCache != nil {
+			s.currencyCache.InvalidateUserCurrency(ctx, user.SellerID, userID)
 		}
 	}
 

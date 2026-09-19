@@ -137,9 +137,7 @@ func (s *CollectionCache) InvalidateCollection(ctx context.Context, sellerID, co
 		_ = s.cache.Del(ctx, k)
 	}
 	if s.durable != nil {
-		if verKey, err := cachekit.VersionKey(sellerID, "collectionlist"); err == nil {
-			_, _ = cachekit.BumpVersion(ctx, s.durable, verKey)
-		}
+		_, _ = cachekit.BumpSellerVersion(ctx, s.durable, sellerID, "collectionlist")
 	}
 }
 

@@ -118,14 +118,7 @@ func (s *CategoryCache) fetchList(
 // currentVersion reads the durable list version ("0" when never bumped —
 // all readers agree, which is all that matters).
 func (s *CategoryCache) currentVersion(ctx context.Context, sellerScope, family string) (string, error) {
-	raw, err := s.durable.Get(ctx, sellerScope+":"+family+":ver")
-	if err != nil || len(raw) == 0 {
-		return "0", err
-	}
-	if _, err := cachekit.ParseVersion(raw); err != nil {
-		return "0", err
-	}
-	return string(raw), nil
+	return cachekit.ReadVersion(ctx, s.durable, sellerScope+":"+family+":ver")
 }
 
 // bumpVersion advances the durable list-version counter (best-effort; the
@@ -134,11 +127,7 @@ func (s *CategoryCache) bumpVersion(ctx context.Context, sellerID uint, family s
 	if s.durable == nil {
 		return
 	}
-	verKey, err := cachekit.VersionKey(sellerID, family)
-	if err != nil {
-		return
-	}
-	_, _ = cachekit.BumpVersion(ctx, s.durable, verKey)
+	_, _ = cachekit.BumpSellerVersion(ctx, s.durable, sellerID, family)
 }
 
 // decodeCategories unmarshals a categories list payload.
@@ -224,14 +213,8 @@ func (s *CategoryCache) attributeListVersion(ctx context.Context) string {
 	if s.durable == nil {
 		return "0"
 	}
-	raw, err := s.durable.Get(ctx, "attributes:all:ver")
-	if err != nil || len(raw) == 0 {
-		return "0"
-	}
-	if _, err := cachekit.ParseVersion(raw); err != nil {
-		return "0"
-	}
-	return string(raw)
+	ver, _ := cachekit.ReadVersion(ctx, s.durable, "attributes:all:ver")
+	return ver
 }
 
 // GetAttribute serves one attribute definition through cache-aside.

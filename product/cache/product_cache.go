@@ -292,9 +292,7 @@ func (s *ProductCache) InvalidateProduct(ctx context.Context, sellerID, productI
 	}
 	_ = s.cache.Del(ctx, keys...)
 	if s.durable != nil {
-		if verKey, err := cachekit.VersionKey(sellerID, "productlist"); err == nil {
-			_, _ = cachekit.BumpVersion(ctx, s.durable, verKey)
-		}
+		_, _ = cachekit.BumpSellerVersion(ctx, s.durable, sellerID, "productlist")
 	}
 }
 
@@ -454,10 +452,8 @@ func (s *ProductCache) GetVariantByOptions(
 	ver := "0"
 	if s.durable != nil {
 		if verKey, err := cachekit.VersionKey(sellerID, "productlist"); err == nil {
-			if raw, err := s.durable.Get(ctx, verKey); err == nil && len(raw) > 0 {
-				if _, perr := cachekit.ParseVersion(raw); perr == nil {
-					ver = string(raw)
-				}
+			if v, verr := cachekit.ReadVersion(ctx, s.durable, verKey); verr == nil {
+				ver = v
 			}
 		}
 	}

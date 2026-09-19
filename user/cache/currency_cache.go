@@ -109,14 +109,26 @@ func (s *CurrencyCache) GetSellerDefault(
 }
 
 // InvalidateSellerDefault removes the seller default entry after a settings
-// or currency write. Per-user entries (user_currency:{uid}) are unknown at
-// the writer and expire naturally within 1h: settings changes are rare and
-// the bound is documented (pre-spec §4.5).
+// or currency write. Unknown-seller user entries still expire naturally
+// within 1h (pre-spec §4.5); entries with a known owner use
+// InvalidateUserCurrency.
 func (s *CurrencyCache) InvalidateSellerDefault(ctx context.Context, sellerID uint) {
 	if s == nil || s.cache == nil {
 		return
 	}
 	if k, err := cachekit.BuildSellerKey(sellerID, "currency", "default"); err == nil {
+		_ = s.cache.Del(ctx, k)
+	}
+}
+
+// InvalidateUserCurrency removes one user's currency-preference entry.
+// Call AFTER DB commit when the owner is known (profile currency change,
+// user-delete purge). Exact key, no globs.
+func (s *CurrencyCache) InvalidateUserCurrency(ctx context.Context, sellerID, userID uint) {
+	if s == nil || s.cache == nil {
+		return
+	}
+	if k, err := cachekit.BuildSellerKey(sellerID, "currency", "user", uintToString(userID)); err == nil {
 		_ = s.cache.Del(ctx, k)
 	}
 }

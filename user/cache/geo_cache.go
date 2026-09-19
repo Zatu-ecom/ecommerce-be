@@ -134,14 +134,11 @@ func (s *GeoCache) defaultListKey(ctx context.Context, family string) string {
 	if s.durable == nil {
 		return base
 	}
-	raw, err := s.durable.Get(ctx, base+":ver")
-	if err != nil || len(raw) == 0 {
+	ver, err := cachekit.ReadVersion(ctx, s.durable, base+":ver")
+	if err != nil {
 		return base + ":v0"
 	}
-	if _, err := cachekit.ParseVersion(raw); err != nil {
-		return base + ":v0"
-	}
-	return base + ":v" + string(raw)
+	return base + ":v" + ver
 }
 
 // GetDefaultCountryList serves the default-shape active country list
