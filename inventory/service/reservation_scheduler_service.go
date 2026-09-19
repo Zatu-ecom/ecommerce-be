@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/utils/constant"
@@ -133,21 +134,32 @@ func (s *reservationSchedulerServiceImpl) scheduleJob(
 	)
 
 	delay := time.Until(expiresAt)
-	if _, err = s.scheduler.Schedule(ctx, job, delay); err != nil {
+	// The queue owns job identity: Schedule returns the queue-side ID (the
+	// ZSET member Cancel must name). The envelope's job.JobID is NOT the
+	// queue ID and must never be used for cancellation.
+	queueID, err := s.scheduler.Schedule(ctx, job, delay)
+	if err != nil {
 		return uuid.Nil, fmt.Errorf("failed to schedule reservation expiry: %w", err)
 	}
 
-	// Cache the job ID for later cancellation
-	// Add buffer time to ensure cache outlives the scheduled job
+	// Persist the queue ID for later cancellation on DURABLE KV (FR-016):
+	// scheduler pointers are correctness state and must survive eviction
+	// and restart. The legacy single-Redis fallback only applies when the
+	// durable role is unwired (the scheduler would not run there either).
+	// Buffer time keeps the pointer alive past the job's execution.
 	cacheTTL := delay + cacheBufferDuration
-	cache.Set(cacheKey, job.JobID, cacheTTL)
+	if d := cachekit.DefaultDurable(); d != nil {
+		_ = d.Set(ctx, cacheKey, []byte(queueID), cacheTTL)
+	} else {
+		cache.Set(cacheKey, queueID, cacheTTL)
+	}
 
 	return job.JobID, nil
 }
 
 // cancelJob is a generic method to cancel a scheduled job
 func (s *reservationSchedulerServiceImpl) cancelJob(ctx context.Context, cacheKey string) error {
-	jobID, err := cache.Get(cacheKey)
+	jobID, err := s.queuedJobID(ctx, cacheKey)
 	if err != nil {
 		return fmt.Errorf("failed to get job ID from cache: %w", err)
 	}
@@ -156,8 +168,28 @@ func (s *reservationSchedulerServiceImpl) cancelJob(ctx context.Context, cacheKe
 		return fmt.Errorf("failed to cancel scheduled job: %w", err)
 	}
 
-	// Clean up cache after successful cancellation
-	cache.Del(cacheKey)
+	// Clean up the pointer after successful cancellation (both stores:
+	// pre-fix pointers live in the legacy client).
+	s.clearQueuedJobID(ctx, cacheKey)
 
 	return nil
+}
+
+// queuedJobID resolves the queue-side job ID: durable first, legacy client
+// as fallback (covers pre-fix pointers and unwired-durable environments).
+func (s *reservationSchedulerServiceImpl) queuedJobID(ctx context.Context, cacheKey string) (string, error) {
+	if d := cachekit.DefaultDurable(); d != nil {
+		if b, err := d.Get(ctx, cacheKey); err == nil {
+			return string(b), nil
+		}
+	}
+	return cache.Get(cacheKey)
+}
+
+// clearQueuedJobID removes the cancellation pointer from both stores.
+func (s *reservationSchedulerServiceImpl) clearQueuedJobID(ctx context.Context, cacheKey string) {
+	if d := cachekit.DefaultDurable(); d != nil {
+		_ = d.Del(ctx, cacheKey)
+	}
+	cache.Del(cacheKey)
 }

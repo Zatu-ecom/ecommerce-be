@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/file/utils/constant"
 )
@@ -80,7 +81,7 @@ func (s *uploadExpiryScheduler) Schedule(
 	}
 
 	job := scheduler.NewJob(
-		constant.SchedulerCommandUploadExpiry, 
+		constant.SchedulerCommandUploadExpiry,
 		json.RawMessage(payloadBytes),
 	)
 
@@ -90,10 +91,16 @@ func (s *uploadExpiryScheduler) Schedule(
 		return "", fmt.Errorf("upload expiry scheduler: schedule: %w", err)
 	}
 
-	// Cache the jobID so Cancel can retrieve it later.
+	// Persist the queue-side jobID for Cancel on DURABLE KV (FR-016):
+	// scheduler pointers are correctness state and must survive eviction
+	// and restart. Legacy single-Redis fallback only when durable unwired.
 	cacheTTL := delay + constant.CacheBufferDuration
 	cacheKey := s.cacheKey(fileObjectID, sellerID)
-	cache.Set(cacheKey, jobID, cacheTTL)
+	if d := cachekit.DefaultDurable(); d != nil {
+		_ = d.Set(ctx, cacheKey, []byte(jobID), cacheTTL)
+	} else {
+		cache.Set(cacheKey, jobID, cacheTTL)
+	}
 
 	return jobID, nil
 }
@@ -108,14 +115,10 @@ func (s *uploadExpiryScheduler) Cancel(
 ) error {
 	cacheKey := s.cacheKey(fileObjectID, sellerID)
 
-	jobID, err := cache.Get(cacheKey)
-	if err != nil {
-		// Cache miss (TTL expired or Redis unavailable). Log and return nil — the
-		// scheduler handler is idempotent against ACTIVE rows (FR-029).
-		return nil
-	}
-
+	jobID := s.queuedJobID(ctx, cacheKey)
 	if jobID == "" {
+		// Pointer miss (TTL expired or store unavailable). Return nil — the
+		// scheduler handler is idempotent against ACTIVE rows (FR-029).
 		return nil
 	}
 
@@ -123,8 +126,27 @@ func (s *uploadExpiryScheduler) Cancel(
 		return fmt.Errorf("upload expiry scheduler: cancel: %w", err)
 	}
 
+	// Clear from both stores (pre-fix pointers live in the legacy client).
+	if d := cachekit.DefaultDurable(); d != nil {
+		_ = d.Del(ctx, cacheKey)
+	}
 	cache.Del(cacheKey)
 	return nil
+}
+
+// queuedJobID resolves the queue-side job ID: durable first, legacy client
+// as fallback (pre-fix pointers and unwired-durable environments).
+func (s *uploadExpiryScheduler) queuedJobID(ctx context.Context, cacheKey string) string {
+	if d := cachekit.DefaultDurable(); d != nil {
+		if b, err := d.Get(ctx, cacheKey); err == nil {
+			return string(b)
+		}
+	}
+	jobID, err := cache.Get(cacheKey)
+	if err != nil {
+		return ""
+	}
+	return jobID
 }
 
 // cacheKey returns the Redis key for the expiry job ID.

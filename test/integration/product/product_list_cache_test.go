@@ -28,13 +28,13 @@ import (
 // listCacheFlags enables only the list flag (plus the global switch) so the
 // suite isolates P2 behavior from US1 detail caches.
 var listCacheFlags = map[string]string{
-	"DB_HOST": "localhost",
-	"DB_PORT": "5432",
-	"DB_USER": "test",
-	"DB_NAME": "test",
-	"REDIS_HOST": "localhost",
-	"JWT_SECRET": "list-cache-test-secret",
-	"CACHE_ENABLED":         "true",
+	"DB_HOST":                 "localhost",
+	"DB_PORT":                 "5432",
+	"DB_USER":                 "test",
+	"DB_NAME":                 "test",
+	"REDIS_HOST":              "localhost",
+	"JWT_SECRET":              "list-cache-test-secret",
+	"CACHE_ENABLED":           "true",
 	"CACHE_SELLER_VALIDATION": "false",
 	"CACHE_CURRENCY":          "false",
 	"CACHE_PRODUCT_DETAIL":    "false",

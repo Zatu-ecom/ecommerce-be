@@ -82,6 +82,24 @@ func TestValidateKey_AllowlistsPlatformKeys(t *testing.T) {
 	}
 }
 
+// TestAdmissionMarkerKey_Shape proves P2 admission markers are seller-scoped
+// (no allowlist change needed) and rejected for zero sellers.
+func TestAdmissionMarkerKey_Shape(t *testing.T) {
+	k, err := AdmissionMarkerKey(7, "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k != "seller:7:seen:abc123" {
+		t.Fatalf("bad marker shape: %q", k)
+	}
+	if err := ValidateKey(k); err != nil {
+		t.Fatalf("marker must validate as seller-scoped: %v", err)
+	}
+	if _, err := AdmissionMarkerKey(0, "abc123"); err == nil {
+		t.Fatal("zero seller marker must be rejected")
+	}
+}
+
 // TestJitteredTTL_Bounds proves every wire TTL is positive and within
 // ±15% of base (pre-spec §5.6).
 func TestJitteredTTL_Bounds(t *testing.T) {

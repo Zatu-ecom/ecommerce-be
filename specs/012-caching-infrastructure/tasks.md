@@ -180,11 +180,11 @@
 
 **Purpose**: Close the gaps found in the specification analysis report — each task traces to a finding ID
 
-- [ ] T056 [P] [US4] Negative-guard test: checkout, payment, and coupon-apply paths emit zero volatile `Cache` SETs in `test/integration/order/no_cache_guard_test.go` + `test/integration/payment/no_cache_guard_test.go` (FR-012; finding H1)
-- [ ] T057 [P] [US6] Durable-path conformance fill-in: full T2/T4/T5/T6/T10 implementations in `test/integration/cachekit/durable_paths_test.go` (T017 provided skeletons; finding H3)
-- [ ] T058 [P] [US2] Retry-discipline unit test (single attempt on GET/SET then fail-open/drop) in `common/cachekit/client_test.go` + upstream jittered-backoff guidance note in `specs/012-caching-infrastructure/alerts.md` (finding H4; T048 owns the doc)
-- [ ] T059 [P] [US1] Load/flood script: unique-query flood (memory flat, markers only) + repeat-query flood (hit rate climbs) with p99 assertions in `test/integration/cachekit/flood_test.go` (feeds SC-001 and the P2b flood regression; finding M1)
-- [ ] T060 [P] [US1] Unit tests for pure `cachekit` logic in `common/cachekit/key_test.go`, `common/cachekit/ttl_test.go`, `common/cachekit/codec_test.go`, `common/cachekit/negative_test.go` (tombstone store-as-miss/`Del`-on-write/create-clears), `common/cachekit/singleflight_test.go` (collapse) (findings M2/M3)
+- [X] T056 [P] [US4] Negative-guard test: checkout, payment, and coupon-apply paths emit zero volatile `Cache` SETs in `test/integration/order/no_cache_guard_test.go` + `test/integration/payment/no_cache_guard_test.go` (FR-012; finding H1)
+- [X] T057 [P] [US6] Durable-path conformance fill-in: full T2/T4/T5/T6/T10 implementations in `test/integration/cachekit/durable_paths_test.go` (T017 provided skeletons; finding H3)
+- [X] T058 [P] [US2] Retry-discipline unit test (single attempt on GET/SET then fail-open/drop) in `common/cachekit/client_test.go` + upstream jittered-backoff guidance note in `specs/012-caching-infrastructure/alerts.md` (finding H4; T048 owns the doc)
+- [X] T059 [P] [US1] Load/flood script: unique-query flood (memory flat, markers only) + repeat-query flood (hit rate climbs) with p99 assertions in `test/integration/cachekit/flood_test.go` (feeds SC-001 and the P2b flood regression; finding M1)
+- [X] T060 [P] [US1] Unit tests for pure `cachekit` logic in `common/cachekit/key_test.go`, `common/cachekit/ttl_test.go`, `common/cachekit/codec_test.go`, `common/cachekit/negative_test.go` (tombstone store-as-miss/`Del`-on-write/create-clears), `common/cachekit/singleflight_test.go` (collapse) (findings M2/M3)
 
 **Checkpoint**: Analysis report shows zero open findings; coverage re-verified (FR-012/H1, FR-018/H4, SC-001/M1 all green)
 
@@ -194,11 +194,11 @@
 
 **Purpose**: Release hygiene
 
-- [ ] T061 [P] Final blindness + dead-code grep pass (`go-redis` outside provider, `KEYS` outside janitor/tests, `Background()` without IDs) and fix strays
-- [ ] T062 [P] Constitution amendment PR: update §X cache clause + client standard to v9/two-store (pre-spec documents rationale)
-- [ ] T063 [P] Mermaid/diagram render check for pre-spec + fix `\n`→`<br/>` cosmetics
-- [ ] T064 Full suite green (`make test`), `go vet`, `gofmt -l` clean; update `ARCHITECTURE.md` cache section if it contradicts the design
-- [ ] T065 Promotion sweep multi-pod audit (`promotion/container.go:45` idempotency/locking; payment already SKIP LOCKED) + stale-PENDING reconciler decision recorded
+- [X] T061 [P] Final blindness + dead-code grep pass (`go-redis` outside provider, `KEYS` outside janitor/tests, `Background()` without IDs) and fix strays
+- [X] T062 [P] Constitution amendment PR: update §X cache clause + client standard to v9/two-store (pre-spec documents rationale)
+- [X] T063 [P] Mermaid/diagram render check for pre-spec + fix `\n`→`<br/>` cosmetics
+- [X] T064 Full suite green (`make test`), `go vet`, `gofmt -l` clean; update `ARCHITECTURE.md` cache section if it contradicts the design
+- [X] T065 Promotion sweep multi-pod audit (`promotion/container.go:45` idempotency/locking; payment already SKIP LOCKED) + stale-PENDING reconciler decision recorded
 
 ---
 

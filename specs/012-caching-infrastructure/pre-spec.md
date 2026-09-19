@@ -35,13 +35,13 @@ Known defects: hot key never invalidated (`seller_complete:{id}`), invalidators 
 flowchart TD
     C[Client] --> API[Gin handler]
     API --> SVC[Service]
-    SVC --> STRAT[Module cache strategy\nproduct/cache, user/cache, ...]
+    SVC --> STRAT[Module cache strategy<br/>product/cache, user/cache, ...]
 
     STRAT -->|GET key| CK[cachekit client]
-    CK -->|HIT| RET1[Return DTO\n+ hit metric]
+    CK -->|HIT| RET1[Return DTO<br/>+ hit metric]
     RET1 --> C
 
-    CK -->|MISS| SF{singleflight:\nfetch already\nin flight?}
+    CK -->|MISS| SF{singleflight:<br/>fetch already<br/>in flight?}
     SF -->|yes| WAIT[Wait on shared call]
     WAIT --> RET1
     SF -->|no| DB[(Postgres)]
@@ -64,12 +64,12 @@ Read it left-to-right: **strategy → cachekit → (hit) return; (miss) singlefl
 
 ```mermaid
 flowchart LR
-    W[Write request] --> TX[DB transaction\nCOMMIT]
-    TX --> DEL[Del entity key\nseller:id:resource:id]
-    DEL --> VER{Bump list\nversion?}
+    W[Write request] --> TX[DB transaction<br/>COMMIT]
+    TX --> DEL[Del entity key<br/>seller:id:resource:id]
+    DEL --> VER{Bump list<br/>version?}
     VER -->|entity affects lists| INCR[INCR seller:id:productlist:ver]
     VER -->|no list impact| DONE[Done]
-    INCR --> JAN[Async: background SCAN janitor\ncleans derived keys if needed]
+    INCR --> JAN[Async: background SCAN janitor<br/>cleans derived keys if needed]
     JAN --> DONE
 
     style TX fill:#238636,stroke:#fff,color:#fff
@@ -94,8 +94,8 @@ flowchart LR
         RL[coupon Lua limiter]
     end
 
-    STRAT --> VOL[(volatile cache\nevict OK, no snapshot\nCACHE_ADDR)]
-    FILE --> DUR[(durable KV\nnoeviction, snapshots\nKV_ADDR)]
+    STRAT --> VOL[(volatile cache<br/>evict OK, no snapshot<br/>CACHE_ADDR)]
+    FILE --> DUR[(durable KV<br/>noeviction, snapshots<br/>KV_ADDR)]
     SCHED --> DUR
     AUTH --> DUR
     RL --> DUR
@@ -117,11 +117,11 @@ High RPS with **random (non-repeating) product queries** → near-100% misses �
 
 ```mermaid
 flowchart LR
-    RQ["random queries\nhigh cardinality"] --> MISS["~100% miss rate"]
-    MISS --> SYNCSET["sync SET per request\non response path"]
-    SYNCSET --> SAT["backend saturated\nGETs queue behind SETs"]
+    RQ["random queries<br/>high cardinality"] --> MISS["~100% miss rate"]
+    MISS --> SYNCSET["sync SET per request<br/>on response path"]
+    SYNCSET --> SAT["backend saturated<br/>GETs queue behind SETs"]
     SAT --> TO["upstream timeouts"]
-    TO --> RETRY["client retries\nno jitter"]
+    TO --> RETRY["client retries<br/>no jitter"]
     RETRY --> SAT
 
     style RQ fill:#da3633,stroke:#fff,color:#fff
@@ -171,9 +171,9 @@ Every link in that chain has a named countermeasure in this spec, so we never re
 ```mermaid
 flowchart LR
     subgraph NOW ["TODAY — scattered, unguarded, one LRU Redis"]
-        S1[services] --> RC1[common/cache\nGet/Set/Del]
+        S1[services] --> RC1[common/cache<br/>Get/Set/Del]
         S2[scheduler + file] --> REDIS1[raw *redis.Client]
-        RC1 --> R1[(Redis 7 v8\nallkeys-lru)]
+        RC1 --> R1[(Redis 7 v8<br/>allkeys-lru)]
         REDIS1 --> R1
     end
     subgraph TARGET ["TARGET — layered, two stores"]
@@ -224,11 +224,11 @@ file/             # Durable SETNX/TTL for upload idempotency — not a domain ca
 
 ```mermaid
 flowchart TD
-    H[Handler\nGin] --> S[Service\nbusiness logic]
-    S --> ST[Module cache strategy\nproduct/user/payment/file/cache\nkeys + TTL + invalidation]
-    S --> RP[Repository\nGORM via db.DB ctx]
-    ST --> KIT[cachekit Cache\nvolatile]
-    S --> DUR[cachekit Durable\nfile, limiter, denylist, scheduler]
+    H[Handler<br/>Gin] --> S[Service<br/>business logic]
+    S --> ST[Module cache strategy<br/>product/user/payment/file/cache<br/>keys + TTL + invalidation]
+    S --> RP[Repository<br/>GORM via db.DB ctx]
+    ST --> KIT[cachekit Cache<br/>volatile]
+    S --> DUR[cachekit Durable<br/>file, limiter, denylist, scheduler]
     RP --> PG[(Postgres)]
     KIT --> VOL[(volatile)]
     DUR --> KV[(durable KV)]
@@ -246,22 +246,22 @@ Forbidden directions: handler → cachekit, repository → cachekit, one module'
 ```mermaid
 flowchart LR
     subgraph PM [product module]
-        PC[product/cache\nproduct, variant,\ncategory, attributes]
+        PC[product/cache<br/>product, variant,<br/>category, attributes]
     end
     subgraph UM [user module]
-        UC[user/cache\nseller validation,\ncurrency, geo, settings]
+        UC[user/cache<br/>seller validation,<br/>currency, geo, settings]
     end
     subgraph PAY [payment module]
-        PY[payment/cache\ngateway catalog slice]
+        PY[payment/cache<br/>gateway catalog slice]
     end
     subgraph FM [file module]
-        FC[file/cache\nproviders + schemas]
+        FC[file/cache<br/>providers + schemas]
     end
     subgraph IM [inventory module]
-        IC[inventory/cache\navailability\nP2 only]
+        IC[inventory/cache<br/>availability<br/>P2 only]
     end
     subgraph OM [order module]
-        OC[NO domain cache\ncart, order, coupons]
+        OC[NO domain cache<br/>cart, order, coupons]
     end
     PC --> KIT[cachekit Cache]
     UC --> KIT
@@ -724,11 +724,11 @@ Even a maximally stale (5s) availability value can only affect cart-add gating a
 flowchart TD
     START["Pre-prod, free backend choice"] --> INFRA["Build cachekit + two addrs + conformance on Redis"]
     INFRA --> DFLY["Run identical suite against Dragonfly images"]
-    DFLY --> GATE{"T1–T17 green including T10\njobs survive memory pressure?"}
-    GATE -->|yes| CUT["Flip CACHE_ADDR + KV_ADDR to Dragonfly\nkeep Redis profile one release"]
-    GATE -->|no| STAY["Stay on Redis 7 two-service split\narchitecture unchanged"]
-    CUT --> OBS["Observe hit rate + error rate + memory\none release, then retire or keep fallback"]
-    STAY --> OBS2["Revisit only on measured pain\nnot on benchmarks"]
+    DFLY --> GATE{"T1–T17 green including T10<br/>jobs survive memory pressure?"}
+    GATE -->|yes| CUT["Flip CACHE_ADDR + KV_ADDR to Dragonfly<br/>keep Redis profile one release"]
+    GATE -->|no| STAY["Stay on Redis 7 two-service split<br/>architecture unchanged"]
+    CUT --> OBS["Observe hit rate + error rate + memory<br/>one release, then retire or keep fallback"]
+    STAY --> OBS2["Revisit only on measured pain<br/>not on benchmarks"]
 
     style GATE fill:#8957e5,stroke:#fff,color:#fff
     style CUT fill:#238636,stroke:#fff,color:#fff
