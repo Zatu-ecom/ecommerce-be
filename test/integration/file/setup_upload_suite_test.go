@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/messaging"
@@ -24,6 +23,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -121,15 +121,21 @@ func (s *UploadSuite) cleanupUploadState() {
 	}
 
 	ctx := context.Background()
-	if s.container.RedisClient != nil {
-		for _, pattern := range []string{
-			"file:init:idem:*",
-			"seller:*:file.upload.expiry:*",
-			"platform:file.upload.expiry:*",
-		} {
-			keys, err := s.container.RedisClient.Keys(ctx, pattern).Result()
+	// Idempotency records and expiry-job pointers live on the durable role
+	// (pre-fix pointers may linger in the legacy/volatile client: clear
+	// both stores so no test leaks scheduler state into the next).
+	for _, pattern := range []string{
+		"file:init:idem:*",
+		"seller:*:file.upload.expiry:*",
+		"platform:file.upload.expiry:*",
+	} {
+		for _, client := range []*redis.Client{s.container.RedisClient, s.container.DurableKVClient} {
+			if client == nil {
+				continue
+			}
+			keys, err := client.Keys(ctx, pattern).Result()
 			if err == nil && len(keys) > 0 {
-				_ = s.container.RedisClient.Del(ctx, keys...).Err()
+				_ = client.Del(ctx, keys...).Err()
 			}
 		}
 	}
@@ -173,7 +179,6 @@ func (s *UploadSuite) configureUploadEnv() {
 
 	// Ensure fresh config singleton picks up messaging/rabbit values.
 	config.Reset()
-	cache.SetRedisClient(s.container.RedisClient)
 }
 
 func (s *UploadSuite) seedUploadStorageConfig() {

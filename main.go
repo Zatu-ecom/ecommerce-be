@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
@@ -51,9 +50,6 @@ func main() {
 
 	/* Connect Database */
 	db.ConnectDB(cfg)
-
-	/* Connect Redis */
-	cache.ConnectRedis(cfg)
 
 	/* Wire cachekit role clients (012). Volatile construction never blocks
 	boot; durable health gates the scheduler worker pool at startup. */
@@ -129,9 +125,8 @@ func gracefulShutdown(srv *http.Server) {
 	logger.Info("Closing database connections...")
 	db.CloseDB()
 
-	// Close Redis connections
-	logger.Info("Closing Redis connections...")
-	cache.CloseRedis()
+	// Close cache backend connections
+	logger.Info("Closing cache connections...")
 	cachekit.CloseDefaults()
 
 	// Stop Cron Scheduler

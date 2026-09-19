@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"ecommerce-be/common/auth"
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
@@ -77,9 +76,6 @@ func (s *US1CachesSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))
 	cachekit.SetDefaultDurable(provider.NewDurable(cfg.Redis))
-	// Legacy global (invalidators, limiter, upload idempotency) points at the
-	// volatile test container, mirroring SetupTestServer.
-	cache.SetRedisClient(s.container.RedisClient)
 }
 
 // TearDownSuite disables flags, unwires defaults, and terminates containers.
@@ -180,7 +176,7 @@ func (s *US1CachesSuite) TestSellerValidation_Cached() {
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), stored)
 
-	require.NoError(s.T(), cache.InvalidateSellerDetailsCache(2))
+	require.NoError(s.T(), usercache.InvalidateSellerValidation(ctx, 2))
 	_, err = s.container.RedisClient.Get(ctx, key).Bytes()
 	require.Error(s.T(), err, "invalidated key must miss")
 }
@@ -356,9 +352,6 @@ func (s *US1CachesSuite) rebuildDefaults() {
 	s.container.DurableKVClient = redis.NewClient(&redis.Options{
 		Addr: dhost + ":" + dport.Port(),
 	})
-	// The legacy global holds the pre-stop client object: repoint it too,
-	// otherwise invalidators dial a closed client.
-	cache.SetRedisClient(s.container.RedisClient)
 }
 
 // --- T019: fail-open --------------------------------------------------------

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	usercache "ecommerce-be/user/cache"
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/common/filegateway"
@@ -286,11 +285,9 @@ func (s *UserServiceImpl) UpdateProfile(
 		return nil, err
 	}
 
-	// Invalidate seller cache if user is associated with a seller. The ctx
-	// variant targets the volatile cachekit role (the legacy no-ctx Del hit
-	// the single Redis and silently missed).
+	// Invalidate seller validation if the user is associated with a seller.
 	if user.SellerID != 0 {
-		if err := cache.InvalidateSellerDetailsCacheCtx(ctx, user.SellerID); err != nil {
+		if err := usercache.InvalidateSellerValidation(ctx, user.SellerID); err != nil {
 			// Log the error but don't fail the request
 			log.Printf(
 				"Failed to invalidate seller details cache for seller %d: %v",

@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
@@ -30,17 +29,14 @@ import (
 func setTestEnvVars() {
 	// Only set if not already set (allows override from .env.test or CI)
 	envDefaults := map[string]string{
-		"DB_HOST":        "localhost",
-		"DB_PORT":        "5432",
-		"DB_USER":        "postgres",
-		"DB_PASSWORD":    "postgres",
-		"DB_NAME":        "testdb",
-		"REDIS_HOST":     "localhost",
-		"REDIS_PORT":     "6379",
-		"REDIS_PASSWORD": "",
-		"JWT_SECRET":     "test-secret-key-for-integration-tests",
-		"APP_ENV":        "test",
-		"LOG_LEVEL":      "debug",
+		"DB_HOST":     "localhost",
+		"DB_PORT":     "5432",
+		"DB_USER":     "postgres",
+		"DB_PASSWORD": "postgres",
+		"DB_NAME":     "testdb",
+		"JWT_SECRET":  "test-secret-key-for-integration-tests",
+		"APP_ENV":     "test",
+		"LOG_LEVEL":   "debug",
 	}
 
 	for key, value := range envDefaults {
@@ -76,12 +72,7 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 		db.SetDB(database)
 	}
 
-	// 7. Set the test Redis client as the global Redis instance
-	if redisClient != nil {
-		cache.SetRedisClient(redisClient)
-	}
-
-	// 7b. Wire cachekit role clients from test config (CACHE_ADDR/KV_ADDR
+	// 7. Wire cachekit role clients from test config (CACHE_ADDR/KV_ADDR
 	// published by SetupTestContainers). Strategies read these at call time;
 	// flags stay off unless a test enables them.
 	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))

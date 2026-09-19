@@ -61,7 +61,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		require.NoError(s.T(), err)
 		helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
-		keys, err := s.container.RedisClient.Keys(context.Background(), "file:init:idem:*").Result()
+		keys, err := s.container.DurableKVClient.Keys(context.Background(), "file:init:idem:*").Result()
 		require.NoError(s.T(), err)
 		require.NotEmpty(s.T(), keys)
 	})
@@ -90,7 +90,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		fileID := firstData["fileId"].(string)
 
 		key := s.idempotencyRedisKeyForFileID(fileID)
-		raw, err := s.container.RedisClient.Get(context.Background(), key).Bytes()
+		raw, err := s.container.DurableKVClient.Get(context.Background(), key).Bytes()
 		require.NoError(s.T(), err)
 
 		record := map[string]any{}
@@ -100,7 +100,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 		require.NoError(s.T(), err)
 		require.NoError(
 			s.T(),
-			s.container.RedisClient.Set(context.Background(), key, updated, 20*time.Minute).Err(),
+			s.container.DurableKVClient.Set(context.Background(), key, updated, 20*time.Minute).Err(),
 		)
 
 		second := helpers.AssertSuccessResponse(
@@ -221,10 +221,10 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 }
 
 func (s *UploadSuite) idempotencyRedisKeyForFileID(fileID string) string {
-	keys, err := s.container.RedisClient.Keys(context.Background(), "file:init:idem:*").Result()
+	keys, err := s.container.DurableKVClient.Keys(context.Background(), "file:init:idem:*").Result()
 	s.Require().NoError(err)
 	for _, key := range keys {
-		raw, err := s.container.RedisClient.Get(context.Background(), key).Bytes()
+		raw, err := s.container.DurableKVClient.Get(context.Background(), key).Bytes()
 		s.Require().NoError(err)
 		record := map[string]any{}
 		s.Require().NoError(json.Unmarshal(raw, &record))

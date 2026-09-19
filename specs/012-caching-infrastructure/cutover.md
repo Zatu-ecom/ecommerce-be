@@ -20,7 +20,7 @@ Image tags are pinned identically in compose, Testcontainers setup, and CI
 | Check | Result |
 |---|---|
 | `docker compose config` | valid |
-| Redis KV roles boot + `PING` (`REDIS_PASSWORD` set — empty default breaks `--requirepass`, see §4) | PONG / PONG |
+| Redis KV roles boot + `PING` (`CACHE_PASSWORD` set — empty default breaks `--requirepass`, see §4) | PONG / PONG |
 | T-suite on Redis profiles | green: US1, US4, US2 (admission/degraded/write-protection), US3 (invalidation/erasure), P2 lists |
 | T-suite on Dragonfly profiles (`KV_BACKEND=dragonfly`) | **blocked by host**: `v1.40.0` exits demanding 3.00 GiB (12 threads); host has 2.89 GiB (`proactor_pool.cc:149 … Exiting…`). Not a code signal — Lua scripts are KEYS-only per R2. |
 | Revert drill | addr-only by construction (no code path branches on backend); exercised in-suite via dead-backend fail-open tests |
@@ -43,10 +43,11 @@ addr flip.** The §3 runbook is the staging procedure.
 
 ## 4. Local gaps found by this drill (fixed in T050)
 
-- Compose KV roles boot-loop on a fresh checkout: empty `REDIS_PASSWORD`
-  turns `--requirepass` into a flag-swallowing fatal config error. Deploy
-  always injects a secret, so the fix is procedural — quickstart step 1 now
-  requires `REDIS_PASSWORD` to be set.
+- Compose KV roles boot-loop on a fresh checkout: empty password turns
+  `--requirepass` into a flag-swallowing fatal config error. Deploy always
+  injects a secret, so the fix is procedural — quickstart step 1 now
+  requires `CACHE_PASSWORD` to be set (renamed from `REDIS_PASSWORD` in the
+  legacy-cache retirement).
 - quickstart §2 invoked `-run TestCachekitConformance`, which matches no
   test (real suite: `TestConformanceSuite`). Fixed.
 - `cache_fill_inflight` had no readable source (FR-021): added

@@ -36,8 +36,3 @@ const (
 const (
 	TOKEN_EXPIRE_DURATION = constants.TOKEN_EXPIRE_DURATION
 )
-
-// Redis constants
-const (
-	REDIS_NOT_INITIALIZED_MSG = constants.REDIS_NOT_INITIALIZED_MSG
-)

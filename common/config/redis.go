@@ -26,15 +26,12 @@ const (
 	defaultAsyncSETMaxInflight = 64
 )
 
-// RedisConfig holds Redis/Dragonfly (RESP) configuration for both KV roles.
-// The legacy Host/Port/Password/DB/Addr fields target the pre-012 single
-// instance and remain for backward compatibility until cutover completes.
+// RedisConfig holds RESP-backend (Redis/Dragonfly) configuration for both
+// KV roles. The pre-012 single-instance fields are gone with common/cache:
+// every backend access goes through the cachekit role clients.
 type RedisConfig struct {
-	Host     string
-	Port     string
+	// Password authenticates the volatile role. Env: CACHE_PASSWORD.
 	Password string
-	DB       int
-	Addr     string
 
 	// CacheAddr targets the volatile role (domain cache, fail-open).
 	// Env: CACHE_ADDR, else CACHE_HOST:CACHE_PORT.
@@ -73,13 +70,9 @@ type RedisConfig struct {
 
 // loadRedisConfig loads Redis configuration from environment variables.
 func loadRedisConfig() RedisConfig {
-	password := os.Getenv("REDIS_PASSWORD")
+	password := os.Getenv("CACHE_PASSWORD")
 	return RedisConfig{
-		Host:     os.Getenv("REDIS_HOST"),
 		Password: password,
-		Port:     getEnvOrDefault("REDIS_PORT", "6379"),
-		DB:       getEnvAsIntOrDefault("REDIS_DB", 0),
-		Addr:     os.Getenv("REDIS_HOST") + ":" + getEnvOrDefault("REDIS_PORT", "6379"),
 
 		CacheAddr:  cacheAddrOrDefault(),
 		KVAddr:     kvAddrOrDefault(),

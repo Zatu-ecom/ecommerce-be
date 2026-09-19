@@ -58,11 +58,8 @@ func (c *Config) Validate() error {
 		return errors.New("DB_PORT is required")
 	}
 
-	// Redis validation (legacy single instance; role addrs validated for presence
-	// in cachekit constructors, never as boot blockers for the volatile role)
-	if c.Redis.Host == "" {
-		return errors.New("REDIS_HOST is required")
-	}
+	// KV role addrs are validated for presence in cachekit constructors,
+	// never as boot blockers for the volatile role (fail-open by design).
 
 	// Auth validation
 	if c.Auth.JWTSecret == "" {

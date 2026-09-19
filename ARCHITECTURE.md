@@ -1333,8 +1333,7 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=password
 DB_NAME=ecommerce
-REDIS_HOST=localhost
-REDIS_PORT=6379
+CACHE_PASSWORD=your-secret
 JWT_SECRET=your-secret-key
 PORT=8080
 ```

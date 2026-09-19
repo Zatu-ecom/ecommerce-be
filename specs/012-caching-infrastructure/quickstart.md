@@ -6,9 +6,9 @@ Audience: engineers implementing or reviewing `012-caching-infrastructure`. Full
 
 ```bash
 # Postgres + volatile cache + durable KV (two roles; Redis until cutover).
-# REDIS_PASSWORD must be non-empty: an empty value breaks the roles'
+# CACHE_PASSWORD must be non-empty: an empty value breaks the roles'
 # --requirepass flag and boot-loops them (deploy always injects a secret).
-REDIS_PASSWORD=devpass docker compose up -d postgres cache-volatile cache-durable
+CACHE_PASSWORD=devpass docker compose up -d postgres cache-volatile cache-durable
 docker compose ps   # both KV roles healthy, app NOT depending on volatile
 ```
 

@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	legacycache "ecommerce-be/common/cache"
 	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
@@ -79,7 +78,6 @@ func (s *InvalidationSuite) SetupSuite() {
 	require.True(s.T(), ok, "NewCache must return *provider.Adapter for Flush")
 	s.adapter = ad
 	s.durable = provider.NewDurable(cfg.Redis)
-	legacycache.SetRedisClient(s.container.RedisClient)
 	// The seller-validation invalidator under test resolves the process
 	// default (production main.go wiring); point it at the suite backend.
 	cachekit.SetDefaultCache(s.cache)
@@ -505,7 +503,7 @@ func (s *InvalidationSuite) TestSellerValidationWrite_TargetsVolatile() {
 	s.flush()
 	s.requirePresent(key)
 
-	require.NoError(s.T(), legacycache.InvalidateSellerDetailsCacheCtx(ctx, 79))
+	require.NoError(s.T(), usercache.InvalidateSellerValidation(ctx, 79))
 
 	s.requireGone(key)
 }

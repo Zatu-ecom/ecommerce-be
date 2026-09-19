@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/file/utils/constant"
@@ -93,14 +92,15 @@ func (s *uploadExpiryScheduler) Schedule(
 
 	// Persist the queue-side jobID for Cancel on DURABLE KV (FR-016):
 	// scheduler pointers are correctness state and must survive eviction
-	// and restart. Legacy single-Redis fallback only when durable unwired.
+	// and restart. Durable is mandatory here — without it uploads cannot be
+	// cancelled later, so fail the schedule instead of hiding the outage.
+	d := cachekit.DefaultDurable()
+	if d == nil {
+		return "", fmt.Errorf("upload expiry scheduler: durable KV unwired")
+	}
 	cacheTTL := delay + constant.CacheBufferDuration
 	cacheKey := s.cacheKey(fileObjectID, sellerID)
-	if d := cachekit.DefaultDurable(); d != nil {
-		_ = d.Set(ctx, cacheKey, []byte(jobID), cacheTTL)
-	} else {
-		cache.Set(cacheKey, jobID, cacheTTL)
-	}
+	_ = d.Set(ctx, cacheKey, []byte(jobID), cacheTTL)
 
 	return jobID, nil
 }
@@ -126,27 +126,24 @@ func (s *uploadExpiryScheduler) Cancel(
 		return fmt.Errorf("upload expiry scheduler: cancel: %w", err)
 	}
 
-	// Clear from both stores (pre-fix pointers live in the legacy client).
 	if d := cachekit.DefaultDurable(); d != nil {
 		_ = d.Del(ctx, cacheKey)
 	}
-	cache.Del(cacheKey)
 	return nil
 }
 
-// queuedJobID resolves the queue-side job ID: durable first, legacy client
-// as fallback (pre-fix pointers and unwired-durable environments).
+// queuedJobID resolves the queue-side job ID from durable KV. Misses (TTL
+// expiry, already-run jobs) return "" and Cancel short-circuits to nil.
 func (s *uploadExpiryScheduler) queuedJobID(ctx context.Context, cacheKey string) string {
-	if d := cachekit.DefaultDurable(); d != nil {
-		if b, err := d.Get(ctx, cacheKey); err == nil {
-			return string(b)
-		}
+	d := cachekit.DefaultDurable()
+	if d == nil {
+		return ""
 	}
-	jobID, err := cache.Get(cacheKey)
+	b, err := d.Get(ctx, cacheKey)
 	if err != nil {
 		return ""
 	}
-	return jobID
+	return string(b)
 }
 
 // cacheKey returns the Redis key for the expiry job ID.
