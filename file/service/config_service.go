@@ -8,6 +8,7 @@ import (
 
 	"ecommerce-be/common/constants"
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/file/cache"
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
@@ -22,6 +23,13 @@ type ConfigService interface {
 	GetProviders(
 		ctx context.Context,
 	) ([]model.ProviderResponse, error)
+	// GetAdapterSchemas serves static adapter form schemas (cached when wired).
+	GetAdapterSchemas(
+		ctx context.Context,
+		adapterType entity.AdapterType,
+	) ([]model.AdapterConfigSchema, error)
+	// SetRefCache attaches the reference-data strategy (nil disables).
+	SetRefCache(c *cache.RefCache)
 	SaveConfig(
 		ctx context.Context,
 		userID uint,
@@ -47,6 +55,15 @@ type ConfigService interface {
 
 type configService struct {
 	configRepo repository.ConfigRepository
+	// refCache is the optional reference-data strategy (012). Nil disables
+	// caching; wired by the factory via SetRefCache.
+	refCache *cache.RefCache
+}
+
+// SetRefCache attaches the reference-data strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *configService) SetRefCache(c *cache.RefCache) {
+	s.refCache = c
 }
 
 func NewConfigService(configRepo repository.ConfigRepository) ConfigService {
@@ -56,6 +73,32 @@ func NewConfigService(configRepo repository.ConfigRepository) ConfigService {
 }
 
 func (s *configService) GetProviders(
+	ctx context.Context,
+) ([]model.ProviderResponse, error) {
+	if s.refCache != nil {
+		return s.refCache.GetProviders(ctx, func(ctx context.Context) ([]model.ProviderResponse, error) {
+			return s.loadProviders(ctx)
+		})
+	}
+	return s.loadProviders(ctx)
+}
+
+// GetAdapterSchemas serves static adapter schemas through the strategy.
+func (s *configService) GetAdapterSchemas(
+	ctx context.Context,
+	adapterType entity.AdapterType,
+) ([]model.AdapterConfigSchema, error) {
+	if s.refCache == nil {
+		return GetAdapterSchemas(adapterType)
+	}
+	adapter := string(adapterType)
+	return s.refCache.GetSchemas(ctx, adapter, func(ctx context.Context) ([]model.AdapterConfigSchema, error) {
+		return GetAdapterSchemas(adapterType)
+	})
+}
+
+// loadProviders reads provider rows without caching.
+func (s *configService) loadProviders(
 	ctx context.Context,
 ) ([]model.ProviderResponse, error) {
 	providers, err := s.configRepo.GetProviders(ctx)

@@ -6,6 +6,7 @@ import (
 	commonError "ecommerce-be/common/error"
 	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -66,7 +67,35 @@ type PackageOptionServiceImpl struct {
 	productRepo       repository.ProductRepository
 	validatorService  ProductValidatorService
 	userSvc           userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *PackageOptionServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *PackageOptionServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *PackageOptionServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewPackageOptionService creates a new instance of PackageOptionService
 func NewPackageOptionService(
@@ -137,6 +166,7 @@ func (s *PackageOptionServiceImpl) AddPackageOption(
 		return nil, err
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildPackageOptionResponse(created, ccy), nil
 }
 
@@ -179,6 +209,7 @@ func (s *PackageOptionServiceImpl) UpdatePackageOption(
 		return nil, err
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildPackageOptionResponse(updated, ccy), nil
 }
 
@@ -203,7 +234,11 @@ func (s *PackageOptionServiceImpl) DeletePackageOption(
 		return prodErrors.ErrPackageOptionNotFound
 	}
 
-	return s.packageOptionRepo.Delete(ctx, packageOptionID)
+	if err := s.packageOptionRepo.Delete(ctx, packageOptionID); err != nil {
+		return err
+	}
+	s.invalidateTree(ctx, sellerID, productID)
+	return nil
 }
 
 // GetPackageOptions retrieves all package options for a product
@@ -270,6 +305,7 @@ func (s *PackageOptionServiceImpl) BulkUpdatePackageOptions(
 		updatedCount++
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return &model.BulkUpdatePackageOptionsResponse{
 		UpdatedCount:   updatedCount,
 		PackageOptions: factory.BuildPackageOptionResponses(updatedOptions, ccy),
@@ -305,6 +341,7 @@ func (s *PackageOptionServiceImpl) CreatePackageOptionsBulk(
 		return nil, err
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return packageOptions, nil
 }
 

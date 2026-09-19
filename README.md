@@ -118,10 +118,8 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 DB_NAME=ecommerce
 
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+# KV roles (volatile cache + durable KV). Must be non-empty for compose.
+CACHE_PASSWORD=
 
 # Application Configuration
 PORT=8080

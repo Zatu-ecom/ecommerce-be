@@ -184,7 +184,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 				Error
 			s.Require().NoError(err)
 
-			schedulerJobsBefore, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").
+			schedulerJobsBefore, err := s.container.DurableKVClient.ZCard(context.Background(), "delayed_jobs").
 				Result()
 			s.Require().NoError(err)
 
@@ -201,7 +201,7 @@ func (s *UploadSuite) TestInitUpload_PolicyRejections_NoSideEffects() {
 			s.Require().NoError(err)
 			s.Require().Equal(fileObjectCountBefore, fileObjectCountAfter)
 
-			schedulerJobsAfter, err := s.container.RedisClient.ZCard(context.Background(), "delayed_jobs").
+			schedulerJobsAfter, err := s.container.DurableKVClient.ZCard(context.Background(), "delayed_jobs").
 				Result()
 			s.Require().NoError(err)
 			s.Require().Equal(schedulerJobsBefore, schedulerJobsAfter)

@@ -6,6 +6,7 @@ import (
 
 	commonEntity "ecommerce-be/common/db"
 	"ecommerce-be/user/entity"
+	usercache "ecommerce-be/user/cache"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
@@ -52,6 +53,27 @@ type SellerSettingsServiceImpl struct {
 	settingsRepo    repository.SellerSettingsRepository
 	countryService  CountryService
 	currencyService CurrencyService
+	// currencyCache/settingsCache are optional 012 hooks (nil = disabled).
+	currencyCache *usercache.CurrencyCache
+	settingsCache *usercache.SettingsCache
+}
+
+// SetCacheHooks attaches currency + settings invalidation/strategy hooks.
+// Safe to call with nils (disables caching). Called once by the factory.
+func (s *SellerSettingsServiceImpl) SetCacheHooks(cc *usercache.CurrencyCache, sc *usercache.SettingsCache) {
+	s.currencyCache = cc
+	s.settingsCache = sc
+}
+
+// invalidateSellerCache clears seller settings + default currency after a
+// settings write (exact keys, post-commit).
+func (s *SellerSettingsServiceImpl) invalidateSellerCache(ctx context.Context, sellerID uint) {
+	if s.settingsCache != nil {
+		s.settingsCache.Invalidate(ctx, sellerID)
+	}
+	if s.currencyCache != nil {
+		s.currencyCache.InvalidateSellerDefault(ctx, sellerID)
+	}
 }
 
 // NewSellerSettingsService creates a new instance of SellerSettingsService
@@ -130,12 +152,26 @@ func (s *SellerSettingsServiceImpl) Create(
 	if err := s.settingsRepo.Create(ctx, settings); err != nil {
 		return nil, userErrors.ErrSettingsCreateFailed
 	}
+	s.invalidateSellerCache(ctx, sellerID)
 
 	return factory.BuildSellerSettingsResponse(settings), nil
 }
 
 // GetBySellerID retrieves seller settings by seller ID
 func (s *SellerSettingsServiceImpl) GetBySellerID(
+	ctx context.Context,
+	sellerID uint,
+) (*model.SellerSettingsResponse, error) {
+	if s.settingsCache == nil {
+		return s.loadSettingsBySellerID(ctx, sellerID)
+	}
+	return s.settingsCache.Get(ctx, sellerID, func(ctx context.Context) (*model.SellerSettingsResponse, error) {
+		return s.loadSettingsBySellerID(ctx, sellerID)
+	})
+}
+
+// loadSettingsBySellerID reads settings without caching.
+func (s *SellerSettingsServiceImpl) loadSettingsBySellerID(
 	ctx context.Context,
 	sellerID uint,
 ) (*model.SellerSettingsResponse, error) {
@@ -201,6 +237,7 @@ func (s *SellerSettingsServiceImpl) Update(
 	if err := s.settingsRepo.Update(ctx, settings); err != nil {
 		return nil, userErrors.ErrSellerSettingsExists // Generic update error
 	}
+	s.invalidateSellerCache(ctx, sellerID)
 
 	return factory.BuildSellerSettingsResponse(settings), nil
 }

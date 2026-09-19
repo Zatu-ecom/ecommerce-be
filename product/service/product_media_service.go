@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	productError "ecommerce-be/product/error"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
@@ -62,7 +63,35 @@ type productMediaService struct {
 	mediaRepo   repository.ProductMediaRepository
 	productRepo repository.ProductRepository
 	fileGateway ProductFileGateway
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *productMediaService) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *productMediaService) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateProduct clears the product entry and retires lists (media lives
+// in the product DTO; variant detail is unaffected). Call AFTER DB commit.
+func (s *productMediaService) invalidateProduct(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProduct(ctx, sellerID, productID, nil)
+}
+
 
 // NewProductMediaService creates a ProductMediaService backed by the supplied
 // repository and file gateway. productRepo is used for product-ownership checks
@@ -222,6 +251,7 @@ func (s *productMediaService) AttachMedia(
 	}
 
 	resp := MapToProductMediaResponse(*media, fileInfo)
+	s.invalidateProduct(ctx, sellerID, productID)
 	return &resp, nil
 }
 
@@ -270,6 +300,7 @@ func (s *productMediaService) UpdateMediaMetadata(
 	fileInfo, _ := s.fileGateway.GetFileInfo(ctx, fileID, &sellerID)
 
 	resp := MapToProductMediaResponse(*updated, fileInfo)
+	s.invalidateProduct(ctx, sellerID, productID)
 	return &resp, nil
 }
 
@@ -335,6 +366,7 @@ func (s *productMediaService) RemoveMedia(
 		)
 	}
 
+	s.invalidateProduct(ctx, sellerID, productID)
 	return nil
 }
 

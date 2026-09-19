@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -16,8 +17,9 @@ import (
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 func (s *UploadSuite) TestInitUpload_StorageOutage() {
@@ -82,21 +84,54 @@ func (s *UploadSuite) TestInitUpload_StorageOutage() {
 		requireNoUploadRowForFilename(s.T(), s, filename)
 	})
 
-	s.Run("RedisUnavailable_InitUpload_Returns503_NoDbRow", func() {
+	s.Run("DurableUnavailable_InitUpload_Returns503_NoDbRow", func() {
 		client := helpers.NewAPIClient(s.server)
 		client.SetToken(s.sellerToken)
-		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6-redis-down")
+		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6-durable-down")
 
-		filename := "redis-unavailable-outage.jpg"
+		filename := "durable-unavailable-outage.jpg"
 		ctx := context.Background()
 		stopTimeout := 10 * time.Second
-		require.NoError(s.T(), s.container.Redis.Stop(ctx, &stopTimeout))
-		defer s.restartRedisAfterOutage(ctx)
+		// The scheduler lives on the durable role: with it down, init-upload
+		// must fail closed (no orphan row whose expiry can never fire).
+		require.NoError(s.T(), s.container.DurableKV.Stop(ctx, &stopTimeout))
+		defer s.restartKVAfterOutage(ctx, "KV_ADDR", s.container.DurableKV, func(c *redis.Client) {
+			_ = s.container.DurableKVClient.Close()
+			s.container.DurableKVClient = c
+		})
 
 		w := client.Post(s.T(), uploadInitEndpoint, initOutageRequest(filename))
 		resp := helpers.AssertErrorResponse(s.T(), w, http.StatusServiceUnavailable)
 		require.Equal(s.T(), "FILE_UPLOAD_STORAGE_UNAVAILABLE", resp["code"])
 		requireNoUploadRowForFilename(s.T(), s, filename)
+	})
+
+	s.Run("VolatileUnavailable_InitUpload_Succeeds", func() {
+		client := helpers.NewAPIClient(s.server)
+		client.SetToken(s.sellerToken)
+		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6-volatile-down")
+
+		filename := "volatile-unavailable-outage.jpg"
+		ctx := context.Background()
+		stopTimeout := 10 * time.Second
+		// Domain cache lives on the volatile role: with it down, init-upload
+		// must still succeed — every correctness dependency (DB, presign,
+		// durable scheduler) is healthy. Fail-open proof for §8.3.
+		require.NoError(s.T(), s.container.Redis.Stop(ctx, &stopTimeout))
+		defer s.restartKVAfterOutage(ctx, "CACHE_ADDR", s.container.Redis, func(c *redis.Client) {
+			_ = s.container.RedisClient.Close()
+			s.container.RedisClient = c
+		})
+
+		w := client.Post(s.T(), uploadInitEndpoint, initOutageRequest(filename))
+		resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
+		fileID := resp["data"].(map[string]any)["fileId"].(string)
+
+		var r struct{ ID uint64 }
+		err := s.container.DB.Raw("SELECT id FROM file_object WHERE file_id = ?", fileID).Scan(&r).Error
+		require.NoError(s.T(), err)
+		// Expiry was scheduled on durable KV despite volatile being down.
+		helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 	})
 }
 
@@ -111,22 +146,46 @@ func initOutageRequest(filename string) map[string]any {
 	}
 }
 
-func (s *UploadSuite) restartRedisAfterOutage(ctx context.Context) {
-	require.NoError(s.T(), s.container.Redis.Start(ctx))
+func (s *UploadSuite) restartKVAfterOutage(
+	ctx context.Context,
+	addrEnvKey string,
+	container testcontainers.Container,
+	replaceClient func(*redis.Client),
+) {
+	// Container restarts under Docker Desktop can be slow or briefly fail
+	// (port remap + process startup under memory pressure): retry the whole
+	// start → resolve → ping cycle instead of failing on the first attempt.
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		if err := container.Start(ctx); err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(attempt) * time.Second)
+			continue
+		}
+		host, err := container.Host(ctx)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		port, err := container.MappedPort(ctx, "6379")
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		// Restart remaps host ports: republish the role addr BEFORE factories
+		// rebuild, otherwise provider clients pin the stale pre-restart port
+		// and every later Schedule dials a dead address.
+		os.Setenv(addrEnvKey, fmt.Sprintf("%s:%s", host, port.Port()))
+		replaceClient(redis.NewClient(&redis.Options{
+			Addr: fmt.Sprintf("%s:%s", host, port.Port()),
+		}))
 
-	host, err := s.container.Redis.Host(ctx)
-	require.NoError(s.T(), err)
-	port, err := s.container.Redis.MappedPort(ctx, "6379")
-	require.NoError(s.T(), err)
-
-	_ = s.container.RedisClient.Close()
-	s.container.RedisClient = redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%s", host, port.Port()),
-	})
-
-	require.Eventually(s.T(), func() bool {
-		return s.container.RedisClient.Ping(ctx).Err() == nil
-	}, 10*time.Second, 100*time.Millisecond)
+		if s.pingBothRoles(ctx) {
+			break
+		}
+		lastErr = fmt.Errorf("KV roles not pingable after restart (attempt %d)", attempt)
+	}
+	require.NoError(s.T(), lastErr, "KV container did not recover after outage")
 
 	fileSingleton.ResetInstance()
 	s.server = setup.SetupTestServer(s.T(), s.container.DB, s.container.RedisClient)
@@ -135,6 +194,26 @@ func (s *UploadSuite) restartRedisAfterOutage(ctx context.Context) {
 	schedulerOnce.Do(func() {
 		go scheduler.StartRedisWorkerPool()
 	})
+}
+
+// pingBothRoles reports whether the current role clients both answer PING
+// within a bounded wait. Used after outage recovery.
+func (s *UploadSuite) pingBothRoles(ctx context.Context) bool {
+	deadline := time.Now().Add(30 * time.Second)
+	for _, c := range []*redis.Client{s.container.RedisClient, s.container.DurableKVClient} {
+		ok := false
+		for time.Now().Before(deadline) {
+			if c.Ping(ctx).Err() == nil {
+				ok = true
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func requireNoUploadRowForFilename(t require.TestingT, s *UploadSuite, filename string) {

@@ -2,11 +2,13 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/auth"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/config"
+	"ecommerce-be/common/constants"
 	commonerrors "ecommerce-be/common/error"
 	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/user/model"
@@ -327,12 +329,52 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	// Get the token
 	tokenString := parts[1]
 
-	// Add token to blacklist in Redis
-	// The token will be blacklisted for the same duration as the token's validity
-	err := cache.BlacklistToken(tokenString, constant.TOKEN_EXPIRE_DURATION)
+	deny := cachekit.DefaultTokenDenylist()
+	if deny == nil {
+		commonModel.ErrorWithCode(
+			c,
+			http.StatusServiceUnavailable,
+			constants.AUTH_UNAVAILABLE_MSG,
+			constants.AUTH_UNAVAILABLE_CODE,
+		)
+		return
+	}
+	cfg := config.Get()
+	if cfg == nil || cfg.Auth.JWTSecret == "" {
+		commonModel.ErrorResp(c, http.StatusInternalServerError, "Configuration not loaded")
+		return
+	}
+	claims, err := auth.ParseToken(tokenString, cfg.Auth.JWTSecret)
 	if err != nil {
-		fmt.Printf("Warning: Failed to blacklist token: %v\n", err)
-		// Continue anyway, as this is not critical
+		commonModel.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			constants.TOKEN_INVALID_MSG,
+			constants.TOKEN_INVALID_CODE,
+		)
+		return
+	}
+	if claims.ExpiresAt == nil {
+		commonModel.ErrorWithCode(
+			c,
+			http.StatusUnauthorized,
+			constants.TOKEN_INVALID_MSG,
+			constants.TOKEN_INVALID_CODE,
+		)
+		return
+	}
+	if err := deny.Revoke(c.Request.Context(), tokenString, claims.ExpiresAt.Time); err != nil {
+		if errors.Is(err, cachekit.ErrUnavailable) {
+			commonModel.ErrorWithCode(
+				c,
+				http.StatusServiceUnavailable,
+				constants.AUTH_UNAVAILABLE_MSG,
+				constants.AUTH_UNAVAILABLE_CODE,
+			)
+			return
+		}
+		commonModel.ErrorResp(c, http.StatusInternalServerError, "Failed to revoke token")
+		return
 	}
 
 	commonModel.SuccessResponse(c, http.StatusOK, constant.LOGOUT_SUCCESS_MSG, nil)

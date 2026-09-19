@@ -3,10 +3,11 @@ package setup
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -17,11 +18,89 @@ import (
 
 // TestContainer holds the containers for testing
 type TestContainer struct {
-	Postgres    *postgres.PostgresContainer
-	Redis       testcontainers.Container
+	Postgres *postgres.PostgresContainer
+	Redis    testcontainers.Container
+	// DurableKV is the second KV container (durable role: scheduler queue,
+	// idempotency, denylist, limiter, version counters). Same backend image
+	// as Redis unless KV_BACKEND selects otherwise per-role in the future.
+	DurableKV   testcontainers.Container
 	DB          *gorm.DB
 	RedisClient *redis.Client
-	ctx         context.Context
+	// DurableKVClient dials DurableKV (used by durable-path conformance tests).
+	DurableKVClient *redis.Client
+	KVBackendName   string
+	ctx             context.Context
+}
+
+// kvBackend resolves which KV image to run. Supported: "redis" (default),
+// "dragonfly". Selected via KV_BACKEND env so the T1-T17 conformance suite
+// runs unmodified against both backends (012 cutover gate).
+func kvBackend() (name, image string) {
+	switch os.Getenv("KV_BACKEND") {
+	case "dragonfly":
+		return "dragonfly", "docker.dragonflydb.io/dragonflydb/dragonfly:v1.40.0"
+	default:
+		return "redis", "redis:7-alpine"
+	}
+}
+
+// kvWaitStrategy returns a readiness wait per backend. Redis reports a ready
+// log line; Dragonfly readiness is port-based (log text varies by version),
+// followed by a PING loop in pingKV below for both.
+func kvWaitStrategy(backend string) wait.Strategy {
+	if backend == "dragonfly" {
+		return wait.ForListeningPort("6379/tcp").
+			WithStartupTimeout(2 * time.Minute)
+	}
+	return wait.ForLog("Ready to accept connections").
+		WithStartupTimeout(2 * time.Minute)
+}
+
+// startKVContainer starts one KV role container for the selected backend.
+func startKVContainer(t *testing.T, ctx context.Context, backend, image string) testcontainers.Container {
+	t.Helper()
+	c, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        image,
+				ExposedPorts: []string{"6379/tcp"},
+				WaitingFor:   kvWaitStrategy(backend),
+			},
+			Started: true,
+		},
+	)
+	if err != nil {
+		t.Fatalf("failed to start %s container: %v", backend, err)
+	}
+	return c
+}
+
+// kvClient dials a KV container and waits until PING succeeds (covers the gap
+// between port-open/log-ready and actual command readiness, plus slow starts
+// under loaded Docker hosts — same 5-minute patience as the Postgres waits).
+func kvClient(t *testing.T, ctx context.Context, c testcontainers.Container, role string) *redis.Client {
+	t.Helper()
+	host, err := c.Host(ctx)
+	if err != nil {
+		t.Fatalf("failed to get %s host: %v", role, err)
+	}
+	port, err := c.MappedPort(ctx, "6379")
+	if err != nil {
+		t.Fatalf("failed to get %s port: %v", role, err)
+	}
+	client := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%s", host, port.Port()),
+	})
+	deadline := time.Now().Add(5 * time.Minute)
+	for {
+		if err := client.Ping(ctx).Err(); err == nil {
+			return client
+		} else if time.Now().After(deadline) {
+			t.Fatalf("%s not responding to PING: %v", role, err)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 // SetupTestContainers sets up the test containers for Postgres and Redis
@@ -48,21 +127,10 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 		t.Fatalf("failed to start postgres container: %v", err)
 	}
 
-	// Redis container
-	redisContainer, err := testcontainers.GenericContainer(
-		ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "redis:7-alpine",
-				ExposedPorts: []string{"6379/tcp"},
-				WaitingFor:   wait.ForLog("Ready to accept connections"),
-			},
-			Started: true,
-		},
-	)
-	if err != nil {
-		t.Fatalf("failed to start redis container: %v", err)
-	}
+	// KV containers (volatile + durable roles, selected backend image)
+	backendName, backendImage := kvBackend()
+	redisContainer := startKVContainer(t, ctx, backendName, backendImage)
+	durableContainer := startKVContainer(t, ctx, backendName, backendImage)
 
 	// Get Postgres connection string
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable&TimeZone=UTC")
@@ -101,26 +169,25 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 	}
 
 	// Get Redis connection details
-	redisHost, err := redisContainer.Host(ctx)
-	if err != nil {
-		t.Fatalf("failed to get redis host: %v", err)
-	}
-	redisPort, err := redisContainer.MappedPort(ctx, "6379")
-	if err != nil {
-		t.Fatalf("failed to get redis port: %v", err)
-	}
+	redisClient := kvClient(t, ctx, redisContainer, "redis")
+	durableClient := kvClient(t, ctx, durableContainer, "durable-kv")
 
-	// Connect to Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%s", redisHost, redisPort.Port()),
-	})
+	// Publish role addrs for config-driven wiring: module factories build
+	// their durable queues from KV_ADDR (scheduler.WiringQueue), and future
+	// strategies will resolve CACHE_ADDR the same way. Per-suite overwrite is
+	// safe: singletons reset and config reloads in SetupTestServer.
+	os.Setenv("CACHE_ADDR", redisClient.Options().Addr)
+	os.Setenv("KV_ADDR", durableClient.Options().Addr)
 
 	return &TestContainer{
-		Postgres:    pgContainer,
-		Redis:       redisContainer,
-		DB:          gormDB,
-		RedisClient: redisClient,
-		ctx:         ctx,
+		Postgres:        pgContainer,
+		Redis:           redisContainer,
+		DurableKV:       durableContainer,
+		DB:              gormDB,
+		RedisClient:     redisClient,
+		DurableKVClient: durableClient,
+		KVBackendName:   backendName,
+		ctx:             ctx,
 	}
 }
 
@@ -131,6 +198,11 @@ func (tc *TestContainer) Cleanup(t *testing.T) {
 	}
 	if err := tc.Redis.Terminate(tc.ctx); err != nil {
 		t.Logf("failed to terminate redis container: %v", err)
+	}
+	if tc.DurableKV != nil {
+		if err := tc.DurableKV.Terminate(tc.ctx); err != nil {
+			t.Logf("failed to terminate durable-kv container: %v", err)
+		}
 	}
 
 	// Reset singleton factories so later packages do not reuse stale services.

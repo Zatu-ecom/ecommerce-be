@@ -7,6 +7,7 @@ import (
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
 
+	"ecommerce-be/common/auth"
 	"ecommerce-be/common/handler"
 
 	"github.com/gin-gonic/gin"
@@ -98,7 +99,11 @@ func (h *AttributeHandler) DeleteAttribute(c *gin.Context) {
 
 // GetAllAttributes handles getting all attribute definitions
 func (h *AttributeHandler) GetAllAttributes(c *gin.Context) {
-	attributesResponse, err := h.attributeService.GetAllAttributes(c)
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+	attributesResponse, err := h.attributeService.GetAllAttributes(c, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_ATTRIBUTES_MSG)
 		return
@@ -115,7 +120,12 @@ func (h *AttributeHandler) GetAttributeByID(c *gin.Context) {
 		return
 	}
 
-	attributeResponse, err := h.attributeService.GetAttributeByID(c, attributeID)
+	var sellerIDPtr *uint
+	if sellerID, exists := auth.GetSellerIDFromContext(c); exists {
+		sellerIDPtr = &sellerID
+	}
+
+	attributeResponse, err := h.attributeService.GetAttributeByID(c, attributeID, sellerIDPtr)
 	if err != nil {
 		h.HandleError(c, err, utils.FAILED_TO_GET_ATTRIBUTES_MSG)
 		return

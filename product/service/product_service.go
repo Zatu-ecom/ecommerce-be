@@ -8,6 +8,7 @@ import (
 	commonError "ecommerce-be/common/error"
 	commonHelper "ecommerce-be/common/helper"
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
@@ -52,6 +53,38 @@ type ProductServiceImpl struct {
 	productAttributeService ProductAttributeService
 	packageOptionService    PackageOptionService
 	userSvc                 userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil.
+// Called once by the factory after construction.
+func (s *ProductServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateProduct clears detail + variant entries and retires lists.
+// variantIDs should cover every affected variant; unknown sets must be
+// listed by the caller first (stale variant detail otherwise).
+func (s *ProductServiceImpl) invalidateProduct(ctx context.Context, sellerID, productID uint, variantIDs []uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProduct(ctx, sellerID, productID, variantIDs)
+}
+
+// variantIDsFor lists all variant IDs of a product for invalidation.
+func (s *ProductServiceImpl) variantIDsFor(ctx context.Context, productID uint) []uint {
+	variants, err := s.variantRepo.FindVariantsByProductID(ctx, productID)
+	if err != nil {
+		return nil
+	}
+	ids := make([]uint, 0, len(variants))
+	for i := range variants {
+		ids = append(ids, variants[i].ID)
+	}
+	return ids
 }
 
 // NewProductService creates a new instance of ProductService
@@ -133,6 +166,9 @@ func (s *ProductServiceImpl) CreateProduct(
 	if err != nil {
 		return nil, err
 	}
+	// New IDs cannot be stale, but a prior 404 tombstone must go and the new
+	// product must appear in lists: clear the key, retire lists.
+	s.invalidateProduct(ctx, sellerID, result.product.ID, nil)
 
 	result.product.Category = result.category
 	ccy, err := s.resolveSellerCurrency(ctx, result.product, sellerID)
@@ -412,6 +448,9 @@ func (s *ProductServiceImpl) UpdateProduct(
 	if err != nil {
 		return nil, err
 	}
+	// Invalidate BEFORE the refill read below so it repopulates fresh.
+	// Commerce updates touch variants (price/flags) — clear them all.
+	s.invalidateProduct(ctx, product.SellerID, product.ID, s.variantIDsFor(ctx, product.ID))
 
 	// TODO: Update attributes and package options if provided in request
 
@@ -500,8 +539,19 @@ func (s *ProductServiceImpl) DeleteProduct(
 		return err
 	}
 
+	// List variant IDs before the transaction destroys them: deleted variants
+	// must not survive in variant-detail cache.
+	variantIDs := s.variantIDsFor(ctx, id)
+	sellerScope := uint(0)
+	if sellerId != nil {
+		sellerScope = *sellerId
+	}
+	if prod, err := s.productRepo.FindByID(ctx, id); err == nil {
+		sellerScope = prod.SellerID
+	}
+
 	// Use atomic transaction to delete everything
-	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+	txErr := db.WithTransaction(ctx, func(txCtx context.Context) error {
 		// Delete variants and their associated data (variant_option_values)
 		if err := s.variantBulkService.DeleteVariantsByProductID(txCtx, id); err != nil {
 			return err
@@ -525,4 +575,9 @@ func (s *ProductServiceImpl) DeleteProduct(
 		// Finally, delete the product itself
 		return s.productRepo.Delete(txCtx, id)
 	})
+	if txErr != nil {
+		return txErr
+	}
+	s.invalidateProduct(ctx, sellerScope, id, variantIDs)
+	return nil
 }

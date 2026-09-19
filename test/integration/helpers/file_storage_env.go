@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/file/entity"
 	"ecommerce-be/file/service/blobAdapter"
 	"ecommerce-be/test/integration/setup"
@@ -52,12 +51,8 @@ func SetupFileStorageEnv(t *testing.T, cfg FileStorageEnvConfig) *FileStorageEnv
 	}
 
 	containers := setup.SetupTestContainers(t)
-	prevRedis, _ := cache.GetRedisClient()
 	t.Cleanup(func() {
 		containers.Cleanup(t)
-		if prevRedis != nil {
-			cache.SetRedisClient(prevRedis)
-		}
 	})
 
 	containers.RunAllMigrations(t)

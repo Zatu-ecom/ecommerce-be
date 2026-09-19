@@ -6,6 +6,7 @@ import (
 
 	"ecommerce-be/common/helper"
 	commonModel "ecommerce-be/common/model"
+	usercache "ecommerce-be/user/cache"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -44,6 +45,31 @@ type CountryService interface {
 // CountryServiceImpl implements the CountryService interface
 type CountryServiceImpl struct {
 	countryRepo repository.CountryRepository
+	// geoCache is the optional geo reference strategy (012). Nil disables
+	// caching; wired by the factory via SetGeoCache.
+	geoCache *usercache.GeoCache
+}
+
+// SetGeoCache attaches the geo reference strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *CountryServiceImpl) SetGeoCache(c *usercache.GeoCache) {
+	s.geoCache = c
+}
+
+// isDefaultCountryFilter reports whether a list request matches the cached
+// default shape: active-only public view, no search/region, first page,
+// default page size. Everything else stays live.
+func isDefaultCountryFilter(filter model.CountryQueryParams, includeInactive bool) bool {
+	if includeInactive || filter.IsActive != nil {
+		return false
+	}
+	if filter.Search != "" || filter.Region != "" {
+		return false
+	}
+	if filter.Page > 1 {
+		return false
+	}
+	return filter.Limit <= 0 || filter.Limit == 50
 }
 
 // NewCountryService creates a new instance of CountryService
@@ -58,6 +84,20 @@ func NewCountryService(
 // GetAllCountries retrieves all countries with optional filters
 // includeInactive: false for public API (only active), true for admin API
 func (s *CountryServiceImpl) GetAllCountries(
+	ctx context.Context,
+	filter model.CountryQueryParams,
+	includeInactive bool,
+) (*model.CountryListResponse, error) {
+	if s.geoCache != nil && isDefaultCountryFilter(filter, includeInactive) {
+		return s.geoCache.GetDefaultCountryList(ctx, func(ctx context.Context) (*model.CountryListResponse, error) {
+			return s.loadAllCountries(ctx, filter, includeInactive)
+		})
+	}
+	return s.loadAllCountries(ctx, filter, includeInactive)
+}
+
+// loadAllCountries runs the list query without caching.
+func (s *CountryServiceImpl) loadAllCountries(
 	ctx context.Context,
 	filter model.CountryQueryParams,
 	includeInactive bool,
@@ -107,6 +147,19 @@ func (s *CountryServiceImpl) GetCountryByID(
 	ctx context.Context,
 	id uint,
 ) (*model.CountryDetailResponse, error) {
+	if s.geoCache != nil {
+		return s.geoCache.GetCountryByID(ctx, id, func(ctx context.Context) (*model.CountryDetailResponse, error) {
+			return s.loadCountryByID(ctx, id)
+		})
+	}
+	return s.loadCountryByID(ctx, id)
+}
+
+// loadCountryByID reads one country with currencies without caching.
+func (s *CountryServiceImpl) loadCountryByID(
+	ctx context.Context,
+	id uint,
+) (*model.CountryDetailResponse, error) {
 	// Get country with currencies
 	country, err := s.countryRepo.FindByIDWithCurrencies(ctx, id)
 	if err != nil {
@@ -150,6 +203,9 @@ func (s *CountryServiceImpl) CreateCountry(
 	// Save to database
 	if err := s.countryRepo.Create(ctx, country); err != nil {
 		return nil, err
+	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCountry(ctx, country.ID)
 	}
 
 	// Build response
@@ -211,6 +267,9 @@ func (s *CountryServiceImpl) UpdateCountry(
 	if err := s.countryRepo.Update(ctx, country); err != nil {
 		return nil, err
 	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCountry(ctx, id)
+	}
 
 	// Build response
 	response := factory.BuildCountryResponse(country)
@@ -226,5 +285,11 @@ func (s *CountryServiceImpl) DeleteCountry(ctx context.Context, id uint) error {
 	}
 
 	// Delete country (soft delete via GORM)
-	return s.countryRepo.Delete(ctx, id)
+	if err := s.countryRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCountry(ctx, id)
+	}
+	return nil
 }
