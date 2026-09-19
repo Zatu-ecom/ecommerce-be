@@ -104,13 +104,13 @@
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T032 [P] [US5] Atomic-guard test (concurrent reserves, exactly-one-wins, no oversell without cache) in `test/integration/inventory/reserve_atomicity_test.go`
-- [ ] T033 [P] [US5] Micro-cache race test (hot-cache concurrent checkout, ≤5s gate lag accepted, zero oversell) in `test/integration/inventory/availability_cache_test.go`
+- [x] T032 [P] [US5] Atomic-guard test (concurrent reserves, exactly-one-wins, no oversell without cache) in `test/integration/inventory/reserve_atomicity_test.go`
+- [x] T033 [P] [US5] Micro-cache race test (hot-cache concurrent checkout, ≤5s gate lag accepted, zero oversell) in `test/integration/inventory/availability_cache_test.go`
 
 ### Implementation for User Story 5
 
-- [ ] T034 [US5] Conditional atomic decrement guard in `inventory/repository/inventory_repository.go` (reuse `IncrementReservedQuantity` semantics; `WHERE quantity - reserved >= ?`) + use in `inventory/service/inventory_reservation_service.go` (depends on T032)
-- [ ] T035 [US5] Availability micro-cache strategy in `inventory/cache/` (TTL-only 3–5s, singleflight, writes bypass) behind `CACHE_INVENTORY_AVAIL`, wired into internal `GetTotalAvailableQuantities` callers only (depends on T034)
+- [x] T034 [US5] Conditional atomic decrement guard in `inventory/repository/inventory_repository.go` (reuse `IncrementReservedQuantity` semantics; `WHERE quantity - reserved >= ?`) + use in `inventory/service/inventory_reservation_service.go` (depends on T032)
+- [x] T035 [US5] Availability micro-cache strategy in `inventory/cache/` (TTL-only 3–5s, singleflight, writes bypass) behind `CACHE_INVENTORY_AVAIL`, wired into internal `GetTotalAvailableQuantities` callers only (depends on T034)
 
 **Checkpoint**: US5 green; oversell impossible in all cache states.
 
