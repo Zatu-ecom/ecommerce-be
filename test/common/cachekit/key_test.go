@@ -106,7 +106,7 @@ func TestAdmissionMarkerKey_Shape(t *testing.T) {
 func TestJitteredTTL_Bounds(t *testing.T) {
 	for _, base := range []float64{1, 60, 600, 3600} {
 		for i := 0; i < 200; i++ {
-			got := float64(cachekit.JitteredTTL(time.Duration(base) * time.Second)) / float64(time.Second)
+			got := float64(cachekit.JitteredTTL(time.Duration(base)*time.Second)) / float64(time.Second)
 			if got <= 0 {
 				t.Fatalf("non-positive TTL for base %v", base)
 			}
