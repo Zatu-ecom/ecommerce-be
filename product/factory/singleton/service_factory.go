@@ -269,6 +269,14 @@ func (f *ServiceFactory) wireCacheStrategies() {
 	if aware, ok := f.collectionService.(cache.CollectionCacheAware); ok {
 		aware.SetCollectionCache(collectionCache)
 	}
+	listCache := cache.NewListCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	if aware, ok := f.productQueryService.(cache.ListCacheAware); ok {
+		aware.SetListCache(listCache)
+	}
 }
 
 // GetCategoryService returns the singleton category service

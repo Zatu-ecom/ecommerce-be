@@ -145,8 +145,8 @@ func (s *ProductCache) GetDetail(
 			if err != nil {
 				return nil, err
 			}
-			stripMediaURLs(resp)
-			clearWishlistFlags(resp)
+			StripMediaURLs(resp)
+			ClearWishlistFlags(resp)
 			return cachekit.Marshal(resp)
 		})
 	if err != nil {
@@ -248,9 +248,10 @@ func (s *ProductCache) enrich(
 	return resp, nil
 }
 
-// stripMediaURLs removes expiring URL fields before storage (pre-spec §4.3).
+// StripMediaURLs removes expiring URL fields before storage (pre-spec §4.3).
+// Exported for list-page stripping: list items share the ProductResponse shape.
 // FileID/flags/order survive so hits can re-resolve.
-func stripMediaURLs(resp *model.ProductResponse) {
+func StripMediaURLs(resp *model.ProductResponse) {
 	for i := range resp.Media {
 		resp.Media[i].URL = ""
 		resp.Media[i].ThumbnailURL = nil
@@ -263,8 +264,9 @@ func stripMediaURLs(resp *model.ProductResponse) {
 	}
 }
 
-// clearWishlistFlags removes per-user personalization before storage.
-func clearWishlistFlags(resp *model.ProductResponse) {
+// ClearWishlistFlags removes per-user personalization before storage.
+// Exported for list-page stripping.
+func ClearWishlistFlags(resp *model.ProductResponse) {
 	resp.IsWishlisted = false
 	resp.WishlistItems = nil
 	for i := range resp.Variants {

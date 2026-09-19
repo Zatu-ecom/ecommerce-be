@@ -5,19 +5,27 @@ Audience: engineers implementing or reviewing `012-caching-infrastructure`. Full
 ## 1. Start the stack
 
 ```bash
-# Postgres + volatile cache + durable KV (two roles; Redis until cutover)
-docker compose up -d postgres cache-volatile cache-durable
+# Postgres + volatile cache + durable KV (two roles; Redis until cutover).
+# REDIS_PASSWORD must be non-empty: an empty value breaks the roles'
+# --requirepass flag and boot-loops them (deploy always injects a secret).
+REDIS_PASSWORD=devpass docker compose up -d postgres cache-volatile cache-durable
 docker compose ps   # both KV roles healthy, app NOT depending on volatile
 ```
 
 ## 2. Run the conformance suite (works from Phase 0 on)
 
 ```bash
-# Against Redis profiles (default)
-go test ./test/integration/cachekit/ -run TestCachekitConformance -v
+# Against Redis profiles (default). Per-story suites carry the conformance
+# cases (T7/T9/T11 in US1CachesSuite, T3/T12 in DurableCorrectnessSuite,
+# T13 in AdmissionSuite, T14 in DegradedBackendSuite, T15–T17 in
+# WriteProtectionSuite, T8 in InvalidationSuite, lists in
+# ProductListCacheSuite); TestConformanceSuite holds the T1–T17 skeleton
+# matrix (red by design until wired per story).
+go test ./test/integration/cachekit/ -run TestConformanceSuite -v
 
-# Against Dragonfly profiles (same suite, second backend)
-KV_BACKEND=dragonfly go test ./test/integration/cachekit/ -run TestCachekitConformance -v
+# Against Dragonfly profiles (same suites, second backend; needs ~3 GiB
+# free for the v1.40.0 image or the container exits on boot)
+KV_BACKEND=dragonfly go test ./test/integration/cachekit/ -run TestConformanceSuite -v
 ```
 
 Green on both backends is the cutover gate (T1–T17). Never float image tags — compose, Testcontainers, and CI pin identical tags.

@@ -167,10 +167,10 @@
 
 ### Tests + Implementation
 
-- [ ] T047 [P] [US1] List/admission strategy + canonical-hash tests in `product/cache/` list module + `test/integration/product/product_list_cache_test.go` (uses T042 markers, T045 versions)
-- [ ] T048 [US6] Dashboard/alert assertions doc + alert-rule stubs per pre-spec §8.2 in `specs/012-caching-infrastructure/alerts.md` (hit/miss/error/latency, shed-active, pollution signature, durable-eviction page; log-sink metrics are the source — no metrics-backend deploy in 011)
-- [ ] T049 [US6] Cutover drill on staging: T1–T17 green on Dragonfly, flip `CACHE_ADDR`/`KV_ADDR`, bake vs baselines, revert drill (addr-only), record in `specs/012-caching-infrastructure/cutover.md`
-- [ ] T050 [US6] Run `quickstart.md` end-to-end validation (compose, both suites, flag drills, incident simulations) and fix gaps
+- [X] T047 [P] [US1] List/admission strategy + canonical-hash tests in `product/cache/` list module + `test/integration/product/product_list_cache_test.go` (uses T042 markers, T045 versions)
+- [X] T048 [US6] Dashboard/alert assertions doc + alert-rule stubs per pre-spec §8.2 in `specs/012-caching-infrastructure/alerts.md` (hit/miss/error/latency, shed-active, pollution signature, durable-eviction page; log-sink metrics are the source — no metrics-backend deploy in 011)
+- [X] T049 [US6] Cutover drill on staging: T1–T17 green on Dragonfly, flip `CACHE_ADDR`/`KV_ADDR`, bake vs baselines, revert drill (addr-only), record in `specs/012-caching-infrastructure/cutover.md`
+- [X] T050 [US6] Run `quickstart.md` end-to-end validation (compose, both suites, flag drills, incident simulations) and fix gaps
 
 **Checkpoint**: P2b green; cutover proven reversible on staging.
 
