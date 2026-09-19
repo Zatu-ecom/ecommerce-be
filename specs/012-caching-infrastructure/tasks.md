@@ -124,16 +124,16 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T036 [P] [US2] Conformance T13 (admission: one-off marker-only, repeat fills) in `test/integration/cachekit/admission_test.go`
-- [ ] T037 [P] [US2] Conformance T14 (dead-backend latency + drop counting) in `test/integration/cachekit/degraded_backend_test.go`
-- [ ] T038 [P] [US2] Conformance T15 (breaker trip/recover) + T16 (jitter bounds) + T17 (no stale resurrection) in `test/integration/cachekit/write_protection_test.go`
+- [X] T036 [P] [US2] Conformance T13 (admission: one-off marker-only, repeat fills) in `test/integration/cachekit/admission_test.go`
+- [X] T037 [P] [US2] Conformance T14 (dead-backend latency + drop counting) in `test/integration/cachekit/degraded_backend_test.go`
+- [X] T038 [P] [US2] Conformance T15 (breaker trip/recover) + T16 (jitter bounds) + T17 (no stale resurrection) in `test/integration/cachekit/write_protection_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] Async bounded SET pool + drop metrics in `common/cachekit/provider/go_redis.go` (detached ctx with IDs, 50–100ms budget, default 64 in-flight)
-- [ ] T040 [P] [US2] Generation-guarded SET (Lua CAS, KEYS-only) + `cache_set_generation_dropped` in `common/cachekit/provider/go_redis.go` / `version.go`
-- [ ] T041 [P] [US2] Write-shed breaker + `CACHE_SET_WRITES` manual lever in `common/cachekit/provider/go_redis.go` (cooldown + trickle recovery, `cache_write_shed_active`)
-- [ ] T042 [US2] Admission marker helper (`SETNX seller:{id}:seen:{hash}`) in `common/cachekit/` for P2 list strategies (depends on T039)
+- [X] T039 [US2] Async bounded SET pool + drop metrics in `common/cachekit/provider/go_redis.go` (detached ctx with IDs, 50–100ms budget, default 64 in-flight)
+- [X] T040 [P] [US2] Generation-guarded SET (Lua CAS, KEYS-only) + `cache_set_generation_dropped` in `common/cachekit/provider/go_redis.go` / `version.go`
+- [X] T041 [P] [US2] Write-shed breaker + `CACHE_SET_WRITES` manual lever in `common/cachekit/provider/go_redis.go` (cooldown + trickle recovery, `cache_write_shed_active`)
+- [X] T042 [US2] Admission marker helper (`SETNX seller:{id}:seen:{hash}`) in `common/cachekit/` for P2 list strategies (depends on T039)
 
 **Checkpoint**: US2 green on both backends; §0.4 chain broken at every link by test.
 

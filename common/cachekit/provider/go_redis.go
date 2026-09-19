@@ -8,9 +8,12 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/config"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -35,7 +38,38 @@ type Options struct {
 	PoolTimeout time.Duration
 	// MaxRetries bounds idempotent-command retries with exponential backoff.
 	MaxRetries int
+	// AsyncBudget bounds one detached cache-population write (US2 §8.6).
+	// Defaults to DefaultAsyncBudget (100ms); clamped to 20ms–500ms.
+	AsyncBudget time.Duration
+	// AsyncMaxInflight caps concurrent background SETs; overflow drops and
+	// counts (cache_set_async_dropped). Defaults to DefaultAsyncMaxInflight.
+	AsyncMaxInflight int
+	// Recorder receives drop/error events. Nil defaults to the log sink.
+	Recorder cachekit.Recorder
+	// BreakerThreshold is consecutive async-SET errors that trip the
+	// write-shed breaker. Defaults to DefaultBreakerThreshold.
+	BreakerThreshold int
+	// BreakerCooldown pauses domain SETs after a trip while GETs continue.
+	// Defaults to DefaultBreakerCooldown.
+	BreakerCooldown time.Duration
+	// Role selects sync vs async Set semantics: cachekit.StoreCache (volatile,
+	// async bounded population) or cachekit.StoreDurable (sync fail-closed).
+	// NewCache/NewDurable set it; bare New defaults to volatile.
+	Role string
 }
+
+// US2 write-path protection defaults (pre-spec §8.6).
+const (
+	// DefaultAsyncBudget bounds one detached SET (response never waits).
+	DefaultAsyncBudget = 100 * time.Millisecond
+	// DefaultAsyncMaxInflight caps background SETs per process (drop + count).
+	DefaultAsyncMaxInflight = 64
+	// DefaultBreakerThreshold trips the shed breaker after this many
+	// consecutive async-SET errors.
+	DefaultBreakerThreshold = 10
+	// DefaultBreakerCooldown pauses domain SETs while GETs continue.
+	DefaultBreakerCooldown = 5 * time.Second
+)
 
 // Lua scripts. Every touched key arrives via KEYS (never generated inside
 // the script) — a hard requirement on backends that forbid undeclared keys.
@@ -76,6 +110,28 @@ type Adapter struct {
 	rdb          *redis.Client
 	readTimeout  time.Duration
 	writeTimeout time.Duration
+
+	// US2 write-path protection (pre-spec §8.6). Volatile Set is async and
+	// bounded; durable Set stays synchronous (fail-closed correctness).
+	// Del/SetNX/CompareAndSet stay synchronous on both roles.
+	role        string
+	asyncBudget time.Duration
+	setSem      chan struct{}
+	recorder    cachekit.Recorder
+
+	// setWritesOverride forces the manual CACHE_SET_WRITES lever for tests.
+	// Nil means read the live config flag (default on).
+	setWritesOverride *atomic.Bool
+
+	breakerMu        sync.Mutex
+	consecErrs       int
+	breakerThreshold int
+	breakerCooldown  time.Duration
+	shedUntil        time.Time
+
+	asyncDropped      atomic.Int64
+	generationDropped atomic.Int64
+	shedSkipped       atomic.Int64
 }
 
 // New builds an Adapter for one backend role. Callers pass role config;
@@ -86,6 +142,30 @@ func New(opt Options) *Adapter {
 	}
 	if opt.MinIdleConns < 0 {
 		opt.MinIdleConns = 0
+	}
+	budget := opt.AsyncBudget
+	if budget <= 0 {
+		budget = DefaultAsyncBudget
+	}
+	maxInflight := opt.AsyncMaxInflight
+	if maxInflight <= 0 {
+		maxInflight = DefaultAsyncMaxInflight
+	}
+	threshold := opt.BreakerThreshold
+	if threshold <= 0 {
+		threshold = DefaultBreakerThreshold
+	}
+	cooldown := opt.BreakerCooldown
+	if cooldown <= 0 {
+		cooldown = DefaultBreakerCooldown
+	}
+	rec := opt.Recorder
+	if rec == nil {
+		rec = cachekit.LogRecorder()
+	}
+	role := opt.Role
+	if role == "" {
+		role = cachekit.StoreCache
 	}
 	rdb := redis.NewClient(&redis.Options{
 		Addr:            opt.Addr,
@@ -101,7 +181,166 @@ func New(opt Options) *Adapter {
 		MinRetryBackoff: 8 * time.Millisecond,
 		MaxRetryBackoff: 100 * time.Millisecond,
 	})
-	return &Adapter{rdb: rdb, readTimeout: opt.ReadTimeout, writeTimeout: opt.WriteTimeout}
+	return &Adapter{
+		rdb:              rdb,
+		readTimeout:      opt.ReadTimeout,
+		writeTimeout:     opt.WriteTimeout,
+		role:             role,
+		asyncBudget:      budget,
+		setSem:           make(chan struct{}, maxInflight),
+		recorder:         rec,
+		breakerThreshold: threshold,
+		breakerCooldown:  cooldown,
+	}
+}
+
+// SetRecorder swaps the metrics sink (tests install a counting recorder).
+func (a *Adapter) SetRecorder(r cachekit.Recorder) {
+	if r == nil {
+		r = cachekit.NopRecorder()
+	}
+	a.recorder = r
+}
+
+// SetSetWritesEnabled forces the manual CACHE_SET_WRITES lever (tests and
+// the write-shed drill). It overrides the live config flag until cleared
+// with ClearSetWritesOverride.
+func (a *Adapter) SetSetWritesEnabled(enabled bool) {
+	v := &atomic.Bool{}
+	v.Store(enabled)
+	a.setWritesOverride = v
+}
+
+// ClearSetWritesOverride resumes reading the live config flag.
+func (a *Adapter) ClearSetWritesOverride() {
+	a.setWritesOverride = nil
+}
+
+// SetBreakerCooldown overrides the shed cooldown (tests use ~1s).
+func (a *Adapter) SetBreakerCooldown(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	a.breakerCooldown = d
+}
+
+// SetBreakerThreshold overrides the trip threshold (tests use 2–3).
+func (a *Adapter) SetBreakerThreshold(n int) {
+	if n <= 0 {
+		return
+	}
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	a.breakerThreshold = n
+}
+
+// AdapterStats snapshots US2 counters for tests and the shed gauge.
+type AdapterStats struct {
+	AsyncDropped      int64
+	GenerationDropped int64
+	ShedSkipped       int64
+	Inflight          int
+	ShedActive        bool
+	ConsecErrors      int
+}
+
+// Stats returns a point-in-time snapshot of drop/shed counters.
+func (a *Adapter) Stats() AdapterStats {
+	a.breakerMu.Lock()
+	consec := a.consecErrs
+	a.breakerMu.Unlock()
+	return AdapterStats{
+		AsyncDropped:      a.asyncDropped.Load(),
+		GenerationDropped: a.generationDropped.Load(),
+		ShedSkipped:       a.shedSkipped.Load(),
+		Inflight:          len(a.setSem),
+		ShedActive:        a.ShedActive(),
+		ConsecErrors:      consec,
+	}
+}
+
+// ResetStats zeroes counters and closes the breaker (tests only).
+func (a *Adapter) ResetStats() {
+	a.asyncDropped.Store(0)
+	a.generationDropped.Store(0)
+	a.shedSkipped.Store(0)
+	a.breakerMu.Lock()
+	a.consecErrs = 0
+	a.shedUntil = time.Time{}
+	a.breakerMu.Unlock()
+}
+
+// Flush waits until in-flight async SETs drain or the timeout elapses.
+// Tests use it to turn the async population path deterministic.
+func (a *Adapter) Flush(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if len(a.setSem) == 0 {
+			return true
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return len(a.setSem) == 0
+}
+
+// ShedActive reports whether domain SETs are currently shed (manual lever
+// off or automatic breaker open). GETs always continue; the gauge
+// cache_write_shed_active mirrors this bit.
+func (a *Adapter) ShedActive() bool {
+	if !a.manualWritesEnabled() {
+		return true
+	}
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	return time.Now().Before(a.shedUntil)
+}
+
+// manualWritesEnabled reads the override first, then the live
+// CACHE_SET_WRITES flag (default on). Flags never gate durable behavior.
+func (a *Adapter) manualWritesEnabled() bool {
+	if a.setWritesOverride != nil {
+		return a.setWritesOverride.Load()
+	}
+	if cfg := config.Get(); cfg != nil {
+		return cfg.Cache.SetWrites
+	}
+	return true
+}
+
+// breakerOpen reports whether the cooldown window is still in effect.
+func (a *Adapter) breakerOpen() bool {
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	return time.Now().Before(a.shedUntil)
+}
+
+// noteSetError feeds the breaker: consecutive errors trip a cooldown during
+// which SETs shed while GETs continue (pre-spec §8.6.5).
+func (a *Adapter) noteSetError() {
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	a.consecErrs++
+	if a.consecErrs >= a.breakerThreshold {
+		a.shedUntil = time.Now().Add(a.breakerCooldown)
+	}
+}
+
+// noteSetSuccess closes the breaker probe: one success after the cooldown
+// resets the error streak so writes resume automatically.
+func (a *Adapter) noteSetSuccess() {
+	a.breakerMu.Lock()
+	defer a.breakerMu.Unlock()
+	a.consecErrs = 0
+}
+
+// record emits one metrics event; the recorder is never nil.
+func (a *Adapter) record(ctx context.Context, module, op, store, result string, latency time.Duration) {
+	if a.recorder == nil {
+		return
+	}
+	a.recorder.Record(ctx, module, op, store, result, latency)
 }
 
 // Ping verifies backend reachability. Used at construction and in health gates.
@@ -157,15 +396,82 @@ func (a *Adapter) Get(ctx context.Context, key string) ([]byte, error) {
 	return b, nil
 }
 
-// Set implements cachekit.Cache and cachekit.Durable. Phase 2 blocks up to
-// the write timeout; US2 upgrades the population path to async without
-// changing this signature.
+// Set implements cachekit.Cache (volatile, async bounded) and
+// cachekit.Durable (sync fail-closed). Volatile population never blocks the
+// response: the write runs on a detached context (values preserved for
+// correlation/seller/user IDs, cancel detached) with the async budget
+// through a bounded pool; overflow drops and counts (pre-spec §8.6.1).
+// Durable writes stay synchronous so denylist/logout can fail closed.
 func (a *Adapter) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if a.role == cachekit.StoreDurable {
+		return a.setSync(ctx, key, value, ttl)
+	}
+	return a.setAsync(ctx, key, value, ttl)
+}
+
+// setSync is the durable-role write: bounded by the write timeout, errors
+// surface as ErrUnavailable so callers can fail closed (denylist, SETNX
+// callers already have their own paths; this covers durable Set).
+func (a *Adapter) setSync(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	ctx, cancel := a.withWrite(ctx)
 	defer cancel()
 	if err := a.rdb.Set(ctx, key, value, ttl).Err(); err != nil {
 		return cachekit.ErrUnavailable
 	}
+	return nil
+}
+
+// setAsync is the volatile-role population write: never blocks past pool
+// acquisition, never returns a backend error (drops are counted internally).
+func (a *Adapter) setAsync(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	// Size guard: big SETs head-of-line-block single-threaded backends
+	// (pre-spec §0.4). Skip, serve from DB, count.
+	if len(value) > cachekit.MaxValueBytes {
+		a.asyncDropped.Add(1)
+		a.record(ctx, "cachekit", "set", cachekit.StoreCache, cachekit.ResultDropped, 0)
+		return nil
+	}
+	// Manual lever (CACHE_SET_WRITES=off): serve GETs, skip all domain SETs.
+	if !a.manualWritesEnabled() {
+		a.asyncDropped.Add(1)
+		a.shedSkipped.Add(1)
+		a.record(ctx, "cachekit", "set", cachekit.StoreCache, cachekit.ResultDropped, 0)
+		return nil
+	}
+	// Automatic breaker: pause writes while GETs continue.
+	if a.breakerOpen() {
+		a.asyncDropped.Add(1)
+		a.shedSkipped.Add(1)
+		a.record(ctx, "cachekit", "set", cachekit.StoreCache, cachekit.ResultDropped, 0)
+		return nil
+	}
+	// Bounded pool: non-blocking acquire, drop and count on full.
+	select {
+	case a.setSem <- struct{}{}:
+	default:
+		a.asyncDropped.Add(1)
+		a.record(ctx, "cachekit", "set", cachekit.StoreCache, cachekit.ResultDropped, 0)
+		return nil
+	}
+	// Detached context: preserve values (correlation/seller/user IDs for
+	// logging) while detaching cancellation; never Background() without IDs.
+	detached := context.WithoutCancel(ctx)
+	budget := a.asyncBudget
+	if budget <= 0 {
+		budget = DefaultAsyncBudget
+	}
+	dctx, cancel := context.WithTimeout(detached, budget)
+	go func() {
+		defer cancel()
+		defer func() { <-a.setSem }()
+		start := time.Now()
+		if err := a.rdb.Set(dctx, key, value, ttl).Err(); err != nil {
+			a.record(dctx, "cachekit", "set", cachekit.StoreCache, cachekit.ResultError, time.Since(start))
+			a.noteSetError()
+			return
+		}
+		a.noteSetSuccess()
+	}()
 	return nil
 }
 
@@ -206,7 +512,8 @@ func (a *Adapter) DelPrefix(ctx context.Context, prefix string) error {
 	}
 }
 
-// SetNX implements cachekit.Durable.
+// SetNX implements cachekit.Cache (admission markers) and cachekit.Durable
+// (idempotency claims). Synchronous: callers need the claimed bit.
 func (a *Adapter) SetNX(
 	ctx context.Context,
 	key string,
@@ -262,7 +569,10 @@ func (a *Adapter) IncrWithExpire(
 	return int64(n), nil
 }
 
-// CompareAndSet implements cachekit.Durable via one Lua round-trip.
+// CompareAndSet implements cachekit.Cache and cachekit.Durable via one Lua
+// round-trip (all keys via KEYS only). A stored=false result means a
+// concurrent write bumped the generation after the filler's miss: the stale
+// write is dropped and counted as cache_set_generation_dropped (§0.2/§8.6.2).
 func (a *Adapter) CompareAndSet(
 	ctx context.Context,
 	key, genKey string,
@@ -270,6 +580,7 @@ func (a *Adapter) CompareAndSet(
 	value []byte,
 	ttl time.Duration,
 ) (bool, error) {
+	start := time.Now()
 	ctx, cancel := a.withWrite(ctx)
 	defer cancel()
 	n, err := a.rdb.Eval(ctx, compareAndSetScript,
@@ -279,7 +590,12 @@ func (a *Adapter) CompareAndSet(
 	if err != nil {
 		return false, cachekit.ErrUnavailable
 	}
-	return n == 1, nil
+	stored := n == 1
+	if !stored {
+		a.generationDropped.Add(1)
+		a.record(ctx, "cachekit", "compare-and-set", a.role, cachekit.ResultDropped, time.Since(start))
+	}
+	return stored, nil
 }
 
 // Schedule implements cachekit.DelayQueue. The member is the job ID; the

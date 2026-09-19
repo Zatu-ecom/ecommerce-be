@@ -37,24 +37,24 @@ import (
 // us1Flags enables every US1 area flag for the suite process, plus dummy
 // values for config validation (this suite uses no HTTP server or ORM DB).
 var us1Flags = map[string]string{
-	"DB_HOST":     "localhost",
-	"DB_PORT":     "5432",
-	"DB_USER":     "test",
-	"DB_NAME":     "test",
-	"REDIS_HOST":  "localhost",
-	"JWT_SECRET":  "us1-test-secret",
-	"CACHE_ENABLED":            "true",
-	"CACHE_SELLER_VALIDATION":  "true",
-	"CACHE_CURRENCY":           "true",
-	"CACHE_PRODUCT_DETAIL":     "true",
-	"CACHE_CATEGORY":           "true",
-	"CACHE_GEO":                "true",
-	"CACHE_SELLER_SETTINGS":    "true",
-	"CACHE_GATEWAY_CATALOG":    "true",
-	"CACHE_FILE_REF":           "true",
-	"CACHE_INVENTORY_AVAIL":    "false",
-	"CACHE_PRODUCT_LIST":       "false",
-	"CACHE_SET_WRITES":         "true",
+	"DB_HOST":                 "localhost",
+	"DB_PORT":                 "5432",
+	"DB_USER":                 "test",
+	"DB_NAME":                 "test",
+	"REDIS_HOST":              "localhost",
+	"JWT_SECRET":              "us1-test-secret",
+	"CACHE_ENABLED":           "true",
+	"CACHE_SELLER_VALIDATION": "true",
+	"CACHE_CURRENCY":          "true",
+	"CACHE_PRODUCT_DETAIL":    "true",
+	"CACHE_CATEGORY":          "true",
+	"CACHE_GEO":               "true",
+	"CACHE_SELLER_SETTINGS":   "true",
+	"CACHE_GATEWAY_CATALOG":   "true",
+	"CACHE_FILE_REF":          "true",
+	"CACHE_INVENTORY_AVAIL":   "false",
+	"CACHE_PRODUCT_LIST":      "false",
+	"CACHE_SET_WRITES":        "true",
 }
 
 // US1CachesSuite exercises US1 strategies against a real backend.
@@ -91,6 +91,16 @@ func (s *US1CachesSuite) TearDownSuite() {
 	cachekit.SetDefaultCache(nil)
 	cachekit.SetDefaultDurable(nil)
 	s.container.Cleanup(s.T())
+}
+
+// flushVolatile waits for async population SETs to land so hit assertions
+// are deterministic (US2 §8.6 made volatile Set async bounded; without a
+// flush the second read races the background write).
+func (s *US1CachesSuite) flushVolatile() {
+	s.T().Helper()
+	if ad, ok := cachekit.DefaultCache().(*provider.Adapter); ok {
+		require.True(s.T(), ad.Flush(5*time.Second), "async SETs must land")
+	}
 }
 
 // --- fakes (prove strategy/substitution boundaries) -----------------------
@@ -157,6 +167,7 @@ func (s *US1CachesSuite) TestSellerValidation_Cached() {
 	first, err := auth.ValidateSellerCompleteCached(ctx, db, 2)
 	require.NoError(s.T(), err)
 	require.True(s.T(), first.IsActive)
+	s.flushVolatile()
 
 	second, err := auth.ValidateSellerCompleteCached(ctx, db, 2)
 	require.NoError(s.T(), err)
@@ -190,6 +201,7 @@ func (s *US1CachesSuite) TestCurrency_CacheAndInvalidate() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint(1), got.ID)
 	require.Equal(s.T(), 1, calls, "miss must load once")
+	s.flushVolatile()
 
 	got, err = strat.GetSellerDefault(ctx, 7, load)
 	require.NoError(s.T(), err)
@@ -252,6 +264,7 @@ func (s *US1CachesSuite) TestProductDetail_StripEnrich() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), "https://cdn/fresh", first.Media[0].URL)
 	require.True(s.T(), first.Variants[0].IsWishlisted)
+	s.flushVolatile()
 
 	// Stored bytes: no URLs, no wishlist data anywhere.
 	key, _ := cachekit.BuildSellerKey(sellerID, "product", "42")
@@ -423,6 +436,7 @@ func (s *US1CachesSuite) TestSettings_CacheAndInvalidate() {
 	}
 	_, err := strat.Get(ctx, 7, load)
 	require.NoError(s.T(), err)
+	s.flushVolatile()
 	_, err = strat.Get(ctx, 7, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls)
@@ -445,6 +459,7 @@ func (s *US1CachesSuite) TestGatewayCatalog_SplitStaysLive() {
 	first, err := strat.GetGateway(ctx, "razorpay", load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), "logo-file-1", *first.LogoFileID)
+	s.flushVolatile()
 	second, err := strat.GetGateway(ctx, "razorpay", load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls, "catalog hit must not reload")
@@ -466,6 +481,7 @@ func (s *US1CachesSuite) TestFileRefs_Cached() {
 	got, err := strat.GetProviders(ctx, load)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), got, 1)
+	s.flushVolatile()
 	_, err = strat.GetProviders(ctx, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls)
@@ -482,6 +498,7 @@ func (s *US1CachesSuite) TestGeo_CountryCacheAndInvalidate() {
 	got, err := strat.GetCountryByID(ctx, 91, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint(91), got.ID)
+	s.flushVolatile()
 	_, err = strat.GetCountryByID(ctx, 91, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls)
@@ -505,6 +522,7 @@ func (s *US1CachesSuite) TestAttributeList_CacheAndInvalidate() {
 	got, err := strat.GetAllAttributes(ctx, &seller, load)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), got.Attributes, 1)
+	s.flushVolatile()
 	_, err = strat.GetAllAttributes(ctx, &seller, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls)
@@ -527,6 +545,7 @@ func (s *US1CachesSuite) TestCollectionByID_CacheAndInvalidate() {
 	got, err := strat.GetByID(ctx, &seller, 5, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), "Summer", got.Name)
+	s.flushVolatile()
 	_, err = strat.GetByID(ctx, &seller, 5, load)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, calls)

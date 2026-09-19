@@ -27,11 +27,23 @@ var ErrUnavailable = errors.New("cachekit: unavailable")
 type Cache interface {
 	// Get returns stored bytes or ErrMiss/ErrUnavailable.
 	Get(ctx context.Context, key string) ([]byte, error)
-	// Set stores bytes with a jittered TTL. Skips (counting, no error) when
-	// the value exceeds the size guard or writes are shed. Bounds the
-	// caller's wait by the write timeout; US2 upgrades the population path
-	// to async without changing this signature.
+	// Set enqueues bytes for async storage with a jittered TTL and returns
+	// immediately (US2 bounded pool: detached ctx, 50–100ms budget, 64
+	// in-flight default). Skips (counting, no error) when the value exceeds
+	// the size guard, the pool is full, or writes are shed (manual lever or
+	// breaker). The response path never waits for the backend (pre-spec §8.6).
 	Set(ctx context.Context, key string, value []byte, baseTTL time.Duration) error
+	// SetNX claims a small marker exactly once; the winner gets claimed=true.
+	// Used for P2 admission markers (seller:{id}:seen:{hash}) on the volatile
+	// role: one RTT, no extra GET on the hot path (pre-spec §4.4).
+	SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
+	// CompareAndSet stores only when the generation marker still matches;
+	// returns stored=true, or false when the write was dropped as stale
+	// (counted as cache_set_generation_dropped, pre-spec §0.2/§8.6).
+	CompareAndSet(ctx context.Context, key, genKey string, expectedGen uint64, value []byte, ttl time.Duration) (bool, error)
+	// Incr atomically bumps a co-located generation counter (entity gen keys
+	// on volatile; list versions prefer durable BumpVersion). No expiry.
+	Incr(ctx context.Context, key string) (uint64, error)
 	// Del removes exact keys. Used post-commit by module strategies.
 	Del(ctx context.Context, keys ...string) error
 	// DelPrefix removes by prefix via background SCAN iteration.

@@ -13,33 +13,41 @@ import (
 // NewCache builds the volatile-role Cache from CACHE_ADDR / pool settings.
 // A failing backend does NOT fail construction: domain reads fail open to
 // the database (pre-spec §8.3). Callers may Ping to observe health.
+// Volatile Set is async bounded (US2 §8.6); Del/SetNX/CompareAndSet sync.
 func NewCache(cfg config.RedisConfig) cachekit.Cache {
 	return New(Options{
-		Addr:         cfg.CacheAddr,
-		Password:     cfg.Password,
-		PoolSize:     cfg.PoolSize,
-		MinIdleConns: cfg.MinIdleConns,
-		DialTimeout:  cfg.DialTimeout,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		PoolTimeout:  cfg.PoolTimeout,
-		MaxRetries:   cfg.MaxRetries,
+		Addr:             cfg.CacheAddr,
+		Password:         cfg.Password,
+		PoolSize:         cfg.PoolSize,
+		MinIdleConns:     cfg.MinIdleConns,
+		DialTimeout:      cfg.DialTimeout,
+		ReadTimeout:      cfg.ReadTimeout,
+		WriteTimeout:     cfg.WriteTimeout,
+		PoolTimeout:      cfg.PoolTimeout,
+		MaxRetries:       cfg.MaxRetries,
+		AsyncBudget:      cfg.AsyncSETBudget,
+		AsyncMaxInflight: cfg.AsyncSETMaxInflight,
+		Role:             cachekit.StoreCache,
 	})
 }
 
 // NewDurable builds the durable-role client (Durable + DelayQueue) from
 // KV_ADDR / pool settings. Callers SHOULD Ping before starting queue
 // consumers: without durable KV the scheduler must not run.
+// Durable Set stays synchronous (fail-closed denylist/SETNX semantics).
 func NewDurable(cfg config.RedisConfig) cachekit.DurableQueue {
 	return New(Options{
-		Addr:         cfg.KVAddr,
-		Password:     cfg.KVPassword,
-		PoolSize:     cfg.PoolSize,
-		MinIdleConns: cfg.MinIdleConns,
-		DialTimeout:  cfg.DialTimeout,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		PoolTimeout:  cfg.PoolTimeout,
-		MaxRetries:   cfg.MaxRetries,
+		Addr:             cfg.KVAddr,
+		Password:         cfg.KVPassword,
+		PoolSize:         cfg.PoolSize,
+		MinIdleConns:     cfg.MinIdleConns,
+		DialTimeout:      cfg.DialTimeout,
+		ReadTimeout:      cfg.ReadTimeout,
+		WriteTimeout:     cfg.WriteTimeout,
+		PoolTimeout:      cfg.PoolTimeout,
+		MaxRetries:       cfg.MaxRetries,
+		AsyncBudget:      cfg.AsyncSETBudget,
+		AsyncMaxInflight: cfg.AsyncSETMaxInflight,
+		Role:             cachekit.StoreDurable,
 	})
 }
