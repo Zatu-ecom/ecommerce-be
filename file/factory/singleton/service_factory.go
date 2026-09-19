@@ -4,8 +4,10 @@ import (
 	"sync"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	msgFactory "ecommerce-be/common/messaging/factory"
 	"ecommerce-be/common/scheduler"
+	filecache "ecommerce-be/file/cache"
 	"ecommerce-be/file/service"
 )
 
@@ -39,11 +41,13 @@ func (f *ServiceFactory) initialize() {
 
 		// Initialize services
 		f.configService = service.NewConfigService(configRepo)
+		// 012: attach the file reference-data strategy (nil-safe; flags gate).
+		f.configService.SetRefCache(filecache.NewRefCache(cachekit.DefaultCache(), nil))
 		f.fileReadService = service.NewFileReadService(fileUploadRepo, configRepo)
 
 		// Create infrastructure dependencies for upload
 		redisClient, _ := cache.GetRedisClient()
-		sched := scheduler.New(redisClient)
+		sched := scheduler.New(scheduler.WiringQueue())
 
 		f.uploadExpiryScheduler = service.NewUploadExpiryScheduler(sched)
 		f.fileDeleteService = service.NewFileDeleteService(

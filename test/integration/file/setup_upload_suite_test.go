@@ -126,14 +126,21 @@ func (s *UploadSuite) cleanupUploadState() {
 			"file:init:idem:*",
 			"seller:*:file.upload.expiry:*",
 			"platform:file.upload.expiry:*",
-			"scheduled_job:*",
 		} {
 			keys, err := s.container.RedisClient.Keys(ctx, pattern).Result()
 			if err == nil && len(keys) > 0 {
 				_ = s.container.RedisClient.Del(ctx, keys...).Err()
 			}
 		}
-		_ = s.container.RedisClient.Del(ctx, "delayed_jobs").Err()
+	}
+	// Scheduler keyspace lives on the durable role: drop the queue and all
+	// job index keys there (payloads, not members, carry the job JSON).
+	if s.container.DurableKVClient != nil {
+		keys, err := s.container.DurableKVClient.Keys(ctx, "scheduled_job:*").Result()
+		if err == nil && len(keys) > 0 {
+			_ = s.container.DurableKVClient.Del(ctx, keys...).Err()
+		}
+		_ = s.container.DurableKVClient.Del(ctx, "delayed_jobs").Err()
 	}
 
 	if s.container.DB != nil {

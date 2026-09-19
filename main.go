@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/cron"
 	"ecommerce-be/common/db"
@@ -52,6 +54,12 @@ func main() {
 
 	/* Connect Redis */
 	cache.ConnectRedis(cfg)
+
+	/* Wire cachekit role clients (012). Volatile construction never blocks
+	boot; durable health gates the scheduler worker pool at startup. */
+	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))
+	cachekit.SetDefaultDurable(provider.NewDurable(cfg.Redis))
+	cachekit.SetTokenDenylist(cachekit.NewTokenDenylist(cachekit.DefaultDurable()))
 
 	/* Initialize Cron Scheduler */
 	cron.Init()
@@ -124,6 +132,7 @@ func gracefulShutdown(srv *http.Server) {
 	// Close Redis connections
 	logger.Info("Closing Redis connections...")
 	cache.CloseRedis()
+	cachekit.CloseDefaults()
 
 	// Stop Cron Scheduler
 	cron.Stop()

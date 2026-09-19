@@ -197,10 +197,12 @@ common/cachekit/
   interface.go    # Cache, Durable, DelayQueue interfaces + ErrMiss/ErrUnavailable.
                   # These are the ONLY cache types the rest of the repo may name.
   provider/       # The ONLY package that may import the provider client (go-redis/v9).
-                  # Adapts it to the interfaces above. Nothing outside imports this
-                  # package except cachekit constructors + tests.
-  client.go       # Two interfaced clients (cache + kv): pool, timeouts, retries, Ping, metrics,
-                  # async bounded SET pool + generation check + write-shed breaker (§8.6). Holds interfaces, not *redis.Client.
+                  # Adapts it to the interfaces above + holds NewCache/NewDurable
+                  # constructors (one-way dep, like sql drivers). Wiring imports
+                  # this package ONLY for construction; provider types appear
+                  # nowhere else (pool, per-op timeouts, retries, Ping live
+                  # inside the adapter; async bounded SET pool + generation
+                  # check + write-shed breaker land here in US2, §8.6).
   codec.go        # JSON encode/decode + max-value guard (skip SET if over)
   key.go          # Tenant-scoped builder + platform allowlist (§5.5)
   ttl.go          # JitteredTTL(base, ±15%) — used by EVERY Set incl. negative + markers (§5.6)
@@ -282,7 +284,7 @@ flowchart LR
 sequenceDiagram
     participant S as Strategy
     participant K as key.go
-    participant C as client.go
+    participant C as cachekit client
     participant SF as singleflight
     participant R as volatile cache
     participant M as metrics

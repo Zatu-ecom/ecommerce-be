@@ -56,7 +56,7 @@ func (s *UploadSuite) TestExpiryHandler_TransitionsToFailed() {
 	require.NoError(s.T(), err)
 
 	// Scheduler job must exist before fast-forward.
-	helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
 	// CA3: verify correlationID is embedded in the scheduled job payload.
 	s.assertCorrelationIDInSchedulerJob(r.ID, correlationID)
@@ -73,7 +73,7 @@ func (s *UploadSuite) TestExpiryHandler_TransitionsToFailed() {
 	// Scheduler job should be consumed/gone.
 	// Give the worker a moment to clean up its ZSET entry after processing.
 	time.Sleep(300 * time.Millisecond)
-	helpers.AssertNoSchedulerJob(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertNoSchedulerJob(s.T(), s.container.DurableKVClient, r.ID)
 }
 
 // T052 subtest 2: CompleteCancelsExpiryJob
@@ -102,7 +102,7 @@ func (s *UploadSuite) TestCompleteCancelsExpiryJob() {
 	require.NoError(s.T(), err)
 
 	// Scheduler job exists after init.
-	helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
 	// PUT bytes then complete.
 	uploadHelper := helpers.UploadHelper{Server: s.server, Token: s.sellerToken}
@@ -122,7 +122,7 @@ func (s *UploadSuite) TestCompleteCancelsExpiryJob() {
 
 	// After successful complete, row is ACTIVE and scheduler job is gone.
 	s.assertFileStatus(fileID, entity.FileStatusActive)
-	helpers.AssertNoSchedulerJob(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertNoSchedulerJob(s.T(), s.container.DurableKVClient, r.ID)
 }
 
 // T052 subtest 3: ExpiryFires_AfterActive_IsNoOp
@@ -172,7 +172,7 @@ func (s *UploadSuite) TestExpiryFires_AfterActive_IsNoOp() {
 
 	// Now fast-forward the expiry job — even though cancel was called, let's
 	// simulate the race where the job fires anyway (e.g., cancellation lost).
-	helpers.FastForwardExpiry(s.T(), s.container.RedisClient, r.ID)
+	helpers.FastForwardExpiry(s.T(), s.container.DurableKVClient, r.ID)
 
 	// Wait for any potential handler execution.
 	time.Sleep(500 * time.Millisecond)
@@ -301,7 +301,7 @@ func (s *UploadSuite) fastForwardExpiredUpload(fileObjectID uint64) {
 		fileObjectID,
 	).Error
 	require.NoError(s.T(), err)
-	helpers.FastForwardExpiry(s.T(), s.container.RedisClient, fileObjectID)
+	helpers.FastForwardExpiry(s.T(), s.container.DurableKVClient, fileObjectID)
 }
 
 // assertFileFailureReason verifies the failure_reason column on a FAILED row.
@@ -331,15 +331,21 @@ func (s *UploadSuite) assertCorrelationIDInSchedulerJob(
 
 	ctx := context.Background()
 
-	allMembers, redisErr := s.container.RedisClient.ZRange(ctx, "delayed_jobs", 0, -1).Result()
+	// Queue members are job IDs on the durable role; payloads live under
+	// scheduled_job:{id}. Resolve each member to its payload before matching.
+	allMembers, redisErr := s.container.DurableKVClient.ZRange(ctx, "delayed_jobs", 0, -1).Result()
 	if redisErr != nil {
-		// Redis unreachable — skip assertion silently.
+		// Durable KV unreachable — skip assertion silently.
 		return
 	}
 
 	for _, m := range allMembers {
-		if strings.Contains(m, `"file.upload.expiry"`) &&
-			strings.Contains(m, expectedCorrelationID) {
+		raw, err := s.container.DurableKVClient.Get(ctx, "scheduled_job:"+m).Bytes()
+		if err != nil {
+			continue
+		}
+		if strings.Contains(string(raw), `"file.upload.expiry"`) &&
+			strings.Contains(string(raw), expectedCorrelationID) {
 			return // CA3 verified: correlationID found in the scheduled job payload
 		}
 	}

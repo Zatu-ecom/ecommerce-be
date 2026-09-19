@@ -33,17 +33,17 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T008 Define `Cache`, `Durable`, `DelayQueue` interfaces + `ErrMiss`/`ErrUnavailable` in `common/cachekit/interface.go` (contracts/cachekit-interfaces.md; ≤10 methods each)
-- [ ] T009 [P] Implement v9 adapter in `common/cachekit/provider/go_redis.go` (only file importing the client lib; KEYS-only Lua discipline per research.md R2)
-- [ ] T010 Implement two interfaced clients in `common/cachekit/client.go` (pool, per-op timeouts, `Ping`, metrics hook; holds interfaces, never `*redis.Client`) + wire both clients' `Close` into `main.go` graceful shutdown (existing shutdown sequence: HTTP → requests → DB → cache → cron)
-- [ ] T011 [P] Implement JSON codec + 256KB guard in `common/cachekit/codec.go`
-- [ ] T012 [P] Implement tenant-scoped key builder + platform allowlist in `common/cachekit/key.go` (reject unscoped; T9 unit tests)
-- [ ] T013 [P] Implement `JitteredTTL` in `common/cachekit/ttl.go` (±15%, bounds-tested)
-- [ ] T014 [P] Implement singleflight wrapper in `common/cachekit/singleflight.go` + tombstone helpers in `common/cachekit/negative.go` (same-key sentinel)
-- [ ] T015 [P] Implement metrics hooks in `common/cachekit/metrics.go` (logrus sink; per-module/op/store labels)
-- [ ] T016 Rewire `common/scheduler/scheduler.go` + `common/scheduler/worker.go` to `DelayQueue` (adapt dispatcher loop to the `Poll()` claim API; remove raw `*redis.Client` incl. `inventory/factory/singleton/service_factory.go:46` nil-deref; keep ZSET poll + `ZRem==1` claim semantics)
-- [ ] T017 [P] Scaffold `test/integration/cachekit/` conformance harness running T1–T17 skeletons against both backend profiles (red: all fail)
-- [ ] T018 Remove dead cache code: `product/utils/cache_constants.go`, dead keys/invalidators in `common/cache/cache_invalidation.go` + `common/constants/cache_constants.go` (keep shims only if callers remain)
+- [X] T008 Define `Cache`, `Durable`, `DelayQueue` interfaces + `ErrMiss`/`ErrUnavailable` in `common/cachekit/interface.go` (contracts/cachekit-interfaces.md; ≤10 methods each)
+- [X] T009 [P] Implement v9 adapter in `common/cachekit/provider/go_redis.go` (only file importing the client lib; KEYS-only Lua discipline per research.md R2)
+- [X] T010 Implement two interfaced clients in `common/cachekit/provider/construct.go` + `go_redis.go` (pool, per-op timeouts, `Ping`, metrics hook; constructors return interfaces, never `*redis.Client`) + wire both clients' `Close` into `main.go` graceful shutdown (existing shutdown sequence: HTTP → requests → DB → cache → cron)
+- [X] T011 [P] Implement JSON codec + 256KB guard in `common/cachekit/codec.go`
+- [X] T012 [P] Implement tenant-scoped key builder + platform allowlist in `common/cachekit/key.go` (reject unscoped; T9 unit tests)
+- [X] T013 [P] Implement `JitteredTTL` in `common/cachekit/ttl.go` (±15%, bounds-tested)
+- [X] T014 [P] Implement singleflight wrapper in `common/cachekit/singleflight.go` + tombstone helpers in `common/cachekit/negative.go` (same-key sentinel)
+- [X] T015 [P] Implement metrics hooks in `common/cachekit/metrics.go` (logrus sink; per-module/op/store labels)
+- [X] T016 Rewire `common/scheduler/scheduler.go` + `common/scheduler/worker.go` to `DelayQueue` (adapt dispatcher loop to the `Poll()` claim API; remove raw `*redis.Client` incl. `inventory/factory/singleton/service_factory.go:46` nil-deref; keep ZSET poll + `ZRem==1` claim semantics)
+- [X] T017 [P] Scaffold `test/integration/cachekit/` conformance harness running T1–T17 skeletons against both backend profiles (red: all fail)
+- [X] T018 Remove dead cache code: `product/utils/cache_constants.go`, dead keys/invalidators in `common/cache/cache_invalidation.go` + `common/constants/cache_constants.go` (keep shims only if callers remain)
 
 **Checkpoint**: Foundation ready — `go build ./...`, blindness grep green, harness red. User stories can now begin (US1+US4+US5 in parallel; US2+US3 integrate after US1).
 
@@ -59,19 +59,19 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T019 [P] [US1] Conformance T7 subset (domain reads succeed with volatile down) in `test/integration/cachekit/cache_down_test.go`
-- [ ] T020 [P] [US1] Conformance T9 cross-seller isolation in `test/integration/cachekit/tenant_isolation_test.go`
-- [ ] T021 [P] [US1] Payload-contract test (no stock/URLs/personalization, 256KB skip) in `test/integration/product/product_cache_test.go`
-- [ ] T022 [P] [US1] Seller-validation + currency + geo + settings + gateway-catalog read tests in `test/integration/user/cache_reads_test.go` and `test/integration/payment/gateway_cache_test.go`
+- [x] T019 [P] [US1] Conformance T7 subset (domain reads succeed with volatile down) in `test/integration/cachekit/cache_down_test.go`
+- [x] T020 [P] [US1] Conformance T9 cross-seller isolation in `test/integration/cachekit/tenant_isolation_test.go`
+- [x] T021 [P] [US1] Payload-contract test (no stock/URLs/personalization, 256KB skip) in `test/integration/product/product_cache_test.go`
+- [x] T022 [P] [US1] Seller-validation + currency + geo + settings + gateway-catalog read tests in `test/integration/user/cache_reads_test.go` and `test/integration/payment/gateway_cache_test.go`
 
 ### Implementation for User Story 1
 
-- [ ] T023 [P] [US1] Product/variant/category/attribute strategies in `product/cache/` (detail keys, tombstones, §5.7 nested-invalidation set; incl. optional collection-by-id `seller:{id}:collection:{cid}`)
-- [ ] T024 [P] [US1] Seller-validation + currency + geo + settings strategies in `user/cache/` (subscription-end-capped TTL, exact-`Del`)
-- [ ] T025 [P] [US1] Gateway catalog-slice strategy in `payment/cache/` (public metadata only; seller overlay stays live in `payment/service/payment_gateway_service.go`)
-- [ ] T026 [P] [US1] Providers/schema strategy in `file/cache/` (no URLs/secrets)
-- [ ] T027 [US1] Wire strategies into query services (`product/service/product_query_service.go`, `category_service.go`, `user/service/user_service.go`, `common/auth/seller_validation.go`, gateway/file handlers) behind flags (depends on T023–T026)
-- [ ] T028 [US1] Wire invalidation hooks into all product/nested, category/attribute, settings/currency, geo, gateway-admin writers (depends on T027)
+- [x] T023 [P] [US1] Product/variant/category/attribute strategies in `product/cache/` (detail keys, tombstones, §5.7 nested-invalidation set; incl. optional collection-by-id `seller:{id}:collection:{cid}`)
+- [x] T024 [P] [US1] Seller-validation + currency + geo + settings strategies in `user/cache/` (subscription-end-capped TTL, exact-`Del`)
+- [x] T025 [P] [US1] Gateway catalog-slice strategy in `payment/cache/` (public metadata only; seller overlay stays live in `payment/service/payment_gateway_service.go`)
+- [x] T026 [P] [US1] Providers/schema strategy in `file/cache/` (no URLs/secrets)
+- [x] T027 [US1] Wire strategies into query services (`product/service/product_query_service.go`, `category_service.go`, `user/service/user_service.go`, `common/auth/seller_validation.go`, gateway/file handlers) behind flags (depends on T023–T026)
+- [x] T028 [US1] Wire invalidation hooks into all product/nested, category/attribute, settings/currency, geo, gateway-admin writers (depends on T027)
 
 **Checkpoint**: US1 flags on in staging → detail hit rate climbs, writes reflect within bounds, T7/T9/T11 green. MVP shippable.
 
@@ -85,12 +85,12 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T029 [P] [US4] Conformance T3 (Lua atomicity, concurrent + two clients) + T12 (denylist hash/TTL/fail-closed/logout-503) in `test/integration/cachekit/durable_correctness_test.go`
+- [x] T029 [P] [US4] Conformance T3 (Lua atomicity, concurrent + two clients) + T12 (denylist hash/TTL/fail-closed/logout-503) in `test/integration/cachekit/durable_correctness_test.go`
 
 ### Implementation for User Story 4
 
-- [ ] T030 [P] [US4] Hashed denylist helpers (`bl:{sha256}`, remaining-`exp` via `ParseToken`) in `user/cache/` or `common/cachekit/` Durable path; logout returns 503 on SET failure in `user/handler/user_handler.go`; denylist-miss-on-KV-down fails closed in `common/auth/auth_middleware.go`
-- [ ] T031 [P] [US4] Lua `INCR+EXPIRE` limiter in `order/utils/coupon_apply_rate_limit.go` on Durable (KEYS-only script; keep in-process fallback)
+- [x] T030 [P] [US4] Hashed denylist helpers (`bl:{sha256}`, remaining-`exp` via `ParseToken`) in `user/cache/` or `common/cachekit/` Durable path; logout returns 503 on SET failure in `user/handler/user_handler.go`; denylist-miss-on-KV-down fails closed in `common/auth/auth_middleware.go`
+- [x] T031 [P] [US4] Lua `INCR+EXPIRE` limiter in `order/utils/coupon_apply_rate_limit.go` on Durable (KEYS-only script; keep in-process fallback)
 
 **Checkpoint**: US4 green on both backends; logout replay window closed.
 
@@ -130,9 +130,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] Async bounded SET pool + drop metrics in `common/cachekit/client.go` (detached ctx with IDs, 50–100ms budget, default 64 in-flight)
-- [ ] T040 [P] [US2] Generation-guarded SET (Lua CAS, KEYS-only) + `cache_set_generation_dropped` in `common/cachekit/client.go` / `version.go`
-- [ ] T041 [P] [US2] Write-shed breaker + `CACHE_SET_WRITES` manual lever in `common/cachekit/client.go` (cooldown + trickle recovery, `cache_write_shed_active`)
+- [ ] T039 [US2] Async bounded SET pool + drop metrics in `common/cachekit/provider/go_redis.go` (detached ctx with IDs, 50–100ms budget, default 64 in-flight)
+- [ ] T040 [P] [US2] Generation-guarded SET (Lua CAS, KEYS-only) + `cache_set_generation_dropped` in `common/cachekit/provider/go_redis.go` / `version.go`
+- [ ] T041 [P] [US2] Write-shed breaker + `CACHE_SET_WRITES` manual lever in `common/cachekit/provider/go_redis.go` (cooldown + trickle recovery, `cache_write_shed_active`)
 - [ ] T042 [US2] Admission marker helper (`SETNX seller:{id}:seen:{hash}`) in `common/cachekit/` for P2 list strategies (depends on T039)
 
 **Checkpoint**: US2 green on both backends; §0.4 chain broken at every link by test.

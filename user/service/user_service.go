@@ -2,12 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
+	usercache "ecommerce-be/user/cache"
 	"ecommerce-be/common/cache"
 	"ecommerce-be/common/constants"
 	commonEntity "ecommerce-be/common/db"
@@ -79,6 +78,15 @@ type UserServiceImpl struct {
 	sellerSettingsService SellerSettingsService
 	currencyService       CurrencyService
 	fileGateway           filegateway.FileDisplayGateway
+	// currencyCache is the optional currency strategy (012). Nil disables
+	// caching; wired by the factory via SetCurrencyCache.
+	currencyCache *usercache.CurrencyCache
+}
+
+// SetCurrencyCache attaches the currency strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *UserServiceImpl) SetCurrencyCache(c *usercache.CurrencyCache) {
+	s.currencyCache = c
 }
 
 // NewUserService creates a new instance of UserService
@@ -411,17 +419,22 @@ func (s *UserServiceImpl) GetPreferredCurrency(
 	userID uint,
 	sellerID uint,
 ) (*model.CurrencyResponse, error) {
-	cacheKey := fmt.Sprintf("user_currency:%d:%d", userID, sellerID)
-
-	// 1. Check Cache First
-	if cachedStr, err := cache.Get(cacheKey); err == nil && cachedStr != "" {
-		var currencyRes model.CurrencyResponse
-		if err := json.Unmarshal([]byte(cachedStr), &currencyRes); err == nil {
-			return &currencyRes, nil
-		}
+	if s.currencyCache != nil {
+		return s.currencyCache.GetPreferred(ctx, userID, sellerID,
+			func(ctx context.Context) (*model.CurrencyResponse, error) {
+				return s.loadPreferredCurrency(ctx, userID, sellerID)
+			})
 	}
+	return s.loadPreferredCurrency(ctx, userID, sellerID)
+}
 
-	// 2. Fetch User and Seller Settings
+// loadPreferredCurrency resolves the effective currency without caching.
+func (s *UserServiceImpl) loadPreferredCurrency(
+	ctx context.Context,
+	userID uint,
+	sellerID uint,
+) (*model.CurrencyResponse, error) {
+	// 1. Fetch User and Seller Settings
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, errors.New(constant.USER_NOT_FOUND_MSG)
@@ -453,11 +466,6 @@ func (s *UserServiceImpl) GetPreferredCurrency(
 		IsActive:     currencyDetails.IsActive,
 	}
 
-	// 5. Store cleanly in Redis for 1 Hour
-	if bytes, err := json.Marshal(currencyRes); err == nil {
-		_ = cache.Set(cacheKey, string(bytes), 1*time.Hour)
-	}
-
 	return currencyRes, nil
 }
 
@@ -466,17 +474,21 @@ func (s *UserServiceImpl) GetSellerDefaultCurrency(
 	ctx context.Context,
 	sellerID uint,
 ) (*model.CurrencyResponse, error) {
-	cacheKey := fmt.Sprintf("seller_default_currency:%d", sellerID)
-
-	// 1. Check Cache First
-	if cachedStr, err := cache.Get(cacheKey); err == nil && cachedStr != "" {
-		var currencyRes model.CurrencyResponse
-		if err := json.Unmarshal([]byte(cachedStr), &currencyRes); err == nil {
-			return &currencyRes, nil
-		}
+	if s.currencyCache != nil {
+		return s.currencyCache.GetSellerDefault(ctx, sellerID,
+			func(ctx context.Context) (*model.CurrencyResponse, error) {
+				return s.loadSellerDefaultCurrency(ctx, sellerID)
+			})
 	}
+	return s.loadSellerDefaultCurrency(ctx, sellerID)
+}
 
-	// 2. Fetch seller settings (no user lookup needed)
+// loadSellerDefaultCurrency resolves the seller base currency without caching.
+func (s *UserServiceImpl) loadSellerDefaultCurrency(
+	ctx context.Context,
+	sellerID uint,
+) (*model.CurrencyResponse, error) {
+	// 1. Fetch seller settings (no user lookup needed)
 	sellerSettings, err := s.sellerSettingsService.GetBySellerID(ctx, sellerID)
 	if err != nil {
 		return nil, err
@@ -492,11 +504,6 @@ func (s *UserServiceImpl) GetSellerDefaultCurrency(
 		CurrencyBase: currencyDetails.CurrencyBase,
 		ID:           currencyDetails.ID,
 		IsActive:     currencyDetails.IsActive,
-	}
-
-	// 4. Store in cache for 1 hour
-	if bytes, err := json.Marshal(currencyRes); err == nil {
-		_ = cache.Set(cacheKey, string(bytes), 1*time.Hour)
 	}
 
 	return currencyRes, nil

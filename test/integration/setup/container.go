@@ -77,7 +77,8 @@ func startKVContainer(t *testing.T, ctx context.Context, backend, image string) 
 }
 
 // kvClient dials a KV container and waits until PING succeeds (covers the gap
-// between port-open/log-ready and actual command readiness).
+// between port-open/log-ready and actual command readiness, plus slow starts
+// under loaded Docker hosts — same 5-minute patience as the Postgres waits).
 func kvClient(t *testing.T, ctx context.Context, c testcontainers.Container, role string) *redis.Client {
 	t.Helper()
 	host, err := c.Host(ctx)
@@ -91,7 +92,7 @@ func kvClient(t *testing.T, ctx context.Context, c testcontainers.Container, rol
 	client := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s", host, port.Port()),
 	})
-	deadline := time.Now().Add(2 * time.Minute)
+	deadline := time.Now().Add(5 * time.Minute)
 	for {
 		if err := client.Ping(ctx).Err(); err == nil {
 			return client
@@ -170,6 +171,13 @@ func SetupTestContainers(t *testing.T) *TestContainer {
 	// Get Redis connection details
 	redisClient := kvClient(t, ctx, redisContainer, "redis")
 	durableClient := kvClient(t, ctx, durableContainer, "durable-kv")
+
+	// Publish role addrs for config-driven wiring: module factories build
+	// their durable queues from KV_ADDR (scheduler.WiringQueue), and future
+	// strategies will resolve CACHE_ADDR the same way. Per-suite overwrite is
+	// safe: singletons reset and config reloads in SetupTestServer.
+	os.Setenv("CACHE_ADDR", redisClient.Options().Addr)
+	os.Setenv("KV_ADDR", durableClient.Options().Addr)
 
 	return &TestContainer{
 		Postgres:        pgContainer,

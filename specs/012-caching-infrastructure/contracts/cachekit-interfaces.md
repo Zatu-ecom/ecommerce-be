@@ -29,6 +29,8 @@ SetNX(ctx, key string, value []byte, ttl time.Duration) (bool, error)
 TTL(ctx, key string) (time.Duration, error)
 // IncrWithExpire runs the Lua INCR+EXPIRE script (keys via KEYS only). Returns the new count.
 IncrWithExpire(ctx, key string, window time.Duration) (int64, error)
+// Incr atomically increments a persistent counter (version families, no expiry).
+Incr(ctx, key string) (uint64, error)
 // CompareAndSet runs the generation-guarded SET script: stores only if the
 // generation marker still matches. Returns (stored=true) or counts the drop.
 CompareAndSet(ctx, key, genKey string, expectedGen uint64, value []byte, ttl time.Duration) (bool, error)

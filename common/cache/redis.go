@@ -63,31 +63,6 @@ func Del(key string) error {
 	return redisClient.Del(ctx, key).Err()
 }
 
-// BlacklistToken stores a token in Redis with an expiration time
-func BlacklistToken(token string, expiration time.Duration) error {
-	client, err := GetRedisClient()
-	if err != nil {
-		return err
-	}
-
-	return client.Set(ctx, token, "blacklisted", expiration).Err()
-}
-
-// IsTokenBlacklisted checks if a token is blacklisted
-func IsTokenBlacklisted(token string) bool {
-	client, err := GetRedisClient()
-	if err != nil {
-		return false
-	}
-
-	result, err := client.Get(ctx, token).Result()
-	if err != nil {
-		return false
-	}
-
-	return result == "blacklisted"
-}
-
 // CloseRedis closes the Redis connection gracefully
 func CloseRedis() {
 	if redisClient != nil {

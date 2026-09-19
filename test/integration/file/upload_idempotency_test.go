@@ -59,7 +59,7 @@ func (s *UploadSuite) TestInitUpload_Idempotency() {
 			Scan(&r).
 			Error
 		require.NoError(s.T(), err)
-		helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, r.ID)
+		helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
 		keys, err := s.container.RedisClient.Keys(context.Background(), "file:init:idem:*").Result()
 		require.NoError(s.T(), err)

@@ -3,7 +3,6 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/inventory/repository"
 	"ecommerce-be/inventory/service"
@@ -43,7 +42,6 @@ func (f *ServiceFactory) initialize() {
 		inventoryRepository := f.repoFactory.GetInventoryRepository()
 		inventoryTransactionRepository := f.repoFactory.GetInventoryTransactionRepository()
 		inventoryReservationRepository := f.repoFactory.GetInventoryReservationRepository()
-		redisClient, _ := cache.GetRedisClient()
 
 		pf := productFactory.GetInstance()
 		variantQueryService := pf.GetVariantQueryService()
@@ -90,7 +88,7 @@ func (f *ServiceFactory) initialize() {
 		)
 
 		f.reservationSchedulerService = service.NewReservationSchedulerService(
-			*scheduler.New(redisClient),
+			*scheduler.New(scheduler.WiringQueue()),
 		)
 
 		// Initialize inventory reservation service

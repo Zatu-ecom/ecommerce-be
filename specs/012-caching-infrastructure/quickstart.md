@@ -22,6 +22,10 @@ KV_BACKEND=dragonfly go test ./test/integration/cachekit/ -run TestCachekitConfo
 
 Green on both backends is the cutover gate (T1–T17). Never float image tags — compose, Testcontainers, and CI pin identical tags.
 
+> Resource note: every suite package boots Postgres + two KV containers.
+> On constrained Docker hosts run packages sequentially (`go test -p 1 ./test/...`)
+> — parallel packages can starve container readiness and flake on PING waits.
+
 ## 3. Exercise flags locally (all default off)
 
 ```bash

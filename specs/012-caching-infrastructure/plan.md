@@ -66,8 +66,8 @@ specs/012-caching-infrastructure/
 common/cachekit/                 # NEW - infrastructure only
 ├── interface.go                 # Cache, Durable, DelayQueue + errors
 ├── provider/                    # NEW - sole provider-client importer
-│   └── go_redis.go              # v9 adapter (later: dragonfly needs no code change - same RESP)
-├── client.go                    # two interfaced clients, async SET pool, shed breaker
+│   ├── go_redis.go              # v9 adapter (later: dragonfly needs no code change - same RESP)
+│   └── construct.go             # NewCache/NewDurable (one-way dep, like sql drivers)
 ├── codec.go                     # JSON + 256KB guard
 ├── key.go                       # tenant-scoped builder + allowlist
 ├── ttl.go                       # JitteredTTL

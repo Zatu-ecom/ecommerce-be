@@ -1,31 +1,37 @@
 package cache
 
 import (
-	"fmt"
-
-	"ecommerce-be/common/constants"
+	"ecommerce-be/common/cachekit"
 )
 
 /****************************************************
 *			Cache invalidation functions			*
 *****************************************************/
 
-// InvalidateSellerSubscriptionCache invalidates the subscription cache for a seller
-func InvalidateSellerSubscriptionCache(sellerID uint) error {
-	cacheKey := fmt.Sprintf("%s%d", constants.SELLER_SUBSCRIPTION_CACHE_KEY, sellerID)
-	return Del(cacheKey)
-}
-
-// InvalidateSellerDetailsCache invalidates the seller details cache for a seller
-func InvalidateSellerDetailsCache(sellerID uint) error {
-	cacheKey := fmt.Sprintf("%s%d", constants.SELLER_DETAILS_CACHE_KEY, sellerID)
-	return Del(cacheKey)
-}
-
-// InvalidateAllSellerCache invalidates both subscription and details cache for a seller
-func InvalidateAllSellerCache(sellerID uint) error {
-	if err := InvalidateSellerSubscriptionCache(sellerID); err != nil {
+// invalidateCompleteCache deletes the live seller-validation entry written by
+// ValidateSellerCompleteCached (key: seller:{id}:seller:complete).
+func invalidateCompleteCache(sellerID uint) error {
+	cacheKey, err := cachekit.BuildSellerKey(sellerID, "seller", "complete")
+	if err != nil {
 		return err
 	}
-	return InvalidateSellerDetailsCache(sellerID)
+	return Del(cacheKey)
+}
+
+// InvalidateSellerSubscriptionCache invalidates cached seller validation after
+// a subscription/plan change. Kept for existing callers; targets the live key.
+func InvalidateSellerSubscriptionCache(sellerID uint) error {
+	return invalidateCompleteCache(sellerID)
+}
+
+// InvalidateSellerDetailsCache invalidates cached seller validation after a
+// profile/active-flag change. Kept for existing callers; targets the live key.
+func InvalidateSellerDetailsCache(sellerID uint) error {
+	return invalidateCompleteCache(sellerID)
+}
+
+// InvalidateAllSellerCache invalidates all cached seller validation entries
+// for a seller (single live key).
+func InvalidateAllSellerCache(sellerID uint) error {
+	return invalidateCompleteCache(sellerID)
 }

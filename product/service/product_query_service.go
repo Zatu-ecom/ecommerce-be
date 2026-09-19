@@ -5,6 +5,7 @@ import (
 	"math"
 
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
@@ -64,6 +65,15 @@ type ProductQueryServiceImpl struct {
 	productMediaService     ProductMediaService
 	wishlistItemService     WishlistItemService
 	userSvc                 userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// caching; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *ProductQueryServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
 }
 
 // NewProductQueryService creates a new instance of ProductQueryService
@@ -261,6 +271,17 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	sellerID *uint,
 	userID *uint,
 ) (*model.ProductResponse, error) {
+	// Cached path: entity load + ownership check run inside the strategy's
+	// fill so misses, tombstones, and per-seller isolation stay correct.
+	if s.productCache != nil {
+		return s.productCache.GetDetail(ctx, id, sellerID, userID,
+			func(ctx context.Context) (*entity.Product, error) {
+				return s.loadProductForDetail(ctx, id, sellerID)
+			},
+			func(ctx context.Context, product *entity.Product) (*model.ProductResponse, error) {
+				return s.buildDetailedProductResponse(ctx, product, sellerID, userID)
+			})
+	}
 	// Fetch product entity
 	product, err := s.productRepo.FindByID(ctx, id)
 	if err != nil {
@@ -275,6 +296,23 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 
 	// Build detailed product response using service dependencies
 	return s.buildDetailedProductResponse(ctx, product, sellerID, userID)
+}
+
+// loadProductForDetail fetches the entity with the seller-ownership check
+// shared by the live and cached paths.
+func (s *ProductQueryServiceImpl) loadProductForDetail(
+	ctx context.Context,
+	id uint,
+	sellerID *uint,
+) (*entity.Product, error) {
+	product, err := s.productRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
+	}
+	return product, nil
 }
 
 // buildDetailedProductResponse builds a complete ProductResponse with all details

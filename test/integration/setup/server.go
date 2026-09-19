@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
@@ -19,7 +21,6 @@ import (
 	"ecommerce-be/promotion"
 	"ecommerce-be/report"
 	"ecommerce-be/user"
-
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -79,6 +80,13 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 	if redisClient != nil {
 		cache.SetRedisClient(redisClient)
 	}
+
+	// 7b. Wire cachekit role clients from test config (CACHE_ADDR/KV_ADDR
+	// published by SetupTestContainers). Strategies read these at call time;
+	// flags stay off unless a test enables them.
+	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))
+	cachekit.SetDefaultDurable(provider.NewDurable(cfg.Redis))
+	cachekit.SetTokenDenylist(cachekit.NewTokenDenylist(cachekit.DefaultDurable()))
 
 	// 8. Initialize Gin Router
 	gin.SetMode(gin.TestMode)

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,15 +31,13 @@ func AllowCouponApply(ctx context.Context, userID uint) bool {
 		return true
 	}
 
-	client, err := cache.GetRedisClient()
-	if err == nil && client != nil {
+	if d := cachekit.DefaultDurable(); d != nil {
 		key := couponApplyRedisKey(userID)
-		n, incrErr := client.Incr(ctx, key).Result()
-		if incrErr == nil {
-			if n == 1 {
-				_ = client.Expire(ctx, key, CouponApplyWindow).Err()
+		if err := cachekit.ValidateKey(key); err == nil {
+			n, incrErr := d.IncrWithExpire(ctx, key, CouponApplyWindow)
+			if incrErr == nil {
+				return n <= int64(CouponApplyMaxPerWindow)
 			}
-			return n <= int64(CouponApplyMaxPerWindow)
 		}
 	}
 

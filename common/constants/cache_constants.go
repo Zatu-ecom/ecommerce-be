@@ -2,16 +2,13 @@ package constants
 
 import "time"
 
-// Cache-related constants
+// Cache-related constants.
+//
+// Seller-validation keys are built by cachekit (seller:{id}:seller:complete);
+// invalidation funnels through cache.Invalidate*SellerCache. Do not
+// reintroduce per-concern key prefixes: they were never written and their
+// invalidators silently missed the live key (012 C4).
 const (
-	// Cache keys and expiration times
-	SELLER_SUBSCRIPTION_CACHE_KEY = "seller_subscription:"
-	SELLER_DETAILS_CACHE_KEY      = "seller_details:"
-	SELLER_COMPLETE_CACHE_KEY     = "seller_complete:" // OPTIMIZED: Complete seller validation data
-	SELLER_CACHE_EXPIRATION       = time.Minute * 15   // 15 minutes
+	SELLER_CACHE_EXPIRATION       = time.Minute * 15   // 15 minutes (legacy default; strategies set their own TTLs)
 	SELLER_CACHE_SHORT_EXPIRATION = time.Minute * 2    // 2 minutes for failed validations
-
-	// Inventory Reservation cache keys
-	// Key format: reservation:expiry:{referenceId}
-	RESERVATION_EXPIRY_KEY_PREFIX = "reservation:expiry:"
 )
