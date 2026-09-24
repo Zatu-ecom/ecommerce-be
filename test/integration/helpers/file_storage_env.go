@@ -91,6 +91,9 @@ func AttachMinIOStorage(
 	minio := setup.SetupMinioContainer(t)
 	t.Cleanup(func() { minio.Cleanup(t) })
 	require.NoError(t, minio.CreateBucket(context.Background(), cfg.Bucket))
+	// Shared MinIO is reused across suites: start each env with an empty
+	// bucket (same data-equivalence as a fresh container).
+	_ = minio.PurgeBucket(context.Background(), cfg.Bucket)
 
 	_ = os.Setenv("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
 

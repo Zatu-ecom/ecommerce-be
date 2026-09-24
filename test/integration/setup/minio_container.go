@@ -24,8 +24,16 @@ type MinioContainer struct {
 	ctx       context.Context
 }
 
-// SetupMinioContainer boots a MinIO test container.
+// SetupMinioContainer returns the process-wide shared MinIO instance.
+// The container boots once per `go test` package process; callers still
+// create/ensure their own buckets. Ryuk reaps the container at process exit.
 func SetupMinioContainer(t *testing.T) *MinioContainer {
+	t.Helper()
+	return acquireSharedMinio(t)
+}
+
+// startMinioContainer boots one MinIO Testcontainer.
+func startMinioContainer(t *testing.T) *MinioContainer {
 	t.Helper()
 
 	ctx := context.Background()
@@ -76,8 +84,8 @@ func SetupMinioContainer(t *testing.T) *MinioContainer {
 	}
 }
 
-// CreateBucket creates a bucket on MinIO; safe to call repeatedly.
-func (m *MinioContainer) CreateBucket(ctx context.Context, name string) error {
+// s3Client dials this MinIO instance.
+func (m *MinioContainer) s3Client(ctx context.Context) (*s3.Client, error) {
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithRegion(m.Region),
@@ -100,21 +108,30 @@ func (m *MinioContainer) CreateBucket(ctx context.Context, name string) error {
 		),
 	)
 	if err != nil {
+		return nil, err
+	}
+	return s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	}), nil
+}
+
+// CreateBucket creates a bucket on MinIO; safe to call repeatedly
+// (already-exists from shared reuse is ignored).
+func (m *MinioContainer) CreateBucket(ctx context.Context, name string) error {
+	client, err := m.s3Client(ctx)
+	if err != nil {
 		return err
 	}
-
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.UsePathStyle = true
-	})
 	_, err = client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(name)})
+	if isBucketExistsError(err) {
+		return nil
+	}
 	return err
 }
 
-// Cleanup terminates MinIO container.
+// Cleanup is a no-op for the shared instance: the container stays up for the
+// next suite in this process and Ryuk reaps it at process exit. Kept so
+// existing t.Cleanup(cleanup) call sites behave without churn.
 func (m *MinioContainer) Cleanup(t *testing.T) {
 	t.Helper()
-	if m == nil || m.Container == nil {
-		return
-	}
-	_ = m.Container.Terminate(m.ctx)
 }
