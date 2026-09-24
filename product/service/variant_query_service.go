@@ -287,7 +287,7 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 	// Cached path for authenticated and anonymous callers alike: only the
 	// wishlist flag is stripped, so hits re-join one flag and return.
 	if s.productCache != nil && sellerID != nil {
-		return s.productCache.GetVariantByOptions(ctx, *sellerID, productID,
+		resp, err := s.productCache.GetVariantByOptions(ctx, *sellerID, productID,
 			cache.CanonicalOptionHash(optionValues), userID,
 			func(ctx context.Context) (*entity.ProductVariant, error) {
 				return variant, nil
@@ -295,9 +295,15 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 			func(ctx context.Context, v *entity.ProductVariant) (*model.VariantResponse, error) {
 				return base, nil
 			})
+		if err != nil {
+			return nil, err
+		}
+		base = resp
 	}
 
-	// Check wishlist status if user is logged in
+	// Check wishlist status if user is logged in. The live (cache-disabled)
+	// path does not re-join inside ProductCache; always apply here so
+	// FindVariantByOptions matches list/detail regardless of CACHE_ENABLED.
 	if userID != nil {
 		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
 		if err == nil {

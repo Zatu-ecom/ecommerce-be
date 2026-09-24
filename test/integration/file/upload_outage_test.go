@@ -85,6 +85,7 @@ func (s *UploadSuite) TestInitUpload_StorageOutage() {
 	})
 
 	s.Run("DurableUnavailable_InitUpload_Returns503_NoDbRow", func() {
+		s.container.RequireDualKV(s.T())
 		client := helpers.NewAPIClient(s.server)
 		client.SetToken(s.sellerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6-durable-down")
@@ -107,6 +108,7 @@ func (s *UploadSuite) TestInitUpload_StorageOutage() {
 	})
 
 	s.Run("VolatileUnavailable_InitUpload_Succeeds", func() {
+		s.container.RequireDualKV(s.T())
 		client := helpers.NewAPIClient(s.server)
 		client.SetToken(s.sellerToken)
 		client.SetHeader(constants.CORRELATION_ID_HEADER, "us6-volatile-down")

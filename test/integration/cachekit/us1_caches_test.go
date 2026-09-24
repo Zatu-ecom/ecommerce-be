@@ -359,6 +359,7 @@ func (s *US1CachesSuite) rebuildDefaults() {
 // TestFailOpen_VolatileDown verifies domain reads succeed from the fill path
 // while the volatile backend is unreachable.
 func (s *US1CachesSuite) TestFailOpen_VolatileDown() {
+	s.container.RequireDualKV(s.T())
 	ctx := context.Background()
 	strat := productcache.NewProductCache(
 		cachekit.DefaultCache(), cachekit.DefaultDurable(), nil, nil, nil, nil)

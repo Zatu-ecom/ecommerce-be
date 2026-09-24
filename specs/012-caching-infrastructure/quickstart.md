@@ -19,8 +19,8 @@ docker compose ps   # both KV roles healthy, app NOT depending on volatile
 # cases (T7/T9/T11 in US1CachesSuite, T3/T12 in DurableCorrectnessSuite,
 # T13 in AdmissionSuite, T14 in DegradedBackendSuite, T15–T17 in
 # WriteProtectionSuite, T8 in InvalidationSuite, lists in
-# ProductListCacheSuite); TestConformanceSuite holds the T1–T17 skeleton
-# matrix (red by design until wired per story).
+# ProductListCacheSuite); TestConformanceSuite skips unimplemented T1–T17
+# skeletons until later phases wire them.
 go test ./test/integration/cachekit/ -run TestConformanceSuite -v
 
 # Against Dragonfly profiles (same suites, second backend; needs ~3 GiB
@@ -30,9 +30,14 @@ KV_BACKEND=dragonfly go test ./test/integration/cachekit/ -run TestConformanceSu
 
 Green on both backends is the cutover gate (T1–T17). Never float image tags — compose, Testcontainers, and CI pin identical tags.
 
-> Resource note: every suite package boots Postgres + two KV containers.
-> On constrained Docker hosts run packages sequentially (`go test -p 1 ./test/...`)
-> — parallel packages can starve container readiness and flake on PING waits.
+> Resource note: Testcontainers **default** is Postgres + **one** Redis
+> (`CACHE_ADDR` and `KV_ADDR` share it). Production compose stays two
+> processes (`cache-volatile` / `cache-durable`). Isolation proofs that
+> stop one role (`TestFailOpen_VolatileDown`, file upload outage split,
+> T10 eviction) skip unless `TEST_KV_DUAL=1`.
+>
+> Dual-KV full suite: `make test-pretty-dual`. On constrained Docker
+> hosts also run packages sequentially (`go test -p 1 ./test/...`).
 
 ## 3. Exercise flags locally (all default off)
 

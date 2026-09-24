@@ -233,6 +233,7 @@ func (s *DurablePathsSuite) TestT06Restart_Recovery() {
 // TestT10EvictionIsolation proves the §0.3 split: volatile pressure evicts
 // volatile keys while durable jobs/counters stay intact (today's LRU bug).
 func (s *DurablePathsSuite) TestT10EvictionIsolation() {
+	s.container.RequireDualKV(s.T())
 	ctx := context.Background()
 
 	// Durable residents first (must remain throughout).

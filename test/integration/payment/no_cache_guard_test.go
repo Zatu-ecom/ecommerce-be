@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"ecommerce-be/common/cachekit"
@@ -65,6 +66,9 @@ func (s *PaymentSuite) snapshotVolatile() map[string]string {
 		keys, next, err := s.container.RedisClient.Scan(ctx, cursor, "*", 200).Result()
 		s.Require().NoError(err)
 		for _, k := range keys {
+			if durableKeyOnSharedKV(k) {
+				continue
+			}
 			b, err := s.container.RedisClient.Get(ctx, k).Bytes()
 			if err != nil {
 				continue // raced expiry; snapshots bracket the window
@@ -124,4 +128,25 @@ func (s *PaymentSuite) TestNoCacheGuard_PaymentPathsEmitZeroVolatileWrites() {
 	after := s.snapshotVolatile()
 	s.Require().Equal(before, after,
 		"payment-state paths must emit zero volatile Cache writes (FR-012)")
+}
+
+// durableKeyOnSharedKV reports keys that live on the durable role. Default
+// integration tests share one Redis for CACHE_ADDR and KV_ADDR.
+func durableKeyOnSharedKV(key string) bool {
+	if key == "delayed_jobs" || key == "file:providers" {
+		return true
+	}
+	prefixes := []string{
+		"coupon:apply:rate:",
+		"scheduled_job:",
+		"bl:",
+		"file:init:idem:",
+		"file:schema:",
+	}
+	for _, p := range prefixes {
+		if strings.HasPrefix(key, p) {
+			return true
+		}
+	}
+	return strings.Contains(key, ":inventory.reservation.bulk:")
 }
