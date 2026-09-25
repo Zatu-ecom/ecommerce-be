@@ -98,7 +98,7 @@ func TestSimpleConfigurableProducts(t *testing.T) {
 		require.NotNil(t, found, "Simple product should appear in listing")
 
 		assert.Equal(t, false, found["hasVariants"])
-		assert.Equal(t, 29.99, found["price"])
+		assert.Equal(t, 29.99, moneyAmount(found["price"]))
 		assert.Nil(t, found["variantPreview"], "Simple products should not expose variantPreview")
 	})
 
@@ -114,7 +114,7 @@ func TestSimpleConfigurableProducts(t *testing.T) {
 		product := helpers.GetResponseData(t, resp, "product")
 
 		assert.Equal(t, false, product["hasVariants"])
-		assert.Equal(t, 49.99, product["price"])
+		assert.Equal(t, 49.99, moneyAmount(product["price"]))
 		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
 		assert.Empty(t, variants)
@@ -211,16 +211,16 @@ func TestSimpleConfigurableProducts(t *testing.T) {
 		putURL := fmt.Sprintf("/api/product/%d", productID)
 		putResp := helpers.AssertSuccessResponse(t, client.Put(t, putURL, map[string]any{"price": 150.0}), http.StatusOK)
 		updated := helpers.GetResponseData(t, putResp, "product")
-		assert.Equal(t, 150.0, updated["price"])
+		assert.Equal(t, 150.0, moneyAmount(updated["price"]))
 
 		product := getProduct(productID)
-		assert.Equal(t, 150.0, product["price"])
+		assert.Equal(t, 150.0, moneyAmount(product["price"]))
 		variants := product["variants"].([]any)
 		assert.Empty(t, variants)
 
 		var dbVariant entity.ProductVariant
 		require.NoError(t, containers.DB.Where("product_id = ?", productID).First(&dbVariant).Error)
-		assert.Equal(t, 150.0, dbVariant.Price)
+		assert.Equal(t, int64(15000), dbVariant.PriceCents)
 	})
 
 	t.Run("H - PUT allowPurchase false on simple product", func(t *testing.T) {
@@ -270,13 +270,13 @@ func TestSimpleConfigurableProducts(t *testing.T) {
 
 		putURL := fmt.Sprintf("/api/product/%d", productID)
 		putResp := helpers.AssertSuccessResponse(t, client.Put(t, putURL, map[string]any{"price": 39.99}), http.StatusOK)
-		assert.Equal(t, 39.99, helpers.GetResponseData(t, putResp, "product")["price"])
+		assert.Equal(t, 39.99, moneyAmount(helpers.GetResponseData(t, putResp, "product")["price"]))
 
 		var defaultVariant, otherVariant entity.ProductVariant
 		require.NoError(t, containers.DB.Where("product_id = ? AND sku = ?", productID, "TEST-PUT-CFG-001-BLK").First(&defaultVariant).Error)
 		require.NoError(t, containers.DB.Where("product_id = ? AND sku = ?", productID, "TEST-PUT-CFG-001-WHT").First(&otherVariant).Error)
-		assert.Equal(t, 39.99, defaultVariant.Price)
-		assert.Equal(t, 35.0, otherVariant.Price)
+		assert.Equal(t, int64(3999), defaultVariant.PriceCents)
+		assert.Equal(t, int64(3500), otherVariant.PriceCents)
 	})
 
 	t.Run("J - PUT isPopular true on configurable updates all variants", func(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/file/entity"
 	fileError "ecommerce-be/file/error"
 	"ecommerce-be/file/model"
@@ -134,7 +134,7 @@ func (s *fileReadService) GetAllFiles(
 
 	return &model.GetFilesResponse{
 		Items:      responseItems,
-		Pagination: common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
 }
 
@@ -219,7 +219,6 @@ func (s *fileReadService) GetFile(
 
 	return response, nil
 }
-
 
 func (s *fileReadService) GetDownloadURL(
 	ctx context.Context,
@@ -459,7 +458,6 @@ func buildFileItem(
 		Variants:         variantItems,
 	}
 }
-
 
 func mapVariantItems(variants []entity.FileVariant) []model.FileVariantItem {
 	items := make([]model.FileVariantItem, 0, len(variants))

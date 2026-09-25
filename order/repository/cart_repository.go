@@ -40,6 +40,17 @@ type CartRepository interface {
 	AddItem(ctx context.Context, item *entity.CartItem) error
 	UpdateItem(ctx context.Context, item *entity.CartItem) error
 	DeleteItem(ctx context.Context, itemID uint) error
+
+	// Applied coupon operations
+	FindAppliedCouponsByCartID(ctx context.Context, cartID uint) ([]entity.CartAppliedCoupon, error)
+	AddAppliedCoupon(ctx context.Context, row *entity.CartAppliedCoupon) error
+	RemoveAppliedCoupon(ctx context.Context, cartID, discountCodeID uint) error
+	RemoveAllAppliedCoupons(ctx context.Context, cartID uint) error
+	RemoveAppliedCouponsByDiscountCodeIDs(ctx context.Context, cartID uint, discountCodeIDs []uint) error
+
+	// Cart item promotion attach (reference-only; sync on each price build)
+	FindCartItemPromotionsByItemIDs(ctx context.Context, cartItemIDs []uint) ([]entity.CartItemPromotion, error)
+	SyncCartItemPromotions(ctx context.Context, cartItemID uint, promotionIDs []uint) error
 }
 
 type CartRepositoryImpl struct{}
@@ -336,6 +347,130 @@ func (r *CartRepositoryImpl) DeleteItem(ctx context.Context, itemID uint) error 
 	if err := db.DB(ctx).Delete(&entity.CartItem{}, itemID).Error; err != nil {
 		log.ErrorWithContext(ctx, "Failed to delete cart item", err)
 		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+func (r *CartRepositoryImpl) FindAppliedCouponsByCartID(
+	ctx context.Context,
+	cartID uint,
+) ([]entity.CartAppliedCoupon, error) {
+	var rows []entity.CartAppliedCoupon
+	if err := db.DB(ctx).Where("cart_id = ?", cartID).Find(&rows).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to find applied coupons", err)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+	return rows, nil
+}
+
+func (r *CartRepositoryImpl) AddAppliedCoupon(
+	ctx context.Context,
+	row *entity.CartAppliedCoupon,
+) error {
+	if err := db.DB(ctx).Create(row).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to add applied coupon", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+func (r *CartRepositoryImpl) RemoveAppliedCoupon(
+	ctx context.Context,
+	cartID, discountCodeID uint,
+) error {
+	if err := db.DB(ctx).
+		Where("cart_id = ? AND discount_code_id = ?", cartID, discountCodeID).
+		Delete(&entity.CartAppliedCoupon{}).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to remove applied coupon", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+func (r *CartRepositoryImpl) RemoveAllAppliedCoupons(ctx context.Context, cartID uint) error {
+	if err := db.DB(ctx).Where("cart_id = ?", cartID).Delete(&entity.CartAppliedCoupon{}).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to remove all applied coupons", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+func (r *CartRepositoryImpl) RemoveAppliedCouponsByDiscountCodeIDs(
+	ctx context.Context,
+	cartID uint,
+	discountCodeIDs []uint,
+) error {
+	if len(discountCodeIDs) == 0 {
+		return nil
+	}
+	if err := db.DB(ctx).
+		Where("cart_id = ? AND discount_code_id IN ?", cartID, discountCodeIDs).
+		Delete(&entity.CartAppliedCoupon{}).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to remove invalid applied coupons", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+	}
+	return nil
+}
+
+func (r *CartRepositoryImpl) FindCartItemPromotionsByItemIDs(
+	ctx context.Context,
+	cartItemIDs []uint,
+) ([]entity.CartItemPromotion, error) {
+	if len(cartItemIDs) == 0 {
+		return nil, nil
+	}
+	var rows []entity.CartItemPromotion
+	if err := db.DB(ctx).Where("cart_item_id IN ?", cartItemIDs).Find(&rows).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to find cart item promotions", err)
+		return nil, errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+	return rows, nil
+}
+
+// SyncCartItemPromotions replaces the promotion ID set for a cart line (delete stale, insert missing).
+func (r *CartRepositoryImpl) SyncCartItemPromotions(
+	ctx context.Context,
+	cartItemID uint,
+	promotionIDs []uint,
+) error {
+	desired := map[uint]struct{}{}
+	for _, id := range promotionIDs {
+		desired[id] = struct{}{}
+	}
+
+	var existing []entity.CartItemPromotion
+	if err := db.DB(ctx).Where("cart_item_id = ?", cartItemID).Find(&existing).Error; err != nil {
+		log.ErrorWithContext(ctx, "Failed to load cart item promotions for sync", err)
+		return errs.DatabaseError(orderConstants.FAILED_TO_FETCH_CART_MSG)
+	}
+
+	existingSet := map[uint]struct{}{}
+	staleIDs := make([]uint, 0)
+	for _, row := range existing {
+		existingSet[row.PromotionID] = struct{}{}
+		if _, ok := desired[row.PromotionID]; !ok {
+			staleIDs = append(staleIDs, row.ID)
+		}
+	}
+	if len(staleIDs) > 0 {
+		if err := db.DB(ctx).Where("id IN ?", staleIDs).Delete(&entity.CartItemPromotion{}).Error; err != nil {
+			log.ErrorWithContext(ctx, "Failed to delete stale cart item promotions", err)
+			return errs.DatabaseError(orderConstants.FAILED_TO_DELETE_CART_RECORD_MSG)
+		}
+	}
+
+	for id := range desired {
+		if _, ok := existingSet[id]; ok {
+			continue
+		}
+		row := &entity.CartItemPromotion{
+			CartItemID:  cartItemID,
+			PromotionID: id,
+		}
+		if err := db.DB(ctx).Create(row).Error; err != nil {
+			log.ErrorWithContext(ctx, "Failed to insert cart item promotion", err)
+			return errs.DatabaseError(orderConstants.FAILED_TO_INSERT_CART_RECORD_MSG)
+		}
 	}
 	return nil
 }

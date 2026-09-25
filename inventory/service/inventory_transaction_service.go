@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/repository"
@@ -159,7 +159,7 @@ func (s *InventoryTransactionServiceImpl) buildListResponse(
 	if len(transactions) == 0 {
 		return &model.ListTransactionsResponse{
 			Transactions: []model.TransactionResponse{},
-			Pagination:   common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+			Pagination:   commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 		}, nil
 	}
 
@@ -193,7 +193,7 @@ func (s *InventoryTransactionServiceImpl) buildListResponse(
 
 	return &model.ListTransactionsResponse{
 		Transactions: responses,
-		Pagination:   common.NewPaginationResponse(filter.Page, filter.PageSize, total),
+		Pagination:   commonModel.NewPaginationResponse(filter.Page, filter.PageSize, total),
 	}, nil
 }
 
@@ -355,7 +355,7 @@ func (s *InventoryTransactionServiceImpl) fetchUserBatchByIDs(
 	sellerIDPtr *uint,
 ) (map[uint]string, error) {
 	filter := userModel.ListUsersFilter{
-		BaseListParams: common.BaseListParams{
+		BaseListParams: commonModel.BaseListParams{
 			Page:     1,
 			PageSize: len(userIDs),
 		},

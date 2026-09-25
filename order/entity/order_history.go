@@ -20,4 +20,3 @@ type OrderHistory struct {
 	Metadata        db.JSONMap `json:"metadata"        gorm:"column:metadata;type:jsonb;default:'{}'"`
 	CreatedAt       time.Time  `json:"createdAt"       gorm:"column:created_at;autoCreateTime"`
 }
-

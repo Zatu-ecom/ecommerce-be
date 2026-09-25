@@ -3,8 +3,10 @@ package singleton
 import (
 	"sync"
 
+	"ecommerce-be/common/cachekit"
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	filegw "ecommerce-be/file/gateway"
+	usercache "ecommerce-be/user/cache"
 	"ecommerce-be/user/service"
 )
 
@@ -88,7 +90,37 @@ func (f *ServiceFactory) initialize() {
 			passwordResetRepo,
 			userRepo,
 		)
+
+		// 012: attach cache strategies (nil-safe; flags gate at call time).
+		f.wireCacheStrategies()
 	})
+}
+
+// wireCacheStrategies builds user-module cache strategies from the shared
+// cachekit defaults and attaches them to services.
+func (f *ServiceFactory) wireCacheStrategies() {
+	currencyCache := usercache.NewCurrencyCache(cachekit.DefaultCache(), nil)
+	settingsCache := usercache.NewSettingsCache(cachekit.DefaultCache(), nil)
+	geoCache := usercache.NewGeoCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	if us, ok := f.userService.(*service.UserServiceImpl); ok {
+		us.SetCurrencyCache(currencyCache)
+	}
+	if ss, ok := f.sellerSettingsService.(*service.SellerSettingsServiceImpl); ok {
+		ss.SetCacheHooks(currencyCache, settingsCache)
+	}
+	if cs, ok := f.countryService.(*service.CountryServiceImpl); ok {
+		cs.SetGeoCache(geoCache)
+	}
+	if cs, ok := f.currencyService.(*service.CurrencyServiceImpl); ok {
+		cs.SetGeoCache(geoCache)
+	}
+	if ms, ok := f.countryCurrencyService.(*service.CountryCurrencyServiceImpl); ok {
+		ms.SetGeoCache(geoCache)
+	}
 }
 
 func (f *ServiceFactory) GetUserService() service.UserService {

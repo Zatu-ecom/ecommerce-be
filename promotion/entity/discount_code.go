@@ -65,6 +65,7 @@ type DiscountCode struct {
 	// Usage Limits
 	UsageLimitTotal       *int `json:"usageLimitTotal"       gorm:"column:usage_limit_total"`
 	UsageLimitPerCustomer *int `json:"usageLimitPerCustomer" gorm:"column:usage_limit_per_customer;default:1"`
+	CurrentUsageCount     int  `json:"currentUsageCount"     gorm:"column:current_usage_count;default:0"`
 
 	// Usage Reset Configuration (e.g., reset every 1 month, 2 weeks, 30 days)
 	// If ResetTimeType is "none", UsageLimitPerCustomer is lifetime limit
@@ -81,6 +82,15 @@ type DiscountCode struct {
 	// Status
 	IsActive *bool `json:"isActive" gorm:"column:is_active;default:true;index"`
 
+	// Auto transitions (cron), same idea as promotion.auto_start / auto_end
+	AutoStart *bool `json:"autoStart" gorm:"column:auto_start;default:true"`
+	AutoEnd   *bool `json:"autoEnd"   gorm:"column:auto_end;default:true"`
+
 	// Metadata
 	Metadata db.JSONMap `json:"metadata" gorm:"column:metadata;type:jsonb;default:'{}'"`
+}
+
+// TableName specifies the table name
+func (DiscountCode) TableName() string {
+	return "discount_code"
 }

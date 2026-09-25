@@ -1,4 +1,4 @@
-.PHONY: help build build-dev run run-dev stop clean logs test migrate docker-up docker-down docker-restart
+.PHONY: help build build-dev run run-dev stop clean logs test migrate docker-up docker-down docker-restart arch-check
 
 # Default target
 help:
@@ -127,56 +127,78 @@ prune:
 	docker system prune -f
 	@echo "✅ Prune complete!"
 
-# Run tests locally
+# Test backends are shared per `go test` package process (one Postgres + one
+# Redis/MinIO/RabbitMQ each, with TRUNCATE/FLUSHALL/purge reset between
+# suites) instead of one container pair per suite. Parallel packages (-p > 1)
+# can still overwhelm Docker Desktop (~4 GiB): mapped ports refuse, Postgres
+# readiness times out, Ryuk reaper names collide. Keep -p 1 until the shared
+# setup proves green, then raise parallelism deliberately.
+GOTEST_INTEGRATION_FLAGS ?= -p 1 -timeout=45m
+
+# Run all tests under ./test/... (fast unit + shared-container integration)
 test:
 	@echo "🧪 Running tests locally..."
-	go test ./test/integration/... -v
+	go test $(GOTEST_INTEGRATION_FLAGS) ./test/... -v
 
 # Run all tests with summary (failed tests shown at end)
 test-all:
-	@echo "🧪 Running all integration tests (use 'make test-pretty' for a formatted test report)..."
-	@go test ./test/integration/... -v 2>&1 | tee /tmp/test_output.txt; \
+	@echo "🧪 Running all tests under ./test/... (use 'make test-pretty' for a formatted test report)..."
+	@go test $(GOTEST_INTEGRATION_FLAGS) ./test/... -v 2>&1 | tee /tmp/test_output.txt; \
 
 # Install gotestsum if not present and run tests with pretty format
 test-pretty:
 	@echo "🔍 Checking for gotestsum..."
 	@which gotestsum >/dev/null || (echo "📦 Installing gotestsum..." && go install gotest.tools/gotestsum@latest)
 	@echo "🧪 Running tests with gotestsum for a formatted summary..."
-	@$$(go env GOPATH)/bin/gotestsum --format pkgname -- -v -timeout=15m ./test/integration/... 2>&1 | tee /tmp/test_output.txt; \
-	echo ""; \
-	echo "=========================================="; \
-	echo "           📊 TEST SUMMARY"; \
-	echo "=========================================="; \
-	echo ""; \
-	TOTAL=$$(grep -oE 'DONE [0-9]+' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
-	TOTAL=$${TOTAL:-0}; \
-	LEAF_FAILED=$$(grep -Fe '--- FAIL:' /tmp/test_output.txt 2>/dev/null | grep -v '^===' | grep '/' | wc -l || true); \
-	LEAF_FAILED=$${LEAF_FAILED:-0}; \
-	ALL_FAILED=$$(grep -cFe '--- FAIL:' /tmp/test_output.txt 2>/dev/null || true); \
-	ALL_FAILED=$${ALL_FAILED:-0}; \
-	if [ "$$LEAF_FAILED" -gt 0 ]; then FAILED=$$LEAF_FAILED; else FAILED=$$ALL_FAILED; fi; \
-	SKIPPED=$$(grep -oE '[0-9]+ skipped' /tmp/test_output.txt 2>/dev/null | grep -oE '[0-9]+' || true); \
-	SKIPPED=$${SKIPPED:-0}; \
-	PASSED=$$((TOTAL - FAILED - SKIPPED)); \
-	echo "📈 Total:  $$TOTAL"; \
-	echo "✅ Passed: $$PASSED"; \
-	echo "⏭️  Skipped: $$SKIPPED"; \
-	echo "❌ Failed: $$FAILED"; \
-	echo ""; \
-	if [ "$$FAILED" -gt 0 ]; then \
-		echo "=========================================="; \
-		echo "           ❌ FAILED TESTS"; \
-		echo "=========================================="; \
-		grep -Fe '--- FAIL:' /tmp/test_output.txt | grep -v '^===' | grep '/' | sed 's/^    //' | sort -u; \
-	else \
-		echo "🎉 All tests passed!"; \
+	@rm -f /tmp/.gotestsum_exit; \
+	{ $$(go env GOPATH)/bin/gotestsum --format pkgname --junitfile /tmp/test_report.xml -- $(GOTEST_INTEGRATION_FLAGS) -v ./test/... 2>&1; echo $$? > /tmp/.gotestsum_exit; } | tee /tmp/test_output.txt; \
+	GOTESTSUM_EXIT=$$(cat /tmp/.gotestsum_exit); \
+	python3 scripts/summarize_junit.py /tmp/test_report.xml; \
+	SUMMARY_EXIT=$$?; \
+	if [ "$$GOTESTSUM_EXIT" -ne 0 ] && [ "$$SUMMARY_EXIT" -eq 0 ]; then \
+		echo "⚠️  gotestsum exited ($$GOTESTSUM_EXIT) but the report shows no failures (e.g. setup aborted)"; \
+		exit "$$GOTESTSUM_EXIT"; \
 	fi; \
-	[ "$$FAILED" -eq 0 ]
+	exit "$$SUMMARY_EXIT"
+
+# Same as test-pretty but TEST_KV_DUAL=1 (two Redis per suite). Use on CI
+# or a host that can hold volatile + durable isolation tests.
+test-pretty-dual:
+	@echo "🧪 Running tests with TEST_KV_DUAL=1 (two Redis processes per suite)..."
+	TEST_KV_DUAL=1 $(MAKE) test-pretty
 
 # Run tests with JSON output for CI/CD
 test-json:
 	@echo "🧪 Running tests with JSON output..."
-	go test ./test/integration/... -json 2>&1 | tee test-results.json
+	go test $(GOTEST_INTEGRATION_FLAGS) ./test/... -json 2>&1 | tee test-results.json
+
+# Test backends for TEST_USE_EXTERNAL=1 (single shared Postgres + Redis for
+# the whole run, fastest local loop; tests still reset state per suite).
+test-up:
+	@echo "🚀 Starting test backends..."
+	docker compose -f docker-compose.test.yml up -d
+	@echo "✅ Test backends up (postgres :5433, cache :6382, durable :6383)"
+	@echo "📝 Run 'TEST_USE_EXTERNAL=1 make test' to use them"
+
+test-down:
+	@echo "🛑 Stopping test backends..."
+	docker compose -f docker-compose.test.yml down
+	@echo "✅ Test backends stopped!"
+
+test-external:
+	@echo "🧪 Running tests against external backends (TEST_USE_EXTERNAL=1)..."
+	TEST_USE_EXTERNAL=1 go test $(GOTEST_INTEGRATION_FLAGS) ./test/... -v
+
+# Architecture guard: common/model must remain pure (no domain imports).
+# Money/currency standardization — violates the modular-monolith dependency rule.
+arch-check:
+	@echo "🏗️  Checking common/model has no domain imports..."
+	@if go list -f '{{.ImportPath}} {{.Imports}}' ./common/model | grep -E 'ecommerce-be/(user|product|order|promotion|report|payment|inventory|notification|file|fulfillment|subscription)'; then \
+		echo "❌ common/model must NOT import domain modules"; \
+		exit 1; \
+	else \
+		echo "✅ common/model is pure (no domain imports)"; \
+	fi
 
 # Re-run only failed tests from the last test-all run
 test-failed:
@@ -190,7 +212,7 @@ test-failed:
 		echo "✅ No failed tests to re-run!"; \
 	else \
 		echo "Running: $$FAILED_TESTS"; \
-		go test ./test/integration/... -v -run "$$FAILED_TESTS" 2>&1 | tee /tmp/test_output.txt; \
+		go test ./test/... -v -run "$$FAILED_TESTS" 2>&1 | tee /tmp/test_output.txt; \
 		echo ""; \
 		echo "=========================================="; \
 		echo "           📊 RE-RUN SUMMARY"; \

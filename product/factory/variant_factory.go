@@ -1,6 +1,7 @@
 package factory
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
@@ -10,32 +11,45 @@ import (
 // VariantFactory handles the creation of product variant entities from requests
 // Stateless factory - all methods are pure functions
 
-// CreateVariantFromRequest creates a ProductVariant entity from a create request
+// CreateVariantFromRequest creates a ProductVariant entity from a create request.
+// The price is interpreted as major units in the seller's currency and converted
+// to cents via CurrencyInfo (strict precision validation inside ToCents).
 func CreateVariantFromRequest(
 	productID uint,
 	req *model.CreateVariantRequest,
-) *entity.ProductVariant {
+	ccy commonModel.CurrencyInfo,
+) (*entity.ProductVariant, error) {
+	priceCents, err := ccy.ToCents(req.Price)
+	if err != nil {
+		return nil, err
+	}
 	return &entity.ProductVariant{
 		ProductID:     productID,
 		SKU:           req.SKU,
-		Price:         req.Price,
+		PriceCents:    priceCents,
 		AllowPurchase: helper.GetBoolOrDefault(req.AllowPurchase, true),
 		IsPopular:     helper.GetBoolOrDefault(req.IsPopular, false),
 		IsDefault:     helper.GetBoolOrDefault(req.IsDefault, false),
-	}
+	}, nil
 }
 
-// UpdateVariantEntity updates an existing ProductVariant entity from an update request
+// UpdateVariantEntity updates an existing ProductVariant entity from an update request.
+// When a new price is provided it is converted from major units to cents.
 func UpdateVariantEntity(
 	variant *entity.ProductVariant,
 	req *model.UpdateVariantRequest,
-) *entity.ProductVariant {
+	ccy commonModel.CurrencyInfo,
+) error {
 	if req.SKU != nil {
 		variant.SKU = *req.SKU
 	}
 
 	if req.Price != nil {
-		variant.Price = *req.Price
+		priceCents, err := ccy.ToCents(*req.Price)
+		if err != nil {
+			return err
+		}
+		variant.PriceCents = priceCents
 	}
 
 	if req.IsPopular != nil {
@@ -52,20 +66,26 @@ func UpdateVariantEntity(
 		variant.AllowPurchase = *req.AllowPurchase
 	}
 
-	return variant
+	return nil
 }
 
-// BulkUpdateVariantEntity updates a variant entity from bulk update data
+// BulkUpdateVariantEntity updates a variant entity from bulk update data.
+// When a new price is provided it is converted from major units to cents.
 func BulkUpdateVariantEntity(
 	variant *entity.ProductVariant,
 	updateData *model.BulkUpdateVariantItem,
-) *entity.ProductVariant {
+	ccy commonModel.CurrencyInfo,
+) error {
 	if updateData.SKU != nil {
 		variant.SKU = *updateData.SKU
 	}
 
 	if updateData.Price != nil {
-		variant.Price = *updateData.Price
+		priceCents, err := ccy.ToCents(*updateData.Price)
+		if err != nil {
+			return err
+		}
+		variant.PriceCents = priceCents
 	}
 
 	if updateData.IsPopular != nil {
@@ -82,7 +102,7 @@ func BulkUpdateVariantEntity(
 		variant.AllowPurchase = *updateData.AllowPurchase
 	}
 
-	return variant
+	return nil
 }
 
 // CreateVariantOptionValue creates a VariantOptionValue entity
@@ -123,16 +143,19 @@ func CreateVariantOptionValues(
 // BuildVariantDetailResponse builds VariantDetailResponse from entities.
 // Media is always initialised as a non-nil slice; callers should overwrite it
 // after resolving file URLs via VariantMediaService.GetMediaForVariants.
+// Price is rendered as the shared Money contract in the seller's currency.
 func BuildVariantDetailResponse(
 	variant *entity.ProductVariant,
 	product *entity.Product,
 	selectedOptions []model.VariantOptionResponse,
+	ccy commonModel.CurrencyInfo,
 ) *model.VariantDetailResponse {
 	response := &model.VariantDetailResponse{
 		ID:              variant.ID,
 		ProductID:       variant.ProductID,
 		SKU:             variant.SKU,
-		Price:           variant.Price,
+		Price:           commonModel.NewMoney(variant.PriceCents, ccy),
+		Currency:        ccy,
 		AllowPurchase:   variant.AllowPurchase,
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
@@ -164,14 +187,17 @@ func BuildVariantDetailResponse(
 
 // BuildVariantResponse builds VariantResponse from entity.
 // Media is always initialised as a non-nil empty slice.
+// Price is rendered as the shared Money contract in the seller's currency.
 func BuildVariantResponse(
 	variant *entity.ProductVariant,
 	selectedOptions []model.VariantOptionResponse,
+	ccy commonModel.CurrencyInfo,
 ) *model.VariantResponse {
 	return &model.VariantResponse{
 		ID:              variant.ID,
 		SKU:             variant.SKU,
-		Price:           variant.Price,
+		Price:           commonModel.NewMoney(variant.PriceCents, ccy),
+		Currency:        ccy,
 		AllowPurchase:   variant.AllowPurchase,
 		IsDefault:       variant.IsDefault,
 		IsPopular:       variant.IsPopular,
@@ -228,6 +254,7 @@ func BuildVariantOptionResponses(
 // BuildVariantDetailResponseFromMapper builds VariantDetailResponse from mapper.VariantWithOptions
 func BuildVariantDetailResponseFromMapper(
 	vwo *mapper.VariantWithOptions,
+	ccy commonModel.CurrencyInfo,
 ) *model.VariantDetailResponse {
 	// Convert mapper.SelectedOptionValue to model.VariantOptionResponse
 	selectedOptions := make([]model.VariantOptionResponse, 0, len(vwo.SelectedOptions))
@@ -244,16 +271,17 @@ func BuildVariantDetailResponseFromMapper(
 	}
 
 	// Use existing BuildVariantDetailResponse to build the response
-	return BuildVariantDetailResponse(&vwo.Variant, nil, selectedOptions)
+	return BuildVariantDetailResponse(&vwo.Variant, nil, selectedOptions, ccy)
 }
 
 // BuildVariantsDetailResponseFromMapper builds multiple VariantDetailResponse from mapper data
 func BuildVariantsDetailResponseFromMapper(
 	variantsWithOptions []mapper.VariantWithOptions,
+	ccy commonModel.CurrencyInfo,
 ) []model.VariantDetailResponse {
 	result := make([]model.VariantDetailResponse, 0, len(variantsWithOptions))
 	for i := range variantsWithOptions {
-		result = append(result, *BuildVariantDetailResponseFromMapper(&variantsWithOptions[i]))
+		result = append(result, *BuildVariantDetailResponseFromMapper(&variantsWithOptions[i], ccy))
 	}
 	return result
 }

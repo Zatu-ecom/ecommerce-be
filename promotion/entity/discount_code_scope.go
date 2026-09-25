@@ -10,6 +10,7 @@ type DiscountCodeProduct struct {
 
 	// References
 	DiscountCodeID uint  `json:"discountCodeId" gorm:"column:discount_code_id;not null;index"`
+	ProductID      uint  `json:"productId"      gorm:"column:product_id;not null;index"`
 	VariantID      *uint `json:"variantId"      gorm:"column:variant_id;index"`
 
 	// Relationships

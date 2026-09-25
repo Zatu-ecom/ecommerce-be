@@ -5,12 +5,16 @@ import (
 	"strings"
 
 	commonError "ecommerce-be/common/error"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // VariantBulkService defines the interface for bulk variant operations
@@ -42,19 +46,74 @@ type VariantBulkServiceImpl struct {
 	variantRepo      repository.VariantRepository
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
+	userSvc          userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *VariantBulkServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewVariantBulkService creates a new instance of VariantBulkService
 func NewVariantBulkService(
 	variantRepo repository.VariantRepository,
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
+	userSvc userService.UserService,
 ) VariantBulkService {
 	return &VariantBulkServiceImpl{
 		variantRepo:      variantRepo,
 		optionService:    optionService,
 		validatorService: validatorService,
+		userSvc:          userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+func (s *VariantBulkServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
+// resolveSellerCurrency resolves the currency for a price write. When the token
+// seller is 0 (admin acting on behalf of a seller), it falls back to the product
+// owner's sellerID so the write is interpreted in the product's base currency.
+func (s *VariantBulkServiceImpl) resolveSellerCurrency(
+	ctx context.Context,
+	product *entity.Product,
+	tokenSellerID uint,
+) (commonModel.CurrencyInfo, error) {
+	sellerID := tokenSellerID
+	if sellerID == 0 && product != nil {
+		sellerID = product.SellerID
+	}
+	return s.sellerCurrency(ctx, sellerID)
 }
 
 /***********************************************
@@ -66,13 +125,18 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 	request *model.BulkUpdateVariantsRequest,
 ) (*model.BulkUpdateVariantsResponse, error) {
 	// Get product and validate seller access using validator service
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate bulk update request
 	if err := validator.ValidateBulkVariantUpdateRequest(request); err != nil {
+		return nil, err
+	}
+
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -97,7 +161,9 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 	variantsToUpdate := make([]*entity.ProductVariant, 0, len(existingVariants))
 	for i := range existingVariants {
 		variant := &existingVariants[i]
-		variant = factory.BulkUpdateVariantEntity(variant, updateMap[variant.ID])
+		if err := factory.BulkUpdateVariantEntity(variant, updateMap[variant.ID], ccy); err != nil {
+			return nil, commonError.ErrValidation.WithMessage(err.Error())
+		}
 		variantsToUpdate = append(variantsToUpdate, variant)
 	}
 
@@ -111,8 +177,24 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 	if err := s.variantRepo.BulkUpdateVariants(ctx, variantsToUpdate); err != nil {
 		return nil, err
 	}
+	s.invalidateVariants(ctx, sellerID, productID, variantsToUpdate)
 
-	return s.buildBulkUpdateResponse(variantsToUpdate), nil
+	return s.buildBulkUpdateResponse(variantsToUpdate, ccy), nil
+}
+
+// invalidateVariants clears listed variant entries, their parent, and retires
+// lists. Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateVariants(ctx context.Context, sellerID, productID uint, variants []*entity.ProductVariant) {
+	if s.productCache == nil {
+		return
+	}
+	ids := make([]uint, 0, len(variants))
+	for _, v := range variants {
+		if v != nil {
+			ids = append(ids, v.ID)
+		}
+	}
+	s.productCache.InvalidateProduct(ctx, sellerID, productID, ids)
 }
 
 // extractVariantIDsAndTrackDefault extracts variant IDs and tracks the last default variant
@@ -156,13 +238,14 @@ func (s *VariantBulkServiceImpl) applyLastOneWinsRule(
 // buildBulkUpdateResponse builds the response with variant summaries
 func (s *VariantBulkServiceImpl) buildBulkUpdateResponse(
 	variants []*entity.ProductVariant,
+	ccy commonModel.CurrencyInfo,
 ) *model.BulkUpdateVariantsResponse {
 	summaries := make([]model.BulkUpdateVariantSummary, 0, len(variants))
 	for _, variant := range variants {
 		summaries = append(summaries, model.BulkUpdateVariantSummary{
 			ID:            variant.ID,
 			SKU:           variant.SKU,
-			Price:         variant.Price,
+			Price:         commonModel.NewMoney(variant.PriceCents, ccy),
 			AllowPurchase: variant.AllowPurchase,
 		})
 	}
@@ -190,7 +273,12 @@ func (s *VariantBulkServiceImpl) CreateVariantsBulk(
 	}
 
 	// Validate product ownership
-	_, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	ccy, err := s.resolveSellerCurrency(ctx, product, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,17 +316,23 @@ func (s *VariantBulkServiceImpl) CreateVariantsBulk(
 		lastDefaultIndex,
 		variantOptionCombinations,
 		&createdVariants,
+		ccy,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert entities to models using factory method (eliminates code duplication)
-	return s.buildVariantDetailResponsesWithFactory(
+	resp := s.buildVariantDetailResponsesWithFactory(
 		createdVariants,
 		variantOptionCombinations,
 		productOptions,
-	), nil
+		ccy,
+	)
+	// New variants cannot be stale, but the parent aggregation changed and any
+	// prior 404 tombstone must go: clear the product key, retire lists.
+	s.invalidateTree(ctx, sellerID, productID)
+	return resp, nil
 }
 
 // buildOptionLookupMaps builds lookup maps for quick option and value access
@@ -269,6 +363,7 @@ func (s *VariantBulkServiceImpl) createVariantsInTransaction(
 	lastDefaultIndex int,
 	variantOptionCombinations []map[uint]uint,
 	createdVariants *[]entity.ProductVariant,
+	ccy commonModel.CurrencyInfo,
 ) error {
 	// Unset existing defaults if needed (before creating new defaults)
 	if lastDefaultIndex != -1 {
@@ -284,6 +379,7 @@ func (s *VariantBulkServiceImpl) createVariantsInTransaction(
 		requests,
 		lastDefaultIndex,
 		variantOptionCombinations,
+		ccy,
 	)
 	if err != nil {
 		return err
@@ -404,6 +500,7 @@ func (s *VariantBulkServiceImpl) createVariantsAndLinkOptions(
 	requests []model.CreateVariantRequest,
 	lastDefaultIndex int,
 	variantOptionCombinations []map[uint]uint,
+	ccy commonModel.CurrencyInfo,
 ) ([]entity.ProductVariant, error) {
 	// Prepare all variants for bulk insert
 	variantsToCreate := make([]*entity.ProductVariant, 0, len(requests))
@@ -413,7 +510,10 @@ func (s *VariantBulkServiceImpl) createVariantsAndLinkOptions(
 		isDefault := s.calculateIsDefault(i, lastDefaultIndex)
 
 		// Create variant entity using factory
-		variant := factory.CreateVariantFromRequest(productID, &req)
+		variant, err := factory.CreateVariantFromRequest(productID, &req, ccy)
+		if err != nil {
+			return nil, commonError.ErrValidation.WithMessage(err.Error())
+		}
 		variant.IsDefault = isDefault
 
 		variantsToCreate = append(variantsToCreate, variant)
@@ -471,6 +571,7 @@ func (s *VariantBulkServiceImpl) buildVariantDetailResponsesWithFactory(
 	variants []entity.ProductVariant,
 	variantOptionCombinations []map[uint]uint,
 	productOptions []entity.ProductOption,
+	ccy commonModel.CurrencyInfo,
 ) []model.VariantDetailResponse {
 	// Convert product options to model format for factory method
 	optionsModel := s.convertProductOptionsToModel(productOptions)
@@ -498,7 +599,7 @@ func (s *VariantBulkServiceImpl) buildVariantDetailResponsesWithFactory(
 		)
 
 		// Build response using factory
-		response := factory.BuildVariantDetailResponse(&variant, nil, selectedOptions)
+		response := factory.BuildVariantDetailResponse(&variant, nil, selectedOptions, ccy)
 		responses = append(responses, *response)
 	}
 

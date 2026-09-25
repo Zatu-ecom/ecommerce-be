@@ -1,8 +1,8 @@
 package model
 
 import (
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 )
 
 // ProductCreateRequest represents the request body for creating a product
@@ -79,14 +79,14 @@ type PackageOptionRequest struct {
 
 // PackageOptionResponse represents a package option in responses
 type PackageOptionResponse struct {
-	ID          uint    `json:"id"`
-	ProductID   uint    `json:"productId"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Price       float64 `json:"price"`
-	Quantity    int     `json:"quantity"`
-	CreatedAt   string  `json:"createdAt"`
-	UpdatedAt   string  `json:"updatedAt"`
+	ID          uint              `json:"id"`
+	ProductID   uint              `json:"productId"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Price       commonModel.Money `json:"price"`
+	Quantity    int               `json:"quantity"`
+	CreatedAt   string            `json:"createdAt"`
+	UpdatedAt   string            `json:"updatedAt"`
 }
 
 // ProductResponse represents the product data returned in API responses
@@ -104,19 +104,21 @@ type ProductResponse struct {
 	SellerID         uint                  `json:"sellerId"`
 
 	// Variant information (from aggregated variants) for a get all products API
-	HasVariants    bool            `json:"hasVariants"`              // Configurable product with option-derived variants
-	Price          float64         `json:"price"`                    // Default variant price
-	PriceRange     *PriceRange     `json:"priceRange,omitempty"`     // Min and max variant prices
-	AllowPurchase  bool            `json:"allowPurchase"`            // At least one variant allows purchase
-	IsPopular      bool            `json:"isPopular"`                // At least one variant is popular
-	VariantPreview *VariantPreview `json:"variantPreview,omitempty"` // Option preview for listings
-	IsWishlisted   bool            `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
+	HasVariants    bool                     `json:"hasVariants"`              // Configurable product with option-derived variants
+	Price          commonModel.Money        `json:"price"`                    // Default variant price
+	PriceRange     *PriceRange              `json:"priceRange,omitempty"`     // Min and max variant prices
+	Currency       commonModel.CurrencyInfo `json:"currency,omitempty"`       // Seller base currency for money fields
+	AllowPurchase  bool                     `json:"allowPurchase"`            // At least one variant allows purchase
+	IsPopular      bool                     `json:"isPopular"`                // At least one variant is popular
+	VariantPreview *VariantPreview          `json:"variantPreview,omitempty"` // Option preview for listings
+	IsWishlisted   bool                     `json:"isWishlisted"`             // User-specific: true if any variant is in user's wishlist
+	WishlistItems  []WishlistItemInfo       `json:"wishlistItems,omitempty"`  // Simple products only: wishlist item IDs for the default placeholder variant
 
 	// Detail product info (for get product by ID)
 	Attributes     []ProductAttributeResponse    `json:"attributes,omitempty"`
 	PackageOptions []PackageOptionResponse       `json:"packageOptions,omitempty"`
-	Options        []ProductOptionDetailResponse `json:"options,omitempty"`  // Full options with values (detail view)
-	Variants       []VariantDetailResponse       `json:"variants"` // Full variants with selected options (detail view); empty for simple products
+	Options        []ProductOptionDetailResponse `json:"options,omitempty"` // Full options with values (detail view)
+	Variants       []VariantDetailResponse       `json:"variants"`          // Full variants with selected options (detail view); empty for simple products
 
 	// Product media (additive – empty slice when no media attached)
 	Media []ProductMediaResponse `json:"media"`
@@ -268,8 +270,15 @@ type BulkUpdatePackageOptionsResponse struct {
 
 // PriceRange represents the minimum and maximum price for a product's variants
 type PriceRange struct {
-	Min float64 `json:"min"`
-	Max float64 `json:"max"`
+	Min commonModel.Money `json:"min"`
+	Max commonModel.Money `json:"max"`
+}
+
+// PriceRangeCents is the internal cents representation of a price range before
+// currency-aware rendering into PriceRange (Money). Not exposed on the wire.
+type PriceRangeCents struct {
+	MinCents int64
+	MaxCents int64
 }
 
 // OptionPreview represents basic option information for variant preview
@@ -286,12 +295,16 @@ type VariantPreview struct {
 }
 
 type GetProductsFilterBase struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	MinPrice  *float64 `form:"minPrice"`
 	MaxPrice  *float64 `form:"maxPrice"`
 	IsPopular *bool    `form:"isPopular"`
 	InStock   *bool    `form:"inStock"`
 	SellerID  *uint    `form:"sellerId"`
+
+	// Internal cents for repository filtering (set by service after currency conversion)
+	MinPriceCents *int64 `json:"-"`
+	MaxPriceCents *int64 `json:"-"`
 }
 
 type GetProductsParams struct {

@@ -14,6 +14,12 @@ type RepositoryFactory struct {
 	promotionCategoryRepository       repository.PromotionCategoryScopeRepository
 	promotionCollectionRepository     repository.PromotionCollectionScopeRepository
 	saleRepository                    repository.SaleRepository
+	discountCodeRepository            repository.DiscountCodeRepository
+	discountCodeUsageRepository       repository.DiscountCodeUsageRepository
+	discountCodeProductRepository     repository.DiscountCodeProductScopeRepository
+	discountCodeVariantRepository     repository.DiscountCodeVariantScopeRepository
+	discountCodeCategoryRepository    repository.DiscountCodeCategoryScopeRepository
+	discountCodeCollectionRepository  repository.DiscountCodeCollectionScopeRepository
 	once                              sync.Once
 }
 
@@ -31,6 +37,12 @@ func (f *RepositoryFactory) initialize() {
 		f.promotionCategoryRepository = repository.NewPromotionCategoryScopeRepository()
 		f.promotionCollectionRepository = repository.NewPromotionCollectionScopeRepository()
 		f.saleRepository = repository.NewSaleRepository()
+		f.discountCodeRepository = repository.NewDiscountCodeRepository()
+		f.discountCodeUsageRepository = repository.NewDiscountCodeUsageRepository()
+		f.discountCodeProductRepository = repository.NewDiscountCodeProductScopeRepository()
+		f.discountCodeVariantRepository = repository.NewDiscountCodeVariantScopeRepository()
+		f.discountCodeCategoryRepository = repository.NewDiscountCodeCategoryScopeRepository()
+		f.discountCodeCollectionRepository = repository.NewDiscountCodeCollectionScopeRepository()
 	})
 }
 
@@ -62,4 +74,34 @@ func (f *RepositoryFactory) GetPromotionRepository() repository.PromotionReposit
 func (f *RepositoryFactory) GetSaleRepository() repository.SaleRepository {
 	f.initialize()
 	return f.saleRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeRepository() repository.DiscountCodeRepository {
+	f.initialize()
+	return f.discountCodeRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeUsageRepository() repository.DiscountCodeUsageRepository {
+	f.initialize()
+	return f.discountCodeUsageRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeProductScopeRepository() repository.DiscountCodeProductScopeRepository {
+	f.initialize()
+	return f.discountCodeProductRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeVariantScopeRepository() repository.DiscountCodeVariantScopeRepository {
+	f.initialize()
+	return f.discountCodeVariantRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeCategoryScopeRepository() repository.DiscountCodeCategoryScopeRepository {
+	f.initialize()
+	return f.discountCodeCategoryRepository
+}
+
+func (f *RepositoryFactory) GetDiscountCodeCollectionScopeRepository() repository.DiscountCodeCollectionScopeRepository {
+	f.initialize()
+	return f.discountCodeCollectionRepository
 }

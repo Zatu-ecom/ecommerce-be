@@ -48,9 +48,9 @@ func (s *UploadSuite) TestInitUpload_ProductImage_HappyPath() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), string(entity.FileStatusUploading), r.Status)
 
-	helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
-	keys, err := s.container.RedisClient.Keys(context.Background(), "file:init:idem:*").Result()
+	keys, err := s.container.DurableKVClient.Keys(context.Background(), "file:init:idem:*").Result()
 	require.NoError(s.T(), err)
 	require.Len(s.T(), keys, 0)
 }

@@ -1,6 +1,8 @@
 package model
 
-import "ecommerce-be/common"
+import (
+	commonModel "ecommerce-be/common/model"
+)
 
 // BasePromotionScopeRequest contains common fields for all scope requests
 type BasePromotionScopeRequest struct {
@@ -10,7 +12,7 @@ type BasePromotionScopeRequest struct {
 // GetPromotionScopeRequest contains pagination parameters for get requests
 type GetPromotionScopeRequest struct {
 	BasePromotionScopeRequest
-	common.BaseListParams
+	commonModel.BaseListParams
 }
 
 // BasePromotionScopeResponse contains common fields for all scope responses
@@ -19,4 +21,4 @@ type BasePromotionScopeResponse struct {
 }
 
 // PaginationResponse alias for common pagination response
-type PaginationResponse = common.PaginationResponse
+type PaginationResponse = commonModel.PaginationResponse

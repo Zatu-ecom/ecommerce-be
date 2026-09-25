@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"ecommerce-be/common"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	promoErrors "ecommerce-be/promotion/error"
 	"ecommerce-be/promotion/factory"
 	"ecommerce-be/promotion/model"
@@ -32,7 +32,11 @@ func (s *PromotionServiceImpl) GetPromotionByID(
 		return nil, promoErrors.ErrUnauthorizedPromotionAccess
 	}
 
-	return factory.PromotionEntityToResponse(promotion), nil
+	ccy, err := s.sellerCurrency(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	return factory.PromotionEntityToResponse(promotion, ccy), nil
 }
 
 // ListPromotions returns a list of promotions based on the provided filters
@@ -63,9 +67,14 @@ func (s *PromotionServiceImpl) ListPromotions(
 		)
 	}
 
+	ccy, err := s.sellerCurrency(ctx, req.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
 	var responseList []*model.PromotionResponse
 	for _, p := range promotions {
-		responseList = append(responseList, factory.PromotionEntityToResponse(p))
+		responseList = append(responseList, factory.PromotionEntityToResponse(p, ccy))
 	}
 
 	if responseList == nil {
@@ -74,6 +83,6 @@ func (s *PromotionServiceImpl) ListPromotions(
 
 	return &model.ListPromotionsResponse{
 		Promotions: responseList,
-		Pagination: common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination: commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}, nil
 }

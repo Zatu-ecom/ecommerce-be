@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/inventory/entity"
 )
@@ -82,7 +82,7 @@ type InventoryDetailResponse struct {
 
 // Get Inventories Filters Params //
 type GetInventoriesBase struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	MinQuantity *int `form:"minQuantity" binding:"omitempty"`
 	MaxQuantity *int `form:"maxQuantity" binding:"omitempty"`
 }
@@ -122,7 +122,7 @@ func (f *GetInventoriesParam) ToFilter() GetInventoriesFilter {
 }
 
 type InventoryResponseWithPagination struct {
-	common.PaginationResponse
+	commonModel.PaginationResponse
 	Inventories []InventoryResponse `json:"inventories"`
 }
 

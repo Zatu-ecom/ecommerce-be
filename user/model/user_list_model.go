@@ -1,9 +1,9 @@
 package model
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 )
 
@@ -13,7 +13,7 @@ import (
 
 // ListUsersQueryParams represents raw query parameters (auto-bound by Gin)
 type ListUsersQueryParams struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	IDs         string `form:"ids"`
 	Emails      string `form:"emails"`
 	Phones      string `form:"phones"`
@@ -28,7 +28,7 @@ type ListUsersQueryParams struct {
 
 // ListUsersFilter contains parsed filter parameters for listing users
 type ListUsersFilter struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	// Multiple ID/value support (parsed from comma-separated strings)
 	IDs       []uint
 	Emails    []string
@@ -109,8 +109,8 @@ type RoleResponse struct {
 
 // ListUsersResponse represents paginated list of users
 type ListUsersResponse struct {
-	Users      []UserListResponse        `json:"users"`
-	Pagination common.PaginationResponse `json:"pagination"`
+	Users      []UserListResponse             `json:"users"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }
 
 // ============================================================================

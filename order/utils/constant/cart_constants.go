@@ -29,3 +29,15 @@ const (
 	GUEST_NOT_FOUND_MSG        = "No guest cart found"
 	DEVICE_CONTEXT_MISSING_MSG = "Device context is required"
 )
+
+// Cart coupon (customer apply/remove) messages
+const (
+	COUPON_APPLIED_MSG                   = "Coupon applied successfully"
+	COUPON_REMOVED_MSG                   = "Coupon removed successfully"
+	ALL_COUPONS_REMOVED_MSG              = "All coupons removed successfully"
+	AVAILABLE_COUPONS_RETRIEVED_MSG      = "Available coupons retrieved successfully"
+	FAILED_TO_APPLY_COUPON_MSG           = "Failed to apply coupon"
+	FAILED_TO_REMOVE_COUPON_MSG          = "Failed to remove coupon"
+	FAILED_TO_LIST_AVAILABLE_COUPONS_MSG = "Failed to list available coupons"
+	COUPON_APPLY_RATE_LIMITED_MSG        = "Too many coupon apply attempts"
+)

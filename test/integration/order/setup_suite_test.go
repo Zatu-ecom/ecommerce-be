@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	orderEntity "ecommerce-be/order/entity"
+	promotionEntity "ecommerce-be/promotion/entity"
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
@@ -107,11 +108,61 @@ func (s *OrderSuite) cleanupOrderDomainData() {
 			Error,
 	)
 	if len(cartIDs) > 0 {
+		var itemIDs []uint
+		s.Require().NoError(
+			s.container.DB.Model(&orderEntity.CartItem{}).
+				Where("cart_id IN ?", cartIDs).
+				Pluck("id", &itemIDs).Error,
+		)
+		if len(itemIDs) > 0 {
+			s.Require().NoError(
+				s.container.DB.Where("cart_item_id IN ?", itemIDs).
+					Delete(&orderEntity.CartItemPromotion{}).Error,
+			)
+		}
+		s.Require().NoError(
+			s.container.DB.Where("cart_id IN ?", cartIDs).
+				Delete(&orderEntity.CartAppliedCoupon{}).Error,
+		)
 		s.Require().NoError(
 			s.container.DB.Where("cart_id IN ?", cartIDs).Delete(&orderEntity.CartItem{}).Error,
 		)
 	}
 	s.Require().NoError(
 		s.container.DB.Where("user_id IN ?", userIDs).Delete(&orderEntity.Cart{}).Error,
+	)
+
+	s.cleanupSeller2DiscountCodes()
+}
+
+func (s *OrderSuite) cleanupSeller2DiscountCodes() {
+	var codeIDs []uint
+	s.Require().NoError(
+		s.container.DB.Table("discount_code").
+			Where("seller_id = ?", helpers.Seller2UserID).
+			Pluck("id", &codeIDs).Error,
+	)
+	if len(codeIDs) == 0 {
+		return
+	}
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeUsage{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeProduct{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeCategory{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeCollection{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCode{}).Error,
 	)
 }

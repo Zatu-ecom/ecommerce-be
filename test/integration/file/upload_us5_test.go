@@ -52,7 +52,7 @@ func (s *UploadSuite) TestCompleteUpload_ObjectMissing() {
 	var r struct{ ID uint64 }
 	err := s.container.DB.Raw("SELECT id FROM file_object WHERE file_id = ?", fileID).Scan(&r).Error
 	require.NoError(s.T(), err)
-	helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, r.ID)
 
 	// No variant message must have been published.
 	s.assertNoVariantMessage(500 * time.Millisecond)

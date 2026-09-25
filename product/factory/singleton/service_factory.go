@@ -1,11 +1,16 @@
 package singleton
 
 import (
+	"context"
 	"sync"
 
+	"ecommerce-be/common/cachekit"
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	filegw "ecommerce-be/file/gateway"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/service"
+	userFactory "ecommerce-be/user/factory/singleton"
+	userService "ecommerce-be/user/service"
 )
 
 // ServiceFactory manages all service singleton instances
@@ -52,6 +57,9 @@ func (f *ServiceFactory) initialize() {
 		productAttrRepo := f.repoFactory.GetProductAttributeRepository()
 		packageOptionRepo := f.repoFactory.GetPackageOptionRepository()
 
+		// Get user service for seller-currency resolution (price writes/reads).
+		userSvc := f.GetUserService()
+
 		// Initialize validator service first (used by other services)
 		f.validatorService = service.NewProductValidatorService(productRepo)
 
@@ -67,6 +75,8 @@ func (f *ServiceFactory) initialize() {
 		f.wishlistItemService = service.NewWishlistItemService(
 			f.repoFactory.GetWishlistItemRepository(),
 			f.repoFactory.GetWishlistRepository(),
+			variantRepo,
+			productRepo,
 		)
 
 		// Initialize ProductFileGateway early — both VariantMediaService and
@@ -95,6 +105,7 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.validatorService,
 			f.variantMediaService,
+			userSvc,
 		)
 
 		// Initialize VariantService with VariantQueryService dependency
@@ -103,6 +114,7 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.validatorService,
 			f.variantQueryService,
+			userSvc,
 		)
 
 		// Initialize VariantBulkService for bulk operations
@@ -110,6 +122,7 @@ func (f *ServiceFactory) initialize() {
 			variantRepo,
 			f.productOptionService,
 			f.validatorService,
+			userSvc,
 		)
 
 		f.categoryService = service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
@@ -124,6 +137,7 @@ func (f *ServiceFactory) initialize() {
 			packageOptionRepo,
 			productRepo,
 			f.validatorService,
+			userSvc,
 		)
 
 		// Initialize Collection services
@@ -145,7 +159,7 @@ func (f *ServiceFactory) initialize() {
 			productFileGateway,
 		)
 
-		// Initialize ProductQueryService with VariantQueryService and media service
+		// Initialize ProductQueryService with VariantQueryService, media service, and wishlist service
 		f.productQueryService = service.NewProductQueryService(
 			productRepo,
 			f.variantQueryService,
@@ -154,13 +168,16 @@ func (f *ServiceFactory) initialize() {
 			f.packageOptionService,
 			f.productOptionService,
 			f.productMediaService,
+			f.wishlistItemService,
+			userSvc,
 		)
 
-		// Initialize WishlistService (needs ProductQueryService for product details)
+		// Initialize WishlistService (needs ProductQueryService + VariantQueryService for product details)
 		f.wishlistService = service.NewWishlistService(
 			f.repoFactory.GetWishlistRepository(),
 			f.repoFactory.GetWishlistItemRepository(),
 			f.productQueryService,
+			f.variantQueryService,
 		)
 
 		// Initialize RecentlyViewedService with repository and ProductQueryService.
@@ -183,8 +200,83 @@ func (f *ServiceFactory) initialize() {
 			f.productOptionService,
 			f.productAttributeService,
 			f.packageOptionService,
+			userSvc,
 		)
+
+		// 012: attach cache strategies (nil-safe; flags gate at call time).
+		f.wireCacheStrategies()
 	})
+}
+
+// wireCacheStrategies builds module cache strategies from the shared
+// cachekit defaults and attaches them to services via the CacheAware
+// interfaces (no concrete coupling). Write services receive the same handles
+// for post-commit invalidation (T028).
+func (f *ServiceFactory) wireCacheStrategies() {
+	productCache := cache.NewProductCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+		f.productMediaService,
+		f.variantMediaService,
+		f.wishlistItemService,
+	)
+	variantRepo := f.repoFactory.GetVariantRepository()
+	productCache.SetVariantLister(func(ctx context.Context, productID uint) ([]uint, error) {
+		variants, err := variantRepo.FindVariantsByProductID(ctx, productID)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]uint, 0, len(variants))
+		for i := range variants {
+			ids = append(ids, variants[i].ID)
+		}
+		return ids, nil
+	})
+	categoryCache := cache.NewCategoryCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	attachProductCache := func(svc any) {
+		if aware, ok := svc.(cache.CacheAware); ok {
+			aware.SetProductCache(productCache)
+		}
+	}
+	attachProductCache(f.productQueryService)
+	attachProductCache(f.variantQueryService)
+	attachProductCache(f.productService)
+	attachProductCache(f.variantService)
+	attachProductCache(f.variantBulkService)
+	attachProductCache(f.productMediaService)
+	attachProductCache(f.variantMediaService)
+	attachProductCache(f.productOptionService)
+	attachProductCache(f.optionValueService)
+	attachProductCache(f.productAttributeService)
+	attachProductCache(f.packageOptionService)
+	if aware, ok := f.categoryService.(cache.CategoryCacheAware); ok {
+		aware.SetCategoryCache(categoryCache)
+	}
+	if aware, ok := f.attributeService.(cache.CategoryCacheAware); ok {
+		aware.SetCategoryCache(categoryCache)
+	}
+	collectionCache := cache.NewCollectionCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+		nil,
+	)
+	if aware, ok := f.collectionService.(cache.CollectionCacheAware); ok {
+		aware.SetCollectionCache(collectionCache)
+	}
+	listCache := cache.NewListCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	if aware, ok := f.productQueryService.(cache.ListCacheAware); ok {
+		aware.SetListCache(listCache)
+	}
 }
 
 // GetCategoryService returns the singleton category service
@@ -297,4 +389,12 @@ func (f *ServiceFactory) GetVariantMediaService() service.VariantMediaService {
 func (f *ServiceFactory) GetRecentlyViewedService() service.RecentlyViewedService {
 	f.initialize()
 	return f.recentlyViewedService
+}
+
+// GetUserService returns the user module's user service for currency resolution
+// (GetSellerDefaultCurrency / GetPreferredCurrency). Product price writes resolve
+// the seller's base currency through this accessor; common/model must never
+// import the user module.
+func (f *ServiceFactory) GetUserService() userService.UserService {
+	return userFactory.GetInstance().GetUserService()
 }

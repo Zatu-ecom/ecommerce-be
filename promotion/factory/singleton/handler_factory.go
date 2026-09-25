@@ -10,12 +10,17 @@ import (
 type HandlerFactory struct {
 	serviceFactory *ServiceFactory
 
-	promotionHandler           *handler.PromotionHandler
-	promotionProductHandler    *handler.PromotionProductScopeHandler
-	promotionVariantHandler    *handler.PromotionVariantScopeHandler
-	promotionCategoryHandler   *handler.PromotionCategoryScopeHandler
-	promotionCollectionHandler *handler.PromotionCollectionScopeHandler
-	saleHandler                *handler.SaleHandler
+	promotionHandler              *handler.PromotionHandler
+	promotionProductHandler       *handler.PromotionProductScopeHandler
+	promotionVariantHandler       *handler.PromotionVariantScopeHandler
+	promotionCategoryHandler      *handler.PromotionCategoryScopeHandler
+	promotionCollectionHandler    *handler.PromotionCollectionScopeHandler
+	saleHandler                   *handler.SaleHandler
+	discountCodeHandler           *handler.DiscountCodeHandler
+	discountCodeProductHandler    *handler.DiscountCodeProductScopeHandler
+	discountCodeVariantHandler    *handler.DiscountCodeVariantScopeHandler
+	discountCodeCategoryHandler   *handler.DiscountCodeCategoryScopeHandler
+	discountCodeCollectionHandler *handler.DiscountCodeCollectionScopeHandler
 
 	once sync.Once
 }
@@ -47,6 +52,21 @@ func (f *HandlerFactory) initialize() {
 			promotionCollectionService,
 		)
 		f.saleHandler = handler.NewSaleHandler(f.serviceFactory.GetSaleService())
+		f.discountCodeHandler = handler.NewDiscountCodeHandler(
+			f.serviceFactory.GetDiscountCodeService(),
+		)
+		f.discountCodeProductHandler = handler.NewDiscountCodeProductScopeHandler(
+			f.serviceFactory.GetDiscountCodeProductScopeService(),
+		)
+		f.discountCodeVariantHandler = handler.NewDiscountCodeVariantScopeHandler(
+			f.serviceFactory.GetDiscountCodeVariantScopeService(),
+		)
+		f.discountCodeCategoryHandler = handler.NewDiscountCodeCategoryScopeHandler(
+			f.serviceFactory.GetDiscountCodeCategoryScopeService(),
+		)
+		f.discountCodeCollectionHandler = handler.NewDiscountCodeCollectionScopeHandler(
+			f.serviceFactory.GetDiscountCodeCollectionScopeService(),
+		)
 	})
 }
 
@@ -78,4 +98,29 @@ func (f *HandlerFactory) GetPromotionCollectionScopeHandler() *handler.Promotion
 func (f *HandlerFactory) GetSaleHandler() *handler.SaleHandler {
 	f.initialize()
 	return f.saleHandler
+}
+
+func (f *HandlerFactory) GetDiscountCodeHandler() *handler.DiscountCodeHandler {
+	f.initialize()
+	return f.discountCodeHandler
+}
+
+func (f *HandlerFactory) GetDiscountCodeProductScopeHandler() *handler.DiscountCodeProductScopeHandler {
+	f.initialize()
+	return f.discountCodeProductHandler
+}
+
+func (f *HandlerFactory) GetDiscountCodeVariantScopeHandler() *handler.DiscountCodeVariantScopeHandler {
+	f.initialize()
+	return f.discountCodeVariantHandler
+}
+
+func (f *HandlerFactory) GetDiscountCodeCategoryScopeHandler() *handler.DiscountCodeCategoryScopeHandler {
+	f.initialize()
+	return f.discountCodeCategoryHandler
+}
+
+func (f *HandlerFactory) GetDiscountCodeCollectionScopeHandler() *handler.DiscountCodeCollectionScopeHandler {
+	f.initialize()
+	return f.discountCodeCollectionHandler
 }

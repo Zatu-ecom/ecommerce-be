@@ -3,6 +3,7 @@ package factory
 import (
 	"time"
 
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
@@ -139,18 +140,24 @@ func UpdateAttributeDefinitionValues(
 	return false
 }
 
-// CreatePackageOptionsFromRequests creates PackageOption entities from requests
+// CreatePackageOptionsFromRequests creates PackageOption entities from requests.
+// Prices are converted from major units to cents via CurrencyInfo.
 func CreatePackageOptionsFromRequests(
 	productID uint,
 	options []model.PackageOptionRequest,
-) []entity.PackageOption {
+	ccy commonModel.CurrencyInfo,
+) ([]entity.PackageOption, error) {
 	packageOptions := make([]entity.PackageOption, 0, len(options))
 
 	for _, option := range options {
+		priceCents, err := ccy.ToCents(option.Price)
+		if err != nil {
+			return nil, err
+		}
 		packageOption := entity.PackageOption{
 			Name:        option.Name,
 			Description: option.Description,
-			Price:       option.Price,
+			PriceCents:  priceCents,
 			Quantity:    option.Quantity,
 			ProductID:   productID,
 			BaseEntity:  helper.NewBaseEntity(),
@@ -158,7 +165,7 @@ func CreatePackageOptionsFromRequests(
 		packageOptions = append(packageOptions, packageOption)
 	}
 
-	return packageOptions
+	return packageOptions, nil
 }
 
 // FlattenProductAttributes converts []*entity.ProductAttribute to []entity.ProductAttribute
@@ -176,16 +183,18 @@ func FlattenProductAttributes(
  *    Response Builders                         *
  ***********************************************/
 
-// BuildPackageOptionResponse builds PackageOptionResponse from entity
+// BuildPackageOptionResponse builds PackageOptionResponse from entity.
+// Price is rendered as the shared Money contract in the seller's currency.
 func BuildPackageOptionResponse(
 	packageOption *entity.PackageOption,
+	ccy commonModel.CurrencyInfo,
 ) *model.PackageOptionResponse {
 	return &model.PackageOptionResponse{
 		ID:          packageOption.ID,
 		ProductID:   packageOption.ProductID,
 		Name:        packageOption.Name,
 		Description: packageOption.Description,
-		Price:       packageOption.Price,
+		Price:       commonModel.NewMoney(packageOption.PriceCents, ccy),
 		Quantity:    packageOption.Quantity,
 		CreatedAt:   helper.FormatTimestamp(packageOption.CreatedAt),
 		UpdatedAt:   helper.FormatTimestamp(packageOption.UpdatedAt),
@@ -195,57 +204,79 @@ func BuildPackageOptionResponse(
 // BuildPackageOptionResponses builds multiple PackageOptionResponse from entities
 func BuildPackageOptionResponses(
 	packageOptions []entity.PackageOption,
+	ccy commonModel.CurrencyInfo,
 ) []model.PackageOptionResponse {
 	responses := make([]model.PackageOptionResponse, 0, len(packageOptions))
 	for _, option := range packageOptions {
-		responses = append(responses, *BuildPackageOptionResponse(&option))
+		responses = append(responses, *BuildPackageOptionResponse(&option, ccy))
 	}
 	return responses
 }
 
-// BuildPackageOptionFromCreateRequest creates a PackageOption entity from a create request
+// BuildPackageOptionFromCreateRequest creates a PackageOption entity from a create request.
+// Price is converted from major units to cents via CurrencyInfo.
 func BuildPackageOptionFromCreateRequest(
 	productID uint,
 	req model.PackageOptionCreateRequest,
-) *entity.PackageOption {
+	ccy commonModel.CurrencyInfo,
+) (*entity.PackageOption, error) {
+	priceCents, err := ccy.ToCents(req.Price)
+	if err != nil {
+		return nil, err
+	}
 	return &entity.PackageOption{
 		ProductID:   productID,
 		Name:        req.Name,
 		Description: req.Description,
-		Price:       req.Price,
+		PriceCents:  priceCents,
 		Quantity:    req.Quantity,
 		BaseEntity:  helper.NewBaseEntity(),
-	}
+	}, nil
 }
 
-// ApplyPackageOptionUpdate applies update request fields to a package option entity
+// ApplyPackageOptionUpdate applies update request fields to a package option entity.
+// When a new price is provided it is converted from major units to cents.
 func ApplyPackageOptionUpdate(
 	packageOption *entity.PackageOption,
 	req model.PackageOptionUpdateRequest,
-) {
+	ccy commonModel.CurrencyInfo,
+) error {
 	packageOption.Name = req.Name
 	packageOption.Description = req.Description
-	packageOption.Price = req.Price
+	priceCents, err := ccy.ToCents(req.Price)
+	if err != nil {
+		return err
+	}
+	packageOption.PriceCents = priceCents
 	packageOption.Quantity = req.Quantity
+	return nil
 }
 
-// ApplyBulkPackageOptionUpdate applies bulk update item fields to a package option entity
+// ApplyBulkPackageOptionUpdate applies bulk update item fields to a package option entity.
+// When a new price is provided it is converted from major units to cents.
 func ApplyBulkPackageOptionUpdate(
 	packageOption *entity.PackageOption,
 	item model.BulkUpdatePackageOptionItem,
-) {
+	ccy commonModel.CurrencyInfo,
+) error {
 	packageOption.Name = item.Name
 	packageOption.Description = item.Description
-	packageOption.Price = item.Price
+	priceCents, err := ccy.ToCents(item.Price)
+	if err != nil {
+		return err
+	}
+	packageOption.PriceCents = priceCents
 	packageOption.Quantity = item.Quantity
+	return nil
 }
 
 // BuildPackageOptionsListResponse builds the list response for package options
 func BuildPackageOptionsListResponse(
 	packageOptions []entity.PackageOption,
+	ccy commonModel.CurrencyInfo,
 ) *model.PackageOptionsResponse {
 	return &model.PackageOptionsResponse{
-		PackageOptions: BuildPackageOptionResponses(packageOptions),
+		PackageOptions: BuildPackageOptionResponses(packageOptions, ccy),
 	}
 }
 
@@ -302,16 +333,19 @@ func BuildAttributeFilters(
 	return filters
 }
 
-// BuildPriceRangeFilter builds PriceRangeFilter from mapper data
+// BuildPriceRangeFilter builds PriceRangeFilter from mapper data.
+// PriceRangeData holds cents; the filter display uses major units in the
+// seller's currency, so cents are converted via CurrencyInfo.
 func BuildPriceRangeFilter(
 	data *mapper.PriceRangeData,
+	ccy commonModel.CurrencyInfo,
 ) *model.PriceRangeFilter {
 	if data == nil || data.ProductCount == 0 {
 		return nil
 	}
 	return &model.PriceRangeFilter{
-		Min:          data.MinPrice,
-		Max:          data.MaxPrice,
+		Min:          commonModel.FromCents(data.MinPriceCents, ccy),
+		Max:          commonModel.FromCents(data.MaxPriceCents, ccy),
 		ProductCount: data.ProductCount,
 	}
 }
@@ -379,6 +413,7 @@ func BuildStockStatusFilter(
 func BuildProductResponse(
 	product *entity.Product,
 	variantAgg *mapper.VariantAggregation,
+	ccy commonModel.CurrencyInfo,
 ) model.ProductResponse {
 	// Build category hierarchy using existing helper method
 	categoryInfo := BuildCategoryHierarchyInfo(product.Category, product.Category.Parent)
@@ -399,31 +434,34 @@ func BuildProductResponse(
 		UpdatedAt:        helper.FormatTimestamp(product.UpdatedAt),
 	}
 
-	ApplyCommerceFieldsFromAggregation(&productResp, variantAgg)
+	ApplyCommerceFieldsFromAggregation(&productResp, variantAgg, ccy)
 
 	return productResp
 }
 
 // ApplyCommerceFieldsFromAggregation sets listing commerce fields from variant aggregation.
+// Prices are cents in the aggregation; Money is rendered via the seller's currency.
 func ApplyCommerceFieldsFromAggregation(
 	productResp *model.ProductResponse,
 	variantAgg *mapper.VariantAggregation,
+	ccy commonModel.CurrencyInfo,
 ) {
 	if productResp == nil || variantAgg == nil {
 		return
 	}
 
 	productResp.HasVariants = variantAgg.HasVariants
-	productResp.Price = variantAgg.DefaultPrice
+	productResp.Price = commonModel.NewMoney(variantAgg.DefaultPriceCents, ccy)
+	productResp.Currency = ccy
 	productResp.AllowPurchase = variantAgg.AllowPurchase
 	productResp.IsPopular = variantAgg.IsPopular
 	productResp.IsWishlisted = variantAgg.IsWishlisted
 	productResp.VariantPreview = nil
 
-	if variantAgg.DefaultPrice > 0 || variantAgg.HasVariants {
+	if variantAgg.DefaultPriceCents > 0 || variantAgg.HasVariants {
 		productResp.PriceRange = &model.PriceRange{
-			Min: variantAgg.MinPrice,
-			Max: variantAgg.MaxPrice,
+			Min: commonModel.NewMoney(variantAgg.MinPriceCents, ccy),
+			Max: commonModel.NewMoney(variantAgg.MaxPriceCents, ccy),
 		}
 	}
 

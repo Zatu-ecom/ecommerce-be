@@ -1,28 +1,28 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 )
 
 // PaginationResponse represents pagination information in API responses
-// Using common.PaginationResponse instead of local definition
-type PaginationResponse = common.PaginationResponse
+// Using commonModel.PaginationResponse instead of local definition
+type PaginationResponse = commonModel.PaginationResponse
 
 // SearchQuery represents search parameters
 type SearchQuery struct {
-	Query     string                 `json:"query"`
+	Query     string         `json:"query"`
 	Filters   map[string]any `json:"filters"`
-	Page      int                    `json:"page"`
-	Limit     int                    `json:"limit"`
-	SortBy    string                 `json:"sortBy"`
-	SortOrder string                 `json:"sortOrder"`
+	Page      int            `json:"page"`
+	Limit     int            `json:"limit"`
+	SortBy    string         `json:"sortBy"`
+	SortOrder string         `json:"sortOrder"`
 }
 
 // FilterOption represents a generic filter option
 type FilterOption struct {
-	ID    any `json:"id"`
-	Value string      `json:"value"`
-	Count int         `json:"count"`
+	ID    any    `json:"id"`
+	Value string `json:"value"`
+	Count int    `json:"count"`
 }
 
 // AttributeFilter represents an attribute filter option

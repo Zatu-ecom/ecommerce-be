@@ -155,41 +155,41 @@ SELECT setval('product_option_value_id_seq', (SELECT MAX(id) FROM product_option
 -- Create variants
 
 -- Product 102 variants (Minimal - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(201, 102, 'MINIMAL-BLK', 9.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(201, 102, 'MINIMAL-BLK', 999, true, false, true);
 
 -- Product 103 variants (Max Fields - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(202, 103, 'MAXFIELD-RED-M', 99.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(202, 103, 'MAXFIELD-RED-M', 9999, true, false, true);
 
 -- Product 104 variants (Unicode - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(203, 104, 'UNICODE-红色-128GB', 899.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(203, 104, 'UNICODE-红色-128GB', 89999, true, false, true);
 
 -- Product 105 variants (Zero Price - 1 free variant, 1 paid variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(204, 105, 'FREE-TRIAL-V1', 0.00, true, false, true),
-(205, 105, 'PAID-VERSION', 19.99, true, false, false);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(204, 105, 'FREE-TRIAL-V1', 0, true, false, true),
+(205, 105, 'PAID-VERSION', 1999, true, false, false);
 
 -- Product 106 variants (Special Characters - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(206, 106, 'SPECIAL-R&B-M/L', 79.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(206, 106, 'SPECIAL-R&B-M/L', 7999, true, false, true);
 
 -- Product 107 variants (Seller 3 - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(207, 107, 'S3-PROD-L', 149.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(207, 107, 'S3-PROD-L', 14999, true, false, true);
 
 -- Product 108 variants (Out of Stock - 1 variant, unavailable)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(208, 108, 'OOS-GRAY', 59.99, false, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(208, 108, 'OOS-GRAY', 5999, false, false, true);
 
 -- Product 109 variants (Many Attributes - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(209, 109, 'MANYATTR-SLV-STD', 1299.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(209, 109, 'MANYATTR-SLV-STD', 129999, true, false, true);
 
 -- Product 110 variants (Long SKU - 1 variant)
-INSERT INTO product_variant (id, product_id, sku, price, allow_purchase, is_popular, is_default) VALUES
-(210, 110, 'VERYLONGSKU-SEGMENT-SEGMENT-SEGMENT-BLUE', 99.99, true, false, true);
+INSERT INTO product_variant (id, product_id, sku, price_cents, allow_purchase, is_popular, is_default) VALUES
+(210, 110, 'VERYLONGSKU-SEGMENT-SEGMENT-SEGMENT-BLUE', 9999, true, false, true);
 
 SELECT setval('product_variant_id_seq', (SELECT MAX(id) FROM product_variant));
 

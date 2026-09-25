@@ -142,12 +142,12 @@ func (r *ProductRepositoryImpl) FindAll(
 		query = query.Where(productQuery.FILTER_VARIANT_IDS_SUBQUERY, filter.VariantIDs)
 	}
 
-	// Price filters - now based on variants
-	if filter.MinPrice != nil {
-		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, *filter.MinPrice)
+	// Price filters - now based on variants (cents, converted by the service layer)
+	if filter.MinPriceCents != nil {
+		query = query.Where(productQuery.FILTER_PRICE_MIN_SUBQUERY, *filter.MinPriceCents)
 	}
-	if filter.MaxPrice != nil {
-		query = query.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, *filter.MaxPrice)
+	if filter.MaxPriceCents != nil {
+		query = query.Where(productQuery.FILTER_PRICE_MAX_SUBQUERY, *filter.MaxPriceCents)
 	}
 
 	// Stock filter - now based on variants

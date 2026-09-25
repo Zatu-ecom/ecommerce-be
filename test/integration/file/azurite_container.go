@@ -21,8 +21,16 @@ type AzuriteContainer struct {
 	ContainerName    string
 }
 
-// SetupAzurite starts an Azurite container and creates the requested blob container.
+// SetupAzurite returns a handle on the process-wide shared Azurite container,
+// ensuring the requested blob container exists and starts empty. The backend
+// stays up for the next suite; Ryuk reaps it at process exit.
 func SetupAzurite(t *testing.T, containerName string) *AzuriteContainer {
+	t.Helper()
+	return acquireSharedAzurite(t, containerName)
+}
+
+// bootAzurite starts one Azurite container and creates the requested blob container.
+func bootAzurite(t *testing.T, containerName string) *AzuriteContainer {
 	t.Helper()
 
 	ctx := context.Background()
@@ -83,13 +91,11 @@ func SetupAzurite(t *testing.T, containerName string) *AzuriteContainer {
 	}
 }
 
-// Cleanup terminates the Azurite container. Safe to call multiple times.
+// Cleanup is a no-op for the shared container: it stays up for the next
+// suite in this process and Ryuk reaps it at process exit. Safe to call
+// multiple times.
 func (a *AzuriteContainer) Cleanup(t *testing.T) {
 	t.Helper()
-	if a == nil || a.Container == nil {
-		return
-	}
-	_ = a.Container.Terminate(context.Background())
 }
 
 // EnsureAzuriteContainer creates the given blob container on an Azurite endpoint.

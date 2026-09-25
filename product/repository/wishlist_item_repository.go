@@ -47,6 +47,14 @@ type WishlistItemRepository interface {
 		userID uint,
 	) (map[uint]bool, error)
 
+	// FindWishlistItemsByVariantIDsAndUserID returns full wishlist item entities for given
+	// variant IDs scoped to a specific user (across all their wishlists).
+	FindWishlistItemsByVariantIDsAndUserID(
+		ctx context.Context,
+		variantIDs []uint,
+		userID uint,
+	) ([]entity.WishlistItem, error)
+
 	// CountByWishlistID counts items in a wishlist
 	CountByWishlistID(ctx context.Context, wishlistID uint) (int64, error)
 
@@ -60,6 +68,14 @@ type WishlistItemRepository interface {
 		wishlistID uint,
 		page, limit int,
 	) ([]uint, int64, error)
+
+	// FindWishlistItemsByWishlistID finds all wishlist items for a wishlist with pagination
+	// Returns full WishlistItem entities (with ID, variant_id, created_at) ordered by created_at DESC
+	FindWishlistItemsByWishlistID(
+		ctx context.Context,
+		wishlistID uint,
+		page, limit int,
+	) ([]entity.WishlistItem, int64, error)
 }
 
 // ============================================================================
@@ -196,6 +212,30 @@ func (r *wishlistItemRepositoryImpl) AreVariantsInUserWishlist(
 	return result, nil
 }
 
+// FindWishlistItemsByVariantIDsAndUserID returns full wishlist item entities for given
+// variant IDs scoped to a specific user (across all their wishlists).
+func (r *wishlistItemRepositoryImpl) FindWishlistItemsByVariantIDsAndUserID(
+	ctx context.Context,
+	variantIDs []uint,
+	userID uint,
+) ([]entity.WishlistItem, error) {
+	if len(variantIDs) == 0 {
+		return []entity.WishlistItem{}, nil
+	}
+	var items []entity.WishlistItem
+	err := r.getDB().WithContext(ctx).Raw(`
+		SELECT wi.id, wi.wishlist_id, wi.variant_id, wi.created_at, wi.updated_at
+		FROM wishlist_item wi
+		INNER JOIN wishlist w ON w.id = wi.wishlist_id
+		WHERE wi.variant_id IN (?)
+		  AND w.user_id = ?
+	`, variantIDs, userID).Scan(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // CountByWishlistID counts items in a wishlist
 func (r *wishlistItemRepositoryImpl) CountByWishlistID(
 	ctx context.Context,
@@ -262,4 +302,38 @@ func (r *wishlistItemRepositoryImpl) FindVariantIDsByWishlistID(
 	}
 
 	return variantIDs, total, nil
+}
+
+// FindWishlistItemsByWishlistID finds all wishlist items for a wishlist with pagination
+// Returns full WishlistItem entities (with ID, variant_id, created_at) ordered by created_at DESC
+func (r *wishlistItemRepositoryImpl) FindWishlistItemsByWishlistID(
+	ctx context.Context,
+	wishlistID uint,
+	page, limit int,
+) ([]entity.WishlistItem, int64, error) {
+	var total int64
+	var items []entity.WishlistItem
+
+	// Count total items
+	err := r.getDB().WithContext(ctx).
+		Model(&entity.WishlistItem{}).
+		Where("wishlist_id = ?", wishlistID).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get wishlist items with pagination (returns ID, variant_id, created_at)
+	offset := (page - 1) * limit
+	err = r.getDB().WithContext(ctx).
+		Where("wishlist_id = ?", wishlistID).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&items).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
 }
