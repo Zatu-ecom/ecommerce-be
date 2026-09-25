@@ -4,6 +4,7 @@ import (
 	"context"
 
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
@@ -99,6 +100,15 @@ type VariantQueryServiceImpl struct {
 	validatorService    ProductValidatorService
 	variantMediaService VariantMediaService
 	userSvc             userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// caching; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *VariantQueryServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
@@ -153,7 +163,34 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 		return nil, err
 	}
 
-	// Build response using helper method (reduces code duplication)
+	// Cached path: entities are already loaded and ownership-checked above;
+	// the strategy stores the stripped DTO and re-enriches on hits.
+	if s.productCache != nil {
+		return s.productCache.GetVariantDetail(ctx, sellerID, variantID, userID,
+			func(ctx context.Context) (*entity.ProductVariant, error) {
+				return variant, nil
+			},
+			func(ctx context.Context, v *entity.ProductVariant) (*model.VariantDetailResponse, error) {
+				return s.buildVariantDetailFull(ctx, v, product, productID, sellerID, userID)
+			})
+	}
+
+	// Build the full response (shared by live and cached-miss paths).
+	return s.buildVariantDetailFull(ctx, variant, product, productID, sellerID, userID)
+}
+
+// buildVariantDetailFull renders a complete variant response: base build,
+// media URL enrichment (best-effort), and wishlist flag for authenticated
+// callers (non-fatal on join failure).
+func (s *VariantQueryServiceImpl) buildVariantDetailFull(
+	ctx context.Context,
+	variant *entity.ProductVariant,
+	product *entity.Product,
+	productID uint,
+	sellerID uint,
+	userID *uint,
+) (*model.VariantDetailResponse, error) {
+	// Base build (unchanged legacy behavior).
 	response, err := s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
 	if err != nil {
 		return nil, err
@@ -165,16 +202,16 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 		mediaSellerID = product.SellerID
 	}
 	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(
-		ctx, []uint{variantID}, &mediaSellerID,
+		ctx, []uint{variant.ID}, &mediaSellerID,
 	); mErr == nil {
-		if items, ok := mediaMap[variantID]; ok {
+		if items, ok := mediaMap[variant.ID]; ok {
 			response.Media = items
 		}
 	}
 
 	// Check if variant is wishlisted by user (if userID is provided)
 	if userID != nil {
-		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variantID, *userID)
+		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
 		if err != nil {
 			// Log error but don't fail the request - wishlist status is non-critical
 			isWishlisted = false
@@ -245,17 +282,36 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 	}
 
 	// Build response
-	response := factory.BuildVariantResponse(variant, selectedOptions, ccy)
+	base := factory.BuildVariantResponse(variant, selectedOptions, ccy)
 
-	// Check wishlist status if user is logged in
+	// Cached path for authenticated and anonymous callers alike: only the
+	// wishlist flag is stripped, so hits re-join one flag and return.
+	if s.productCache != nil && sellerID != nil {
+		resp, err := s.productCache.GetVariantByOptions(ctx, *sellerID, productID,
+			cache.CanonicalOptionHash(optionValues), userID,
+			func(ctx context.Context) (*entity.ProductVariant, error) {
+				return variant, nil
+			},
+			func(ctx context.Context, v *entity.ProductVariant) (*model.VariantResponse, error) {
+				return base, nil
+			})
+		if err != nil {
+			return nil, err
+		}
+		base = resp
+	}
+
+	// Check wishlist status if user is logged in. The live (cache-disabled)
+	// path does not re-join inside ProductCache; always apply here so
+	// FindVariantByOptions matches list/detail regardless of CACHE_ENABLED.
 	if userID != nil {
 		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
 		if err == nil {
-			response.IsWishlisted = isWishlisted
+			base.IsWishlisted = isWishlisted
 		}
 	}
 
-	return response, nil
+	return base, nil
 }
 
 // GetProductVariantsWithOptions retrieves all variants with their selected option values

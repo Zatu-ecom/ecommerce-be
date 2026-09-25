@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -66,7 +67,35 @@ type ProductAttributeServiceImpl struct {
 	productRepo      repository.ProductRepository
 	attributeRepo    repository.AttributeDefinitionRepository
 	validatorService ProductValidatorService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *ProductAttributeServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductAttributeServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductAttributeServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
 func NewProductAttributeService(
@@ -139,6 +168,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Build response using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildProductAttributeDetailResponse(createdAttr), nil
 }
 
@@ -193,6 +223,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Build response using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildProductAttributeDetailResponse(updatedAttr), nil
 }
 
@@ -221,7 +252,11 @@ func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
 	}
 
 	// Delete from database
-	return s.productAttrRepo.Delete(ctx, attributeID)
+	if err := s.productAttrRepo.Delete(ctx, attributeID); err != nil {
+		return err
+	}
+	s.invalidateTree(ctx, sellerID, productID)
+	return nil
 }
 
 // GetProductAttributes retrieves all attributes for a product
@@ -307,6 +342,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		attributeResponses[i] = *factory.BuildProductAttributeDetailResponse(attr)
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return &model.BulkUpdateProductAttributesResponse{
 		UpdatedCount: updatedCount,
 		Attributes:   attributeResponses,
@@ -351,6 +387,7 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 	}
 
 	// Convert entities to models using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return s.convertAttributesToModels(operations.productAttributesToCreate), nil
 }
 

@@ -128,7 +128,7 @@ func (h *ConfigHandler) TestConfig(c *gin.Context) {
 // When set, returns a single schema in a one-element list.
 func (h *ConfigHandler) GetAdapterSchema(c *gin.Context) {
 	adapterType := entity.AdapterType(c.Query(constant.FILE_ADAPTER_TYPE_QUERY_PARAM))
-	schemas, err := service.GetAdapterSchemas(adapterType)
+	schemas, err := h.configService.GetAdapterSchemas(c, adapterType)
 	if err != nil {
 		h.HandleError(
 			c,

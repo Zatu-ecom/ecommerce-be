@@ -12,8 +12,10 @@ import (
 	"ecommerce-be/common/log"
 	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
+	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/model"
 	"ecommerce-be/inventory/repository"
+	invHelper "ecommerce-be/inventory/utils/helper"
 	"ecommerce-be/inventory/validator"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/service"
@@ -44,7 +46,9 @@ type InventoryReservationService interface {
 
 type InventoryReservationServiceImpl struct {
 	reservationRepo        repository.InventoryReservationRepository
+	inventoryRepo          repository.InventoryRepository
 	inventoryQueryService  InventoryQueryService
+	transactionService     InventoryTransactionService
 	variantService         service.VariantQueryService
 	schedulerService       ReservationSchedulerService
 	inventoryManageService InventoryManageService
@@ -54,14 +58,18 @@ type InventoryReservationServiceImpl struct {
 // with all required dependencies injected.
 func NewInventoryReservationService(
 	reservationRepo repository.InventoryReservationRepository,
+	inventoryRepo repository.InventoryRepository,
 	inventoryQueryService InventoryQueryService,
+	transactionService InventoryTransactionService,
 	variantService service.VariantQueryService,
 	schedulerService ReservationSchedulerService,
 	inventoryManageService InventoryManageService,
 ) *InventoryReservationServiceImpl {
 	return &InventoryReservationServiceImpl{
 		reservationRepo:        reservationRepo,
+		inventoryRepo:          inventoryRepo,
 		inventoryQueryService:  inventoryQueryService,
+		transactionService:     transactionService,
 		variantService:         variantService,
 		schedulerService:       schedulerService,
 		inventoryManageService: inventoryManageService,
@@ -378,6 +386,10 @@ func (s *InventoryReservationServiceImpl) manageInventoryQuantity(
 	reservationEntities []*entity.InventoryReservation,
 	inventories []model.InventoryResponse,
 ) error {
+	if transactionType == entity.TXN_RESERVED {
+		return s.reserveInventoryAtomic(ctx, reservationEntities, inventories)
+	}
+
 	mapInventory := make(map[uint]model.InventoryResponse)
 	for _, inv := range inventories {
 		mapInventory[inv.ID] = inv
@@ -404,6 +416,56 @@ func (s *InventoryReservationServiceImpl) manageInventoryQuantity(
 		Items: manageInventoryRequests,
 	}
 	_, err := s.inventoryManageService.BulkManageInventory(ctx, req, sellerId, userId)
+	return err
+}
+
+// reserveInventoryAtomic applies RESERVED via conditional IncrementReservedQuantity
+// (never read-modify-write) and records audit transactions.
+func (s *InventoryReservationServiceImpl) reserveInventoryAtomic(
+	ctx context.Context,
+	reservationEntities []*entity.InventoryReservation,
+	inventories []model.InventoryResponse,
+) error {
+	userID, _ := auth.GetUserIDFromContext(ctx)
+	reasonPrefix := "Inventory reserved for reservation ID "
+
+	params := make([]model.CreateTransactionParams, 0, len(reservationEntities))
+	for _, reservation := range reservationEntities {
+		rows, err := s.inventoryRepo.FindByIDs(ctx, []uint{reservation.InventoryID})
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			return invErrors.ErrInsufficientStock
+		}
+		before := rows[0]
+		delta := int(reservation.Quantity)
+		if err := s.inventoryRepo.IncrementReservedQuantity(ctx, reservation.InventoryID, delta); err != nil {
+			return err
+		}
+		afterRows, err := s.inventoryRepo.FindByIDs(ctx, []uint{reservation.InventoryID})
+		if err != nil {
+			return err
+		}
+		after := afterRows[0]
+		reference := strconv.FormatUint(uint64(reservation.ID), 10)
+		ref := &reference
+		params = append(params, model.CreateTransactionParams{
+			InventoryID:            reservation.InventoryID,
+			TransactionType:        entity.TXN_RESERVED,
+			QuantityChange:         0,
+			BeforeQuantity:         before.Quantity,
+			AfterQuantity:          after.Quantity,
+			ReservedQuantityChange: delta,
+			BeforeReservedQuantity: before.ReservedQuantity,
+			AfterReservedQuantity:  after.ReservedQuantity,
+			PerformedBy:            userID,
+			Reference:              ref,
+			ReferenceType:          invHelper.DetermineReferenceType(entity.TXN_RESERVED),
+			Reason:                 reasonPrefix + reference,
+		})
+	}
+	_, err := s.transactionService.CreateTransactionBatch(ctx, params)
 	return err
 }
 

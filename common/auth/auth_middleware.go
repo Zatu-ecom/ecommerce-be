@@ -2,10 +2,11 @@ package auth
 
 import (
 	commonModel "ecommerce-be/common/model"
+	"errors"
 	"net/http"
 	"strings"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/constants"
 
 	"github.com/gin-gonic/gin"
@@ -43,13 +44,36 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		// Parse and validate the token
 		tokenString := parts[1]
 
-		// Check if token is blacklisted
-		if cache.IsTokenBlacklisted(tokenString) {
+		// Denylist on durable KV: miss = continue; hit = revoked; down = 503.
+		if deny := cachekit.DefaultTokenDenylist(); deny != nil {
+			revoked, err := deny.IsRevoked(c.Request.Context(), tokenString)
+			if err != nil {
+				if errors.Is(err, cachekit.ErrUnavailable) {
+					commonModel.ErrorWithCode(
+						c,
+						http.StatusServiceUnavailable,
+						constants.AUTH_UNAVAILABLE_MSG,
+						constants.AUTH_UNAVAILABLE_CODE,
+					)
+					c.Abort()
+					return
+				}
+			} else if revoked {
+				commonModel.ErrorWithCode(
+					c,
+					http.StatusUnauthorized,
+					constants.TOKEN_REVOKED_MSG,
+					constants.TOKEN_REVOKED_CODE,
+				)
+				c.Abort()
+				return
+			}
+		} else {
 			commonModel.ErrorWithCode(
 				c,
-				http.StatusUnauthorized,
-				constants.TOKEN_REVOKED_MSG,
-				constants.TOKEN_REVOKED_CODE,
+				http.StatusServiceUnavailable,
+				constants.AUTH_UNAVAILABLE_MSG,
+				constants.AUTH_UNAVAILABLE_CODE,
 			)
 			c.Abort()
 			return

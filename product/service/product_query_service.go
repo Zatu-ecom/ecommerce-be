@@ -3,8 +3,13 @@ package service
 import (
 	"context"
 	"math"
+	"sort"
+	"strconv"
+	"strings"
 
+	"ecommerce-be/common/cachekit"
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
@@ -64,6 +69,25 @@ type ProductQueryServiceImpl struct {
 	productMediaService     ProductMediaService
 	wishlistItemService     WishlistItemService
 	userSvc                 userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// caching; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+	// listCache is the optional P2 versioned list strategy (012). Nil
+	// disables caching; wired by the factory via SetListCache.
+	listCache *cache.ListCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *ProductQueryServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// SetListCache attaches the P2 list strategy (implements
+// cache.ListCacheAware). Safe to call with nil (disables caching). Called
+// once by the factory after construction.
+func (s *ProductQueryServiceImpl) SetListCache(c *cache.ListCache) {
+	s.listCache = c
 }
 
 // NewProductQueryService creates a new instance of ProductQueryService
@@ -136,6 +160,13 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 		}
 	}
 
+	// P2 versioned list cache: anonymous seller-scoped reads only. Shared
+	// keys must carry no personalization, so authenticated requests stay
+	// live; cross-seller requests have no tenant scope to key by.
+	if filter.SellerID != nil && userID == nil && s.listCache != nil {
+		return s.getAllProductsListCached(ctx, page, limit, filter)
+	}
+
 	// Fetch products from repository with filters
 	products, total, err := s.productRepo.FindAll(ctx, filter, page, limit)
 	if err != nil {
@@ -158,6 +189,88 @@ func (s *ProductQueryServiceImpl) GetAllProducts(
 		Products:   productsResponse,
 		Pagination: s.buildPaginationResponse(page, limit, total),
 	}, nil
+}
+
+// getAllProductsListCached serves an anonymous seller-scoped page through
+// the versioned list strategy: stripped bytes stored, media re-resolved on
+// hit. Product writes retire pages via the productlist version bump, so
+// pages are never served as current past the write (staleness ≤ list TTL on
+// the version race). InStock-filtered pages are cacheable: items carry no
+// quantities and purchase decisions stay live (atomic reserve, §6).
+func (s *ProductQueryServiceImpl) getAllProductsListCached(
+	ctx context.Context,
+	page, limit int,
+	filter model.GetProductsFilter,
+) (*model.ProductsResponse, error) {
+	sellerID := *filter.SellerID
+	hash := cache.CanonicalHash(listParamsForFilter(filter, page, limit))
+
+	loadLive := func(ctx context.Context) (*model.ProductsResponse, error) {
+		products, total, err := s.productRepo.FindAll(ctx, filter, page, limit)
+		if err != nil {
+			return nil, err
+		}
+		items, err := s.buildProductResponsesWithVariants(ctx, products, nil, filter.SellerID)
+		if err != nil {
+			return nil, err
+		}
+		return &model.ProductsResponse{
+			Products:   items,
+			Pagination: s.buildPaginationResponse(page, limit, total),
+		}, nil
+	}
+	load := func(ctx context.Context) ([]byte, error) {
+		resp, err := loadLive(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return cachekit.Marshal(resp)
+	}
+
+	body, hit, err := s.listCache.Get(ctx, sellerID, cache.FamilyProductList, hash, load, cache.StripProductPage)
+	if err != nil {
+		return nil, err
+	}
+	var resp model.ProductsResponse
+	if err := cachekit.Unmarshal(body, &resp); err != nil {
+		return loadLive(ctx)
+	}
+	if !hit {
+		return &resp, nil
+	}
+	// Hit: re-resolve media (batch, seller-scoped). A media blip with
+	// stripped URLs would serve broken images — fall back to live instead.
+	if err := s.enrichListMedia(ctx, sellerID, &resp); err != nil {
+		return loadLive(ctx)
+	}
+	return &resp, nil
+}
+
+// enrichListMedia re-attaches product media after a list hit.
+func (s *ProductQueryServiceImpl) enrichListMedia(
+	ctx context.Context,
+	sellerID uint,
+	resp *model.ProductsResponse,
+) error {
+	if len(resp.Products) == 0 {
+		return nil
+	}
+	ids := make([]uint, len(resp.Products))
+	for i := range resp.Products {
+		ids[i] = resp.Products[i].ID
+	}
+	mediaByID, err := s.productMediaService.GetMediaForProducts(ctx, ids, &sellerID)
+	if err != nil {
+		return err
+	}
+	for i := range resp.Products {
+		if m := mediaByID[resp.Products[i].ID]; m != nil {
+			resp.Products[i].Media = m
+		} else {
+			resp.Products[i].Media = []model.ProductMediaResponse{}
+		}
+	}
+	return nil
 }
 
 /*
@@ -261,6 +374,17 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 	sellerID *uint,
 	userID *uint,
 ) (*model.ProductResponse, error) {
+	// Cached path: entity load + ownership check run inside the strategy's
+	// fill so misses, tombstones, and per-seller isolation stay correct.
+	if s.productCache != nil {
+		return s.productCache.GetDetail(ctx, id, sellerID, userID,
+			func(ctx context.Context) (*entity.Product, error) {
+				return s.loadProductForDetail(ctx, id, sellerID)
+			},
+			func(ctx context.Context, product *entity.Product) (*model.ProductResponse, error) {
+				return s.buildDetailedProductResponse(ctx, product, sellerID, userID)
+			})
+	}
 	// Fetch product entity
 	product, err := s.productRepo.FindByID(ctx, id)
 	if err != nil {
@@ -275,6 +399,23 @@ func (s *ProductQueryServiceImpl) GetProductByID(
 
 	// Build detailed product response using service dependencies
 	return s.buildDetailedProductResponse(ctx, product, sellerID, userID)
+}
+
+// loadProductForDetail fetches the entity with the seller-ownership check
+// shared by the live and cached paths.
+func (s *ProductQueryServiceImpl) loadProductForDetail(
+	ctx context.Context,
+	id uint,
+	sellerID *uint,
+) (*entity.Product, error) {
+	product, err := s.productRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sellerID != nil && product.SellerID != *sellerID {
+		return nil, prodErrors.ErrProductNotFound
+	}
+	return product, nil
 }
 
 // buildDetailedProductResponse builds a complete ProductResponse with all details
@@ -654,6 +795,75 @@ func (s *ProductQueryServiceImpl) validatePaginationParams(page, limit int) (int
 		limit = 100
 	}
 	return page, limit
+}
+
+// listParamsForFilter renders the canonical list-query params hashed into
+// the page key. Every dimension that changes the result set must appear:
+// sorted multi-values (permutation-stable), post-conversion price cents
+// alongside raw bounds (conversion can fail open to unfiltered), and the
+// validated page/limit. The seller rides the key scope, not the hash.
+func listParamsForFilter(filter model.GetProductsFilter, page, limit int) map[string]string {
+	params := map[string]string{
+		"page":  strconv.Itoa(page),
+		"limit": strconv.Itoa(limit),
+	}
+	if filter.SortBy != "" {
+		params["sortBy"] = filter.SortBy
+	}
+	if filter.SortOrder != "" {
+		params["sortOrder"] = filter.SortOrder
+	}
+	if filter.MinPrice != nil {
+		params["minPrice"] = strconv.FormatFloat(*filter.MinPrice, 'f', -1, 64)
+	}
+	if filter.MaxPrice != nil {
+		params["maxPrice"] = strconv.FormatFloat(*filter.MaxPrice, 'f', -1, 64)
+	}
+	if filter.MinPriceCents != nil {
+		params["minPriceCents"] = strconv.FormatInt(*filter.MinPriceCents, 10)
+	}
+	if filter.MaxPriceCents != nil {
+		params["maxPriceCents"] = strconv.FormatInt(*filter.MaxPriceCents, 10)
+	}
+	if filter.IsPopular != nil {
+		params["isPopular"] = strconv.FormatBool(*filter.IsPopular)
+	}
+	if filter.InStock != nil {
+		params["inStock"] = strconv.FormatBool(*filter.InStock)
+	}
+	if len(filter.CategoryIDs) > 0 {
+		ids := append([]uint(nil), filter.CategoryIDs...)
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		strs := make([]string, len(ids))
+		for i, id := range ids {
+			strs[i] = strconv.FormatUint(uint64(id), 10)
+		}
+		params["categoryIds"] = strings.Join(strs, ",")
+	}
+	if len(filter.Brands) > 0 {
+		brands := append([]string(nil), filter.Brands...)
+		sort.Strings(brands)
+		params["brands"] = strings.Join(brands, ",")
+	}
+	if len(filter.IDs) > 0 {
+		ids := append([]uint(nil), filter.IDs...)
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		strs := make([]string, len(ids))
+		for i, id := range ids {
+			strs[i] = strconv.FormatUint(uint64(id), 10)
+		}
+		params["ids"] = strings.Join(strs, ",")
+	}
+	if len(filter.VariantIDs) > 0 {
+		ids := append([]uint(nil), filter.VariantIDs...)
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		strs := make([]string, len(ids))
+		for i, id := range ids {
+			strs[i] = strconv.FormatUint(uint64(id), 10)
+		}
+		params["variantIds"] = strings.Join(strs, ",")
+	}
+	return params
 }
 
 // buildPaginationResponse builds a standard pagination response

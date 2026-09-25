@@ -3,8 +3,9 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/scheduler"
+	invcache "ecommerce-be/inventory/cache"
 	"ecommerce-be/inventory/repository"
 	"ecommerce-be/inventory/service"
 	productFactory "ecommerce-be/product/factory/singleton"
@@ -43,7 +44,6 @@ func (f *ServiceFactory) initialize() {
 		inventoryRepository := f.repoFactory.GetInventoryRepository()
 		inventoryTransactionRepository := f.repoFactory.GetInventoryTransactionRepository()
 		inventoryReservationRepository := f.repoFactory.GetInventoryReservationRepository()
-		redisClient, _ := cache.GetRedisClient()
 
 		pf := productFactory.GetInstance()
 		variantQueryService := pf.GetVariantQueryService()
@@ -70,10 +70,14 @@ func (f *ServiceFactory) initialize() {
 		)
 
 		// Initialize query service
-		f.inventoryQueryService = service.NewInventoryQueryServiceImpl(
+		querySvc := service.NewInventoryQueryServiceImpl(
 			inventoryRepository,
 			locationRepository,
 		)
+		querySvc.SetAvailabilityCache(invcache.NewAvailabilityCache(
+			cachekit.DefaultCache(), nil,
+		))
+		f.inventoryQueryService = querySvc
 
 		// Initialize transaction service (used by inventory service and for listing)
 		f.inventoryTransactionService = service.NewInventoryTransactionService(
@@ -90,13 +94,15 @@ func (f *ServiceFactory) initialize() {
 		)
 
 		f.reservationSchedulerService = service.NewReservationSchedulerService(
-			*scheduler.New(redisClient),
+			*scheduler.New(scheduler.WiringQueue()),
 		)
 
 		// Initialize inventory reservation service
 		f.inventoryReservationService = service.NewInventoryReservationService(
 			inventoryReservationRepository,
+			inventoryRepository,
 			f.inventoryQueryService,
+			f.inventoryTransactionService,
 			variantQueryService,
 			f.reservationSchedulerService,
 			f.inventoryService,

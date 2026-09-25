@@ -5,8 +5,10 @@ import (
 	"errors"
 	"strings"
 
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/filegateway"
+	"ecommerce-be/payment/cache"
 	"ecommerce-be/payment/entity"
 	paymenterrors "ecommerce-be/payment/error"
 	"ecommerce-be/payment/factory"
@@ -50,6 +52,98 @@ type PaymentGatewayServiceImpl struct {
 	gatewayFactory    *factory.PaymentGatewayFactory
 	userService       userService.UserService
 	fileGateway       filegateway.FileDisplayGateway
+	// catalogCache is the optional gateway-catalog strategy (012). Nil disables
+	// caching; wired by the factory via SetCatalogCache.
+	catalogCache *cache.CatalogCache
+}
+
+// SetCatalogCache attaches the catalog strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *PaymentGatewayServiceImpl) SetCatalogCache(c *cache.CatalogCache) {
+	s.catalogCache = c
+}
+
+// loadCatalogEntry loads one gateway's public catalog slice without caching.
+func (s *PaymentGatewayServiceImpl) loadCatalogEntry(
+	ctx context.Context,
+	code string,
+) (*cache.CatalogGateway, error) {
+	g, err := s.gatewayRepo.FindByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	countries, err := s.listCountries(ctx, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	currencies, err := s.listCurrencies(ctx, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	fields, err := s.gatewayFieldRepo.FindByGatewayID(ctx, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	fieldResponses := make([]paymentModel.GatewayFieldResponse, 0, len(fields))
+	for i := range fields {
+		f := &fields[i]
+		fieldResponses = append(fieldResponses, paymentModel.GatewayFieldResponse{
+			FieldName:       f.FieldName,
+			DisplayName:     f.DisplayName,
+			FieldType:       string(f.FieldType),
+			Description:     f.Description,
+			Placeholder:     f.Placeholder,
+			IsRequired:      f.IsRequired,
+			IsSensitive:     f.IsSensitive,
+			DisplayOrder:    f.DisplayOrder,
+			ValidationRules: f.ValidationRules,
+		})
+	}
+	return &cache.CatalogGateway{
+		ID:          g.ID,
+		Code:        g.Code,
+		Name:        g.Name,
+		Description: g.Description,
+		LogoFileID:  g.LogoFileID,
+		Methods:     []string(g.SupportedPaymentMethods),
+		WebhookURL:  gatewayWebhookURL(g.Code),
+		Countries:   countries,
+		Currencies:  currencies,
+		Fields:      fieldResponses,
+	}, nil
+}
+
+// catalogEntry returns one gateway's catalog slice, cached when wired.
+// A nil entry means unknown code (tombstoned); callers map it to not-found.
+func (s *PaymentGatewayServiceImpl) catalogEntry(
+	ctx context.Context,
+	code string,
+) (*cache.CatalogGateway, error) {
+	if s.catalogCache == nil {
+		return s.loadCatalogEntry(ctx, code)
+	}
+	return s.catalogCache.GetGateway(ctx, code, func(ctx context.Context) (*cache.CatalogGateway, error) {
+		return s.loadCatalogEntry(ctx, code)
+	})
+}
+
+// catalogCodes returns active gateway codes, cached when wired.
+func (s *PaymentGatewayServiceImpl) catalogCodes(ctx context.Context) ([]string, error) {
+	load := func(ctx context.Context) ([]string, error) {
+		gateways, err := s.gatewayRepo.FindAllActive(ctx)
+		if err != nil {
+			return nil, err
+		}
+		codes := make([]string, 0, len(gateways))
+		for i := range gateways {
+			codes = append(codes, gateways[i].Code)
+		}
+		return codes, nil
+	}
+	if s.catalogCache == nil {
+		return load(ctx)
+	}
+	return s.catalogCache.GetCodes(ctx, load)
 }
 
 // NewPaymentGatewayService creates the gateway service.
@@ -73,15 +167,19 @@ func NewPaymentGatewayService(
 
 // ListForSeller lists all active gateways with the seller's per-environment
 // configured state, geo support, store mode, and composed webhook URL.
+// The catalog slice (public metadata) is cached when wired; the per-seller
+// overlay (configs, store mode, resolved logo) is always live.
 func (s *PaymentGatewayServiceImpl) ListForSeller(
 	ctx context.Context,
 	sellerID uint,
 ) ([]paymentModel.GatewaySummaryResponse, error) {
-	gateways, err := s.gatewayRepo.FindAllActive(ctx)
+	codes, err := s.catalogCodes(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// Seller overlay stays live: configs, store mode, and logo resolution
+	// must reflect just-saved credentials on every call.
 	configs, err := s.gatewayConfigRepo.FindActiveBySeller(ctx, sellerID)
 	if err != nil {
 		return nil, err
@@ -101,32 +199,27 @@ func (s *PaymentGatewayServiceImpl) ListForSeller(
 
 	mode := s.storePaymentsEnvironment(ctx, sellerID)
 
-	responses := make([]paymentModel.GatewaySummaryResponse, 0, len(gateways))
-	for i := range gateways {
-		g := &gateways[i]
-		envs := activeByGateway[g.ID]
+	responses := make([]paymentModel.GatewaySummaryResponse, 0, len(codes))
+	for _, code := range codes {
+		entry, err := s.catalogEntry(ctx, code)
+		if err != nil || entry == nil {
+			continue
+		}
+		envs := activeByGateway[entry.ID]
 		sandbox := envs[entity.EnvironmentSandbox]
 		production := envs[entity.EnvironmentProduction]
-		countries, err := s.listCountries(ctx, g.ID)
-		if err != nil {
-			return nil, err
-		}
-		currencies, err := s.listCurrencies(ctx, g.ID)
-		if err != nil {
-			return nil, err
-		}
 		responses = append(responses, paymentModel.GatewaySummaryResponse{
-			Code:                    g.Code,
-			Name:                    g.Name,
-			Logo:                    filegateway.ResolveOptional(ctx, s.fileGateway, g.LogoFileID, &sellerID),
-			SupportedCountries:      countries,
-			SupportedCurrencies:     currencies,
-			SupportedPaymentMethods: []string(g.SupportedPaymentMethods),
+			Code:                    entry.Code,
+			Name:                    entry.Name,
+			Logo:                    filegateway.ResolveOptional(ctx, s.fileGateway, entry.LogoFileID, &sellerID),
+			SupportedCountries:      entry.Countries,
+			SupportedCurrencies:     entry.Currencies,
+			SupportedPaymentMethods: entry.Methods,
 			Configured:              sandbox || production,
 			ConfiguredSandbox:       sandbox,
 			ConfiguredProduction:    production,
 			PaymentsEnvironment:     mode,
-			WebhookURL:              gatewayWebhookURL(g.Code),
+			WebhookURL:              entry.WebhookURL,
 		})
 	}
 
@@ -134,27 +227,31 @@ func (s *PaymentGatewayServiceImpl) ListForSeller(
 }
 
 // GetByCode returns full detail for one gateway: field schema plus both
-// environment configs with masked hints (never secrets).
+// environment configs with masked hints (never secrets). The catalog slice
+// is cached when wired; env configs, hints, mode, and logo stay live.
 func (s *PaymentGatewayServiceImpl) GetByCode(
 	ctx context.Context,
 	sellerID uint,
 	code string,
 ) (*paymentModel.GatewayDetailResponse, error) {
-	g, err := s.gatewayRepo.FindByCode(ctx, code)
+	entry, err := s.catalogEntry(ctx, code)
 	if err != nil {
+		// Tombstone hit (unknown code recorded as absent) maps to the same
+		// not-found error the repository returns — handlers stay unchanged.
+		if errors.Is(err, cachekit.ErrMiss) {
+			return nil, paymenterrors.ErrorPaymentGatewayNotFound
+		}
 		return nil, err
+	}
+	if entry == nil {
+		return nil, paymenterrors.ErrorPaymentGatewayNotFound
 	}
 	adapter, err := s.gatewayFactory.GetPaymentGatewayByCode(code)
 	if err != nil {
 		return nil, err
 	}
 
-	fields, err := s.gatewayFieldRepo.FindByGatewayID(ctx, g.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	configs, err := s.gatewayConfigRepo.FindAllBySellerAndGateway(ctx, sellerID, g.ID)
+	configs, err := s.gatewayConfigRepo.FindAllBySellerAndGateway(ctx, sellerID, entry.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -181,48 +278,27 @@ func (s *PaymentGatewayServiceImpl) GetByCode(
 		envConfigs[string(env)] = entry
 	}
 
-	fieldResponses := make([]paymentModel.GatewayFieldResponse, 0, len(fields))
-	for i := range fields {
-		f := &fields[i]
-		fieldResponses = append(fieldResponses, paymentModel.GatewayFieldResponse{
-			FieldName:       f.FieldName,
-			DisplayName:     f.DisplayName,
-			FieldType:       string(f.FieldType),
-			Description:     f.Description,
-			Placeholder:     f.Placeholder,
-			IsRequired:      f.IsRequired,
-			IsSensitive:     f.IsSensitive,
-			DisplayOrder:    f.DisplayOrder,
-			ValidationRules: f.ValidationRules,
-		})
-	}
+	fieldResponses := make([]paymentModel.GatewayFieldResponse, 0, len(entry.Fields))
+	fieldResponses = append(fieldResponses, entry.Fields...)
 
 	sandbox := envConfigs[string(entity.EnvironmentSandbox)].Configured
 	production := envConfigs[string(entity.EnvironmentProduction)].Configured
-	countries, err := s.listCountries(ctx, g.ID)
-	if err != nil {
-		return nil, err
-	}
-	currencies, err := s.listCurrencies(ctx, g.ID)
-	if err != nil {
-		return nil, err
-	}
 
 	return &paymentModel.GatewayDetailResponse{
 		GatewaySummaryResponse: paymentModel.GatewaySummaryResponse{
-			Code:                    g.Code,
-			Name:                    g.Name,
-			Logo:                    filegateway.ResolveOptional(ctx, s.fileGateway, g.LogoFileID, &sellerID),
-			SupportedCountries:      countries,
-			SupportedCurrencies:     currencies,
-			SupportedPaymentMethods: []string(g.SupportedPaymentMethods),
+			Code:                    entry.Code,
+			Name:                    entry.Name,
+			Logo:                    filegateway.ResolveOptional(ctx, s.fileGateway, entry.LogoFileID, &sellerID),
+			SupportedCountries:      entry.Countries,
+			SupportedCurrencies:     entry.Currencies,
+			SupportedPaymentMethods: entry.Methods,
 			Configured:              sandbox || production,
 			ConfiguredSandbox:       sandbox,
 			ConfiguredProduction:    production,
 			PaymentsEnvironment:     s.storePaymentsEnvironment(ctx, sellerID),
-			WebhookURL:              gatewayWebhookURL(g.Code),
+			WebhookURL:              entry.WebhookURL,
 		},
-		Description: g.Description,
+		Description: entry.Description,
 		Fields:      fieldResponses,
 		Configs:     envConfigs,
 	}, nil

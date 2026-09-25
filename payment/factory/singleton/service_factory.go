@@ -4,11 +4,13 @@ import (
 	"os"
 	"sync"
 
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/filegateway"
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	filegw "ecommerce-be/file/gateway"
 	orderSingleton "ecommerce-be/order/factory/singleton"
 	orderService "ecommerce-be/order/service"
+	"ecommerce-be/payment/cache"
 	"ecommerce-be/payment/factory"
 	"ecommerce-be/payment/service"
 	"ecommerce-be/payment/service/payment_gateway/razorpay"
@@ -98,6 +100,14 @@ func (f *ServiceFactory) initialize() {
 			f.userService,
 			f.fileDisplayGateway,
 		)
+		// 012: attach the gateway-catalog strategy (nil-safe; flags gate at call time).
+		if gs, ok := f.paymentGatewayService.(*service.PaymentGatewayServiceImpl); ok {
+			gs.SetCatalogCache(cache.NewCatalogCache(
+				cachekit.DefaultCache(),
+				cachekit.DefaultDurable(),
+				nil,
+			))
+		}
 		f.reconcileService = service.NewReconcileService(
 			f.repoFactory.GetPaymentTransactionRepository(),
 			f.repoFactory.GetPaymentRefundRepository(),

@@ -55,7 +55,7 @@ func CustomerAuth() gin.HandlerFunc {
 			}
 
 			// OPTIMIZED: Single query validation with complete seller data
-			sellerData, err := auth.GetSellerValidationData(database, sellerID)
+			sellerData, err := auth.GetSellerValidationData(c, database, sellerID)
 			if err != nil {
 				commonModel.ErrorWithCode(
 					c,

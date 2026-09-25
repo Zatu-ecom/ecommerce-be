@@ -7,6 +7,7 @@ import (
 	commonError "ecommerce-be/common/error"
 	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -46,7 +47,35 @@ type VariantBulkServiceImpl struct {
 	optionService    ProductOptionService
 	validatorService ProductValidatorService
 	userSvc          userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *VariantBulkServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewVariantBulkService creates a new instance of VariantBulkService
 func NewVariantBulkService(
@@ -148,8 +177,24 @@ func (s *VariantBulkServiceImpl) BulkUpdateVariants(
 	if err := s.variantRepo.BulkUpdateVariants(ctx, variantsToUpdate); err != nil {
 		return nil, err
 	}
+	s.invalidateVariants(ctx, sellerID, productID, variantsToUpdate)
 
 	return s.buildBulkUpdateResponse(variantsToUpdate, ccy), nil
+}
+
+// invalidateVariants clears listed variant entries, their parent, and retires
+// lists. Call AFTER DB commit.
+func (s *VariantBulkServiceImpl) invalidateVariants(ctx context.Context, sellerID, productID uint, variants []*entity.ProductVariant) {
+	if s.productCache == nil {
+		return
+	}
+	ids := make([]uint, 0, len(variants))
+	for _, v := range variants {
+		if v != nil {
+			ids = append(ids, v.ID)
+		}
+	}
+	s.productCache.InvalidateProduct(ctx, sellerID, productID, ids)
 }
 
 // extractVariantIDsAndTrackDefault extracts variant IDs and tracks the last default variant
@@ -278,12 +323,16 @@ func (s *VariantBulkServiceImpl) CreateVariantsBulk(
 	}
 
 	// Convert entities to models using factory method (eliminates code duplication)
-	return s.buildVariantDetailResponsesWithFactory(
+	resp := s.buildVariantDetailResponsesWithFactory(
 		createdVariants,
 		variantOptionCombinations,
 		productOptions,
 		ccy,
-	), nil
+	)
+	// New variants cannot be stale, but the parent aggregation changed and any
+	// prior 404 tombstone must go: clear the product key, retire lists.
+	s.invalidateTree(ctx, sellerID, productID)
+	return resp, nil
 }
 
 // buildOptionLookupMaps builds lookup maps for quick option and value access

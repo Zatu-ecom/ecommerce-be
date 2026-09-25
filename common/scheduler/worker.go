@@ -6,66 +6,83 @@ import (
 	"strconv"
 	"time"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-
-	"github.com/go-redis/redis/v8"
 )
 
 const (
-	defaultPoolSize       = 5
-	pollInterval          = 500 * time.Millisecond
-	delayedJobsKey        = "delayed_jobs"
-	scheduledJobKeyPrefix = "scheduled_job:"
+	defaultPoolSize = 5
+	pollInterval    = 500 * time.Millisecond
 )
 
-// StartRedisWorkerPool starts a background worker pool that processes delayed/scheduled jobs from Redis.
+// StartRedisWorkerPool starts a background worker pool that processes delayed/scheduled jobs.
 //
 // How it works:
-//  1. Jobs are stored in a Redis Sorted Set ("delayed_jobs") with score = Unix timestamp when job should execute
-//  2. A dispatcher goroutine polls Redis every 500ms looking for jobs whose execution time has passed (score <= now)
-//  3. Due jobs are sent to a buffered channel where worker goroutines pick them up for processing
+//  1. Jobs live on the durable KV role, claimed atomically (exactly one pod per job)
+//  2. A dispatcher goroutine polls the DelayQueue looking for due jobs
+//  3. Due jobs are sent to a buffered channel where worker goroutines pick them up
 //  4. Multiple workers process jobs concurrently, preventing slow jobs from blocking others
 //
 // Why we need this:
 //   - Delayed execution: Schedule tasks to run at a specific future time (e.g., reservation expiry)
 //   - Decoupled processing: HTTP requests return immediately, heavy work happens in background
-//   - Reliability: Jobs persist in Redis, survive server restarts
+//   - Reliability: Jobs persist on durable KV, survive server restarts
 //   - Scalability: Multiple workers process jobs concurrently, configurable via WORKER_POOL_SIZE env
 //   - Non-blocking: Long-running jobs don't block other jobs from being processed
+//
+// Startup gate: without reachable durable KV the pool does NOT start (jobs are
+// correctness infrastructure — silently running no workers would drop expiries).
+// Callers (main.go) run this in a goroutine at application startup.
 //
 // Configuration:
 //
 //	WORKER_POOL_SIZE=10  # Number of concurrent workers (default: 5)
-//
-// Usage:
-//
-//	go scheduler.StartRedisWorkerPool() // Start in a goroutine at application startup
-//
-// To schedule a job:
-//
-//	rdb.ZAdd(ctx, "delayed_jobs", &redis.Z{
-//	    Score:  float64(time.Now().Add(15*time.Minute).Unix()), // Execute 15 min from now
-//	    Member: jobJSON,
-//	})
 func StartRedisWorkerPool() {
+	cfg := config.Get()
+	if cfg == nil {
+		log.Error("scheduler: config not loaded, worker pool not started", nil)
+		return
+	}
+	queue := provider.NewDurable(cfg.Redis)
+
+	pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Ping capability is exposed through a lightweight probe: Poll with an
+	// empty window fails fast when the backend is unreachable.
+	if err := probeQueue(pingCtx, queue); err != nil {
+		log.Error("scheduler: durable KV unreachable, worker pool not started: "+err.Error(), err)
+		return
+	}
+
 	poolSize := getPoolSize()
-	jobChannel := make(chan ScheduledJob, poolSize*2)
+	jobChannel := make(chan claimedJob, poolSize*2)
 
 	// Start worker pool
 	for i := 1; i <= poolSize; i++ {
-		go jobWorker(i, jobChannel)
+		go jobWorker(i, queue, jobChannel)
 	}
 
 	log.Info("Redis worker pool started with " + strconv.Itoa(poolSize) + " workers")
 
 	// Start dispatcher (runs in current goroutine)
-	jobDispatcher(jobChannel)
+	jobDispatcher(queue, jobChannel)
+}
+
+// claimedJob pairs a claimed payload with its transport ID for post-run cleanup.
+type claimedJob struct {
+	jobID   string
+	payload []byte
+}
+
+// probeQueue verifies the queue is reachable without disturbing it.
+func probeQueue(ctx context.Context, queue cachekit.DelayQueue) error {
+	_, err := queue.Poll(ctx, 1)
+	return err
 }
 
 // getPoolSize reads worker pool size from config, defaults to 5
@@ -84,11 +101,15 @@ func getPoolSize() int {
 }
 
 // jobWorker is a goroutine that continuously processes jobs from the channel
-func jobWorker(id int, jobs <-chan ScheduledJob) {
+func jobWorker(id int, queue cachekit.DelayQueue, jobs <-chan claimedJob) {
 	workerID := strconv.Itoa(id)
-	rdb, _ := cache.GetRedisClient()
 
-	for job := range jobs {
+	for claimed := range jobs {
+		var job ScheduledJob
+		if err := json.Unmarshal(claimed.payload, &job); err != nil {
+			log.Error("Worker "+workerID+" failed to unmarshal job payload: "+err.Error(), err)
+			continue
+		}
 		ctx := GetContextWithKeys(job)
 		log.InfoWithContext(
 			ctx,
@@ -103,58 +124,46 @@ func jobWorker(id int, jobs <-chan ScheduledJob) {
 			)
 		}
 
-		// Clean up the job key after processing (regardless of success/failure)
-		if job.JobID != uuid.Nil && rdb != nil {
-			jobKey := scheduledJobKeyPrefix + job.JobID.String()
-			rdb.Del(ctx, jobKey)
+		// Clean up the job index after processing (regardless of success/failure).
+		// Cancel is idempotent: already-gone jobs are a nil no-op.
+		if claimed.jobID != "" {
+			if err := queue.Cancel(context.Background(), claimed.jobID); err != nil {
+				log.ErrorWithContext(ctx, "Worker "+workerID+" failed to clean up job "+claimed.jobID+": "+err.Error(), err)
+			}
 		}
 	}
 }
 
-// jobDispatcher polls Redis for due jobs and sends them to the worker channel
-func jobDispatcher(jobs chan<- ScheduledJob) {
+// jobDispatcher polls the queue for due jobs and sends them to the worker channel.
+// Claiming already happened inside Poll, so every payload here is ours alone,
+// on this pod or any other.
+func jobDispatcher(queue cachekit.DelayQueue, jobs chan<- claimedJob) {
 	ctx := context.Background()
-	rdb, err := cache.GetRedisClient()
-	if err != nil {
-		log.Error("Failed to start dispatcher: "+err.Error(), err)
-		close(jobs)
-		return
-	}
 
 	for {
-		now := time.Now().Unix()
-
-		// Fetch jobs that are due (score <= current timestamp)
-		results, err := rdb.ZRangeByScore(ctx, delayedJobsKey, &redis.ZRangeBy{
-			Min:   "0",
-			Max:   strconv.FormatInt(now, 10),
-			Count: 10, // Fetch multiple jobs at once for efficiency
-		}).Result()
+		payloads, err := queue.Poll(ctx, 10)
 		if err != nil {
-			log.Error("Failed to fetch jobs from Redis: "+err.Error(), err)
+			log.Error("Failed to poll delayed jobs: "+err.Error(), err)
 			time.Sleep(pollInterval)
 			continue
 		}
 
-		if len(results) == 0 {
+		if len(payloads) == 0 {
 			time.Sleep(pollInterval)
 			continue
 		}
 
-		// Process each due job
-		for _, jobData := range results {
-			// Atomically remove the job - only process if we successfully removed it
-			// This prevents duplicate processing in multi-instance environments
-			if rdb.ZRem(ctx, delayedJobsKey, jobData).Val() == 1 {
-				var job ScheduledJob
-				if err := json.Unmarshal([]byte(jobData), &job); err != nil {
-					log.Error("Failed to unmarshal job: "+err.Error(), err)
-					continue
-				}
-
-				// Send to worker channel (non-blocking with buffered channel)
-				jobs <- job
+		for _, payload := range payloads {
+			var probe struct {
+				JobID string `json:"jobId"`
 			}
+			jobID := ""
+			if uerr := json.Unmarshal(payload, &probe); uerr == nil {
+				jobID = probe.JobID
+			}
+			// Send to worker channel (blocks when workers are saturated —
+			// claimed jobs wait in memory, never back in the queue).
+			jobs <- claimedJob{jobID: jobID, payload: payload}
 		}
 	}
 }

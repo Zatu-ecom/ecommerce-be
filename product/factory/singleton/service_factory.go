@@ -1,10 +1,13 @@
 package singleton
 
 import (
+	"context"
 	"sync"
 
+	"ecommerce-be/common/cachekit"
 	fileSingleton "ecommerce-be/file/factory/singleton"
 	filegw "ecommerce-be/file/gateway"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/service"
 	userFactory "ecommerce-be/user/factory/singleton"
 	userService "ecommerce-be/user/service"
@@ -199,7 +202,81 @@ func (f *ServiceFactory) initialize() {
 			f.packageOptionService,
 			userSvc,
 		)
+
+		// 012: attach cache strategies (nil-safe; flags gate at call time).
+		f.wireCacheStrategies()
 	})
+}
+
+// wireCacheStrategies builds module cache strategies from the shared
+// cachekit defaults and attaches them to services via the CacheAware
+// interfaces (no concrete coupling). Write services receive the same handles
+// for post-commit invalidation (T028).
+func (f *ServiceFactory) wireCacheStrategies() {
+	productCache := cache.NewProductCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+		f.productMediaService,
+		f.variantMediaService,
+		f.wishlistItemService,
+	)
+	variantRepo := f.repoFactory.GetVariantRepository()
+	productCache.SetVariantLister(func(ctx context.Context, productID uint) ([]uint, error) {
+		variants, err := variantRepo.FindVariantsByProductID(ctx, productID)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]uint, 0, len(variants))
+		for i := range variants {
+			ids = append(ids, variants[i].ID)
+		}
+		return ids, nil
+	})
+	categoryCache := cache.NewCategoryCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	attachProductCache := func(svc any) {
+		if aware, ok := svc.(cache.CacheAware); ok {
+			aware.SetProductCache(productCache)
+		}
+	}
+	attachProductCache(f.productQueryService)
+	attachProductCache(f.variantQueryService)
+	attachProductCache(f.productService)
+	attachProductCache(f.variantService)
+	attachProductCache(f.variantBulkService)
+	attachProductCache(f.productMediaService)
+	attachProductCache(f.variantMediaService)
+	attachProductCache(f.productOptionService)
+	attachProductCache(f.optionValueService)
+	attachProductCache(f.productAttributeService)
+	attachProductCache(f.packageOptionService)
+	if aware, ok := f.categoryService.(cache.CategoryCacheAware); ok {
+		aware.SetCategoryCache(categoryCache)
+	}
+	if aware, ok := f.attributeService.(cache.CategoryCacheAware); ok {
+		aware.SetCategoryCache(categoryCache)
+	}
+	collectionCache := cache.NewCollectionCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+		nil,
+	)
+	if aware, ok := f.collectionService.(cache.CollectionCacheAware); ok {
+		aware.SetCollectionCache(collectionCache)
+	}
+	listCache := cache.NewListCache(
+		cachekit.DefaultCache(),
+		cachekit.DefaultDurable(),
+		nil,
+	)
+	if aware, ok := f.productQueryService.(cache.ListCacheAware); ok {
+		aware.SetListCache(listCache)
+	}
 }
 
 // GetCategoryService returns the singleton category service

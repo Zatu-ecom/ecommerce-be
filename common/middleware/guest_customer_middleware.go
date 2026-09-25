@@ -131,7 +131,7 @@ func GuestOrCustomerAuth() gin.HandlerFunc {
 		sellerID := uint(sellerID64)
 
 		// Validate seller using the cached validation method
-		sellerData, validationErr := auth.ValidateSellerCompleteCached(database, sellerID)
+		sellerData, validationErr := auth.ValidateSellerCompleteCached(c, database, sellerID)
 		if validationErr != nil {
 			commonModel.ErrorWithCode(
 				c,

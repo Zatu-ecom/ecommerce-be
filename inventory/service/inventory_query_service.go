@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/inventory/cache"
 	"ecommerce-be/inventory/entity"
 	invErrors "ecommerce-be/inventory/error"
 	"ecommerce-be/inventory/factory"
@@ -16,6 +17,12 @@ import (
 type InventoryQueryServiceImpl struct {
 	inventoryRepo repository.InventoryRepository
 	locationRepo  repository.LocationRepository
+	availCache    *cache.AvailabilityCache
+}
+
+// SetAvailabilityCache attaches the internal availability micro-cache (nil disables).
+func (s *InventoryQueryServiceImpl) SetAvailabilityCache(c *cache.AvailabilityCache) {
+	s.availCache = c
 }
 
 // NewInventoryQueryService creates a new instance of InventoryQueryService
@@ -125,7 +132,20 @@ func (s *InventoryQueryServiceImpl) GetTotalAvailableQuantities(
 	req model.TotalAvailableQuantityRequest,
 	sellerID uint,
 ) (*model.TotalAvailableQuantityResponse, error) {
-	// Need to query against all active seller locations
+	load := func(ctx context.Context) (*model.TotalAvailableQuantityResponse, error) {
+		return s.loadTotalAvailableQuantities(ctx, req, sellerID)
+	}
+	if s.availCache != nil {
+		return s.availCache.Get(ctx, sellerID, req, load)
+	}
+	return load(ctx)
+}
+
+func (s *InventoryQueryServiceImpl) loadTotalAvailableQuantities(
+	ctx context.Context,
+	req model.TotalAvailableQuantityRequest,
+	sellerID uint,
+) (*model.TotalAvailableQuantityResponse, error) {
 	activeLocationIDs, err := s.getActiveLocationIDs(ctx, sellerID)
 	if err != nil {
 		if errors.Is(err, invErrors.ErrLocationNotFound) {

@@ -3,9 +3,10 @@ package singleton
 import (
 	"sync"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	msgFactory "ecommerce-be/common/messaging/factory"
 	"ecommerce-be/common/scheduler"
+	filecache "ecommerce-be/file/cache"
 	"ecommerce-be/file/service"
 )
 
@@ -15,8 +16,8 @@ type ServiceFactory struct {
 
 	configService service.ConfigService
 
-	fileReadService   service.FileReadService
-	fileDeleteService service.FileDeleteService
+	fileReadService       service.FileReadService
+	fileDeleteService     service.FileDeleteService
 	fileUploadService     service.FileUploadService
 	uploadExpiryScheduler service.UploadExpiryScheduler
 	uploadExpiryHandler   *service.UploadExpiryHandler
@@ -39,11 +40,13 @@ func (f *ServiceFactory) initialize() {
 
 		// Initialize services
 		f.configService = service.NewConfigService(configRepo)
+		// 012: attach the file reference-data strategy (nil-safe; flags gate).
+		f.configService.SetRefCache(filecache.NewRefCache(cachekit.DefaultCache(), nil))
 		f.fileReadService = service.NewFileReadService(fileUploadRepo, configRepo)
 
-		// Create infrastructure dependencies for upload
-		redisClient, _ := cache.GetRedisClient()
-		sched := scheduler.New(redisClient)
+		// Create infrastructure dependencies for upload (durable KV carries
+		// init-upload idempotency: fail-closed when unwired, never volatile).
+		sched := scheduler.New(scheduler.WiringQueue())
 
 		f.uploadExpiryScheduler = service.NewUploadExpiryScheduler(sched)
 		f.fileDeleteService = service.NewFileDeleteService(
@@ -64,7 +67,7 @@ func (f *ServiceFactory) initialize() {
 			configRepo,
 			f.uploadExpiryScheduler,
 			f.variantPublisher,
-			redisClient,
+			cachekit.DefaultDurable(),
 		)
 
 		f.uploadExpiryHandler = service.NewUploadExpiryHandler(

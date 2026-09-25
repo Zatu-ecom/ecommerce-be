@@ -126,7 +126,7 @@ func PublicAPIAuth() gin.HandlerFunc {
 		// - Seller is active
 		// - Subscription is active
 		// - All other seller validations
-		sellerData, validationErr := auth.ValidateSellerCompleteCached(database, uint(sellerID))
+		sellerData, validationErr := auth.ValidateSellerCompleteCached(c, database, uint(sellerID))
 		if validationErr != nil {
 			commonModel.ErrorWithCode(
 				c,

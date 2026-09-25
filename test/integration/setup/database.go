@@ -66,7 +66,15 @@ func (tc *TestContainer) RunSeeds(t *testing.T, seedPath string) {
 
 // RunAllMigrations automatically discovers and runs all migration files in order
 // Migrations are expected to be in the migrations/ directory and numbered (e.g., 001_*.sql, 002_*.sql)
+//
+// The shared Postgres backend is migrated once per test process; repeat calls
+// with the same shared handle are skipped (schema already applied). Seeds are
+// NOT skipped — they are upsert-safe and repopulate the truncated tables.
 func (tc *TestContainer) RunAllMigrations(t *testing.T) {
+	if isSharedPGMigrated(tc.DB) {
+		t.Logf("migrations already applied on shared test database, skipping")
+		return
+	}
 	migrationsDir := "migrations"
 	absPath, err := getAbsolutePath(migrationsDir)
 	if err != nil {
@@ -111,6 +119,7 @@ func (tc *TestContainer) RunAllMigrations(t *testing.T) {
 		t.Logf("  - Running migration: %s", fileName)
 		tc.RunMigrations(t, migrationPath)
 	}
+	markSharedPGMigrated(tc.DB)
 	// t.Logf("All migrations completed successfully")
 }
 

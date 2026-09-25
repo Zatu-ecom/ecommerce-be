@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"ecommerce-be/common/cache"
 	"ecommerce-be/file/entity"
 	"ecommerce-be/file/service/blobAdapter"
 	"ecommerce-be/test/integration/setup"
@@ -52,12 +51,8 @@ func SetupFileStorageEnv(t *testing.T, cfg FileStorageEnvConfig) *FileStorageEnv
 	}
 
 	containers := setup.SetupTestContainers(t)
-	prevRedis, _ := cache.GetRedisClient()
 	t.Cleanup(func() {
 		containers.Cleanup(t)
-		if prevRedis != nil {
-			cache.SetRedisClient(prevRedis)
-		}
 	})
 
 	containers.RunAllMigrations(t)
@@ -96,6 +91,9 @@ func AttachMinIOStorage(
 	minio := setup.SetupMinioContainer(t)
 	t.Cleanup(func() { minio.Cleanup(t) })
 	require.NoError(t, minio.CreateBucket(context.Background(), cfg.Bucket))
+	// Shared MinIO is reused across suites: start each env with an empty
+	// bucket (same data-equivalence as a fresh container).
+	_ = minio.PurgeBucket(context.Background(), cfg.Bucket)
 
 	_ = os.Setenv("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
 

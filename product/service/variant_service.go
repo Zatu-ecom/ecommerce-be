@@ -7,6 +7,7 @@ import (
 	commonError "ecommerce-be/common/error"
 	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -45,7 +46,35 @@ type VariantServiceImpl struct {
 	validatorService ProductValidatorService
 	queryService     VariantQueryService
 	userSvc          userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *VariantServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *VariantServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewVariantService creates a new instance of VariantService
 func NewVariantService(
@@ -187,7 +216,10 @@ func (s *VariantServiceImpl) CreateVariant(
 	)
 
 	// Build and return response using factory
-	return factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy), nil
+	resp := factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy)
+	// Tree (not single-variant): creation can flip other variants' default flags.
+	s.invalidateTree(ctx, sellerID, productID)
+	return resp, nil
 }
 
 /***********************************************
@@ -246,7 +278,13 @@ func (s *VariantServiceImpl) UpdateVariant(
 	}
 
 	// Build and return response directly from updated data (no additional query needed)
-	return s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID, ccy)
+	resp, err := s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID, ccy)
+	if err != nil {
+		return nil, err
+	}
+	// Tree: updates can flip other variants' default flags inside the transaction.
+	s.invalidateTree(ctx, sellerID, productID)
+	return resp, nil
 }
 
 /***********************************************
@@ -307,8 +345,12 @@ func (s *VariantServiceImpl) DeleteVariant(
 
 		return nil
 	})
-
-	return err
+	if err != nil {
+		return err
+	}
+	// Tree: deleting the default reassigns another variant (flag flip).
+	s.invalidateTree(ctx, sellerID, productID)
+	return nil
 }
 
 /***********************************************
