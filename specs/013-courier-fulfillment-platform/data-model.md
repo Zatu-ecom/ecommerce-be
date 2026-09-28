@@ -1,7 +1,9 @@
 # 013 — Courier Fulfillment Platform · Data Model (Phase 1: DB design)
 
-> Status: **draft for review**. Phase 1 covers tables only. Provider interface (`contracts/`) is Phase 2 and references — but changes — none of these tables.
-> Conventions: singular table names (`SingularTable: true` + `TableName()`), `BaseEntity(id BIGSERIAL PK, created_at/updated_at TIMESTAMPTZ)` with **no `deleted_at`** (matches `payment_*` / `order` tables), money as `BIGINT *_cents`, JSONB `NOT NULL DEFAULT '{}'`, statuses as `VARCHAR` + app-level enum (no DB CHECK except `quantity > 0`, `weight_grams > 0`, `cod_cents >= 0`). All DDL uses `IF NOT EXISTS`. Migration file: `migrations/032_create_fulfillment_tables.sql`. Never edit old migrations.
+> Status: **revised after design review**. Phase 1 is tables only. The service design uses these tables and does not add more.
+> Conventions: singular table names (`SingularTable: true` + `TableName()`), `BaseEntity(id BIGSERIAL PK, created_at/updated_at TIMESTAMPTZ)` with **no `deleted_at`** (matches `payment_*` / `order`), money as `BIGINT *_cents`, JSONB `NOT NULL DEFAULT '{}'`, statuses as `VARCHAR` + one app enum (no DB CHECK except `quantity > 0`, `weight_grams > 0`, `cod_cents >= 0`, `attempt_no > 0`). All DDL uses `IF NOT EXISTS`. Migration file: `migrations/032_create_fulfillment_tables.sql`. Never edit old migrations.
+>
+> `fulfillment/entity/shipment.go` is a stub (`OrderShipment`: `carrier`, `tracking_no`, `pending`). No shipment table exists in migrations yet. `032` creates `fulfillment_shipment`. The stub entity is rewritten to match this model. It is not altered in place under the old column names.
 
 ## 1. Table relation map
 
@@ -10,127 +12,164 @@ erDiagram
     courier_provider ||--o{ courier_provider_config : "has (seller NULL = platform default)"
     courier_provider ||--o{ courier_provider_field : "defines credential form"
     seller_profile ||--o{ courier_provider_config : "overrides"
+    courier_provider_config ||--o{ fulfillment_shipment : "booked with"
     "order" ||--o{ fulfillment_shipment : "ships as N boxes"
     fulfillment_shipment ||--o{ fulfillment_shipment_item : "contains"
     order_item ||--o{ fulfillment_shipment_item : "split across"
     fulfillment_shipment ||--o{ fulfillment_shipment_event : "ledger"
-    fulfillment_shipment ||--o{ fulfillment_ndr : "attempts"
-    fulfillment_shipment ||--o{ fulfillment_return_orig : "rto origin"
+    fulfillment_shipment ||--o{ fulfillment_ndr : "rounds"
     fulfillment_shipment ||--o{ fulfillment_shipment : "return box"
-    fulfillment_shipment ||--|| fulfillment_cod_remittance : "cod trail"
     fulfillment_shipment ||--o{ fulfillment_webhook_log : "audit"
     courier_provider ||--o{ fulfillment_shipment : "carries"
     courier_provider ||--o{ fulfillment_webhook_log : "pushes"
 ```
 
-ASCII fallback (renders anywhere):
-
 ```
 courier_provider ──┬──< courier_provider_config >── seller_profile (NULL seller_id = platform default)
-                   ├──< courier_provider_field (dynamic credential form)
-                   ├──< fulfillment_shipment >── "order" (RESTRICT, never orphan history)
+                   ├──< courier_provider_field
+                   ├──< fulfillment_shipment >── "order" (RESTRICT)
                    └──< fulfillment_webhook_log
 
 fulfillment_shipment ──< fulfillment_shipment_item >── order_item (RESTRICT)
                      ──< fulfillment_shipment_event (immutable ledger)
-                     ──< fulfillment_ndr ──1── fulfillment_return ──→ fulfillment_shipment (return box)
-                     ──1── fulfillment_cod_remittance (1:1, UNIQUE)
+                     ──< fulfillment_ndr (one open round)
+                     ──< fulfillment_shipment.return_of_shipment_id (return box)
 ```
 
-## 2. Data flows (visual)
+COD remittance and a pickup-location table are deferred (section 6). `cod_cents` on the shipment is only a snapshot of what the courier should collect.
 
-### 2a. Shipment lifecycle (state machine; terminal states never regress)
+## 2. Data flows
+
+### 2a. Shipment status (one vocabulary)
+
+The same strings are the shipment `status`, the `ShipmentAction` (plus `ignore`), and the ledger `event_type`. There is no second or third list.
+
+`draft`, `booked`, `pickup_scheduled`, `picked`, `in_transit`, `out_for_delivery`, `ndr_pending`, `delivered`, `failed`, `cancelled`, `rto_in_transit`, `returned`.
+
+Terminal statuses never leave: `delivered`, `failed`, `cancelled`, `returned`.
+
+Moving statuses are not a ladder. A box may go out for delivery, sit in NDR, then go out for delivery again. `Apply` uses the allow-list below. It does not rank statuses and reject a “lower” one.
+
+| From | Allowed next |
+|---|---|
+| draft | booked, cancelled |
+| booked | pickup_scheduled, picked, in_transit, out_for_delivery, cancelled, failed |
+| pickup_scheduled | picked, in_transit, out_for_delivery, cancelled, failed |
+| picked | in_transit, out_for_delivery, ndr_pending, rto_in_transit, delivered, failed |
+| in_transit | out_for_delivery, ndr_pending, rto_in_transit, delivered, failed |
+| out_for_delivery | in_transit, ndr_pending, rto_in_transit, delivered, failed |
+| ndr_pending | in_transit, out_for_delivery, rto_in_transit, failed |
+| rto_in_transit | returned, failed |
+| delivered / failed / cancelled / returned | none |
+
+Same status again is an idempotent no-op (no extra ledger row). A verified event whose pair is not in the table is stored as `ignore` and does not change status. `cancelled` is only legal before pickup (`draft`, `booked`, `pickup_scheduled`).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> draft : POST /shipments
-    draft --> created : provider CreateOrder
-    created --> awb_assigned : POST /:id/awb
-    awb_assigned --> pickup_scheduled : POST /:id/pickup
-    pickup_scheduled --> picked : webhook/cron
-    picked --> in_transit : webhook/cron
-    in_transit --> out_for_delivery : webhook/cron
-    out_for_delivery --> delivered : webhook/cron
-    out_for_delivery --> ndr_pending : failed attempt webhook
-    ndr_pending --> in_transit : ndr reattempt
-    ndr_pending --> rto_initiated : ndr RTO action
-    rto_initiated --> rto_delivered : webhook
-    rto_delivered --> returned : restock signal
-    in_transit --> failed : exception/lost webhook
-    created --> cancelled : POST /:id/cancel (pre-pickup only)
-    awb_assigned --> cancelled : POST /:id/cancel (pre-pickup only)
-    delivered --> [*] : emit completed + COD remit pending
+    [*] --> draft
+    draft --> booked
+    draft --> cancelled
+    booked --> pickup_scheduled
+    booked --> picked
+    booked --> cancelled
+    pickup_scheduled --> picked
+    pickup_scheduled --> cancelled
+    picked --> in_transit
+    in_transit --> out_for_delivery
+    out_for_delivery --> in_transit
+    out_for_delivery --> ndr_pending
+    ndr_pending --> in_transit
+    ndr_pending --> out_for_delivery
+    ndr_pending --> rto_in_transit
+    in_transit --> rto_in_transit
+    out_for_delivery --> delivered
+    in_transit --> delivered
+    rto_in_transit --> returned
+    in_transit --> failed
+    delivered --> [*]
+    returned --> [*]
+    cancelled --> [*]
+    failed --> [*]
 ```
 
-### 2b. Write path (PG first, cache second — never reverse)
+### 2b. Write path (short DB transactions, courier call outside them)
 
 ```mermaid
 flowchart LR
-    H[Handler] --> S[Service tx: shipment + items + event ledger]
-    S --> PG[(PostgreSQL commit)]
-    PG --> D[Del exact volatile keys]
-    D --> V[BumpVersion durable list counter]
-    V --> E[Emit FulfillmentEvent → order/inventory/notification]
+    H[Handler] --> T1[Tx1: lock order, draft shipment + items]
+    T1 --> PG1[(commit)]
+    PG1 --> C[BookShipment HTTP]
+    C --> T2[Tx2: ids, status, ledger]
+    T2 --> PG2[(commit)]
+    PG2 --> D[Del volatile keys]
+    D --> V[BumpVersion list counter]
+    V --> E[Emit progress with shipment lines]
 ```
 
-Lists retire via durable version counters (`fulfill:list:ver:{seller}`); prefix/`KEYS` deletes on the request path are forbidden (012 rule).
+Lists retire via durable version counters (`fulfill:list:ver:{seller}`). Prefix / `KEYS` deletes on the request path are forbidden (012 rule).
 
-### 2c. Read path (volatile cache, fail-open) vs authoritative reads
+### 2c. Read path
+
+Customer tracking reads PostgreSQL only. It does not call the courier and does not change status. A seller refresh is a separate write. Rates use volatile cache. COD plaintext and credentials are never cached.
 
 ```mermaid
 flowchart TD
-    R[GET rate/track/detail/list] --> C{volatile Get?}
+    R[GET track customer] --> PG[(PostgreSQL)]
+    S[POST refresh seller] --> P[provider FetchTracking]
+    P --> A[Apply allow-list]
+    RATE[GET rates] --> C{volatile Get?}
     C -- hit --> RET[return]
     C -- miss --> SF[singleflight fill]
-    SF --> P[PG or provider API]
-    P --> A[async bounded SET 50-100ms, JitteredTTL]
-    A --> RET
-    AUTH[COD remit status / credential plaintext] --> PG2[(PostgreSQL only — never cached)]
+    SF --> API[provider GetRates]
 ```
 
-### 2d. Webhook + reconciler (webhook primary, cron safety net; same Apply)
+### 2d. Webhook + reconciler (same Apply)
+
+Unknown AWB replies **200** and stores nothing. A bad signature replies **401** and stores nothing. Couriers retry 4xx until the endpoint is disabled, so an unknown tracking number must not be a 4xx.
 
 ```mermaid
 sequenceDiagram
-    participant SR as Shiprocket
-    participant WH as POST /webhooks/:code (public)
+    participant SR as Courier
+    participant WH as POST /webhooks/:code
     participant DB as PostgreSQL
-    participant CR as cron reconcile (5m, SKIP LOCKED)
-    SR->>WH: push {awb, status...} + x-api-key
-    WH->>WH: PeekLocators (untrusted) → resolve creds (seller else platform) → verify sig
-    alt unverifiable / unlocatable
-        WH->>SR: 4xx, persist NOTHING
+    participant CR as cron
+    SR->>WH: push status + signature
+    WH->>WH: PeekLocators then load shipment
+    alt bad signature
+        WH->>SR: 401, persist nothing
+    else unknown AWB
+        WH->>SR: 200, persist nothing
     else verified
-        WH->>DB: webhook_log UNIQUE(provider,event_id) → Apply status+event → emit domain event
-        WH->>SR: 200 (even if apply failed → status=failed, cron heals)
+        WH->>DB: webhook_log UNIQUE then Apply
+        WH->>SR: 200 even if Apply failed
     end
-    CR->>SR: bulk track stale AWBs (100/batch)
-    CR->>DB: same Apply path (source=system)
+    CR->>DB: stale rows grouped by provider_config_id
+    CR->>SR: bulk track per account
+    CR->>DB: same Apply
 ```
 
 ## 3. Tables
 
-### T1 · `courier_provider` — catalog (mirrors `payment_gateway`)
+### T1 · `courier_provider` — catalog
 
-New courier (aggregator *or* direct) = 1 seed INSERT. No code/DB change in orchestrators.
+One seed row per courier. Orchestrators do not gain a branch per courier.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
-| code | VARCHAR(50) | NOT NULL UNIQUE — `shiprocket`, `delhivery`, `bluedart`; factory registry key |
-| name | VARCHAR(100) | NOT NULL, display |
+| code | VARCHAR(50) | NOT NULL UNIQUE — `shiprocket`, `delhivery`; factory key |
+| name | VARCHAR(100) | NOT NULL |
 | kind | VARCHAR(20) | NOT NULL `aggregator` / `direct` |
-| supports_pickup / supports_ndr / supports_return / supports_cod / webhook_supported | BOOLEAN | Capability flags; UI gates buttons on these (direct couriers often lack NDR) |
-| base_url | TEXT | NULL; adapter default, overridable per env |
-| is_active | BOOLEAN | DEFAULT TRUE — kill-switch without delete |
+| supports_pickup / supports_ndr / supports_return / supports_cod / webhook_supported | BOOLEAN | UI gates. Direct couriers often lack NDR |
+| is_active | BOOLEAN | DEFAULT TRUE |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-Indexes: `idx_courier_provider_code (code)`.
+The API host lives in the adapter, not in this table.
+
+Index: `UNIQUE(code)` is enough (no second index on `code`).
 Seed: `('shiprocket','Shiprocket','aggregator', true…)`.
 
-### T2 · `courier_provider_field` — dynamic credential form (mirrors `payment_gateway_field`)
-
-Lets the dashboard render per-provider credential forms and gives `Validate()` a data-driven source. New provider's form = seed rows, no migration.
+### T2 · `courier_provider_field` — credential form
 
 | Column | Type | Constraints / notes |
 |---|---|---|
@@ -144,62 +183,74 @@ Lets the dashboard render per-provider credential forms and gives `Validate()` a
 | validation_rules | JSONB | NULL |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-Seed examples — shiprocket: `api_email` (required), `api_password` (required+sensitive), `webhook_secret` (optional+sensitive); delhivery: `api_token` (required+sensitive).
-Index: `idx_courier_provider_field_provider (provider_code)`.
+Seed — shiprocket: `api_email`, `api_password` (sensitive), `webhook_secret` (sensitive). The unique pair is the lookup index.
 
-### T3 · `courier_provider_config` — hybrid credentials (mirrors `payment_gateway_config`)
+### T3 · `courier_provider_config` — hybrid credentials
 
-`s seller_id NULL` = platform default; per-seller row overrides it. Resolver: seller row else platform row. Credentials encrypted at rest, masked in API/logs; `TestConnection` never persists.
+`seller_id NULL` is the platform default. A seller row overrides it at **book** time. The shipment stores `provider_config_id`, so later webhooks and tracking use that same row. They do not resolve “seller else platform” again.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
-| seller_id | BIGINT | NULL FK → `seller_profile(user_id)` ON DELETE CASCADE; NULL = platform default |
+| seller_id | BIGINT | NULL FK → `seller_profile(user_id)` ON DELETE CASCADE |
 | provider_code | VARCHAR(50) | NOT NULL FK → `courier_provider(code)` ON DELETE CASCADE |
-| environment | VARCHAR(20) | NOT NULL DEFAULT `'production'` (`sandbox`/`production`; sandbox holds test/mock creds — Shiprocket has no true sandbox) |
-| credentials | JSONB | NOT NULL — encrypted; shape validated against T2 |
-| pickup_alias | VARCHAR(100) | NULL — default pickup location nickname |
-| is_active | BOOLEAN | DEFAULT TRUE — per-seller disable |
+| environment | VARCHAR(20) | NOT NULL DEFAULT `'production'` |
+| credentials | JSONB | NOT NULL — encrypted |
+| pickup_alias | VARCHAR(100) | NULL |
+| is_active | BOOLEAN | DEFAULT TRUE |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-Constraints: `UNIQUE(seller_id, provider_code, environment)` **plus** partial `UNIQUE(provider_code, environment) WHERE seller_id IS NULL` (plain UNIQUE allows multiple NULLs in PG — without the partial index duplicate platform defaults are possible).
-Indexes: `(seller_id)`, `(provider_code)`, `(seller_id, is_active)`.
+`UNIQUE(seller_id, provider_code, environment)` plus partial `UNIQUE(provider_code, environment) WHERE seller_id IS NULL`.
+Index: `(seller_id, provider_code, is_active)`.
 
-### T4 · `fulfillment_shipment` — core (extends stub `OrderShipment`; one row per split box)
+### T4 · `fulfillment_shipment` — one row per box
 
-Fully provider-generic (no `sr_*` names). An order with 3 items shipped in 2 boxes = 2 rows. `awb` NULL until the AWB step.
+`provider_code` has **no default**. The service sets it. `awb` stays NULL until booking returns one.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
-| order_id | BIGINT | NOT NULL FK → `"order"(id)` ON DELETE RESTRICT (never orphan financial history) |
-| seller_id | BIGINT | NOT NULL FK → `seller_profile(user_id)`; every seller query filters this |
-| provider_code | VARCHAR(50) | NOT NULL DEFAULT `'shiprocket'` FK → `courier_provider(code)` |
-| provider_order_id | TEXT | NULL — provider's order id; NULL in `draft` |
+| order_id | BIGINT | NOT NULL FK → `"order"(id)` ON DELETE RESTRICT |
+| seller_id | BIGINT | NOT NULL FK → `seller_profile(user_id)` |
+| provider_code | VARCHAR(50) | NOT NULL FK → `courier_provider(code)` |
+| provider_config_id | BIGINT | NULL until book; then NOT NULL in practice. FK → `courier_provider_config(id)` |
+| provider_order_id | TEXT | NULL in `draft`. Value sent to the courier is this shipment’s id, not the order id |
 | provider_shipment_id | TEXT | NULL |
-| awb | TEXT | NULL — webhook locator; UNIQUE (NULLs ignored by PG) |
-| courier_name | VARCHAR(100) | NULL — late-bound by aggregator (e.g. `Delhivery Surface`) |
-| service_code | VARCHAR(50) | NULL — chosen rate option |
-| status | VARCHAR(32) | NOT NULL DEFAULT `'draft'`; set §3.1 |
-| pickup_pincode / delivery_pincode | VARCHAR(20) | NULL — rate inputs snapshot |
+| awb | TEXT | NULL |
+| idempotency_key | TEXT | NULL — client retry key |
+| courier_name | VARCHAR(100) | NULL — late-bound, e.g. `Delhivery Surface` |
+| service_code | VARCHAR(50) | NULL |
+| status | VARCHAR(32) | NOT NULL DEFAULT `'draft'` — section 2a only |
+| pickup_pincode / delivery_pincode | VARCHAR(20) | NULL |
 | weight_grams | INT | NULL CHECK (`weight_grams > 0`) |
-| length_cm / breadth_cm / height_cm | NUMERIC(8,2) | NULL — dims snapshot |
-| cod_cents | BIGINT | NOT NULL DEFAULT 0 — 0 = prepaid |
-| rate_cents | BIGINT | NULL — quoted freight at ship time (audit) |
+| length_cm / breadth_cm / height_cm | NUMERIC(8,2) | NULL |
+| cod_cents | BIGINT | NOT NULL DEFAULT 0 — collect-amount snapshot. 0 = prepaid. Not a remittance record |
+| rate_cents | BIGINT | NULL — quoted freight |
 | insured | BOOLEAN | DEFAULT FALSE |
-| label_url | TEXT | NULL — File-module id or provider URL |
-| etd / shipped_at / delivered_at / cancelled_at | TIMESTAMPTZ | NULL |
-| raw_ref | JSONB | NOT NULL DEFAULT `'{}'` — sanitized provider snapshot, no PII |
+| etd / shipped_at / delivered_at / cancelled_at / last_synced_at | TIMESTAMPTZ | NULL. `last_synced_at` is the last successful provider poll or applied webhook. It is not `updated_at` |
+| return_of_shipment_id | BIGINT | NULL FK → `fulfillment_shipment(id)`. Set on a return box. No separate return-status table |
+| raw_ref | JSONB | NOT NULL DEFAULT `'{}'` — sanitized, no PII |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-#### §3.1 Status set (extends stub's 7)
+Labels are not stored. `GetLabel` streams bytes from the courier on request.
 
-`draft, created, awb_assigned, pickup_scheduled, picked, in_transit, out_for_delivery, delivered, failed, cancelled, ndr_pending, rto_initiated, rto_delivered, returned`. Transitions enforced in service (terminal `delivered/returned/cancelled/failed` never regress).
+Constraints:
+- `UNIQUE(provider_code, provider_order_id)`
+- `UNIQUE(provider_code, awb)` (PostgreSQL allows many NULLs)
+- `UNIQUE(idempotency_key)` (many NULLs allowed)
+- `CHECK (return_of_shipment_id IS NULL OR return_of_shipment_id <> id)`
 
-Constraints: `UNIQUE(provider_code, provider_order_id)` (provider idempotency — create-order retries don't dup), `UNIQUE(awb)`.
-Indexes: `(seller_id, status)`, `(order_id)`, `(awb)`, `(status, updated_at)` (reconciler sweep), `(created_at DESC)`.
+Indexes:
+- `(seller_id, created_at DESC)` — seller list
+- `(seller_id, status)`
+- `(order_id)`
+- `(status, last_synced_at)` — reconciler
 
-### T5 · `fulfillment_shipment_item` — split lines (keeps stub shape)
+No standalone `(awb)` index and no standalone `(created_at)` index. The unique keys already cover AWB lookup.
+
+Create locks the **order** row, then checks Σ shipment quantity ≤ `order_item.quantity`, then inserts the draft. Two concurrent creates cannot over-allocate.
+
+### T5 · `fulfillment_shipment_item`
 
 | Column | Type | Constraints / notes |
 |---|---|---|
@@ -209,109 +260,83 @@ Indexes: `(seller_id, status)`, `(order_id)`, `(awb)`, `(status, updated_at)` (r
 | quantity | INT | NOT NULL CHECK (`quantity > 0`) |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-`UNIQUE(shipment_id, order_item_id)`; service guard: Σ quantity across an order's shipments ≤ `order_item.quantity`.
-Indexes: `(shipment_id)`, `(order_item_id)`.
+`UNIQUE(shipment_id, order_item_id)`.
+Indexes: the unique pair covers `(shipment_id, order_item_id)`. Add `(order_item_id)` for the sum check.
 
-### T6 · `fulfillment_shipment_event` — immutable ledger (mirrors `payment_transaction_event`)
+### T6 · `fulfillment_shipment_event` — immutable ledger
 
-Every transition + sanitized provider request/response. Powers seller timeline UI and dispute audit. Never updated/deleted.
+`event_type` uses the same strings as status, or `ignore`. Raw courier text goes in `provider_event` only.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
 | shipment_id | BIGINT | NOT NULL FK → `fulfillment_shipment(id)` ON DELETE CASCADE |
-| event_type | VARCHAR(50) | NOT NULL — `created, awb_assigned, pickup_scheduled, picked, in_transit, out_for_delivery, delivered, failed, cancelled, ndr_raised, ndr_resolved, rto_initiated, rto_delivered, returned, label_generated` |
+| event_type | VARCHAR(50) | NOT NULL — status string or `ignore` |
 | from_status | VARCHAR(32) | NULL |
 | to_status | VARCHAR(32) | NOT NULL |
-| provider_event | VARCHAR(100) | NULL — raw provider label (audit only; logic uses `event_type`) |
-| gateway_request / gateway_response | JSONB | NULL — sanitized |
+| provider_event | VARCHAR(100) | NULL — raw label, audit only |
+| provider_request / provider_response | JSONB | NULL — sanitized |
 | failure_code / failure_message | VARCHAR(100) / TEXT | NULL |
-| source | VARCHAR(20) | NOT NULL — `api` / `webhook` / `system` / `admin` (like payment) |
-| actor_id / actor_type | BIGINT / VARCHAR(20) | NULL — seller/customer/admin/system |
-| created_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() (no `updated_at` — immutable) |
+| source | VARCHAR(20) | NOT NULL — `api` / `webhook` / `system` / `admin` |
+| actor_id / actor_type | BIGINT / VARCHAR(20) | NULL |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-Indexes: `(shipment_id)`, `(created_at DESC)`, `(event_type)`.
+Index: `(shipment_id, created_at DESC)`.
 
-### T7 · `fulfillment_webhook_log` — verified-only audit + idempotency (mirrors `payment_webhook_log`)
+### T7 · `fulfillment_webhook_log`
 
-Persist **only after signature verification** — unverifiable bodies are dropped, never stored (payment rule). `event_id` adapter-generated, never empty (fallback `{providerEvent}:{awb}:{statusId}:{timestamp}`).
+Persist only after signature verification. Unknown AWB: nothing stored, HTTP 200. Bad signature: nothing stored, HTTP 401.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
 | provider_code | VARCHAR(50) | NOT NULL FK → `courier_provider(code)` |
-| event_id | TEXT | NOT NULL — idempotency key |
-| awb | TEXT | NULL (NULL only if verified but unparseable) |
-| action | VARCHAR(50) | NOT NULL — normalized `ShipmentAction` |
-| status | VARCHAR(30) | NOT NULL — `received` / `applied` / `failed` / `ignored` (`failed` = verified but apply error → cron heals) |
+| event_id | TEXT | NOT NULL |
+| awb | TEXT | NULL |
+| action | VARCHAR(50) | NOT NULL — same vocabulary as status, or `ignore` |
+| status | VARCHAR(30) | NOT NULL — `received` / `applied` / `failed` / `ignored` |
 | error_message | TEXT | NULL |
-| payload | JSONB | NOT NULL — sanitized (phones/addresses stripped) |
+| payload | JSONB | NOT NULL — phones and addresses stripped |
 | headers | JSONB | NULL — secrets removed |
-| shipment_id | BIGINT | NULL FK → `fulfillment_shipment(id)` — linked when locatable |
+| shipment_id | BIGINT | NULL FK → `fulfillment_shipment(id)` |
 | ip_address | VARCHAR(50) | NULL |
 | processed_at | TIMESTAMPTZ | NULL |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-`UNIQUE(provider_code, event_id)` unconditional (event_id NOT NULL — same as payment).
-Indexes: `(provider_code)`, `(event_id)`, `(status)`, `(awb)`, `(created_at DESC)`.
+`UNIQUE(provider_code, event_id)`.
+Index for the heal cron: `(status, created_at)`. No extra indexes on `provider_code` or `event_id` alone.
 
-### T8 · `fulfillment_ndr` — one row per NDR round
+### T8 · `fulfillment_ndr` — one open round per shipment
+
+A second “customer not home” is a new round after the previous one is actioned. It is not blocked by the reason text.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
 | shipment_id | BIGINT | NOT NULL FK → `fulfillment_shipment(id)` ON DELETE CASCADE |
 | awb | TEXT | NOT NULL |
-| ndr_status | VARCHAR(50) | NOT NULL — e.g. `consignee_not_available`, `address_issue`, `refused` |
+| attempt_no | INT | NOT NULL CHECK (`attempt_no > 0`) |
+| ndr_status | VARCHAR(50) | NOT NULL — reason label, not a uniqueness key |
 | reason | TEXT | NULL |
 | action_taken | VARCHAR(30) | NULL — `reattempt` / `rto` |
 | acted_at | TIMESTAMPTZ | NULL |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-`UNIQUE(awb, ndr_status)`. Indexes: `(shipment_id)`, `(awb)`.
-
-### T9 · `fulfillment_return` — outbound box → return box link
-
-The return/RTO box is itself a `fulfillment_shipment` row, so tracking/reconciler work uniformly; this table is the link.
-
-| Column | Type | Constraints / notes |
-|---|---|---|
-| id | BIGSERIAL PK | |
-| orig_shipment_id | BIGINT | NOT NULL FK → `fulfillment_shipment(id)` ON DELETE CASCADE |
-| return_shipment_id | BIGINT | NULL FK → `fulfillment_shipment(id)` ON DELETE CASCADE (NULL until carrier creates it) |
-| reason | VARCHAR(100) | NULL |
-| status | VARCHAR(30) | NOT NULL DEFAULT `'requested'` — `requested` / `in_transit` / `delivered` |
-| created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
-
-`UNIQUE(orig_shipment_id, return_shipment_id)`. Index: `(orig_shipment_id)`.
-
-### T10 · `fulfillment_cod_remittance` — COD money trail (1:1, never cached)
-
-COD collected by courier ≠ revenue until remitted. Reconciled by hourly cron against provider statements.
-
-| Column | Type | Constraints / notes |
-|---|---|---|
-| id | BIGSERIAL PK | |
-| shipment_id | BIGINT | NOT NULL UNIQUE FK → `fulfillment_shipment(id)` ON DELETE RESTRICT |
-| awb | TEXT | NOT NULL — statement join key |
-| cod_cents | BIGINT | NOT NULL CHECK (`cod_cents >= 0`) — collect-amount snapshot |
-| status | VARCHAR(30) | NOT NULL DEFAULT `'pending'` — `pending` / `remitted` / `disputed` |
-| remitted_at | TIMESTAMPTZ | NULL |
-| utr | TEXT | NULL — bank remittance ref |
-| raw | JSONB | NOT NULL DEFAULT `'{}'` — statement line snapshot |
-| created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
-
-Index: `(status)`.
+`UNIQUE(shipment_id, attempt_no)`.
+Partial unique index: `UNIQUE(shipment_id) WHERE action_taken IS NULL` — one open round.
+Index: `(shipment_id)`.
 
 ## 4. GORM mapping notes
 
-Each entity gets `func (X) TableName() string` returning the singular name above. `courier_provider_config.seller_id`, `fulfillment_shipment.awb/provider_order_id/courier_name…` are `*string`/`*uint` (NULL-able); money `int64`; JSON `db.JSONMap`; `Items []FulfillmentShipmentItem gorm:"foreignKey:ShipmentID"` with `Preload` on reads (no N+1). Existing stub `OrderShipment`/`OrderShipmentItem` in `fulfillment/entity/shipment.go` is extended in place (status set grows, `provider_*`/`seller_id`/`cod_cents` added) — not replaced.
+Each entity implements `TableName()`. Nullable columns are pointers. Money is `int64`. JSON is `db.JSONMap`. Read shipments with `Preload("Items")`.
 
-## 5. Seeds (`seeds/00X_seed_fulfillment_data.sql`)
+## 5. Seeds
 
-`courier_provider` (shiprocket) + `courier_provider_field` rows (email/password/webhook_secret) + one NULL-seller `courier_provider_config` placeholder row (empty encrypted creds). Demo shipment rows only if matching `order`/`order_item` seeds exist (referential-integrity rule — CODING_STANDARDS).
+`courier_provider` (shiprocket) + `courier_provider_field` rows + one NULL-seller `courier_provider_config` placeholder (empty encrypted creds). Demo shipments only if matching `order` / `order_item` seeds exist.
 
-## 6. Open decisions (confirm before writing `032`)
+## 6. Deferred (not in `032`)
 
-1. **Pickup addresses**: `pickup_alias` string on T3 (MVP, specified above) vs dedicated `courier_pickup_location` table (multi-warehouse). Recommendation: string now, table later.
-2. **`environment` on T3**: keep for payment-parity/test creds vs drop (Shiprocket has no true sandbox). Recommendation: keep.
+1. **Pickup addresses.** `pickup_alias` on T3 is enough. A `courier_pickup_location` table waits until a seller has more than one warehouse.
+2. **`environment` on T3.** Kept so test credentials have a row. Shiprocket has no real sandbox.
+3. **COD remittance.** Couriers pay many AWBs under one UTR. A 1:1 remittance table is the wrong shape. Add it when a statement API is specified. Until then `cod_cents` is only the collect-amount snapshot.
+4. **Label storage.** No `label_url` column. Reprint calls the courier.

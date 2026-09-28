@@ -1,174 +1,184 @@
 # 013 — Courier Fulfillment Platform · Service / Logic Design (Phase 2)
 
-> Companion to `data-model.md` (tables T1–T10). This doc designs the **adapter (courier gateway) contract, factory, orchestrator services, and cross-module boundaries**. No code yet — signatures below are the implementation blueprint.
-> Reference implementation mirrored: `payment/service/payment_gateway/contract.go`, `payment/factory/payment_gateway_factory.go`, `payment/service/apply_normalized.go`, `payment/service/webhook_service.go`, `fulfillment/shiprocket/*` (Shiprocket adapter home).
+> Companion to `data-model.md`. Adapter contract, factory, and orchestrators. No code yet.
+> Mirrored from `payment/service/payment_gateway/contract.go`, `payment/factory/payment_gateway_factory.go`, `payment/service/apply_normalized.go`, `payment/service/webhook_service.go`.
 
-## 1. Principles (non-negotiable, copied from 010)
+## 1. Principles
 
-1. **Single provider contract.** All orchestration speaks only to `CourierPartner`. Orchestrators never switch on provider codes and never import provider subpackages (grep-enforced, like Razorpay confinement).
-2. **Provider names live in one folder.** All Shiprocket specifics — endpoints, `sr-status` ids, auth headers, webhook shape — live only in `fulfillment/service/courier/shiprocket/`. Adding Delhivery = new folder, zero orchestrator edits.
-3. **Frozen action set.** Webhook/cron apply paths switch only on `ShipmentAction`. New providers map their statuses inside their adapter; the base switch never grows.
-4. **One apply path.** Webhook (`source=webhook`) and reconciler (`source=system`) share `NormalizedApplier.Apply`. They can never diverge on state machine, idempotency, or order hooks.
-5. **Service-to-service, never cross-repo** (CODING_STANDARDS Rule #1). Fulfillment calls order/inventory through narrow hook interfaces, never their repositories.
-6. **Fail-closed secrets, fail-open reads.** No encryption key → refuse to store/decrypt. Cache outage → serve from PG, never fail the shipment.
+1. **Single provider contract.** Orchestrators call `CourierPartner`. They do not switch on provider codes and do not import provider packages.
+2. **Provider names live in one folder.** Shiprocket URLs, status ids, auth, and webhook shape stay in `fulfillment/service/courier/shiprocket/`.
+3. **One status vocabulary.** Webhook and cron switch only on `ShipmentAction`. Those strings are the shipment status (plus `ignore`). The ledger `event_type` uses the same strings.
+4. **One apply path.** Webhook (`source=webhook`) and reconciler (`source=system`) both call `NormalizedApplier.Apply`.
+5. **Service-to-service.** Fulfillment calls order through `FulfillmentOrderHooks`. It does not import order or inventory repositories. Progress includes shipment id and line quantities. Fulfillment does not mark a whole order delivered by order id alone.
+6. **Fail-closed secrets, fail-open reads.** No encryption key → refuse to store or decrypt. Cache down → read PostgreSQL. A customer track read never fails because a courier is down, because it does not call the courier.
+7. **Courier HTTP stays outside DB transactions.**
 
 ```
-┌──────── handlers / routes ────────┐
-│  thin: parse DTO → call service   │
+┌──────── handlers ─────────────────┐
+│  parse DTO → service              │
 └──────────────┬────────────────────┘
 ┌──────────────▼────────────────────┐
-│  orchestrator services (provider- │  ◄── ONLY sees CourierPartner iface
-│  agnostic): shipment │ rate │     │
-│  tracking │ webhook │ reconcile │  │
-│  ndr │ return │ cod │ config      │
+│  shipment │ rate │ tracking       │
+│  webhook │ reconcile │ config     │  ◄── CourierPartner only
 └──┬──────────┬──────────┬──────────┘
    │          │          │
    ▼          ▼          ▼
- repositories  CourierPartner  narrow hooks
- (PG T4–T10)   iface ──► shiprocket/   (order/inventory/
-               ▲        delhivery/…     notify — decoupled)
-               │
+ repositories  CourierPartner     FulfillmentOrderHooks
+               └── shiprocket/
         CourierPartnerFactory
-        (registry + hybrid creds)
 ```
 
-## 2. File layout (follows `payment/` shape)
+NDR actions and return booking are methods on `ShipmentService`, not separate services.
+
+## 2. File layout
 
 ```
 fulfillment/
 ├── service/
 │   ├── courier/
-│   │   ├── contract.go            # CourierPartner iface + ShipmentAction + NormalizedShipmentEvent + TrackLocators
-│   │   ├── crypto.go              # ResolveEncryptionKey (shared; mirrors gateway.ResolveEncryptionKey)
-│   │   └── shiprocket/            # ALL Shiprocket specifics confined here
-│   │       ├── adapter.go         # implements CourierPartner (Code()="shiprocket")
-│   │       ├── credentials.go     # typed creds + Validate/Encrypt/Decrypt/MaskHints/MergePartial
-│   │       ├── http.go            # pooled client, retry policy, log redaction
-│   │       ├── rates.go           # serviceability → []RateOption
-│   │       ├── shipment.go        # create/awb/pickup/cancel/label/return calls
-│   │       ├── track.go           # FetchTracking + bulk track
-│   │       ├── ndr.go             # NDR get/act
-│   │       └── webhook.go         # PeekLocators + NormalizeWebhook + status map
-│   ├── shipment_service.go / _impl.go
+│   │   ├── contract.go
+│   │   ├── crypto.go
+│   │   └── shiprocket/
+│   │       ├── adapter.go
+│   │       ├── auth.go          # JWT in durable KV; refresh on 401 and before expiry
+│   │       ├── credentials.go
+│   │       ├── http.go
+│   │       ├── rates.go
+│   │       ├── shipment.go      # BookShipment does create + AWB + optional pickup
+│   │       ├── track.go
+│   │       ├── ndr.go
+│   │       └── webhook.go
+│   ├── shipment_service.go      # book, cancel, label, ndr act, return
 │   ├── rate_service.go
-│   ├── tracking_service.go
+│   ├── tracking_service.go      # customer read; seller refresh
 │   ├── webhook_service.go
-│   ├── apply_normalized.go        # NormalizedApplier (shared webhook+cron path)
-│   ├── reconcile_service.go       # cron: stale shipments, stuck NDR, COD
-│   ├── ndr_service.go
-│   ├── return_service.go
-│   ├── cod_service.go
-│   └── provider_config_service.go # hybrid resolve, configure, test-connection
+│   ├── apply_normalized.go
+│   ├── reconcile_service.go     # stale poll, NDR sweep, draft recovery
+│   └── provider_config_service.go
 ├── factory/
-│   └── courier_partner_factory.go # registry map[code]CourierPartner
-├── model/                         # provider-agnostic DTOs (below)
-└── errors/                        # FULFILLMENT_* AppError codes
+│   └── courier_partner_factory.go
+├── model/
+└── errors/
 ```
 
-## 3. The contract — `CourierPartner` (mirrors `PaymentGateway`)
+## 3. Contract — `CourierPartner`
+
+Credential methods stay on this interface, same as `PaymentGateway`. A second credential interface is not worth it for one provider.
+
+Booking is **one** method. Shiprocket’s create-order, assign-AWB, and generate-pickup calls happen inside the adapter. A courier that returns an AWB from a single API does not invent empty steps.
 
 ```go
-// Code identifies the provider: "shiprocket" | "delhivery" | "bluedart" ...
-// Orchestrators must never branch on it — the factory resolves, the iface executes.
 type CourierPartner interface {
     Code() string
 
-    // -- Credentials (dashboard + decrypt for outbound calls) --
     Validate(raw map[string]any, partial bool) error
     Encrypt(raw map[string]any) (map[string]any, error)
     Decrypt(stored map[string]any) (map[string]any, error)
     MaskHints(stored map[string]any) map[string]any
     MergePartial(existingStored, incoming map[string]any) (map[string]any, error)
 
-    // -- Rate shopping --
     GetRates(ctx context.Context, in RateInput, creds map[string]any) ([]RateOption, error)
 
-    // -- Shipment lifecycle --
-    CreateOrder(ctx context.Context, in CreateShipmentInput, creds map[string]any) (*CreateShipmentOutput, error)
-    AssignAWB(ctx context.Context, in AssignAWBInput, creds map[string]any) (*AWBOutput, error)
-    SchedulePickup(ctx context.Context, in PickupInput, creds map[string]any) error
+    // BookShipment sends our shipment id as the provider order id.
+    // The adapter assigns the AWB. If in.PickupAt is set, it schedules pickup too.
+    BookShipment(ctx context.Context, in BookShipmentInput, creds map[string]any) (*BookShipmentOutput, error)
     Cancel(ctx context.Context, in CancelInput, creds map[string]any) error
     GetLabel(ctx context.Context, in LabelInput, creds map[string]any) ([]byte, error)
 
-    // -- Tracking (single + bulk for cron) --
     FetchTracking(ctx context.Context, awb string, creds map[string]any) (*NormalizedShipmentEvent, error)
     FetchTrackingBulk(ctx context.Context, awbs []string, creds map[string]any) ([]*NormalizedShipmentEvent, error)
 
-    // -- Webhook: peek (untrusted) then verify+normalize --
     PeekLocators(rawBody []byte) TrackLocators
     NormalizeWebhook(rawBody []byte, headers http.Header, creds map[string]any) (*NormalizedShipmentEvent, error)
-
     TestConnection(ctx context.Context, creds map[string]any) error
 }
 
-// Optional capabilities — reconciler/services type-assert and skip when absent
-// (mirrors gateway.RefundStatusFetcher). Direct couriers often lack NDR.
+// Optional. Type-assert and skip when absent.
+type PickupScheduler interface {
+    SchedulePickup(ctx context.Context, in PickupInput, creds map[string]any) error
+}
 type NDRHandler interface {
     GetNDR(ctx context.Context, awb string, creds map[string]any) (*NDRDetail, error)
     ActNDR(ctx context.Context, in NDRActionInput, creds map[string]any) error
 }
 type ReturnHandler interface {
-    CreateReturn(ctx context.Context, in CreateReturnInput, creds map[string]any) (*CreateShipmentOutput, error)
+    BookReturn(ctx context.Context, in BookReturnInput, creds map[string]any) (*BookShipmentOutput, error)
 }
 ```
 
-Provider-agnostic DTOs (`fulfillment/model/`, mirrors `payment/model/gateway_models.go`):
-
 ```go
-type RateInput struct { PickupPincode, DeliveryPincode string; WeightGrams int; LengthCm, BreadthCm, HeightCm float64; CodCents int64; OrderValueCents int64 }
-type RateOption struct { CourierName, ServiceCode string; RateCents int64; ETD *time.Time; PickupCapable bool }
+type RateInput struct {
+    PickupPincode, DeliveryPincode string
+    WeightGrams int
+    LengthCm, BreadthCm, HeightCm float64
+    CodCents, OrderValueCents int64
+}
+type RateOption struct {
+    CourierName, ServiceCode string
+    RateCents int64
+    ETD *time.Time
+    PickupCapable bool
+}
 type ShipmentItemInput struct { OrderItemID uint; Quantity int }
-type CreateShipmentInput struct { OrderID, SellerID uint; Items []ShipmentItemInput; PickupAlias string; WeightGrams *int; // override
-    LengthCm, BreadthCm, HeightCm *float64; CourierHint string; IdempotencyKey string }
-type CreateShipmentOutput struct { ProviderOrderID, ProviderShipmentID string; Status string; RawResponse map[string]any }
-type AssignAWBInput struct { ShipmentID uint; ProviderOrderID, ProviderShipmentID string; ServiceCode, CourierID string }
-type AWBOutput struct { AWB, CourierName, ServiceCode string; ETD *time.Time; RawResponse map[string]any }
-type PickupInput struct { ShipmentID uint; AWB string; PickupDate *time.Time }
+type BookShipmentInput struct {
+    ShipmentID, OrderID, SellerID uint
+    Items []ShipmentItemInput
+    PickupAlias string
+    PickupAt *time.Time
+    WeightGrams *int
+    LengthCm, BreadthCm, HeightCm *float64
+    CourierHint string
+}
+type BookShipmentOutput struct {
+    ProviderOrderID, ProviderShipmentID, AWB string
+    CourierName, ServiceCode string
+    ETD *time.Time
+    RawResponse map[string]any
+}
+type PickupInput struct { ShipmentID uint; AWB string; PickupAt *time.Time }
 type CancelInput struct { ShipmentID uint; AWB, ProviderOrderID string }
 type LabelInput struct { ShipmentID uint; AWB, ProviderShipmentID string }
 type NDRActionInput struct { AWB string; Action string /* reattempt|rto */; AddressNote string }
-type CreateReturnInput struct { OrigShipmentID uint; Reason string; Items []ShipmentItemInput }
+type BookReturnInput struct { OrigShipmentID uint; Reason string; Items []ShipmentItemInput }
 ```
 
-### 3.1 Frozen `ShipmentAction` + normalized event (mirrors `WebhookAction` / `NormalizedWebhook`)
+### 3.1 `ShipmentAction` = status strings, plus `ignore`
 
 ```go
 type ShipmentAction string
 const (
-    ShipmentActionIgnore          ShipmentAction = "ignore"           // open/non-terminal observation
-    ShipmentActionCreated         ShipmentAction = "created"
-    ShipmentActionAWBAssigned     ShipmentAction = "awb_assigned"
-    ShipmentActionPickupScheduled ShipmentAction = "pickup_scheduled"
-    ShipmentActionPicked          ShipmentAction = "picked"
-    ShipmentActionInTransit       ShipmentAction = "in_transit"
-    ShipmentActionOutForDelivery  ShipmentAction = "out_for_delivery"
-    ShipmentActionDelivered       ShipmentAction = "delivered"        // terminal-ok
-    ShipmentActionFailed          ShipmentAction = "failed"           // terminal-bad (lost/damaged)
-    ShipmentActionNDR             ShipmentAction = "ndr"              // needs seller action
-    ShipmentActionNDRResolved     ShipmentAction = "ndr_resolved"
-    ShipmentActionRTO             ShipmentAction = "rto"              // return-to-origin leg
-    ShipmentActionReturned        ShipmentAction = "returned"         // terminal-returned
-    ShipmentActionCancelled       ShipmentAction = "cancelled"        // terminal-cancelled
+    ShipmentActionIgnore           ShipmentAction = "ignore"
+    ShipmentActionBooked           ShipmentAction = "booked"
+    ShipmentActionPickupScheduled  ShipmentAction = "pickup_scheduled"
+    ShipmentActionPicked           ShipmentAction = "picked"
+    ShipmentActionInTransit        ShipmentAction = "in_transit"
+    ShipmentActionOutForDelivery   ShipmentAction = "out_for_delivery"
+    ShipmentActionNDRPending       ShipmentAction = "ndr_pending"
+    ShipmentActionDelivered        ShipmentAction = "delivered"
+    ShipmentActionFailed           ShipmentAction = "failed"
+    ShipmentActionRTOInTransit     ShipmentAction = "rto_in_transit"
+    ShipmentActionReturned         ShipmentAction = "returned"
+    ShipmentActionCancelled        ShipmentAction = "cancelled"
 )
 
 type NormalizedShipmentEvent struct {
     Action        ShipmentAction
-    EventID       string // idempotency key, never empty (fallback {event}:{awb}:{status}:{ts})
-    ProviderEvent string // raw label, stored on event ledger for audit only
+    EventID       string
+    ProviderEvent string
     AWB           string
     ProviderOrderID, ProviderShipmentID string
     CourierName   string
     ETD           *time.Time
     FailureCode, FailureMessage string
-    Payload       map[string]any // sanitized for storage (no phones/addresses)
+    Payload       map[string]any
 }
 
-type TrackLocators struct { AWB, ProviderOrderID string } // untrusted hints only
+type TrackLocators struct { AWB, ProviderOrderID string }
 ```
 
-Terminal states (`delivered/failed/returned/cancelled`) never regress — `Apply` refuses backward transitions (compare against precedence map), so out-of-order webhooks are safe.
+`Apply` follows the allow-list in `data-model.md` section 2a. Terminal rows do not move. A repeat of the current status does not write another ledger row.
 
-## 4. Factory + hybrid credential resolution (mirrors `PaymentGatewayFactory`)
+## 4. Factory and credentials
 
 ```go
 type CourierPartnerFactory struct {
@@ -176,115 +186,158 @@ type CourierPartnerFactory struct {
     registry     map[string]courier.CourierPartner
 }
 func NewCourierPartnerFactory(repo ..., adapters ...courier.CourierPartner) *CourierPartnerFactory
-func (f *...) GetByCode(code string) (courier.CourierPartner, error) // unknown → FULFILLMENT_PROVIDER_NOT_SUPPORTED
+func (f *...) GetByCode(code string) (courier.CourierPartner, error)
 ```
 
-Credential resolution (`provider_config_service.ResolveForSeller(ctx, sellerID, code)`):
+`ResolveForSeller` is used **once**, when booking:
 
-1. Load `courier_provider_config` seller row (seller_id, code, environment) — if active, use it.
-2. Else fall back to platform row (`seller_id IS NULL`, same code/env).
-3. None / inactive → `FULFILLMENT_PROVIDER_NOT_CONFIGURED`.
-4. `adapter.Decrypt(stored)` in memory only; decrypted map travels as `creds` param, never logged, never persisted.
+1. Active seller row for `(seller_id, code, environment)`, else platform row (`seller_id IS NULL`).
+2. None → `FULFILLMENT_PROVIDER_NOT_CONFIGURED`.
+3. Decrypt in memory. The decrypted map is a function argument. It is not logged or saved.
+4. Persist `provider_config_id` on the shipment inside the post-book transaction.
 
-Configure flow: `Validate(incoming, partial) → MergePartial(stored, incoming) → Validate(merged, false) → Encrypt → save`. Test-connection uses supplied-or-stored creds, persists nothing.
+Webhook verification and tracking load **that** config row. If the seller later adds their own credentials, old shipments still verify with the account that booked them.
 
-## 5. Orchestrator services
+Configure: `Validate(incoming, partial)` → `MergePartial` → `Validate(merged, false)` → `Encrypt` → save. Test-connection persists nothing.
 
-### 5.1 `ShipmentService` — create/AWB/pickup/label/cancel/return-request
+Shiprocket’s JWT lives in the adapter (`auth.go`): durable KV, refresh before the 10-day expiry, and refresh on 401. The reconciler does not know about tokens. No token → that outbound call returns `FULFILLMENT_CREDENTIALS_INVALID`. It does not ship on a stale token.
 
-- `CreateShipment(ctx, sellerID, in CreateShipmentInput)`: validate order ownership (via order hook read, not repo) + Σqty guard; PG tx (T4 draft + T5 items + T6 `created` event); idempotency via durable `fulfill:init:idem:{key}` 24h replay; then `adapter.CreateOrder` (POST, **no retry** — provider dedupes on `provider_order_id` UNIQUE); store ids → status `created` + event; `Del` detail + `BumpVersion` list; emit `FulfillmentEvent{Created}`.
-- `AssignAWB / SchedulePickup / Cancel`: load shipment (seller-scoped), resolve adapter+creds, call provider (POST no retry), `UpdateStatusIfCurrent` (expected-from → to; stale/cancelled-after-pickup → `FULFILLMENT_INVALID_STATE`), append T6 event, emit.
-- `GetLabel`: volatile URL cache 24h; bytes streamed to client, never cached as JSON (>256KB guard).
-- Method budget: ≤50 lines each — split validation / tx / provider-call / emit helpers (CODING_STANDARDS).
+## 5. Orchestrators
 
-### 5.2 `RateService` — `GetRates`
+### 5.1 `ShipmentService`
 
-Volatile read-through `seller:{id}:fulfill:rate:{hash}` Jittered 90s + singleflight; provider `GetRates` on miss; rate-limit outbound via durable Lua `fulfill:rate:limit:{seller}` (mirrors coupon limiter). Never persists rates to PG.
+`CreateShipment`:
 
-### 5.3 `TrackingService` — `GetTrack(shipmentID)`
+1. **Tx1** (short): lock the order row, check seller ownership via `GetOrderForFulfillment`, check Σ quantity, insert `draft` + items + a ledger row with `event_type=draft`. Set `idempotency_key` when the client sent one. Commit. `UNIQUE(idempotency_key)` is the retry guard. A Redis replay key is optional and is not the source of truth.
+2. **HTTP**, no transaction: `BookShipment`. The body uses `shipment_id` as the courier order id so a second box of the same order does not collide. POST is not retried by the HTTP client.
+3. **Tx2** (short): save provider ids, AWB, `provider_config_id`, status `booked` (or `pickup_scheduled` when pickup was included), ledger row, `last_synced_at`. Commit. Then drop volatile keys, bump the list version, emit progress.
 
-Merge PG status + live `FetchTracking` (volatile 45s); on drift (provider ahead), route through `NormalizedApplier` so ledger stays canonical. Customer variant strips creds/raw PII and checks `order.user_id` ownership.
+If the process dies after the courier accepts and before Tx2, the draft has no `provider_order_id`. `recover_drafts` (section 5.6) books again with the same shipment id. The adapter treats “already exists” as success and returns the existing AWB.
 
-### 5.4 `WebhookService.HandleWebhook(ctx, providerCode, rawBody, headers, ip)` — locate→verify→apply
+`Cancel`: allowed only from `draft` (local, no HTTP), `booked`, or `pickup_scheduled`. Then the allow-list.
 
-Direct mirror of payment's `HandleWebhook` (§reference), adapted: locate by AWB → provider_order_id (miss → 200, persist nothing); creds resolved from the **shipment's seller** (seller override else platform); `NormalizeWebhook` verifies `x-api-key`/HMAC on raw bytes (bad sig → 401, persist nothing); `webhook_log` UNIQUE(provider,event_id) dedupes replays; `Apply` via shared applier; verified-but-failed → `MarkFailed` + return 200 (cron heals).
+`SchedulePickup`: only if the adapter implements `PickupScheduler`. Otherwise `FULFILLMENT_CAPABILITY_UNSUPPORTED` (pickup already happened inside `BookShipment` when `PickupAt` was set).
 
-### 5.5 `NormalizedApplier.Apply(ctx, shipment, event, source)` — the ONE apply path
+`GetLabel`: stream bytes to the client. Do not write them to PostgreSQL or to a JSON cache.
 
-Switches **only** on `ShipmentAction`: `ignore` → ledger observation row; movement actions → `UpdateStatusIfCurrent` + T6 event + timestamp patch (`shipped_at/delivered_at/cancelled_at`, `courier_name`, `etd`); `delivered` → upsert T10 COD-pending (if `cod_cents>0`) + `FulfillmentOrderHooks.MarkDelivered`; `ndr` → upsert T8 + notify seller; `rto/returned` → T9 link + `MarkReturned`; `cancelled/failed` → terminal + `MarkFailed`. Already-terminal rows → idempotent no-op (no event spam). Amount guard analogue: AWB mismatch (event.AWB ≠ shipment.awb and both set) → refuse, mark failed.
+`ActNDR`: upsert is not by reason. Close the open round (`action_taken` set) or insert the next `attempt_no`. Requires `NDRHandler`.
 
-### 5.6 `ReconcileService` — cron jobs via `common/cron`
+`RequestReturn`: insert a new shipment with `return_of_shipment_id` set, then `ReturnHandler.BookReturn`. Tracking for that box uses the same applier. There is no second return-status column.
 
-- `reconcile_pending` every 5m: `ListStaleInFlight(SKIP LOCKED)` (no event in N hours by status) → `FetchTrackingBulk` 100/batch → `Apply(source=system)`; system `EventID = "system:{awb}:{action}"` keeps cron applies idempotent.
-- `ndr_sweep` every 15m: re-pull open NDRs (adapter `GetNDR` when capable), escalate un-actioned >24h.
-- `cod_remit` every 1h: match T10 pending against provider statement → `remitted(+utr)` / `disputed`.
-- `token_refresh` every 12h: proactively refresh Shiprocket 10-day JWT into durable KV (fail-closed: no token → 503 on outbound, never ship on stale token).
+### 5.2 `RateService`
 
-### 5.7 `ProviderConfigService`, `NDRService`, `ReturnService`, `CODService`
+Volatile `seller:{id}:fulfill:rate:{hash}`, jittered 90s, singleflight. Outbound limit via durable Lua `fulfill:rate:limit:{seller}`. Rates are not stored in PostgreSQL.
 
-Thin wrappers over T2/T3/T8/T9/T10 + capability type-asserts (`NDRHandler`/`ReturnHandler` absent → `FULFILLMENT_CAPABILITY_UNSUPPORTED`, UI already gates via T1 flags).
+### 5.3 `TrackingService`
 
-## 6. Decoupled order/inventory boundary (user decision: decoupled events)
+`GetTrack`: PostgreSQL status + ledger for a shipment the caller owns. No courier call. No `Apply`.
 
-Mirror of payment's `PaymentOrderHooks` narrow interface — fulfillment never imports order/inventory repos:
+`RefreshTrack`: seller-only. `FetchTracking` with the shipment’s `provider_config_id`, then `Apply`. Singleflight per shipment id.
+
+### 5.4 `WebhookService`
+
+1. `PeekLocators` (untrusted).
+2. Load shipment by `(provider_code, awb)`, then `(provider_code, provider_order_id)`.
+3. Unknown → **200**, persist nothing.
+4. Decrypt the shipment’s `provider_config_id`. `NormalizeWebhook` checks the signature on raw bytes. Bad signature → **401**, persist nothing.
+5. `UNIQUE(provider_code, event_id)` dedupes replays.
+6. `Apply`. Verified but apply failed → mark the log `failed`, still return 200. The reconciler heals.
+
+### 5.5 `NormalizedApplier.Apply`
+
+Switch only on `ShipmentAction`.
+
+- `ignore` → one ledger observation, status unchanged.
+- Any other action → allow-list (data model 2a). Legal move: `UpdateStatusIfCurrent`, ledger row, timestamp patch (`shipped_at`, `delivered_at`, `cancelled_at`, `last_synced_at`, courier name, ETD).
+- `delivered` → `OnShipmentDelivered` with lines. If `cod_cents > 0`, that amount stays on the shipment. No remittance row.
+- `ndr_pending` → next NDR round + notify seller.
+- `returned` → `OnShipmentReturned` with lines. The order module restocks those quantities.
+- `failed` / `cancelled` → `OnShipmentFailed` with lines.
+- Terminal row, or same status, or a pair not in the allow-list → no status change. A verified disallowed pair is logged as `ignore`.
+- AWB set on both sides and different → do not apply (`FULFILLMENT_APPLY_MISMATCH`).
+
+### 5.6 `ReconcileService`
+
+Jobs use `common/cron`. They group work by `provider_config_id` so one bulk call uses one account.
+
+- `recover_drafts` every 2m: drafts older than 2 minutes with `provider_order_id` NULL. `BookShipment` again with the same shipment id. `SKIP LOCKED`.
+- `reconcile_pending` every 5m: in-flight rows whose `last_synced_at` is older than the threshold for that status (not `updated_at`). `FetchTrackingBulk` in batches of 100 **per config**. `Apply(source=system)`. System `EventID` is `system:{provider}:{awb}:{action}`.
+- `ndr_sweep` every 15m: open NDR rounds. `GetNDR` when the adapter implements it. Notify again when `action_taken` is still NULL after 24h.
+
+No token-refresh job. No COD statement job.
+
+### 5.7 `ProviderConfigService`
+
+Thin wrapper over T2/T3: resolve, configure, test-connection, mask.
+
+## 6. Order boundary
 
 ```go
-// FulfillmentOrderHooks is the narrow surface fulfillment may call.
-// Implemented by the order module; keeps fulfillment DB-free in tests.
 type FulfillmentOrderHooks interface {
-    MarkShippedByOrderID(ctx context.Context, orderID uint) error
-    MarkDeliveredByOrderID(ctx context.Context, orderID uint) error
-    MarkFulfillmentFailed(ctx context.Context, orderID uint, reason string) error
-    MarkReturnedByOrderID(ctx context.Context, orderID uint) error
-    GetOrderForFulfillment(ctx context.Context, orderID uint) (*FulfillmentOrderView, error) // id, seller, user, items, address-pins, cod
+    GetOrderForFulfillment(ctx context.Context, orderID uint) (*FulfillmentOrderView, error)
+    OnShipmentBooked(ctx context.Context, p FulfillmentProgress) error
+    OnShipmentDelivered(ctx context.Context, p FulfillmentProgress) error
+    OnShipmentFailed(ctx context.Context, p FulfillmentProgress) error
+    OnShipmentReturned(ctx context.Context, p FulfillmentProgress) error
 }
-type FulfillmentOrderView struct { OrderID, SellerID, UserID uint; Items []FulfillmentOrderItemView; DeliveryPincode string; CodCents int64 }
+
+type FulfillmentProgress struct {
+    OrderID, ShipmentID uint
+    Items []FulfillmentLine // order item id + quantity in this box
+    Reason string
+}
 ```
 
-Compile-time guard `var _ FulfillmentOrderHooks = (orderService.OrderService)(nil)` lives in fulfillment (same pattern as `apply_normalized.go:31`). Inventory moves (reserve on create, FULFILLED on pickup, restock on return) happen inside order's implementation, not fulfillment. Notifications read T6/the emitted `FulfillmentEvent`.
+The order module decides whether the **order** is partially shipped, shipped, or delivered by reading every box. Inventory reserve, fulfill, and restock use `Items`. Fulfillment does not call inventory.
 
-## 7. Shiprocket adapter mapping (confined to `shiprocket/`)
+Compile-time guard lives next to the applier: `var _ FulfillmentOrderHooks = (orderService.OrderService)(nil)`.
 
-| Contract method | Shiprocket API | Notes |
+## 7. Shiprocket mapping (this folder only)
+
+| Contract | Shiprocket | Notes |
 |---|---|---|
-| login (internal, `auth.go`) | `POST /v1/external/auth/login` (email+password → 10-day JWT) | Token in durable KV + mem; refresh job |
-| `GetRates` | `POST /v1/external/courier/serviceability/` | Rate-limit, cache 90s |
-| `CreateOrder` | `POST /v1/external/orders/create/adhoc` | Our order id in `order_id` field for locate-back |
-| `AssignAWB` | `POST /v1/external/courier/assign/awb` | Returns AWB + courier |
-| `SchedulePickup` | `POST /v1/external/courier/generate/pickup` | |
-| `Cancel` | `POST /v1/external/orders/cancel` (+ `/cancel/shipment/awbs` variant) | Pre-pickup only |
-| `GetLabel` | label/manifest/invoice GETs | Stream bytes |
-| `FetchTracking` | `GET /v1/external/courier/track/awb/{awb}` | Cron uses `POST /courier/track/awbs` bulk |
-| `GetNDR/ActNDR` | `GET /ndr/all\|/{awb}`, `POST /ndr/{awb}/action` | Optional capability |
-| `CreateReturn` | `POST /v1/external/orders/create/return` | |
-| `PeekLocators` | scrape `awb` / `order_id` / `sr_order_id` (untrusted) | Discarded if verify fails |
-| `NormalizeWebhook` | verify `x-api-key`/secret on raw body (constant-time), map `sr-status`/`shipment_status_id` → `ShipmentAction` | Provider names never leave this folder |
-| `TestConnection` | `GET` lightweight authed call (e.g. pickup-address list) | 401 → validation error (400, not 500); persist nothing |
+| login (`auth.go`) | `POST /v1/external/auth/login` | 10-day JWT in durable KV. Refresh inside the adapter |
+| `GetRates` | `POST /v1/external/courier/serviceability/` | Cache 90s |
+| `BookShipment` | create adhoc, then assign AWB, then pickup if `PickupAt` is set | `order_id` = our shipment id |
+| `SchedulePickup` | `POST /v1/external/courier/generate/pickup` | Optional interface, when pickup was not part of book |
+| `Cancel` | cancel order / cancel AWBs | Pre-pickup only |
+| `GetLabel` | label GET | Stream bytes, no DB column |
+| `FetchTracking` | `GET /v1/external/courier/track/awb/{awb}` | Bulk: `POST /courier/track/awbs`, one account per call |
+| `GetNDR` / `ActNDR` | NDR get + action | Optional |
+| `BookReturn` | `POST /v1/external/orders/create/return` | New shipment row points at the original |
+| `PeekLocators` | `awb`, `order_id` | Discarded when verify fails |
+| `NormalizeWebhook` | verify secret from the **booked** config row; map `sr-status` to `ShipmentAction` | Unknown status → `ignore` |
+| `TestConnection` | small authed GET | 401 → 400-class, persist nothing |
 
-HTTP policy (copies `razorpay/http.go`): one pooled client per adapter (GET 5s / POST 10s timeout); **POST never retried** (provider-side dedupe via our unique keys; retry risks double AWB/orders); GET retried ≤2× with jitter on 429/5xx only, 4xx fails fast; 401 maps to `FULFILLMENT_CREDENTIALS_INVALID`; logs carry status+path+512B truncated body only — never `Authorization`, secrets, phones, or full bodies; SSRF allowlist = `apiv2.shiprocket.in` (+ per-provider base URLs).
+HTTP: one pooled client. GET timeout 5s, POST 10s. POST is not retried. GET retries at most twice on 429/5xx. 4xx fails fast. 401 → `FULFILLMENT_CREDENTIALS_INVALID`. Logs: status, path, 512-byte body. No `Authorization`, secrets, phones, or full bodies. Allowed host: `apiv2.shiprocket.in` only, compiled into this package.
 
-Credentials (`credentials.go`): fields `api_email` (plaintext id), `api_password` + `webhook_secret` (AES-256-GCM via `common/helper`, key from `crypto.go`); `MaskHints` returns masked email only — never secret blobs; `MergePartial` decrypts-then-overlays so updates never double-encrypt (exact Razorpay semantics).
+Credentials: `api_email` plaintext, `api_password` and `webhook_secret` AES-256-GCM. `MaskHints` returns a masked email. `MergePartial` decrypts, overlays, then encrypts once.
 
-## 8. Errors (`fulfillment/errors/`, `AppError` codes)
+## 8. Errors
 
-`FULFILLMENT_NOT_FOUND · INVALID_STATE · PROVIDER_NOT_SUPPORTED · PROVIDER_NOT_CONFIGURED · CREDENTIALS_INVALID · ENCRYPTION_KEY_MISSING · RATE_FAILED · CREATE_FAILED · AWB_FAILED · PICKUP_FAILED · LABEL_FAILED · CAPABILITY_UNSUPPORTED · WEBHOOK_UNVERIFIED · WEBHOOK_UNLOCATED · IDEMPOTENT_REPLAY · APPLY_MISMATCH`. Provider 401 → `CREDENTIALS_INVALID` (400-class); provider 429/5xx → typed retryable (service maps to 502/503); everything else wraps with `awb/shipmentId` context.
+`FULFILLMENT_NOT_FOUND`, `INVALID_STATE`, `PROVIDER_NOT_SUPPORTED`, `PROVIDER_NOT_CONFIGURED`, `CREDENTIALS_INVALID`, `ENCRYPTION_KEY_MISSING`, `RATE_FAILED`, `BOOK_FAILED`, `LABEL_FAILED`, `CAPABILITY_UNSUPPORTED`, `WEBHOOK_UNVERIFIED`, `APPLY_MISMATCH`.
 
-## 9. Testing (mirrors payment + repo TDD bar)
+Provider 401 → `CREDENTIALS_INVALID`. Provider 429/5xx → retryable, mapped to 502/503.
 
-- **Contract tests per adapter** (run against wiremock Shiprocket): every `CourierPartner` method happy-path + 401 + 429 + malformed body; status-map unit table (`sr-status` → action, incl. unknown → `ignore` + alert).
-- **Webhook matrix**: valid, bad signature (401, no rows), unknown AWB (200, no rows), replay (200, single apply), out-of-order (no regression), verified-apply-fail (200 + `failed` log + cron heals).
-- **Reconciler**: stale sweep with `SKIP LOCKED`, bulk batching, system-EventID idempotency.
-- **Isolation**: cross-seller shipment access must 404; customer sees only own orders.
-- Integration tests under `test/integration/fulfillment/` via Testcontainers (pattern: `test/integration/product/...`); seeded `courier_provider` + field rows.
+## 9. Testing
 
-## 10. Adding a new courier — the AI playbook (goal: <1 day)
+- Adapter contract tests (Wiremock): book, cancel, label, track, 401, 429, bad JSON. Status table includes unknown → `ignore`.
+- Book sends shipment id, not order id. Two boxes of one order get two provider orders.
+- Webhook: valid apply; bad signature 401 and no rows; unknown AWB **200** and no rows; replay 200 and one apply; out-for-delivery then in-transit is allowed; delivered does not move backward; verified apply failure returns 200 and the cron heals.
+- Reconciler: drafts without provider id are recovered; bulk track is split by `provider_config_id`; stale uses `last_synced_at`.
+- Quantity: two concurrent creates cannot exceed `order_item.quantity` (order row lock).
+- NDR: two rounds with the same reason succeed after the first is actioned; a second open round does not.
+- Seller A cannot read seller B. Customer track does not call the courier.
+- Integration: `test/integration/fulfillment/` with Testcontainers.
 
-1. Paste provider API docs → generate `fulfillment/service/courier/<code>/` (`adapter, credentials, http, track, webhook` + optional `ndr`) implementing `CourierPartner` (+ `NDRHandler`/`ReturnHandler` asserts as capable).
-2. Confine ALL provider names/URLs/status codes to that folder (grep check in review).
-3. Seed: `courier_provider` row (+ capability flags) + `courier_provider_field` rows + optional platform-default config.
-4. One factory registry line. **No orchestrator, migration, or contract change.**
-5. Contract + webhook-matrix tests green. Ship behind per-provider `is_active` flag.
+## 10. Adding a courier
 
-## 11. What Phase 3 covers (not this doc)
+1. New folder `fulfillment/service/courier/<code>/` implementing `CourierPartner`, plus optional pickup / NDR / return interfaces.
+2. Provider names stay in that folder.
+3. Seed `courier_provider`, `courier_provider_field`, and optional platform config.
+4. One factory line. No orchestrator change and no new status string.
+5. Contract tests green. Ship behind `is_active`.
 
-Endpoints + request/response DTOs, cache keys/TTLs, cron schedules, rate limits, dashboard masking — built on top of this contract without changing it.
+## 11. Later, not this contract
+
+HTTP routes and DTOs, cache key details, dashboard masking. COD remittance waits for a statement API whose grain is many AWBs per UTR.
