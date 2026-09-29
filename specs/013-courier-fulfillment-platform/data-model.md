@@ -1,9 +1,11 @@
 # 013 — Courier Fulfillment Platform · Data Model (Phase 1: DB design)
 
-> Status: **revised after design review**. Phase 1 is tables only. The service design uses these tables and does not add more.
+> Status: **revised — auto-plan + location build**. Tables plus location-based auto-shipment planning with a per-tenant auto-book flag. No backorder (arrives with PO): checkout guarantees full availability, so the planner assumes full coverage and treats missing stock as an exception.
 > Conventions: singular table names (`SingularTable: true` + `TableName()`), `BaseEntity(id BIGSERIAL PK, created_at/updated_at TIMESTAMPTZ)` with **no `deleted_at`** (matches `payment_*` / `order`), money as `BIGINT *_cents`, JSONB `NOT NULL DEFAULT '{}'`, statuses as `VARCHAR` + one app enum (no DB CHECK except `quantity > 0`, `weight_grams > 0`, `cod_cents >= 0`, `attempt_no > 0`). All DDL uses `IF NOT EXISTS`. Migration file: `migrations/032_create_fulfillment_tables.sql`. Never edit old migrations.
 >
 > `fulfillment/entity/shipment.go` is a stub (`OrderShipment`: `carrier`, `tracking_no`, `pending`). No shipment table exists in migrations yet. `032` creates `fulfillment_shipment`. The stub entity is rewritten to match this model. It is not altered in place under the old column names.
+>
+> Cross-module rule: **no FK into another module's tables**. `pickup_location_id` (inventory) and `delivery_address_id` (order) are plain id columns — logical references resolved via service hooks. The owning module is always the single source of truth; the shipment stores ids, never copies of their rows. There are no pincode columns: pincodes are resolved from the ids at call time.
 
 ## 1. Table relation map
 
@@ -11,9 +13,12 @@
 erDiagram
     courier_provider ||--o{ courier_provider_config : "has (seller NULL = platform default)"
     courier_provider ||--o{ courier_provider_field : "defines credential form"
+    courier_provider ||--o{ courier_pickup_location : "pickup aliases"
+    courier_pickup_location ||--o{ fulfillment_shipment : "alias resolved at plan"
     seller_profile ||--o{ courier_provider_config : "overrides"
     courier_provider_config ||--o{ fulfillment_shipment : "booked with"
     "order" ||--o{ fulfillment_shipment : "ships as N boxes"
+    order_address ||--o{ fulfillment_shipment : "drop snapshot ref"
     fulfillment_shipment ||--o{ fulfillment_shipment_item : "contains"
     order_item ||--o{ fulfillment_shipment_item : "split across"
     fulfillment_shipment ||--o{ fulfillment_shipment_event : "ledger"
@@ -27,6 +32,7 @@ erDiagram
 ```
 courier_provider ──┬──< courier_provider_config >── seller_profile (NULL seller_id = platform default)
                    ├──< courier_provider_field
+                   ├──< courier_pickup_location (location → alias, planner use)
                    ├──< fulfillment_shipment >── "order" (RESTRICT)
                    └──< fulfillment_webhook_log
 
@@ -34,9 +40,12 @@ fulfillment_shipment ──< fulfillment_shipment_item >── order_item (RESTR
                      ──< fulfillment_shipment_event (immutable ledger)
                      ──< fulfillment_ndr (one open round)
                      ──< fulfillment_shipment.return_of_shipment_id (return box)
+
+fulfillment_shipment carries pickup_location_id + delivery_address_id (logical refs, no FK)
+                     + pickup_alias snapshot (planner-filled, NULL when single pickup)
 ```
 
-COD remittance and a pickup-location table are deferred (section 6). `cod_cents` on the shipment is only a snapshot of what the courier should collect.
+COD remittance is deferred (section 6). `cod_cents` on the shipment is only a snapshot of what the courier should collect. Pickup mapping lives in T9; backorder arrives with PO and is not modeled here.
 
 ## 2. Data flows
 
@@ -108,9 +117,28 @@ flowchart LR
 
 Lists retire via durable version counters (`fulfill:list:ver:{seller}`). Prefix / `KEYS` deletes on the request path are forbidden (012 rule).
 
+### 2b2. Auto-plan (location-based, event-driven)
+
+`OrderConfirmed` triggers the planner. One draft shipment per warehouse — no human input:
+
+```mermaid
+flowchart LR
+    OC[OrderConfirmed] --> G{shipments exist?}
+    G -- yes --> SKIP[skip: replay-safe]
+    G -- no --> A[availability per location via inventory hook]
+    A --> B[greedy allocate by warehouse priority + reserve]
+    B --> C[group by location: one draft per warehouse]
+    C --> TX[one Tx: drafts + items + ledger, ids stamped]
+    TX --> F{tenant auto_book?}
+    F -- off --> E1[emit planned: seller books]
+    F -- on --> E2[book each draft: cheapest/fastest rule]
+```
+
+Full coverage is guaranteed by checkout (orders without available quantity are not allowed), so there is no `unallocated` path and no backorder state. Missing stock at plan time is an exception (`FULFILLMENT_STOCK_MISMATCH`), not a flow — it means checkout and inventory disagree.
+
 ### 2c. Read path
 
-Customer tracking reads PostgreSQL only. It does not call the courier and does not change status. A seller refresh is a separate write. Rates use volatile cache. COD plaintext and credentials are never cached.
+Customer tracking reads PostgreSQL only. It does not call the courier and does not change status. A seller refresh is a separate write. Rates use volatile cache; rate pincodes are resolved in memory from the location/address ids via hooks — the shipment stores ids only (single source of truth). COD plaintext and credentials are never cached.
 
 ```mermaid
 flowchart TD
@@ -197,6 +225,8 @@ Seed — shiprocket: `api_email`, `api_password` (sensitive), `webhook_secret` (
 | environment | VARCHAR(20) | NOT NULL DEFAULT `'production'` |
 | credentials | JSONB | NOT NULL — encrypted |
 | pickup_alias | VARCHAR(100) | NULL |
+| auto_book | BOOLEAN | DEFAULT FALSE — tenant flag: plan-only drafts (FALSE) vs plan + book + pickup (TRUE) |
+| rate_preference | VARCHAR(20) | NULL — `cheapest` / `fastest`; used only when `auto_book` is TRUE |
 | is_active | BOOLEAN | DEFAULT TRUE |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
@@ -205,7 +235,7 @@ Index: `(seller_id, provider_code, is_active)`.
 
 ### T4 · `fulfillment_shipment` — one row per box
 
-`provider_code` has **no default**. The service sets it. `awb` stays NULL until booking returns one.
+`provider_code` has **no default**. The service sets it. `awb` stays NULL until booking returns one. Locations are plain ids (`pickup_location_id`, `delivery_address_id`) — no FK, resolved via hooks. `pickup_alias` is planner-filled and read-only after booking.
 
 | Column | Type | Constraints / notes |
 |---|---|---|
@@ -221,7 +251,9 @@ Index: `(seller_id, provider_code, is_active)`.
 | courier_name | VARCHAR(100) | NULL — late-bound, e.g. `Delhivery Surface` |
 | service_code | VARCHAR(50) | NULL |
 | status | VARCHAR(32) | NOT NULL DEFAULT `'draft'` — section 2a only |
-| pickup_pincode / delivery_pincode | VARCHAR(20) | NULL |
+| pickup_location_id | BIGINT | NULL — seller-side warehouse/location. No FK: logical ref to inventory `location`, resolved via hook |
+| delivery_address_id | BIGINT | NULL — customer location snapshot. No FK: logical ref to `order_address`, resolved via hook |
+| pickup_alias | TEXT | NULL — courier pickup nickname auto-resolved from T9 at plan time. NULL when the seller has a single pickup; read-only after booking |
 | weight_grams | INT | NULL CHECK (`weight_grams > 0`) |
 | length_cm / breadth_cm / height_cm | NUMERIC(8,2) | NULL |
 | cod_cents | BIGINT | NOT NULL DEFAULT 0 — collect-amount snapshot. 0 = prepaid. Not a remittance record |
@@ -244,11 +276,12 @@ Indexes:
 - `(seller_id, created_at DESC)` — seller list
 - `(seller_id, status)`
 - `(order_id)`
+- `(pickup_location_id)` — warehouse filter
 - `(status, last_synced_at)` — reconciler
 
 No standalone `(awb)` index and no standalone `(created_at)` index. The unique keys already cover AWB lookup.
 
-Create locks the **order** row, then checks Σ shipment quantity ≤ `order_item.quantity`, then inserts the draft. Two concurrent creates cannot over-allocate.
+Create (manual or planner) locks the **order** row, then checks Σ shipment quantity ≤ `order_item.quantity`, then inserts the draft. Two concurrent creates cannot over-allocate. Full coverage is assumed (no backorder until PO); a shortfall raises instead of branching.
 
 ### T5 · `fulfillment_shipment_item`
 
@@ -326,17 +359,33 @@ A second “customer not home” is a new round after the previous one is action
 Partial unique index: `UNIQUE(shipment_id) WHERE action_taken IS NULL` — one open round.
 Index: `(shipment_id)`.
 
+### T9 · `courier_pickup_location` — warehouse → pickup alias
+
+Fulfillment-owned mapping so the planner resolves each warehouse to its courier pickup nickname without touching inventory's tables. Mapped once at onboarding; never entered per shipment.
+
+| Column | Type | Constraints / notes |
+|---|---|---|
+| id | BIGSERIAL PK | |
+| location_id | BIGINT | NOT NULL — inventory `location`. No FK: logical reference |
+| provider_code | VARCHAR(50) | NOT NULL FK → `courier_provider(code)` ON DELETE CASCADE |
+| pickup_alias | VARCHAR(100) | NOT NULL — nickname registered on the courier account |
+| is_active | BOOLEAN | DEFAULT TRUE |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
+
+`UNIQUE(location_id, provider_code)`. Index: `(provider_code)`.
+Single-pickup sellers never need a row — the planner leaves `pickup_alias` NULL and the courier default applies.
+
 ## 4. GORM mapping notes
 
-Each entity implements `TableName()`. Nullable columns are pointers. Money is `int64`. JSON is `db.JSONMap`. Read shipments with `Preload("Items")`.
+Each entity implements `TableName()`. Nullable columns are pointers. Money is `int64`. JSON is `db.JSONMap`. Read shipments with `Preload("Items")`. Cross-module ids (`pickup_location_id`, `delivery_address_id`, T9 `location_id`) are plain `*uint` with no GORM association — never `Preload`ed, resolved via hooks.
 
 ## 5. Seeds
 
-`courier_provider` (shiprocket) + `courier_provider_field` rows + one NULL-seller `courier_provider_config` placeholder (empty encrypted creds). Demo shipments only if matching `order` / `order_item` seeds exist.
+`courier_provider` (shiprocket) + `courier_provider_field` rows + one NULL-seller `courier_provider_config` placeholder (empty encrypted creds, `auto_book` FALSE). One `courier_pickup_location` row per demo warehouse where multi-warehouse seeds exist. Demo shipments only if matching `order` / `order_item` seeds exist.
 
 ## 6. Deferred (not in `032`)
 
-1. **Pickup addresses.** `pickup_alias` on T3 is enough. A `courier_pickup_location` table waits until a seller has more than one warehouse.
-2. **`environment` on T3.** Kept so test credentials have a row. Shiprocket has no real sandbox.
-3. **COD remittance.** Couriers pay many AWBs under one UTR. A 1:1 remittance table is the wrong shape. Add it when a statement API is specified. Until then `cod_cents` is only the collect-amount snapshot.
-4. **Label storage.** No `label_url` column. Reprint calls the courier.
+1. **`environment` on T3.** Kept so test credentials have a row. Shiprocket has no real sandbox.
+2. **COD remittance.** Couriers pay many AWBs under one UTR. A 1:1 remittance table is the wrong shape. Add it when a statement API is specified. Until then `cod_cents` is only the collect-amount snapshot.
+3. **Label storage.** No `label_url` column. Reprint calls the courier.
+4. **Backorder / PO.** No `unallocated` state, no restock re-planner. Missing stock at plan time is an exception. Backorder arrives as its own designed feature with PO (supplier ETA, partial-release rules).
