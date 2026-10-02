@@ -5,7 +5,7 @@
 >
 > `fulfillment/entity/shipment.go` is a stub (`OrderShipment`: `carrier`, `tracking_no`, `pending`). No shipment table exists in migrations yet. `032` creates `fulfillment_shipment`. The stub entity is rewritten to match this model. It is not altered in place under the old column names.
 >
-> Cross-module rule: **no FK into another module's tables**. `pickup_location_id` (inventory) and `delivery_address_id` (order) are plain id columns — logical references resolved via service hooks. The owning module is always the single source of truth; the shipment stores ids, never copies of their rows. There are no pincode columns: pincodes are resolved from the ids at call time.
+> Cross-module rule: **no FK into another module's tables**. `pickup_location_id` (inventory) and `delivery_address_id` (order) are plain id columns — logical references resolved via service hooks. The owning module is always the single source of truth; the shipment stores ids, never copies of their rows. There are no pincode columns: pincodes are resolved from the ids at call time. DB CHECKs exist only for `quantity > 0`, `weight_grams > 0`, `default_weight_grams > 0`, `cod_cents >= 0`, `attempt_no > 0`.
 
 ## 1. Table relation map
 
@@ -224,6 +224,7 @@ Seed — shiprocket: `api_email`, `api_password` (sensitive), `webhook_secret` (
 | credentials | JSONB | NOT NULL — encrypted |
 | auto_book | BOOLEAN | DEFAULT FALSE — tenant flag: plan-only drafts (FALSE) vs plan + book + pickup (TRUE) |
 | rate_preference | VARCHAR(20) | NULL — `cheapest` / `fastest`; used only when `auto_book` is TRUE |
+| default_weight_grams | INT | NULL CHECK (`default_weight_grams > 0`) — fallback box weight for auto-book when the draft has no PATCHed weight |
 | is_active | BOOLEAN | DEFAULT TRUE |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
@@ -252,6 +253,7 @@ Index: `(seller_id, provider_code, is_active)`.
 | status | VARCHAR(32) | NOT NULL DEFAULT `'draft'` — section 2a only |
 | pickup_location_id | BIGINT | NULL — seller-side warehouse/location. No FK: logical ref to inventory `location`, resolved via hook |
 | delivery_address_id | BIGINT | NULL — customer location snapshot. No FK: logical ref to `order_address`, resolved via hook |
+| delivery_address_revised_at | TIMESTAMPTZ | NULL — address revision stamp: set at plan from `order_address.updated_at`, re-stamped by confirm-address; book refuses when the live address is newer |
 | delivery_address_revised_at | TIMESTAMPTZ | NULL — `updated_at` of that address at plan time. Not a copy of the address. Book compares it |
 | weight_grams | INT | NULL CHECK (`weight_grams > 0`) |
 | length_cm / breadth_cm / height_cm | NUMERIC(8,2) | NULL |
@@ -259,6 +261,8 @@ Index: `(seller_id, provider_code, is_active)`.
 | rate_cents | BIGINT | NULL — quoted freight |
 | insured | BOOLEAN | DEFAULT FALSE |
 | etd / shipped_at / delivered_at / cancelled_at / last_synced_at | TIMESTAMPTZ | NULL. `last_synced_at` is the last successful provider poll or applied webhook. It is not `updated_at` |
+| book_requested_at | TIMESTAMPTZ | NULL — first book-attempt marker; `recover_drafts` sweeps drafts with it set and `provider_order_id` still NULL (plus never-attempted drafts older than 2 minutes) |
+| book_attempts | INT | NOT NULL DEFAULT 0 — incremented per attempt; auto-retry caps at 5, then manual-only + alert |
 | return_of_shipment_id | BIGINT | NULL FK → `fulfillment_shipment(id)`. Set on a return box. No separate return-status table |
 | raw_ref | JSONB | NOT NULL DEFAULT `'{}'` — sanitized, no PII |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
@@ -277,6 +281,7 @@ Indexes:
 - `(order_id)`
 - `(pickup_location_id)` — warehouse filter
 - `(status, last_synced_at)` — reconciler
+- `(status, book_requested_at) WHERE status = 'draft'` — recover sweep (partial)
 - partial `(book_requested_at) WHERE status = 'draft' AND provider_order_id IS NULL AND book_requested_at IS NOT NULL` — crash retry only
 
 No standalone `(awb)` index and no standalone `(created_at)` index. The unique keys already cover AWB lookup.
@@ -323,7 +328,7 @@ Persist only after signature verification. Unknown AWB: nothing stored, HTTP 200
 | Column | Type | Constraints / notes |
 |---|---|---|
 | id | BIGSERIAL PK | |
-| provider_code | VARCHAR(50) | NOT NULL FK → `courier_provider(code)` |
+| provider_code | VARCHAR(50) | NULL in `draft`, set at book. FK → `courier_provider(code)` |
 | event_id | TEXT | NOT NULL |
 | awb | TEXT | NULL |
 | action | VARCHAR(50) | NOT NULL — same vocabulary as status, or `ignore` |

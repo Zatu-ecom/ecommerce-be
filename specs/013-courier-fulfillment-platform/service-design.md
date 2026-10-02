@@ -108,6 +108,10 @@ type NDRHandler interface {
 type ReturnHandler interface {
     BookReturn(ctx context.Context, in BookReturnInput, creds map[string]any) (*BookShipmentOutput, error)
 }
+type RTORequester interface {
+    RequestRTO(ctx context.Context, in RTORequestInput, creds map[string]any) error
+}
+type RTORequestInput struct { ShipmentID uint; AWB string; Reason string }
 ```
 
 ```go
@@ -220,7 +224,7 @@ Shiprocket’s JWT lives in the adapter (`auth.go`): durable KV, refresh before 
 
 If the process dies after the courier accepts and before Tx2, the draft has `book_requested_at` set and no `provider_order_id`. `recover_drafts` (section 5.7) books again with the same shipment id. The adapter treats “already exists” as success and returns the existing AWB. A draft whose `book_requested_at` is NULL is waiting for a person. The job must not book it.
 
-Before any courier call, refuse with no retry loop when `weight_grams` is missing or not positive (`FULFILLMENT_WEIGHT_REQUIRED`). The planner fills weight from the sum of catalog weights on the lines. The seller can override it on the draft. Auto-book that lacks a weight leaves the draft, alerts once, and does not set `book_requested_at`.
+Before any courier call, refuse with no retry loop when `weight_grams` is missing or not positive (`FULFILLMENT_WEIGHT_REQUIRED`). The planner fills weight from the sum of catalog weights on the lines. The seller can override it on the draft. Auto-book that still lacks a weight falls back to the config's `default_weight_grams`; with neither, it leaves the draft, alerts once, and does not set `book_requested_at`.
 
 Re-read the address at book time. If its `updated_at` is newer than `delivery_address_revised_at`, refuse (`FULFILLMENT_ADDRESS_CHANGED`) and do not set `book_requested_at`. The seller confirms, which re-stamps the timestamp, and then book continues. Auto-book does not confirm a changed address by itself.
 
@@ -239,6 +243,10 @@ Reservation: checkout already holds units at **variant** level (`CONFIRMED` on t
 `RequestReturn`: only when the original shipment is `delivered`, and only when that shipment’s own `return_of_shipment_id` is NULL (no return of a return). Each line’s quantity, summed across non-cancelled return boxes, must be ≤ the quantity on the original box, and each line must be on that box. Insert a new shipment with `return_of_shipment_id` set, then `ReturnHandler.BookReturn` under the same `book_requested_at` rule as a forward book. Tracking for that box uses the same applier. There is no second return-status column.
 
 Location stamping: every create path (manual or planner) stamps `pickup_location_id` + `delivery_address_id`. The adapter derives the pickup nickname (`S{seller}L{location}`) from those ids at book time and always sends it.
+
+`BookAll`: runs the §5.1 book path per remaining draft on the order. Body `providerCode`/`serviceCode` are optional batch overrides; omitted fields resolve per draft (planner pick / seller config). Failures collect per draft and never fail the batch.
+
+`ConfirmAddress`: re-reads `order_address`; unchanged since `delivery_address_revised_at` → no-op. Changed → serviceability-check the new pincode first (refuse with `FULFILLMENT_INVALID_STATE` when unserviceable), then re-stamp. Does not book.
 
 ### 5.2 `ShipmentPlanner` — auto-plan on `OrderConfirmed`
 
@@ -427,4 +435,4 @@ Provider 401 → `CREDENTIALS_INVALID`. Provider 429/5xx → retryable, mapped t
 
 ## 12. Later, not this contract
 
-HTTP routes and DTOs, cache key details, dashboard masking. Backorder/PO and COD remittance stay out until their own designs.
+HTTP routes and JSON bodies are in `api-contracts.md`. Cache key details stay out of that file. Backorder/PO and COD remittance stay out until their own designs. Planner weight sums need `weight_grams` on product variants — no such column exists in the product module today, so confirm the source (or add it there) before implementation.
