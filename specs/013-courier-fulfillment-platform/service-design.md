@@ -256,7 +256,7 @@ Only `directship` orders are planned. `bopis` (pickup in store) and `transfer` (
 
 1. Guard: if non-cancelled shipments already cover every order line, skip (replay-safe). Cancelled rows do not count. A replan after a failed book only allocates quantity that is still uncovered.
 2. Load `FulfillmentOrderView` (lines, weights, `fulfillment_type`, `delivery_address_id`, address `updated_at`) and availability per location via `FulfillmentInventoryHooks.GetAvailability` (variant → `[{location_id, available_qty, priority, pincode}]`).
-3. Greedy allocate each still-uncovered line by warehouse priority until covered. Full coverage of what is still uncovered is required — a shortfall raises `FULFILLMENT_STOCK_MISMATCH` (exception + alert), never a partial plan. No backorder until PO.
+3. Greedy allocate each still-uncovered line by warehouse priority from its CONFIRMED holds (held-first: checkout already chose placement, and re-deciding from free stock can disagree with it). Full coverage of what is still uncovered is required — a shortfall raises `FULFILLMENT_STOCK_MISMATCH` (exception + alert), never a partial plan. No backorder until PO.
 4. Group allocations by `location_id` → one `draft` per warehouse in a single short tx (same Tx1 shape, Σ-guard, order-row lock). Stamp `pickup_location_id`, `delivery_address_id`, and `delivery_address_revised_at`. `provider_code` stays NULL. Inside this same transaction, `AdoptReservation` checks the order’s existing CONFIRMED hold. It does not insert a reservation. If the check fails, the whole transaction rolls back.
 5. Stamp `cod_cents` on exactly one new draft: the one with the best warehouse priority (lowest priority number, then lowest id). Other new drafts get 0. Do not stamp COD onto a box that already carries it.
 6. Emit `OnShipmentsPlanned(orderID, draftIDs)`. Single-warehouse sellers collapse to exactly one draft with no special case.
@@ -328,6 +328,7 @@ type FulfillmentOrderView struct {
     DeliveryAddressUpdatedAt time.Time
     DeliveryPincode string // in memory only, never stored on the shipment
     CodCents int64
+    CurrencyCode string // seller display currency; empty = INR fallback display
 }
 type FulfillmentOrderItemView struct { OrderItemID, VariantID uint; Quantity int; WeightGrams int }
 
@@ -340,7 +341,9 @@ type FulfillmentProgress struct {
 // Narrow inventory surface. No repo imports.
 // Checkout already created the CONFIRMED hold at variant level. Fulfillment does not create another one.
 type FulfillmentInventoryHooks interface {
-    GetAvailability(ctx context.Context, sellerID uint, variantIDs []uint) ([]AvailabilityRow, error)
+    GetAvailability(ctx context.Context, sellerID uint, orderID uint, variantIDs []uint) ([]AvailabilityRow, error)
+    // AvailabilityRow carries AvailableQty (free stock) + HeldQty (this
+    // order's CONFIRMED holds); planners allocate from their sum.
     AdoptReservation(ctx context.Context, sellerID uint, lines []ReservationLine) error // inside the draft tx; check only
     ReleaseReservation(ctx context.Context, sellerID uint, lines []ReservationLine) error // cancel path, this box's qty only
 }

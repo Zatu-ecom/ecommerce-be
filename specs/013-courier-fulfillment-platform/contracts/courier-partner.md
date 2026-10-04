@@ -98,7 +98,7 @@ type FulfillmentOrderHooks interface {
     OnShipmentReturned(ctx context.Context, p FulfillmentProgress) error
 }
 type FulfillmentInventoryHooks interface {
-    GetAvailability(ctx context.Context, sellerID uint, variantIDs []uint) ([]AvailabilityRow, error)
+    GetAvailability(ctx context.Context, sellerID uint, orderID uint, variantIDs []uint) ([]AvailabilityRow, error) // rows carry AvailableQty + HeldQty (own CONFIRMED holds); planners allocate from their sum
     ReserveForShipment(ctx context.Context, sellerID uint, lines []ReservationLine) error
     ReleaseReservation(ctx context.Context, sellerID uint, lines []ReservationLine) error
 }

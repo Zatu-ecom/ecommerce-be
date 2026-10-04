@@ -32,7 +32,11 @@ var platformAllowlist = []struct {
 	{prefix: "geo:countries:active:"},
 	{prefix: "geo:currencies:active:"},
 	{prefix: "gateway:catalog:"},
-	{prefix: "attributes:all:"}, // global attribute-list version (definitions are not seller-owned)
+	{prefix: "courier:catalog:"},    // fulfillment courier catalog (public metadata only)
+	{prefix: "fulfill:init:idem:"},  // fulfillment create-shipment idempotency replay
+	{prefix: "fulfill:rate:limit:"}, // fulfillment rate-API throttle
+	{prefix: "shiprocket:token:"},   // Shiprocket JWT per frozen config row (durable)
+	{prefix: "attributes:all:"},     // global attribute-list version (definitions are not seller-owned)
 	{prefix: "delayed_jobs", exact: true},
 	{prefix: "scheduled_job:"},
 }

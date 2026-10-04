@@ -57,6 +57,12 @@ func (s *OrderServiceImpl) CreateOrder(
 	}
 
 	converted = true
+
+	// Post-commit: orders born confirmed (COD) plan immediately. Planner
+	// failures never fail creation (log-only inside).
+	if resp.Status == entity.ORDER_STATUS_CONFIRMED {
+		s.afterConfirmTrigger(ctx, resp.ID, &sellerID)
+	}
 	return resp, nil
 }
 
@@ -351,6 +357,12 @@ func (s *OrderServiceImpl) UpdateOrderStatus(
 		return nil, err
 	}
 
+	// Post-commit: any path landing on CONFIRMED (seller patch, admin)
+	// plans fulfillment. Idempotent: covered orders return the live set.
+	if confirmedTarget(target) {
+		s.afterConfirmTrigger(ctx, order.ID, &sellerID)
+	}
+
 	return &model.UpdateStatusResponse{
 		ID:             order.ID,
 		OrderNumber:    order.OrderNumber,
@@ -522,7 +534,7 @@ func (s *OrderServiceImpl) ConfirmPaymentByTransactionID(
 	}
 
 	now := time.Now().UTC()
-	return db.WithTransaction(ctx, func(txCtx context.Context) error {
+	if err := db.WithTransaction(ctx, func(txCtx context.Context) error {
 		prev := order.Status
 		target := entity.ORDER_STATUS_CONFIRMED
 		txID := transactionID
@@ -532,7 +544,13 @@ func (s *OrderServiceImpl) ConfirmPaymentByTransactionID(
 		}
 		return s.applyUpdateOrderStatusTx(txCtx, order, *order.SellerID,
 			prev, target, now, req)
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Post-commit: payment capture confirms the order and plans fulfillment.
+	s.afterConfirmTrigger(ctx, order.ID, order.SellerID)
+	return nil
 }
 
 // FailPaymentByTransactionID marks a pending order failed when its payment fails.

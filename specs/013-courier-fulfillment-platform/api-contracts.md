@@ -76,7 +76,7 @@ Times are RFC3339 UTC. Ids are numbers. Names are camelCase.
 
 ### Shipment
 
-Used by get, list, plan, book, cancel, and return. List items omit `items`, `events`, and `ndr`.
+Used by get, list, plan, book, cancel, and return. List rows carry `items` (tiny, saves N+1 detail calls) but omit `events` and `ndr`.
 
 ```json
 {

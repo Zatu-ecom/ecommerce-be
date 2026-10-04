@@ -18,9 +18,13 @@ import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/common/scheduler"
 	fileModule "ecommerce-be/file"
+	"ecommerce-be/fulfillment"
+	fulfillmentSingleton "ecommerce-be/fulfillment/factory/singleton"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
+	orderSingleton "ecommerce-be/order/factory/singleton"
+	orderService "ecommerce-be/order/service"
 	"ecommerce-be/payment"
 	product "ecommerce-be/product"
 	"ecommerce-be/promotion"
@@ -78,6 +82,11 @@ func main() {
 
 	/* Register modules */
 	registerContainer(router)
+
+	/* Cross-module wiring: fulfillment planner triggers on order
+	   confirmation. Type-asserted (not on the OrderService interface) to
+	   keep the domain contract fulfillment-free; nil-safe when unwired. */
+	wireFulfillmentPlanner()
 
 	/* Start background workers (must be before router.Run which blocks) */
 	go scheduler.StartRedisWorkerPool()
@@ -142,7 +151,19 @@ func registerContainer(router *gin.Engine) {
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
+	_ = fulfillment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
 	_ = report.NewContainer(router)
+}
+
+// wireFulfillmentPlanner connects order confirmation to fulfillment
+// auto-planning. Both singletons are lazy; this only hands the planner to
+// the order service. Safe to call when fulfillment is disabled: a nil
+// planner leaves order behavior unchanged.
+func wireFulfillmentPlanner() {
+	planner := fulfillmentSingleton.GetInstance().GetServiceFactory().GetShipmentPlanner()
+	if impl, ok := orderSingleton.GetInstance().GetOrderService().(*orderService.OrderServiceImpl); ok {
+		impl.SetShipmentPlanner(planner)
+	}
 }

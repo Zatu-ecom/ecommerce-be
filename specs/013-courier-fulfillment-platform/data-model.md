@@ -78,8 +78,18 @@ stateDiagram-v2
     draft --> cancelled
     booked --> pickup_scheduled
     booked --> picked
+    booked --> in_transit
+    booked --> out_for_delivery
+    booked --> ndr_pending
+    booked --> delivered
+    booked --> failed
     booked --> cancelled
     pickup_scheduled --> picked
+    pickup_scheduled --> in_transit
+    pickup_scheduled --> out_for_delivery
+    pickup_scheduled --> ndr_pending
+    pickup_scheduled --> delivered
+    pickup_scheduled --> failed
     pickup_scheduled --> cancelled
     picked --> in_transit
     in_transit --> out_for_delivery

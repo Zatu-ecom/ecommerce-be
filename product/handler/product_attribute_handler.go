@@ -17,15 +17,18 @@ import (
 type ProductAttributeHandler struct {
 	*handler.BaseHandler
 	productAttrService service.ProductAttributeService
+	specService        service.PhysicalSpecService
 }
 
 // NewProductAttributeHandler creates a new instance of ProductAttributeHandler
 func NewProductAttributeHandler(
 	productAttrService service.ProductAttributeService,
+	specService service.PhysicalSpecService,
 ) *ProductAttributeHandler {
 	return &ProductAttributeHandler{
 		BaseHandler:        handler.NewBaseHandler(),
 		productAttrService: productAttrService,
+		specService:        specService,
 	}
 }
 
@@ -233,4 +236,31 @@ func (h *ProductAttributeHandler) BulkUpdateProductAttributes(c *gin.Context) {
 		"result",
 		updateResponse,
 	)
+}
+
+// GetShippingSpecs returns attached shippable specs plus missing families
+// for the seller dashboard "specs missing" badge.
+// GET /api/product/:productId/attribute/shipping-specs
+func (h *ProductAttributeHandler) GetShippingSpecs(c *gin.Context) {
+	// Parse product ID
+	productID, err := h.ParseUintParam(c, "productId")
+	if err != nil {
+		h.HandleError(c, err, utils.INVALID_PRODUCT_ID_MSG)
+		return
+	}
+
+	_, sellerID, err := auth.ValidateUserHasSellerRoleOrHigherAndReturnAuthData(c)
+	if err != nil {
+		h.HandleError(c, err, constants.UNAUTHORIZED_ERROR_MSG)
+		return
+	}
+
+	// Call service
+	specs, err := h.specService.ProductShippingSpecs(c, sellerID, productID)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_GET_SHIPPING_SPECS_MSG)
+		return
+	}
+
+	h.Success(c, http.StatusOK, utils.SHIPPING_SPECS_RETRIEVED_MSG, specs)
 }
