@@ -91,6 +91,7 @@ func (s *RateServiceImpl) GetRates(
 		DeliveryPincode: delivery,
 		WeightGrams:     req.WeightGrams,
 		CodCents:        view.CodCents,
+		CurrencyCode:    view.CurrencyCode,
 	}
 	if req.LengthCm != nil {
 		input.LengthCm = *req.LengthCm

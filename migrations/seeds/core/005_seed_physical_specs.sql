@@ -17,11 +17,7 @@ INSERT INTO attribute_definition (id, key, name, unit, allowed_values, created_a
 (105, 'breadth_m', 'Breadth (m)', 'm',  NULL, NOW(), NOW()),
 (106, 'height_cm', 'Height (cm)', 'cm', NULL, NOW(), NOW()),
 (107, 'height_m',  'Height (m)',  'm',  NULL, NOW(), NOW())
-ON CONFLICT (id) DO UPDATE SET
-    key = EXCLUDED.key,
-    name = EXCLUDED.name,
-    unit = EXCLUDED.unit,
-    updated_at = NOW();
+ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('attribute_definition_id_seq', (SELECT MAX(id) FROM attribute_definition));
 
@@ -41,16 +37,7 @@ INSERT INTO physical_spec_unit (
 ('breadth_m',  105, 'breadth', 'm',  'metre',      100,  FALSE, 2, TRUE, NOW(), NOW()),
 ('height_cm',  106, 'height',  'cm', 'centimetre', 1,    TRUE,  1, TRUE, NOW(), NOW()),
 ('height_m',   107, 'height',  'm',  'metre',      100,  FALSE, 2, TRUE, NOW(), NOW())
-ON CONFLICT (key) DO UPDATE SET
-    attribute_definition_id = EXCLUDED.attribute_definition_id,
-    parameter = EXCLUDED.parameter,
-    unit_short = EXCLUDED.unit_short,
-    unit_full = EXCLUDED.unit_full,
-    factor_to_base = EXCLUDED.factor_to_base,
-    is_base = EXCLUDED.is_base,
-    display_order = EXCLUDED.display_order,
-    is_active = EXCLUDED.is_active,
-    updated_at = NOW();
+ON CONFLICT (key) DO NOTHING;
 
 -- ------------------------------
 -- Summary + self-check

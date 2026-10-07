@@ -2,6 +2,9 @@ package shiprocket
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,43 +40,97 @@ func shiprocketTokenKey(configID uint) string {
 	return "shiprocket:token:" + strings.TrimSpace(fmt.Sprintf("%d", configID))
 }
 
-// tokenCache holds logins by api_email with mutex-guarded expiry.
-func (a *Adapter) cachedToken(email string) (string, bool) {
+// tokenKeyFor scopes cached logins by credential identity (email + password
+// hash), not email alone: rotation and seller-override rows sharing an email
+// must not collide. Password never leaves this hash (key only, never logged).
+func tokenKeyFor(creds *shiprocketCredentials) string {
+	sum := sha256.Sum256([]byte(creds.APIPassword))
+	return strings.ToLower(strings.TrimSpace(creds.APIEmail)) + "|" + fmt.Sprintf("%x", sum)
+}
+
+// tokenCache holds logins by credential key with mutex-guarded expiry.
+func (a *Adapter) cachedToken(key string) (string, bool) {
 	a.tokenMu.RLock()
 	defer a.tokenMu.RUnlock()
-	entry, ok := a.tokens[email]
+	entry, ok := a.tokens[key]
 	if !ok || time.Now().After(entry.expiresAt) {
 		return "", false
 	}
 	return entry.token, true
 }
 
-func (a *Adapter) storeToken(email, token string) {
+func (a *Adapter) storeToken(key, token string) {
 	a.tokenMu.Lock()
 	defer a.tokenMu.Unlock()
 	if a.tokens == nil {
 		a.tokens = map[string]tokenEntry{}
 	}
-	a.tokens[email] = tokenEntry{token: token, expiresAt: time.Now().Add(tokenTTL)}
+	a.tokens[key] = tokenEntry{token: token, expiresAt: tokenExpiry(token)}
 }
 
-func (a *Adapter) purgeToken(email string) {
+func (a *Adapter) purgeToken(key string) {
 	a.tokenMu.Lock()
 	defer a.tokenMu.Unlock()
-	delete(a.tokens, email)
+	delete(a.tokens, key)
+}
+
+// tokenExpiry prefers the JWT exp claim (minus skew) over the fixed 9d cap,
+// so provider lifetime changes heal without waiting for 401s.
+func tokenExpiry(token string) time.Time {
+	cap := time.Now().Add(tokenTTL)
+	if exp, ok := parseJWTExp(token); ok && !exp.IsZero() {
+		if skewed := exp.Add(-5 * time.Minute); skewed.Before(cap) {
+			return skewed
+		}
+	}
+	return cap
+}
+
+// parseJWTExp extracts exp without verification (expiry only, never auth).
+func parseJWTExp(token string) (time.Time, bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return time.Time{}, false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return time.Time{}, false
+	}
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil || claims.Exp == 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(claims.Exp, 0), true
 }
 
 // token returns a live JWT for the credentials, logging in on miss/expiry.
+// Concurrent misses collapse to one provider login via singleflight.
 func (a *Adapter) token(ctx context.Context, creds *shiprocketCredentials) (string, error) {
-	if cached, ok := a.cachedToken(creds.APIEmail); ok {
+	key := tokenKeyFor(creds)
+	if cached, ok := a.cachedToken(key); ok {
 		return cached, nil
 	}
-	token, err := a.login(ctx, creds)
+	v, err, _ := a.loginFlight.Do(key, func() (any, error) {
+		if cached, ok := a.cachedToken(key); ok {
+			return cached, nil
+		}
+		tok, lerr := a.login(ctx, creds)
+		if lerr != nil {
+			return "", lerr
+		}
+		a.storeToken(key, tok)
+		return tok, nil
+	})
 	if err != nil {
 		return "", err
 	}
-	a.storeToken(creds.APIEmail, token)
-	return token, nil
+	tok, _ := v.(string)
+	if tok == "" {
+		return "", fmt.Errorf("shiprocket: token missing after login")
+	}
+	return tok, nil
 }
 
 // Login exchanges api_email/api_password for a JWT. POST: never retried.
@@ -108,7 +165,7 @@ func (a *Adapter) withAuth(
 		return resp, nil
 	}
 	if isUnauthorized(err) {
-		a.purgeToken(creds.APIEmail)
+		a.purgeToken(tokenKeyFor(creds))
 		token, err = a.token(ctx, creds)
 		if err != nil {
 			return nil, err
@@ -118,8 +175,10 @@ func (a *Adapter) withAuth(
 	return nil, err
 }
 
-// withAuthResult is the typed twin of withAuth for calls returning
-// provider-specific results (booking): same token + single 401 retry.
+// withAuthResult is the typed twin of withAuth for single-call bookings.
+// WARNING: never pass a multi-step fn (create→assign→pickup) here — a 401 on
+// a later leg would re-run earlier POSTs and double-create provider orders.
+// Multi-step flows must use stepWithRefresh per leg (see shipment.go/ndr.go).
 // A plain function (not a method): Go methods cannot take type parameters.
 func withAuthResult[T any](
 	ctx context.Context,
@@ -137,7 +196,7 @@ func withAuthResult[T any](
 		return resp, nil
 	}
 	if isUnauthorized(err) {
-		a.purgeToken(creds.APIEmail)
+		a.purgeToken(tokenKeyFor(creds))
 		token, err = a.token(ctx, creds)
 		if err != nil {
 			return zero, err
@@ -152,4 +211,33 @@ func withAuthResult[T any](
 func isUnauthorized(err error) bool {
 	appErr, ok := commonError.AsAppError(err)
 	return ok && appErr.Code == fulfillmenterrors.ErrorCredentialsInvalid.Code
+}
+
+// stepWithRefresh runs one provider POST with the current token, purging +
+// re-logging in and retrying that leg once on 401. It returns the (possibly
+// refreshed) token so subsequent legs continue on the live token without
+// re-running already-successful steps.
+func (a *Adapter) stepWithRefresh(
+	ctx context.Context,
+	creds *shiprocketCredentials,
+	token string,
+	op func(ctx context.Context, token string) (map[string]any, error),
+) (map[string]any, string, error) {
+	out, err := op(ctx, token)
+	if err == nil {
+		return out, token, nil
+	}
+	if !isUnauthorized(err) {
+		return nil, token, err
+	}
+	a.purgeToken(tokenKeyFor(creds))
+	fresh, lerr := a.token(ctx, creds)
+	if lerr != nil {
+		return nil, token, lerr
+	}
+	out, err = op(ctx, fresh)
+	if err != nil {
+		return nil, fresh, err
+	}
+	return out, fresh, nil
 }

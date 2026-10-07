@@ -79,12 +79,15 @@ func TestBookShipment_HappyPath(t *testing.T) {
 		RecipientName: "Ramesh", RecipientPhone: "9876543210",
 		Street: "1 Main", City: "Pune", State: "MH", Pincode: "411001",
 		Lines:    []fulfillmentmodel.BookLine{{Name: "Phone", SKU: "PH-1", Quantity: 2, UnitPriceCents: 49900}},
-		CodCents: 99800, SubTotalCents: 99800,
+		CodCents: 99800, SubTotalCents: 99800, CurrencyCode: "INR",
 	}, testCreds())
 	require.NoError(t, err)
 	require.Equal(t, "AWB1", out.AWB)
 	require.Equal(t, "Delhivery Surface", out.CourierName)
 	require.Equal(t, "77", fmt.Sprintf("%v", createBody["order_id"]), "provider order id is our shipment id")
+	// Money standard: storage paise → provider major units via common/model.
+	require.InDelta(t, 499.0, toFloat(createBody["order_items"], 0, "selling_price"), 0.001)
+	require.InDelta(t, 998.0, toFloatScalar(createBody["sub_total"]), 0.001)
 }
 
 // ─── Book skips pickup when unset ────────────────────────────────────────────
@@ -300,4 +303,38 @@ func TestBadJSON_Errors(t *testing.T) {
 	_, err := a.FetchTracking(ctx(), "AWB1", testCreds())
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "parse response"))
+}
+
+func toFloat(items any, idx int, key string) float64 {
+	list, _ := items.([]map[string]any)
+	if list == nil {
+		if raw, ok := items.([]any); ok && idx < len(raw) {
+			if m, ok := raw[idx].(map[string]any); ok {
+				return toFloatScalar(m[key])
+			}
+		}
+		return 0
+	}
+	if idx < len(list) {
+		return toFloatScalar(list[idx][key])
+	}
+	return 0
+}
+
+func toFloatScalar(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	default:
+		return 0
+	}
 }

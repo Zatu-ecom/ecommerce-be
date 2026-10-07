@@ -426,14 +426,18 @@ func (h *InventoryFulfillmentHooksImpl) consumeUnits(
 ) error {
 	_ = to
 	beforeQty, beforeRes := inv.Quantity, inv.ReservedQuantity
-	if err := db.DB(ctx).
+	res := db.DB(ctx).
 		Model(&invEntity.Inventory{}).
-		Where("id = ?", inv.ID).
+		Where("id = ? AND quantity >= ? AND reserved_quantity >= ?", inv.ID, take, take).
 		Updates(map[string]any{
 			"quantity":          gorm.Expr("quantity - ?", take),
 			"reserved_quantity": gorm.Expr("reserved_quantity - ?", take),
-		}).Error; err != nil {
-		return fmt.Errorf("fulfillment hooks consume stock: %w", err)
+		})
+	if res.Error != nil {
+		return fmt.Errorf("fulfillment hooks consume stock: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("%w: order %d short of stock", fulfillmenterrors.ErrorStockMismatch, orderID)
 	}
 	ref := fmt.Sprintf("%d", orderID)
 	refType := "ORDER"

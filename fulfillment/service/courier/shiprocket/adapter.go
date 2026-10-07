@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"ecommerce-be/fulfillment/utils/constant"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // Adapter implements courier.CourierPartner for Shiprocket.
@@ -19,6 +21,9 @@ type Adapter struct {
 
 	tokenMu sync.RWMutex
 	tokens  map[string]tokenEntry
+	// loginFlight collapses concurrent logins for the same credential key
+	// (thundering herd on expiry) to one provider POST per pod.
+	loginFlight singleflight.Group
 }
 
 // New builds the adapter with a configurable base URL and a pooled HTTP client.

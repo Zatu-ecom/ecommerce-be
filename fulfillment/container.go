@@ -2,12 +2,16 @@ package fulfillment
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"ecommerce-be/common"
 	"ecommerce-be/common/cron"
+	logger "ecommerce-be/common/log"
 	"ecommerce-be/fulfillment/factory/singleton"
+	fulfillmentservice "ecommerce-be/fulfillment/service"
 	"ecommerce-be/fulfillment/route"
+	orderSingleton "ecommerce-be/order/factory/singleton"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +23,11 @@ func NewContainer(router *gin.Engine) *common.Container {
 
 	/* Register all modules (courier catalog, shipments, tracking, webhook). */
 	addModules(c)
+
+	/* Cross-module wiring: order confirmation triggers fulfillment
+	   auto-planning. Owned here (not main) so the general entry point
+	   stays free of domain wiring; safe when fulfillment is disabled. */
+	wirePlanner()
 
 	/* Register schedulers */
 	registerScheduler()
@@ -66,4 +75,23 @@ func registerScheduler() {
 		_, _ = singleton.GetInstance().GetServiceFactory().GetReconcileService().
 			SweepNDR(context.Background())
 	})
+}
+
+// wirePlanner hands the fulfillment planner to the order service so order
+// confirmation auto-plans drafts. Both singletons are lazy. Depends on a
+// narrow interface (not the concrete OrderServiceImpl) so decorators and
+// test doubles don't silently disable auto-planning; a mismatch logs loudly
+// instead of no-op'ing.
+func wirePlanner() {
+	planner := singleton.GetInstance().GetServiceFactory().GetShipmentPlanner()
+	type plannerSetter interface {
+		SetShipmentPlanner(planner fulfillmentservice.ShipmentPlanner)
+	}
+	if setter, ok := orderSingleton.GetInstance().GetOrderService().(plannerSetter); ok {
+		setter.SetShipmentPlanner(planner)
+		return
+	}
+	logger.ErrorWithContext(context.Background(),
+		"fulfillment planner wiring skipped: order service does not expose SetShipmentPlanner",
+		fmt.Errorf("type %T lacks SetShipmentPlanner", orderSingleton.GetInstance().GetOrderService()))
 }

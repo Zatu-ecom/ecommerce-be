@@ -12,6 +12,8 @@ import (
 // RateInput is the provider-agnostic input for shopping live rates.
 // Pincodes arrive hook-resolved (availability rows carry warehouse pincodes;
 // the order view carries the delivery pincode) — never stored columns.
+// CurrencyCode is the ISO display currency (e.g. INR); adapters MUST use it
+// for minor<->major conversion via common/model (never hardcoded *100).
 type RateInput struct {
 	PickupPincode   string
 	DeliveryPincode string
@@ -21,6 +23,8 @@ type RateInput struct {
 	HeightCm        float64
 	CodCents        int64
 	OrderValueCents int64
+	// CurrencyCode drives currency-aware conversion (default INR when empty).
+	CurrencyCode string
 }
 
 // RateOption is one priced courier service for a rate request.
@@ -42,6 +46,8 @@ type ShipmentItemInput struct {
 // PickupLocationID lets the adapter derive the pickup nickname
 // (S{seller}L{location}) at book time. ShipTo + Lines carry everything the
 // courier manifest needs; the service resolves them from the order view.
+// All money stays integer minor units; CurrencyCode (ISO, e.g. INR) tells
+// adapters how to render major units for provider payloads via common/model.
 type BookShipmentInput struct {
 	ShipmentID       uint
 	OrderID          uint
@@ -63,6 +69,8 @@ type BookShipmentInput struct {
 	Lines            []BookLine
 	CodCents         int64
 	SubTotalCents    int64
+	// CurrencyCode is the order display currency (fallback INR when empty).
+	CurrencyCode string
 }
 
 // BookLine is one manifest line for the courier payload.

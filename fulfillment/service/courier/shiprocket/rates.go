@@ -39,7 +39,7 @@ func (a *Adapter) GetRates(
 	if err != nil {
 		return nil, err
 	}
-	return parseRateOptions(resp), nil
+	return parseRateOptions(resp, in.CurrencyCode), nil
 }
 
 // gramsToKG converts box grams to the kg decimals the API expects.
@@ -52,8 +52,9 @@ func gramsToKG(weightGrams int) float64 {
 
 // parseRateOptions maps available_courier_companies (nested under data, with
 // a flat fallback) to provider-agnostic options. Empty list is valid (route
-// unserved) — never an error.
-func parseRateOptions(resp map[string]any) []fulfillmentmodel.RateOption {
+// unserved) — never an error. Provider quotes major units; storage is integer
+// minor units converted via common/model (currency-aware, never hardcoded *100).
+func parseRateOptions(resp map[string]any, currencyCode string) []fulfillmentmodel.RateOption {
 	companies, _ := resp["available_courier_companies"].([]any)
 	if data, _ := resp["data"].(map[string]any); data != nil {
 		if list, _ := data["available_courier_companies"].([]any); list != nil {
@@ -77,13 +78,26 @@ func parseRateOptions(resp map[string]any) []fulfillmentmodel.RateOption {
 		options = append(options, fulfillmentmodel.RateOption{
 			CourierName: name,
 			ServiceCode: code,
-			// Provider quotes decimal rupees; storage is integer paise.
-			RateCents:     int64(numberValue(company["rate"])*100 + 0.5),
+			RateCents:     minorFromProviderRate(numberValue(company["rate"]), currencyCode),
 			ETD:           parseETD(stringValue(company["etd"])),
 			PickupCapable: true,
 		})
 	}
 	return options
+}
+
+// minorFromProviderRate converts a provider-quoted major amount to storage
+// minor units via common/model. Strict ToCents rejects excess precision; the
+// rates path tolerates provider float noise with a half-up fallback.
+func minorFromProviderRate(major float64, currencyCode string) int64 {
+	if cents, err := fulfillmentmodel.MinorFromMajor(major, currencyCode); err == nil {
+		return cents
+	}
+	factor := float64(fulfillmentmodel.CurrencyFor(currencyCode).Factor())
+	if factor <= 0 {
+		factor = 100
+	}
+	return int64(major*factor + 0.5)
 }
 
 // parseETD parses provider ETA strings; unparseable stays nil (display-only).

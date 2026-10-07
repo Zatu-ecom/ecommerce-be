@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -133,6 +134,10 @@ func (h *ShipmentHandler) ListShipments(c *gin.Context) {
 		Offset:    (params.Page - 1) * params.PageSize,
 	}
 	if status := c.Query("status"); status != "" {
+		if !entity.ShipmentStatus(status).IsValid() {
+			h.HandleValidationError(c, commonError.ErrValidation.WithMessagef("unknown status %q", status))
+			return
+		}
 		filter.Status = status
 	}
 	if orderID := c.Query("orderId"); orderID != "" {
@@ -409,7 +414,7 @@ func (h *ShipmentHandler) GetLabel(c *gin.Context) {
 
 	label, err := h.shipments.GetLabelBytes(c, sellerID, id)
 	if err != nil {
-		if err == fulfillmenterrors.ErrorLabelFailed {
+		if isFulfillmentCode(err, fulfillmenterrors.ErrorLabelFailed.Code) {
 			h.HandleError(c, err, fulfillmentconstant.FAILED_TO_LABEL_MSG)
 			return
 		}
@@ -617,7 +622,7 @@ func (h *ShipmentHandler) RequestReturn(c *gin.Context) {
 	if err != nil {
 		// Guard failures (non-delivered original, return-of-return,
 		// over-quantity) are 400 under one code; unknown ids stay 404.
-		if err == fulfillmenterrors.ErrorFulfillmentNotFound {
+		if isFulfillmentCode(err, fulfillmenterrors.ErrorFulfillmentNotFound.Code) {
 			h.HandleError(c, err, fulfillmentconstant.FAILED_TO_RETURN_MSG)
 			return
 		}
@@ -632,4 +637,14 @@ func (h *ShipmentHandler) RequestReturn(c *gin.Context) {
 	h.Success(c, http.StatusCreated, fulfillmentconstant.RETURN_CREATED_MSG, map[string]any{
 		"shipment": mapped,
 	})
+}
+
+// isFulfillmentCode reports whether err wraps an AppError with the given code.
+// Direct == fails for WithMessagef clones (new pointer), so unwrap via errors.As.
+func isFulfillmentCode(err error, code string) bool {
+	var appErr *commonError.AppError
+	if errors.As(err, &appErr) {
+		return appErr.Code == code
+	}
+	return false
 }

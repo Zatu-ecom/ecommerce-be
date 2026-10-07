@@ -105,7 +105,7 @@ func (a *Adapter) RequestRTO(
 // BookReturn registers a return (RTO-after-delivery) order, then assigns
 // its AWB through the shared path. The service composes the full shipping
 // context (input.Ship mirrors a forward book); the original AWB travels as
-// the return reference.
+// the return reference. Token refresh is per-leg only (never re-creates).
 func (a *Adapter) BookReturn(
 	ctx context.Context,
 	in fulfillmentmodel.BookReturnInput,
@@ -118,32 +118,35 @@ func (a *Adapter) BookReturn(
 	if in.Ship.PickupLocationID == 0 {
 		return nil, fmt.Errorf("shiprocket: return needs a pickup location")
 	}
-	out, err := withAuthResult(ctx, a, parsed, func(ctx context.Context, token string) (*fulfillmentmodel.BookShipmentOutput, error) {
-		return a.bookReturnAll(ctx, token, in)
-	})
+	token, err := a.token(ctx, parsed)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return a.bookReturnAll(ctx, token, in, parsed)
 }
 
-// bookReturnAll runs return-create → AWB assignment under one token.
+// bookReturnAll runs return-create → AWB assignment, refreshing the token per
+// leg on 401. The create leg is never re-run after success.
 func (a *Adapter) bookReturnAll(
 	ctx context.Context,
 	token string,
 	in fulfillmentmodel.BookReturnInput,
+	creds *shiprocketCredentials,
 ) (*fulfillmentmodel.BookShipmentOutput, error) {
 	ship := in.Ship
 	providerOrderID := fmt.Sprintf("%d", ship.ShipmentID)
 
 	items := make([]map[string]any, 0, len(ship.Lines))
+	var subTotalCents int64
 	for _, line := range ship.Lines {
 		items = append(items, map[string]any{
-			"name":          line.Name,
-			"sku":           line.SKU,
-			"units":         line.Quantity,
-			"selling_price": line.UnitPriceCents,
+			"name":  line.Name,
+			"sku":   line.SKU,
+			"units": line.Quantity,
+			// Minor units → major units via common/model (multi-currency safe).
+			"selling_price": fulfillmentmodel.MajorAmount(line.UnitPriceCents, ship.CurrencyCode),
 		})
+		subTotalCents += int64(line.Quantity) * line.UnitPriceCents
 	}
 	body := map[string]any{
 		"order_id":              providerOrderID,
@@ -158,14 +161,17 @@ func (a *Adapter) bookReturnAll(
 		"shipping_is_billing":   true,
 		"order_items":           items,
 		"payment_method":        "Prepaid",
-		"sub_total":             0,
+		"sub_total":             fulfillmentmodel.MajorAmount(subTotalCents, ship.CurrencyCode),
 		"length":                floatValue(ship.LengthCm),
 		"breadth":               floatValue(ship.BreadthCm),
 		"height":                floatValue(ship.HeightCm),
 		"weight":                gramsToKG(derefWeight(ship.WeightGrams)),
 		"reason":                in.Reason,
 	}
-	created, err := a.doJSON(ctx, token, http.MethodPost, pathCreateRet, body)
+	created, token, err := a.stepWithRefresh(ctx, creds, token,
+		func(ctx context.Context, tok string) (map[string]any, error) {
+			return a.doJSON(ctx, tok, http.MethodPost, pathCreateRet, body)
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +179,12 @@ func (a *Adapter) bookReturnAll(
 	if strings.TrimSpace(providerShipmentID) == "" {
 		return nil, fmt.Errorf("shiprocket: shipment id missing in create-return response")
 	}
-	awbResp, err := a.doJSON(ctx, token, http.MethodPost, pathAssignAWB, map[string]any{
-		"shipment_id": providerShipmentID,
-	})
+	awbResp, _, err := a.stepWithRefresh(ctx, creds, token,
+		func(ctx context.Context, tok string) (map[string]any, error) {
+			return a.doJSON(ctx, tok, http.MethodPost, pathAssignAWB, map[string]any{
+				"shipment_id": providerShipmentID,
+			})
+		})
 	if err != nil {
 		return nil, err
 	}

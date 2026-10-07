@@ -43,7 +43,8 @@ const (
 	FAILED_TO_LABEL_MSG           = "Failed to fetch shipping label"
 	FAILED_TO_CONFIRM_ADDRESS_MSG = "Failed to confirm address"
 	FAILED_TO_RATE_MSG            = "Failed to fetch rates"
-	LABEL_FAILED_CODE             = "FULFILLMENT_LABEL_FAILED"
+	// LABEL_FAILED_CODE mirrors FULFILLMENT_LABEL_FAILED_CODE (single source).
+	LABEL_FAILED_CODE = FULFILLMENT_LABEL_FAILED_CODE
 )
 
 // NDR + return messages.

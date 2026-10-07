@@ -2,12 +2,14 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	commonModel "ecommerce-be/common/model"
+	fulfillmenterrors "ecommerce-be/fulfillment/error"
 	"ecommerce-be/fulfillment/model"
 	"ecommerce-be/fulfillment/repository"
 	fulfillmentservice "ecommerce-be/fulfillment/service"
@@ -36,7 +38,20 @@ func NewWebhookHandler(
 // (applied, duplicate, ignored, apply-failed) → 200 with data omitted so
 // couriers stop retrying.
 func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
-	code := c.Param(fulfillmentconstant.PARAM_CODE)
+	code := strings.ToLower(strings.TrimSpace(c.Param(fulfillmentconstant.PARAM_CODE)))
+	if code == "" {
+		h.HandleValidationError(c, commonError.ErrValidation.WithMessagef("provider code is required"))
+		return
+	}
+	if code != fulfillmentconstant.COURIER_CODE_SHIPROCKET {
+		h.HandleError(c, fulfillmenterrors.ErrorProviderNotSupported.WithMessagef("unknown provider %q", code), fulfillmentconstant.FAILED_TO_WEBHOOK_MSG)
+		return
+	}
+	if c.Request.ContentLength > webhookMaxBodyBytes && c.Request.ContentLength != -1 {
+		h.HandleValidationError(c, commonError.ErrValidation.WithMessagef("webhook body too large"))
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(nil, c.Request.Body, webhookMaxBodyBytes)
 	rawBody, err := c.GetRawData()
 	if err != nil {
 		h.HandleError(c, err, fulfillmentconstant.FAILED_TO_WEBHOOK_MSG)
@@ -50,6 +65,10 @@ func (h *WebhookHandler) ReceiveWebhook(c *gin.Context) {
 	}
 	h.Success(c, http.StatusOK, fulfillmentconstant.WEBHOOK_RECEIVED_MSG, nil)
 }
+
+// webhookMaxBodyBytes caps courier pushes (1MiB): unbounded GetRawData would
+// let a replay storm pressure memory. Larger pushes fail closed with 400.
+const webhookMaxBodyBytes = 1 << 20
 
 // TrackingHandler serves customer tracking, seller refresh, and the
 // seller's webhook audit log.
@@ -148,7 +167,7 @@ func (h *TrackingHandler) ListWebhookLogs(c *gin.Context) {
 func (h *TrackingHandler) customerID(c *gin.Context) (uint, bool) {
 	userID, exists := auth.GetUserIDFromContext(c)
 	if !exists {
-		h.HandleError(c, commonError.ErrSellerDataMissing, constants.SELLER_DATA_MISSING_MSG)
+		h.HandleError(c, commonError.ErrUserDataMissing, constants.USER_DATA_MISSING_MSG)
 		return 0, false
 	}
 	return userID, true

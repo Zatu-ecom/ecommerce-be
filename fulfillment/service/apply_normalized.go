@@ -231,7 +231,7 @@ func (a *NormalizedApplier) move(
 		patch["courier_name"] = event.CourierName
 	}
 
-	moved, err := a.shipments.UpdateStatusIfCurrent(ctx, shipment.ID, shipment.Status, to, patch)
+	moved, err := a.shipments.UpdateStatusIfCurrent(ctx, shipment.ID, shipment.SellerID, shipment.Status, to, patch)
 	if err != nil {
 		return fmt.Errorf("apply move: %w", err)
 	}

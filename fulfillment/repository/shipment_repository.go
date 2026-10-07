@@ -11,6 +11,7 @@ import (
 	fulfillmenterrors "ecommerce-be/fulfillment/error"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ShipmentRepository persists shipment boxes. All reads are seller-scoped
@@ -21,12 +22,15 @@ type ShipmentRepository interface {
 	FindByOrderID(ctx context.Context, orderID uint) ([]entity.FulfillmentShipment, error)
 	FindByAWB(ctx context.Context, providerCode, awb string) (*entity.FulfillmentShipment, error)
 	FindByProviderOrderID(ctx context.Context, providerCode, providerOrderID string) (*entity.FulfillmentShipment, error)
-	FindByIdempotencyKey(ctx context.Context, key string) (*entity.FulfillmentShipment, error)
+	FindByIdempotencyKey(ctx context.Context, sellerID uint, key string) (*entity.FulfillmentShipment, error)
 	// UpdateStatusIfCurrent moves status only from the expected value and
 	// reports whether the row moved (idempotent no-op on replays).
+	// Seller-scoped: the write itself enforces tenancy (no TOCTOU between
+	// a prior GetShipment check and this update).
 	UpdateStatusIfCurrent(
 		ctx context.Context,
 		id uint,
+		sellerID uint,
 		from entity.ShipmentStatus,
 		to entity.ShipmentStatus,
 		patch map[string]any,
@@ -51,8 +55,8 @@ type ShipmentRepository interface {
 	CountShipments(ctx context.Context, filter ShipmentFilter) (int64, error)
 	// UpdateColumns patches columns without touching status (re-stamps,
 	// measurement fixes outside the draft flow). Returns moved=false when
-	// the row vanished concurrently.
-	UpdateColumns(ctx context.Context, id uint, patch map[string]any) (bool, error)
+	// the row vanished concurrently. Seller-scoped.
+	UpdateColumns(ctx context.Context, id uint, sellerID uint, patch map[string]any) (bool, error)
 }
 
 // ShipmentFilter scopes the seller box list. Zero values mean unfiltered;
@@ -151,10 +155,11 @@ func (r *ShipmentRepositoryImpl) FindByProviderOrderID(
 
 func (r *ShipmentRepositoryImpl) FindByIdempotencyKey(
 	ctx context.Context,
+	sellerID uint,
 	key string,
 ) (*entity.FulfillmentShipment, error) {
 	var shipment entity.FulfillmentShipment
-	err := db.DB(ctx).Where("idempotency_key = ?", key).First(&shipment).Error
+	err := db.DB(ctx).Where("seller_id = ? AND idempotency_key = ?", sellerID, key).First(&shipment).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fulfillmenterrors.ErrorFulfillmentNotFound
@@ -167,6 +172,7 @@ func (r *ShipmentRepositoryImpl) FindByIdempotencyKey(
 func (r *ShipmentRepositoryImpl) UpdateStatusIfCurrent(
 	ctx context.Context,
 	id uint,
+	sellerID uint,
 	from entity.ShipmentStatus,
 	to entity.ShipmentStatus,
 	patch map[string]any,
@@ -177,7 +183,7 @@ func (r *ShipmentRepositoryImpl) UpdateStatusIfCurrent(
 	}
 	result := db.DB(ctx).
 		Model(&entity.FulfillmentShipment{}).
-		Where("id = ? AND status = ?", id, string(from)).
+		Where("id = ? AND seller_id = ? AND status = ?", id, sellerID, string(from)).
 		Updates(updates)
 	if result.Error != nil {
 		return false, result.Error
@@ -191,6 +197,7 @@ func (r *ShipmentRepositoryImpl) FindRecoverableDrafts(
 ) ([]entity.FulfillmentShipment, error) {
 	var shipments []entity.FulfillmentShipment
 	err := db.DB(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 		Where("status = ?", string(entity.SHIPMENT_STATUS_DRAFT)).
 		Where(db.DB(ctx).Where("provider_order_id IS NULL")).
 		Order("id ASC").
@@ -235,11 +242,12 @@ func (r *ShipmentRepositoryImpl) CountShipments(
 func (r *ShipmentRepositoryImpl) UpdateColumns(
 	ctx context.Context,
 	id uint,
+	sellerID uint,
 	patch map[string]any,
 ) (bool, error) {
 	result := db.DB(ctx).
 		Model(&entity.FulfillmentShipment{}).
-		Where("id = ?", id).
+		Where("id = ? AND seller_id = ?", id, sellerID).
 		Updates(patch)
 	if result.Error != nil {
 		return false, result.Error
@@ -288,6 +296,7 @@ func (r *ShipmentRepositoryImpl) FindStaleInFlight(
 	}
 	var shipments []entity.FulfillmentShipment
 	err := db.DB(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 		Where("status IN ?", names).
 		Where("last_synced_at IS NULL OR last_synced_at < ?", syncedBefore).
 		Order("last_synced_at ASC NULLS FIRST").

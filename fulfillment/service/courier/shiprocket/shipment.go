@@ -31,8 +31,8 @@ func derivePickupAlias(sellerID, locationID uint) string {
 
 // BookShipment creates the Shiprocket order (our shipment id as their
 // order id), assigns the AWB, and schedules pickup when requested — one
-// contract call, three provider calls. POSTs are never retried: the
-// provider dedupes on our order id, and a retried POST risks double AWBs.
+// contract call, three provider calls. POSTs are never retried wholesale:
+// token refresh retries only the failed leg (see bookAll), never re-creates.
 func (a *Adapter) BookShipment(
 	ctx context.Context,
 	in fulfillmentmodel.BookShipmentInput,
@@ -46,24 +46,28 @@ func (a *Adapter) BookShipment(
 		return nil, fmt.Errorf("shiprocket: weight is required for booking")
 	}
 
-	out, err := withAuthResult(ctx, a, parsed, func(ctx context.Context, token string) (*fulfillmentmodel.BookShipmentOutput, error) {
-		return a.bookAll(ctx, token, in)
-	})
+	token, err := a.token(ctx, parsed)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return a.bookAll(ctx, token, in, parsed)
 }
 
-// bookAll runs create → AWB → optional pickup under one token.
+// bookAll runs create → AWB → optional pickup, refreshing the token per leg
+// on 401. Earlier legs are NEVER re-run: a 401 on assign retries only the
+// assign call with a fresh token (re-running create would double-create).
 func (a *Adapter) bookAll(
 	ctx context.Context,
 	token string,
 	in fulfillmentmodel.BookShipmentInput,
+	creds *shiprocketCredentials,
 ) (*fulfillmentmodel.BookShipmentOutput, error) {
 	providerOrderID := strconv.FormatUint(uint64(in.ShipmentID), 10)
 
-	created, err := a.createAdhocOrder(ctx, token, in, providerOrderID)
+	created, token, err := a.stepWithRefresh(ctx, creds, token,
+		func(ctx context.Context, tok string) (map[string]any, error) {
+			return a.createAdhocOrder(ctx, tok, in, providerOrderID)
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +76,12 @@ func (a *Adapter) bookAll(
 		return nil, fmt.Errorf("shiprocket: shipment id missing in create-order response")
 	}
 
-	awbResp, err := a.doJSON(ctx, token, http.MethodPost, pathAssignAWB, map[string]any{
-		"shipment_id": providerShipmentID,
-	})
+	awbResp, token, err := a.stepWithRefresh(ctx, creds, token,
+		func(ctx context.Context, tok string) (map[string]any, error) {
+			return a.doJSON(ctx, tok, http.MethodPost, pathAssignAWB, map[string]any{
+				"shipment_id": providerShipmentID,
+			})
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +91,12 @@ func (a *Adapter) bookAll(
 	}
 
 	if in.PickupAt != nil {
-		if _, err := a.doJSON(ctx, token, http.MethodPost, pathGeneratePick, map[string]any{
-			"shipment_id": []string{providerShipmentID},
-		}); err != nil {
+		if _, _, err := a.stepWithRefresh(ctx, creds, token,
+			func(ctx context.Context, tok string) (map[string]any, error) {
+				return a.doJSON(ctx, tok, http.MethodPost, pathGeneratePick, map[string]any{
+					"shipment_id": []string{providerShipmentID},
+				})
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -114,10 +124,12 @@ func (a *Adapter) createAdhocOrder(
 	items := make([]map[string]any, 0, len(in.Lines))
 	for _, line := range in.Lines {
 		items = append(items, map[string]any{
-			"name":          line.Name,
-			"sku":           line.SKU,
-			"units":         line.Quantity,
-			"selling_price": line.UnitPriceCents,
+			"name": line.Name,
+			"sku":  line.SKU,
+			"units": line.Quantity,
+			// Storage is integer minor units; provider expects major units.
+			// Currency-aware via common/model (supports 0-4dp currencies).
+			"selling_price": fulfillmentmodel.MajorAmount(line.UnitPriceCents, in.CurrencyCode),
 		})
 	}
 	body := map[string]any{
@@ -133,7 +145,7 @@ func (a *Adapter) createAdhocOrder(
 		"shipping_is_billing":   true,
 		"order_items":           items,
 		"payment_method":        paymentMethod,
-		"sub_total":             in.SubTotalCents,
+		"sub_total":             fulfillmentmodel.MajorAmount(in.SubTotalCents, in.CurrencyCode),
 		"length":                floatValue(in.LengthCm),
 		"breadth":               floatValue(in.BreadthCm),
 		"height":                floatValue(in.HeightCm),

@@ -92,6 +92,7 @@ func (p *ShipmentPlannerImpl) PlanForOrder(
 	}
 
 	result := &model.PlanResult{}
+	var freshIDs []uint
 	err = p.orderHooks.WithOrderLock(ctx, orderID, func(lockCtx context.Context) error {
 		uncovered, liveIDs, err := p.uncoveredLines(lockCtx, view)
 		if err != nil {
@@ -107,10 +108,18 @@ func (p *ShipmentPlannerImpl) PlanForOrder(
 		}
 		result.ShipmentIDs = append(liveIDs, ids...)
 		result.CreatedNew = true
+		freshIDs = ids
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+	// Auto-book runs AFTER the order-row lock is released, on the outer ctx.
+	// Booking performs courier HTTP; holding SELECT ... FOR UPDATE across it
+	// would serialize confirms, risk lock timeouts, and orphan provider AWBs
+	// on outer rollback. Failures log-and-continue (drafts stay for manual book).
+	if len(freshIDs) > 0 {
+		p.autoBookNewDrafts(ctx, view, freshIDs)
 	}
 	return result, nil
 }
@@ -158,6 +167,8 @@ type allocation struct {
 
 // allocateAndInsert splits uncovered lines by warehouse priority, verifies
 // the holds (adopt), and inserts one draft per warehouse in a single tx.
+// It MUST NOT perform courier HTTP (auto-book runs after the order lock is
+// released by PlanForOrder).
 func (p *ShipmentPlannerImpl) allocateAndInsert(
 	ctx context.Context,
 	view *model.FulfillmentOrderView,
@@ -192,7 +203,6 @@ func (p *ShipmentPlannerImpl) allocateAndInsert(
 	if err := p.orderHooks.OnShipmentsPlanned(ctx, view.OrderID, draftIDs); err != nil {
 		return nil, fmt.Errorf("planner emit planned: %w", err)
 	}
-	p.autoBookNewDrafts(ctx, view, draftIDs)
 	return draftIDs, nil
 }
 

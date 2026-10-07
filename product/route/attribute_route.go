@@ -33,12 +33,12 @@ func (m *AttributeModule) RegisterRoutes(router *gin.Engine) {
 	{
 
 		attributeRoutes.GET("", publicRoutesAuth, m.attributeHandler.GetAllAttributes)
-		attributeRoutes.GET("/:attributeId", publicRoutesAuth, m.attributeHandler.GetAttributeByID)
 		attributeRoutes.GET(
 			"/definitions",
 			publicRoutesAuth,
 			m.attributeHandler.ListFulfillmentDefinitions,
 		)
+		attributeRoutes.GET("/:attributeId", publicRoutesAuth, m.attributeHandler.GetAttributeByID)
 
 		attributeRoutes.POST("", auth, m.attributeHandler.CreateAttribute)
 		attributeRoutes.PUT("/:attributeId", auth, m.attributeHandler.UpdateAttribute)

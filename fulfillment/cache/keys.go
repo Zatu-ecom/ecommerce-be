@@ -69,10 +69,11 @@ func CatalogAllKey(version string) string {
 	return "courier:catalog:all:v" + sanitize(version)
 }
 
-// IdempotencyKey builds fulfill:init:idem:{sha256} (durable, 24h exact TTL).
-// The DB UNIQUE(idempotency_key) is the source of truth; this key is the fast path.
-func IdempotencyKey(sha256Hex string) string {
-	return "fulfill:init:idem:" + sanitize(sha256Hex)
+// IdempotencyKey builds seller:{id}:fulfill:init:idem:{sha256} (durable, 24h).
+// Seller-scoped: the DB constraint is UNIQUE(seller_id, idempotency_key) and
+// this key is only the fast path. sha must be 64-hex (hash of the raw header).
+func IdempotencyKey(sellerID uint, sha256Hex string) (string, error) {
+	return cachekit.BuildSellerKey(sellerID, "fulfill:init:idem:"+sanitize(sha256Hex))
 }
 
 // RateLimitKey builds fulfill:rate:limit:{seller} (durable Lua INCR+EXPIRE 60s).

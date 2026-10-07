@@ -14,6 +14,8 @@ import (
 	fulfillmentfactory "ecommerce-be/fulfillment/factory"
 	"ecommerce-be/fulfillment/model"
 	"ecommerce-be/fulfillment/repository"
+	fulfillmentconstant "ecommerce-be/fulfillment/utils/constant"
+	"gorm.io/gorm"
 )
 
 // ShipmentService owns draft boxes and their booking lifecycle: manual
@@ -111,13 +113,14 @@ func (s *ShipmentServiceImpl) CreateDraft(
 	idempotencyKey string,
 ) (*entity.FulfillmentShipment, bool, error) {
 	if strings.TrimSpace(idempotencyKey) != "" {
-		if existing, err := s.shipmentRepo.FindByIdempotencyKey(ctx, idempotencyKey); err == nil {
-			owned, err := s.ownedShipment(ctx, sellerID, existing)
-			if err != nil {
-				return nil, false, err
-			}
-			return owned, true, nil
-		} else if err != fulfillmenterrors.ErrorFulfillmentNotFound {
+		if existing, err := s.shipmentRepo.FindByIdempotencyKey(ctx, sellerID, idempotencyKey); err == nil {
+			return existing, true, nil
+		} else if !errors.Is(err, fulfillmenterrors.ErrorFulfillmentNotFound) &&
+			!isNotFoundCode(err, fulfillmenterrors.ErrorFulfillmentNotFound.Code) {
+			// Only NotFound continues; other errors fail closed to avoid
+			// leaking cross-tenant existence via timing/500 oracle.
+			// Note: FindByIdempotencyKey is seller-scoped, so a foreign key
+			// never matches here (no oracle).
 			return nil, false, err
 		}
 	}
@@ -132,7 +135,16 @@ func (s *ShipmentServiceImpl) CreateDraft(
 	}
 
 	var created *entity.FulfillmentShipment
+	var replayed *entity.FulfillmentShipment
 	err = s.orderHooks.WithOrderLock(ctx, req.OrderID, func(lockCtx context.Context) error {
+		// Re-check inside the lock: concurrent same-key creates race to the
+		// UNIQUE(seller_id, idempotency_key) constraint.
+		if strings.TrimSpace(idempotencyKey) != "" {
+			if existing, err := s.shipmentRepo.FindByIdempotencyKey(lockCtx, sellerID, idempotencyKey); err == nil {
+				replayed = existing
+				return nil
+			}
+		}
 		for _, line := range req.Items {
 			covered, err := s.itemRepo.SumQuantityByOrderItem(lockCtx, line.OrderItemID)
 			if err != nil {
@@ -161,7 +173,14 @@ func (s *ShipmentServiceImpl) CreateDraft(
 			draft.IdempotencyKey = &idempotencyKey
 		}
 		if err := s.shipmentRepo.Create(lockCtx, draft); err != nil {
-			return fmt.Errorf("create draft: %w", err)
+			if isUniqueViolation(err) && strings.TrimSpace(idempotencyKey) != "" {
+				// Lost the same-key race: reload the winner and replay.
+				if existing, rerr := s.shipmentRepo.FindByIdempotencyKey(lockCtx, sellerID, idempotencyKey); rerr == nil {
+					replayed = existing
+					return nil
+				}
+			}
+			return mapDBError(err)
 		}
 		for _, line := range req.Items {
 			if err := s.itemRepo.Create(lockCtx, &entity.FulfillmentShipmentItem{
@@ -185,6 +204,9 @@ func (s *ShipmentServiceImpl) CreateDraft(
 	})
 	if err != nil {
 		return nil, false, err
+	}
+	if replayed != nil {
+		return replayed, true, nil
 	}
 	reloaded, err := s.shipmentRepo.FindByID(ctx, created.ID)
 	if err != nil {
@@ -321,7 +343,7 @@ func (s *ShipmentServiceImpl) UpdateDraft(
 	if req.HeightCm != nil {
 		patch["height_cm"] = *req.HeightCm
 	}
-	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, entity.SHIPMENT_STATUS_DRAFT, entity.SHIPMENT_STATUS_DRAFT, patch)
+	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, sellerID, entity.SHIPMENT_STATUS_DRAFT, entity.SHIPMENT_STATUS_DRAFT, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -392,21 +414,14 @@ func (s *ShipmentServiceImpl) MapShipment(
 }
 
 // resolveBooking resolves (adapter + decrypted creds + frozen config) for
-// one booking: production row first, sandbox fallback. Single place for
-// book/cancel/label/pickup so env precedence never diverges.
+// one booking: production only. Sandbox fallback is rates-only; booking via
+// sandbox would ship sandbox AWBs as production, so it fails closed here.
 func (s *ShipmentServiceImpl) resolveBooking(
 	ctx context.Context,
 	sellerID uint,
 	providerCode string,
 ) (*fulfillmentfactory.ResolvedCredentials, error) {
-	resolved, err := s.couriers.ResolveForSeller(ctx, sellerID, providerCode, "production")
-	if err == nil {
-		return resolved, nil
-	}
-	if err != fulfillmenterrors.ErrorProviderNotConfigured {
-		return nil, err
-	}
-	return s.couriers.ResolveForSeller(ctx, sellerID, providerCode, "sandbox")
+	return s.couriers.ResolveForSeller(ctx, sellerID, providerCode, "production")
 }
 
 // BookDraft books one draft: preconditions → pre-HTTP mark → courier → Tx2.
@@ -425,8 +440,15 @@ func (s *ShipmentServiceImpl) BookDraft(
 	}
 	switch draft.Status {
 	case entity.SHIPMENT_STATUS_BOOKED, entity.SHIPMENT_STATUS_PICKUP_SCHEDULED:
-		// Idempotent replay: heal fulfillment side effects too (covers a
-		// crash between commit and the booked hook), then return current.
+		// Idempotent replay: a different requested provider is a conflict,
+		// not a silent no-op (prevents shipping via A when B was requested).
+		if strings.TrimSpace(opts.ProviderCode) != "" && draft.ProviderCode != nil &&
+			!strings.EqualFold(strings.TrimSpace(opts.ProviderCode), strings.TrimSpace(*draft.ProviderCode)) {
+			return nil, fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+				"box already booked via %s", *draft.ProviderCode)
+		}
+		// Heal fulfillment side effects too (covers a crash between commit
+		// and the booked hook), then return current.
 		if hookErr := s.emitBooked(ctx, draft); hookErr != nil {
 			log.ErrorWithContext(ctx, "book replay: booked hook failed", hookErr)
 		}
@@ -456,7 +478,13 @@ func (s *ShipmentServiceImpl) BookDraft(
 		return nil, fulfillmenterrors.ErrorAddressChanged
 	}
 	if err := s.adoptDraftLines(ctx, sellerID, draft, view, lines); err != nil {
-		return nil, s.failDraftStock(ctx, draft, sellerID, err)
+		// Only genuine stock death cancels the draft + replans. Transient
+		// failures (DB blip, hook outage) return directly so a retry can
+		// succeed without losing the draft.
+		if isNotFoundCode(err, fulfillmenterrors.ErrorStockMismatch.Code) {
+			return nil, s.failDraftStock(ctx, draft, sellerID, err)
+		}
+		return nil, err
 	}
 
 	if err := s.markBookAttempt(ctx, draft, opts.ProviderCode); err != nil {
@@ -545,7 +573,7 @@ func (s *ShipmentServiceImpl) failDraftStock(
 	cause error,
 ) error {
 	now := time.Now().UTC()
-	if _, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID,
+	if _, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID, sellerID,
 		entity.SHIPMENT_STATUS_DRAFT, entity.SHIPMENT_STATUS_CANCELLED,
 		map[string]any{"cancelled_at": now}); err != nil {
 		return cause
@@ -567,6 +595,7 @@ func (s *ShipmentServiceImpl) failDraftStock(
 
 // markBookAttempt stamps provider choice + attempt counter before any
 // courier call (survives crashes; drives the recover job + cap).
+// Counter increments atomically in SQL (no lost update on parallel clicks).
 func (s *ShipmentServiceImpl) markBookAttempt(
 	ctx context.Context,
 	draft *entity.FulfillmentShipment,
@@ -575,12 +604,12 @@ func (s *ShipmentServiceImpl) markBookAttempt(
 	now := time.Now().UTC()
 	updates := map[string]any{
 		"provider_code": providerCode,
-		"book_attempts": draft.BookAttempts + 1,
+		"book_attempts": gorm.Expr("book_attempts + 1"),
 	}
 	if draft.BookRequestedAt == nil {
 		updates["book_requested_at"] = now
 	}
-	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID,
+	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID, draft.SellerID,
 		entity.SHIPMENT_STATUS_DRAFT, entity.SHIPMENT_STATUS_DRAFT, updates)
 	if err != nil {
 		return err
@@ -621,6 +650,7 @@ func bookAdapterInput(
 		State:            view.DeliveryState,
 		Pincode:          view.DeliveryPincode,
 		CodCents:         draft.CodCents,
+		CurrencyCode:     view.CurrencyCode,
 	}
 	if opts.PickupAt != nil {
 		in.PickupAt = opts.PickupAt
@@ -648,7 +678,8 @@ func bookAdapterInput(
 
 // commitBook persists the provider result: frozen ids, AWB, courier, ETD,
 // status move, ledger, and the booked hook. A lost race (already booked by
-// a parallel click) reloads and returns the winner.
+// a parallel click) reloads the winner only when it reached a booked
+// terminal; otherwise it surfaces INVALID_STATE (e.g. concurrently cancelled).
 func (s *ShipmentServiceImpl) commitBook(
 	ctx context.Context,
 	draft *entity.FulfillmentShipment,
@@ -656,6 +687,9 @@ func (s *ShipmentServiceImpl) commitBook(
 	opts BookDraftOptions,
 	out *model.BookShipmentOutput,
 ) (*entity.FulfillmentShipment, error) {
+	if out == nil || strings.TrimSpace(out.AWB) == "" || strings.TrimSpace(out.ProviderOrderID) == "" {
+		return nil, fulfillmenterrors.ErrorBookFailed.WithMessagef("provider returned incomplete booking")
+	}
 	target := entity.SHIPMENT_STATUS_BOOKED
 	if opts.PickupAt != nil {
 		target = entity.SHIPMENT_STATUS_PICKUP_SCHEDULED
@@ -663,6 +697,7 @@ func (s *ShipmentServiceImpl) commitBook(
 	now := time.Now().UTC()
 	patch := map[string]any{
 		"provider_config_id":   resolved.ConfigID,
+		"provider_code":        resolved.Config.ProviderCode,
 		"provider_order_id":    out.ProviderOrderID,
 		"provider_shipment_id": out.ProviderShipmentID,
 		"awb":                  out.AWB,
@@ -672,7 +707,10 @@ func (s *ShipmentServiceImpl) commitBook(
 	if out.ServiceCode != "" {
 		patch["service_code"] = out.ServiceCode
 	}
-	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID,
+	if out.ETD != nil {
+		patch["etd"] = out.ETD
+	}
+	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, draft.ID, draft.SellerID,
 		entity.SHIPMENT_STATUS_DRAFT, target, patch)
 	if err != nil {
 		return nil, fmt.Errorf("commit book: %w", err)
@@ -682,7 +720,13 @@ func (s *ShipmentServiceImpl) commitBook(
 		if err != nil {
 			return nil, err
 		}
-		return reloaded, nil
+		// Only a concurrently-booked winner replays as success.
+		if reloaded.Status == entity.SHIPMENT_STATUS_BOOKED ||
+			reloaded.Status == entity.SHIPMENT_STATUS_PICKUP_SCHEDULED {
+			return reloaded, nil
+		}
+		return nil, fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+			"draft moved to %s concurrently", reloaded.Status)
 	}
 	if err := s.eventRepo.Create(ctx, &entity.FulfillmentShipmentEvent{
 		ShipmentID: draft.ID,
@@ -753,6 +797,11 @@ func (s *ShipmentServiceImpl) BookAllShipments(
 		if shipment.SellerID != sellerID {
 			continue
 		}
+		// Return drafts book through the return flow only (RequestReturn);
+		// forward-booking them would bypass BookReturn + double-count stock.
+		if shipment.ReturnOfShipmentID != nil {
+			continue
+		}
 		switch shipment.Status {
 		case entity.SHIPMENT_STATUS_DRAFT:
 		case entity.SHIPMENT_STATUS_BOOKED, entity.SHIPMENT_STATUS_PICKUP_SCHEDULED:
@@ -811,10 +860,13 @@ func (s *ShipmentServiceImpl) ConfirmAddress(
 		}
 	}
 	now := view.DeliveryAddressUpdatedAt
-	moved, err := s.shipmentRepo.UpdateColumns(ctx, id, map[string]any{
-		"delivery_address_id":         view.DeliveryAddressID,
-		"delivery_address_revised_at": now,
-	})
+	// Guarded write: only move when still a draft (concurrent BookDraft must
+	// win; overwriting a booked box address would split courier vs local).
+	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, sellerID,
+		entity.SHIPMENT_STATUS_DRAFT, entity.SHIPMENT_STATUS_DRAFT, map[string]any{
+			"delivery_address_id":         view.DeliveryAddressID,
+			"delivery_address_revised_at": now,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -841,13 +893,16 @@ func (s *ShipmentServiceImpl) CancelShipment(
 	}
 	now := time.Now().UTC()
 	cancel := func(from entity.ShipmentStatus) (*entity.FulfillmentShipment, error) {
-		moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, from,
+		moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, sellerID, from,
 			entity.SHIPMENT_STATUS_CANCELLED, map[string]any{"cancelled_at": now})
 		if err != nil {
 			return nil, err
 		}
 		if !moved {
-			return s.shipmentRepo.FindByID(ctx, id)
+			// Concurrent move (delivered/booked/cancelled by another path):
+			// never report the foreign terminal as a successful cancel.
+			return nil, fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+				"box moved concurrently; reload and retry")
 		}
 		_ = s.eventRepo.Create(ctx, &entity.FulfillmentShipmentEvent{
 			ShipmentID: id,
@@ -928,7 +983,7 @@ func (s *ShipmentServiceImpl) SchedulePickup(
 	}, resolved.Creds); err != nil {
 		return nil, fmt.Errorf("schedule pickup: %w", err)
 	}
-	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id,
+	moved, err := s.shipmentRepo.UpdateStatusIfCurrent(ctx, id, sellerID,
 		entity.SHIPMENT_STATUS_BOOKED, entity.SHIPMENT_STATUS_PICKUP_SCHEDULED,
 		map[string]any{"last_synced_at": time.Now().UTC()})
 	if err != nil {
@@ -1168,6 +1223,19 @@ func (s *ShipmentServiceImpl) RequestReturn(
 
 	var created *entity.FulfillmentShipment
 	err = s.orderHooks.WithOrderLock(ctx, original.OrderID, func(lockCtx context.Context) error {
+		// Re-check inside the lock: two concurrent returns must not both
+		// pass the remaining-quantity guard.
+		lockedReturned, err := s.returnedQuantities(lockCtx, origID)
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			remaining, ok := allowed[item.OrderItemID]
+			if !ok || item.Quantity <= 0 || item.Quantity > remaining-lockedReturned[item.OrderItemID] {
+				return fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+					"return quantity exceeds the original box")
+			}
+		}
 		draft := &entity.FulfillmentShipment{
 			OrderID:            original.OrderID,
 			SellerID:           sellerID,
@@ -1253,7 +1321,36 @@ func ErrorCodeOf(err error) string {
 	if errors.As(err, &appErr) {
 		return appErr.Code
 	}
-	return "FULFILLMENT_BOOK_FAILED"
+	return fulfillmentconstant.FULFILLMENT_BOOK_FAILED_CODE
+}
+
+// isNotFoundCode reports whether err wraps an AppError with the given code.
+func isNotFoundCode(err error, code string) bool {
+	var appErr *commonError.AppError
+	if errors.As(err, &appErr) {
+		return appErr.Code == code
+	}
+	return false
+}
+
+// mapDBError converts raw storage errors to client-safe AppErrors.
+// Unique violations (concurrent retry) surface as 409 INVALID_STATE;
+// foreign-key violations as 400; anything else stays as-is for the
+// BaseHandler to map (never leak raw PG text to clients).
+func mapDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "23505") ||
+		strings.Contains(msg, "duplicate key") {
+		return fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef("conflicting write, retry")
+	}
+	if strings.Contains(msg, "23503") ||
+		strings.Contains(msg, "foreign key") {
+		return fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef("referenced record missing")
+	}
+	return err
 }
 
 // bookReturnBox books a return draft through the provider's return flow
@@ -1264,6 +1361,10 @@ func (s *ShipmentServiceImpl) bookReturnBox(
 	draft *entity.FulfillmentShipment,
 	reason string,
 ) (*entity.FulfillmentShipment, error) {
+	if draft.ReturnOfShipmentID == nil {
+		return nil, fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+			"return box missing original reference")
+	}
 	original, err := s.GetShipment(ctx, sellerID, *draft.ReturnOfShipmentID)
 	if err != nil {
 		return nil, err

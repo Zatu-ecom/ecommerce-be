@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
+	"strings"
 	"time"
 
 	"ecommerce-be/common/log"
@@ -51,8 +52,6 @@ func (a *Adapter) doJSON(
 	if method == http.MethodGet {
 		timeout = getTimeout
 	}
-	callCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	var payload []byte
 	if body != nil {
@@ -71,9 +70,13 @@ func (a *Adapter) doJSON(
 	var lastErr error
 	for attempt := 0; attempt < attempts; attempt++ {
 		if attempt > 0 {
-			backoffWithJitter(callCtx, attempt)
+			// Backoff on the parent ctx (not the per-attempt deadline) so
+			// retries get a full timeout instead of the shrinking remainder.
+			backoffWithJitter(ctx, attempt)
 		}
+		callCtx, cancel := context.WithTimeout(ctx, timeout)
 		result, retryable, err := a.doOnce(callCtx, token, method, path, payload)
+		cancel()
 		if err == nil {
 			return result, nil
 		}
@@ -103,7 +106,10 @@ func (a *Adapter) doOnce(
 	}
 	// SSRF guard: BaseURL is compiled into the adapter (or the test override);
 	// paths are adapter constants, never caller-supplied URLs.
-	req.Header.Set("Authorization", "Bearer "+token)
+	// Login sends no token: omit the header instead of `Bearer ` (empty).
+	if strings.TrimSpace(token) != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
@@ -120,8 +126,8 @@ func (a *Adapter) doOnce(
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Redacted: status + path only in the error; a truncated body prefix
-		// goes to logs for debugging. Never headers (Authorization) or secrets.
+		// Status + path in the error; truncated body prefix only in logs.
+		// Never headers (Authorization), secrets, or full bodies.
 		log.WarnWithContext(ctx,
 			"shiprocket api error status="+resp.Status+" path="+path+" body="+truncateForLog(respBody))
 		if resp.StatusCode == http.StatusUnauthorized {
@@ -130,10 +136,19 @@ func (a *Adapter) doOnce(
 			return nil, false, fulfillmenterrors.ErrorCredentialsInvalid.WithMessagef(
 				"[shiprocket] unauthorized (status=401 path=%s)", path)
 		}
-		if method == http.MethodGet && (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500) {
-			return nil, true, fmt.Errorf("shiprocket: api error status=%d path=%s", resp.StatusCode, path)
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, false, fulfillmenterrors.ErrorFulfillmentNotFound.WithMessagef(
+				"[shiprocket] not found (status=404 path=%s)", path)
 		}
-		return nil, false, fmt.Errorf("shiprocket: api error status=%d path=%s", resp.StatusCode, path)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return nil, method == http.MethodGet, fulfillmenterrors.ErrorRateLimited.WithMessagef(
+				"[shiprocket] rate limited (status=429 path=%s)", path)
+		}
+		if resp.StatusCode >= 500 {
+			return nil, method == http.MethodGet, fmt.Errorf("shiprocket: api error status=%d path=%s", resp.StatusCode, path)
+		}
+		return nil, false, fulfillmenterrors.ErrorFulfillmentInvalidState.WithMessagef(
+			"[shiprocket] request failed (status=%d path=%s)", resp.StatusCode, path)
 	}
 
 	var decoded map[string]any
@@ -146,7 +161,7 @@ func (a *Adapter) doOnce(
 // backoffWithJitter sleeps ~200ms * attempt plus up to 100ms jitter.
 // It aborts early when the request context is done.
 func backoffWithJitter(ctx context.Context, attempt int) {
-	jitter := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+	jitter := time.Duration(rand.IntN(int(100 * time.Millisecond)))
 	delay := time.Duration(attempt)*retryBaseBackoff + jitter
 	select {
 	case <-ctx.Done():

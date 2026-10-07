@@ -120,12 +120,12 @@ type BookFailure struct {
 // NDRActionRequest answers the open NDR round: reattempt or convert to RTO.
 type NDRActionRequest struct {
 	Action      string `json:"action" binding:"required,oneof=reattempt rto"`
-	AddressNote string `json:"addressNote"`
+	AddressNote string `json:"addressNote" binding:"max=2000"`
 }
 
 // ReturnRequest creates a return box for a delivered original.
 type ReturnRequest struct {
-	Reason string                `json:"reason" binding:"required"`
+	Reason string                `json:"reason" binding:"required,max=2000"`
 	Items  []ShipmentItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
@@ -153,6 +153,19 @@ func CurrencyFor(code string) commonModel.CurrencyInfo {
 // Money builds the shared Money object for a cents amount.
 func Money(cents int64, currencyCode string) commonModel.Money {
 	return commonModel.NewMoney(cents, CurrencyFor(currencyCode))
+}
+
+// MajorAmount renders integer minor units as provider-facing major units
+// using the order currency (never hardcoded /100 — supports JPY 0dp, BHD 3dp).
+func MajorAmount(cents int64, currencyCode string) float64 {
+	return commonModel.FromCents(cents, CurrencyFor(currencyCode))
+}
+
+// MinorFromMajor converts a provider-quoted major amount to storage minor
+// units. Excess precision is rejected; callers fall back to rounded value
+// only when the provider sends noisy floats (rates path).
+func MinorFromMajor(major float64, currencyCode string) (int64, error) {
+	return CurrencyFor(currencyCode).ToCents(major)
 }
 
 // ToShipmentResponse maps a shipment + its items to the API shape.
