@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/product/entity"
 	"ecommerce-be/product/cache"
+	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -67,6 +67,7 @@ type ProductAttributeServiceImpl struct {
 	productRepo      repository.ProductRepository
 	attributeRepo    repository.AttributeDefinitionRepository
 	validatorService ProductValidatorService
+	specService      PhysicalSpecService
 	// productCache is the optional detail cache strategy (012). Nil disables
 	// invalidation hooks; wired by the factory via SetProductCache.
 	productCache *cache.ProductCache
@@ -96,19 +97,20 @@ func (s *ProductAttributeServiceImpl) invalidateVariant(ctx context.Context, sel
 	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
 }
 
-
 // NewProductAttributeService creates a new instance of ProductAttributeService
 func NewProductAttributeService(
 	productAttrRepo repository.ProductAttributeRepository,
 	productRepo repository.ProductRepository,
 	attributeRepo repository.AttributeDefinitionRepository,
 	validatorService ProductValidatorService,
+	specService PhysicalSpecService,
 ) ProductAttributeService {
 	return &ProductAttributeServiceImpl{
 		productAttrRepo:  productAttrRepo,
 		productRepo:      productRepo,
 		attributeRepo:    attributeRepo,
 		validatorService: validatorService,
+		specService:      specService,
 	}
 }
 
@@ -137,6 +139,14 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 		req.Value,
 		attributeDef.AllowedValues,
 	); err != nil {
+		return nil, err
+	}
+
+	// Shippable-spec guard (013): numeric value + one key per family.
+	if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, req.Value); err != nil {
+		return nil, err
+	}
+	if err := s.specService.CheckFamilyConflict(ctx, productID, attributeDef.Key, req.AttributeDefinitionID); err != nil {
 		return nil, err
 	}
 
@@ -205,6 +215,12 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 
 	// Validate request
 	if err := validator.ValidateProductAttributeUpdateRequest(req.Value, attributeDef.AllowedValues); err != nil {
+		return nil, err
+	}
+
+	// Shippable-spec guard (013): the value must stay numeric > 0.
+	// The definition is fixed on update, so no family check is needed.
+	if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, req.Value); err != nil {
 		return nil, err
 	}
 
@@ -323,6 +339,11 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 			return nil, err
 		}
 
+		// Shippable-spec guard (013): the value must stay numeric > 0.
+		if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, attrUpdate.Value); err != nil {
+			return nil, err
+		}
+
 		// Update attribute fields
 		productAttribute.Value = attrUpdate.Value
 		productAttribute.SortOrder = attrUpdate.SortOrder
@@ -375,6 +396,12 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 	keys := extractUniqueKeys(requests)
 	attributeMap, err := s.attributeRepo.FindByKeys(ctx, keys)
 	if err != nil {
+		return nil, err
+	}
+
+	// Shippable-spec guard (013): numeric values + one key per family,
+	// including conflicts inside this payload.
+	if err := s.specService.ValidateShippableBulk(ctx, productID, requests); err != nil {
 		return nil, err
 	}
 

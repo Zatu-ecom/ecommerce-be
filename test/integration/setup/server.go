@@ -12,9 +12,13 @@ import (
 	"ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/file"
+	"ecommerce-be/fulfillment"
+	fulfillmentSingleton "ecommerce-be/fulfillment/factory/singleton"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
+	orderSingleton "ecommerce-be/order/factory/singleton"
+	orderService "ecommerce-be/order/service"
 	"ecommerce-be/payment"
 	"ecommerce-be/product"
 	"ecommerce-be/promotion"
@@ -96,6 +100,10 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 	// 10. Register modules
 	registerContainer(router)
 
+	// 11. Cross-module wiring (mirrors main.go): fulfillment planner
+	// triggers on order confirmation. Nil-safe when unwired.
+	wireFulfillmentPlanner()
+
 	return router
 }
 
@@ -105,8 +113,19 @@ func registerContainer(router *gin.Engine) {
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
+	_ = fulfillment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
 	_ = report.NewContainer(router)
 	_ = file.NewContainer(router)
+}
+
+// wireFulfillmentPlanner connects order confirmation to fulfillment
+// auto-planning (mirrors main.go). Type-asserted to keep the OrderService
+// interface fulfillment-free.
+func wireFulfillmentPlanner() {
+	planner := fulfillmentSingleton.GetInstance().GetServiceFactory().GetShipmentPlanner()
+	if impl, ok := orderSingleton.GetInstance().GetOrderService().(*orderService.OrderServiceImpl); ok {
+		impl.SetShipmentPlanner(planner)
+	}
 }
