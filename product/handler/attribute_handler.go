@@ -10,6 +10,8 @@ import (
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/handler"
 
+	prodErrors "ecommerce-be/product/error"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,13 +19,18 @@ import (
 type AttributeHandler struct {
 	*handler.BaseHandler
 	attributeService service.AttributeDefinitionService
+	specService      service.PhysicalSpecService
 }
 
 // NewAttributeHandler creates a new instance of AttributeHandler
-func NewAttributeHandler(attributeService service.AttributeDefinitionService) *AttributeHandler {
+func NewAttributeHandler(
+	attributeService service.AttributeDefinitionService,
+	specService service.PhysicalSpecService,
+) *AttributeHandler {
 	return &AttributeHandler{
 		BaseHandler:      handler.NewBaseHandler(),
 		attributeService: attributeService,
+		specService:      specService,
 	}
 }
 
@@ -170,5 +177,31 @@ func (h *AttributeHandler) CreateCategoryAttributeDefinition(c *gin.Context) {
 		utils.ATTRIBUTE_CREATED_MSG,
 		utils.ATTRIBUTE_FIELD_NAME,
 		attributeResponse,
+	)
+}
+
+// ListFulfillmentDefinitions serves the shippable spec catalog for the
+// seller dashboard shipping-specs block.
+// GET /api/product/attribute/definitions?scope=fulfillment
+func (h *AttributeHandler) ListFulfillmentDefinitions(c *gin.Context) {
+	if c.Query("scope") != "fulfillment" {
+		h.HandleError(c, prodErrors.ErrInvalidScope, utils.INVALID_SCOPE_MSG)
+		return
+	}
+
+	groups, err := h.specService.ListFulfillmentSpecs(c)
+	if err != nil {
+		h.HandleError(c, err, utils.FAILED_TO_LIST_SPEC_DEFINITIONS_MSG)
+		return
+	}
+	if groups == nil {
+		groups = []model.SpecParameterGroup{}
+	}
+
+	h.Success(
+		c,
+		http.StatusOK,
+		utils.PHYSICAL_SPEC_DEFINITIONS_RETRIEVED_MSG,
+		model.SpecCatalogResponse{Parameters: groups},
 	)
 }

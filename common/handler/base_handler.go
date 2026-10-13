@@ -36,13 +36,33 @@ func (h *BaseHandler) HandleError(c *gin.Context, err error, defaultMessage stri
 		return
 	}
 
-	// Default to internal server error for unknown errors
+	// Default to internal server error for unknown errors.
+	// Never leak raw storage text (PG codes, constraint names) to clients:
+	// map known shapes to client-safe codes, else a generic message.
 	log.ErrorWithContext(c, "Unexpected error", err)
+	msg := err.Error()
+	switch {
+	case containsAny(msg, "23505", "duplicate key", "unique"):
+		commonModel.ErrorResp(c, http.StatusConflict, defaultMessage)
+		return
+	case containsAny(msg, "23503", "foreign key"):
+		commonModel.ErrorResp(c, http.StatusBadRequest, defaultMessage)
+		return
+	}
 	commonModel.ErrorResp(
 		c,
 		http.StatusInternalServerError,
-		defaultMessage+": "+err.Error(),
+		defaultMessage,
 	)
+}
+
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(strings.ToLower(s), strings.ToLower(sub)) {
+			return true
+		}
+	}
+	return false
 }
 
 // HandleValidationError handles JSON binding validation errors

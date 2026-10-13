@@ -84,6 +84,13 @@ func TestOrderSuite(t *testing.T) {
 
 func (s *OrderSuite) cleanupOrderDomainData() {
 	// Order graph cleanup (children first), then cart cleanup for test users.
+	// Fulfillment rows come first: the confirm trigger auto-plans drafts,
+	// and shipment items RESTRICT order_item deletes.
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_ndr`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_event`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_item`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_webhook_log`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_history`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_item_applied_promotion`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_applied_coupon`).Error)

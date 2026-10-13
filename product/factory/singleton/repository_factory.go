@@ -24,6 +24,7 @@ type RepositoryFactory struct {
 	productMediaRepo      repository.ProductMediaRepository
 	variantMediaRepo      repository.VariantMediaRepository
 	recentlyViewedRepo    repository.RecentlyViewedRepository
+	physicalSpecRepo      repository.PhysicalSpecRepository
 
 	once sync.Once
 }
@@ -51,6 +52,7 @@ func (f *RepositoryFactory) initialize() {
 		f.productMediaRepo = repository.NewProductMediaRepository()
 		f.variantMediaRepo = repository.NewVariantMediaRepository()
 		f.recentlyViewedRepo = repository.NewRecentlyViewedRepository()
+		f.physicalSpecRepo = repository.NewPhysicalSpecRepository()
 	})
 }
 
@@ -134,4 +136,10 @@ func (f *RepositoryFactory) GetVariantMediaRepository() repository.VariantMediaR
 func (f *RepositoryFactory) GetRecentlyViewedRepository() repository.RecentlyViewedRepository {
 	f.initialize()
 	return f.recentlyViewedRepo
+}
+
+// GetPhysicalSpecRepository returns the singleton shippable spec repository.
+func (f *RepositoryFactory) GetPhysicalSpecRepository() repository.PhysicalSpecRepository {
+	f.initialize()
+	return f.physicalSpecRepo
 }

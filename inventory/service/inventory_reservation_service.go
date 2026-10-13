@@ -149,10 +149,6 @@ func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
 	reservationExpiry model.ReservationExpiryPayload,
 ) error {
 	return db.WithTransaction(ctx, func(txCtx context.Context) error {
-		if err := s.reservationRepo.UpdateStatusByIDs(txCtx, reservationExpiry.ReservationIDs, entity.ResExpired); err != nil {
-			return err
-		}
-
 		inventoryReservations, err := s.reservationRepo.FindByIDs(
 			txCtx,
 			reservationExpiry.ReservationIDs,
@@ -161,11 +157,33 @@ func (s *InventoryReservationServiceImpl) ExpireScheduleReservation(
 			return err
 		}
 
+		// T021 (013-fulfillment): expiry jobs are scheduled for PENDING
+		// holds, but nothing cancels them on confirm — without this guard a
+		// late-firing job would flip CONFIRMED/FULFILLED rows to EXPIRED and
+		// silently release sold stock. Only PENDING rows may expire here.
+		var pendingIDs []uint
+		pending := inventoryReservations[:0]
+		for _, res := range inventoryReservations {
+			if res.Status == entity.ResPending {
+				pendingIDs = append(pendingIDs, res.ID)
+				pending = append(pending, res)
+			} else {
+				log.WarnWithContext(txCtx,
+					"skipping expiry for non-pending reservation id="+strconv.FormatUint(uint64(res.ID), 10))
+			}
+		}
+		if len(pending) == 0 {
+			return nil
+		}
+		if err := s.reservationRepo.UpdateStatusByIDs(txCtx, pendingIDs, entity.ResExpired); err != nil {
+			return err
+		}
+
 		return s.releaseReservationInventory(
 			txCtx,
 			sellerId,
 			entity.TXN_RELEASED,
-			inventoryReservations,
+			pending,
 		)
 	})
 }

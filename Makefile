@@ -199,6 +199,13 @@ arch-check:
 	else \
 		echo "✅ common/model is pure (no domain imports)"; \
 	fi
+	@echo "🏗️  Checking Shiprocket adapter isolation (013 T057)..."
+	@if grep -rn "fulfillment/service/courier/shiprocket" --include="*.go" fulfillment product order inventory user common test | grep -v "fulfillment/service/courier/shiprocket/" | grep -v "fulfillment/factory/" | grep -v "_test.go"; then \
+		echo "❌ provider imports outside adapter folders (only the adapter, fulfillment/factory, and tests may reference it)"; \
+		exit 1; \
+	else \
+		echo "✅ Shiprocket adapter isolated"; \
+	fi
 
 # Re-run only failed tests from the last test-all run
 test-failed:

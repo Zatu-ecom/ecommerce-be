@@ -1,6 +1,6 @@
 # ecommerce-be Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-09-18
+Auto-generated from all feature plans. Last updated: 2026-10-02
 
 ## Active Technologies
 - Go 1.25+ (per constitution) (003-upload-apis)
@@ -17,6 +17,8 @@ Auto-generated from all feature plans. Last updated: 2026-09-18
 - PostgreSQL 16 (`SingularTable: true`); Redis unused by this feature (010-payment-gateway-platform)
 - Go 1.25+ (module `ecommerce-be`) + `github.com/redis/go-redis/v9` (new, replaces v8), `golang.org/x/sync` (singleflight — already indirect dep), Gin, GORM, testify/suite, Testcontainers (012-caching-infrastructure)
 - PostgreSQL 16 (source of truth, unchanged schema — no migrations in this feature); volatile cache role + durable KV role (Redis 7 now, DragonflyDB at cutover; RESP-compatible) (012-caching-infrastructure)
+- Go 1.25+ (module `ecommerce-be`) + Gin (HTTP), GORM (ORM), `go-playground/validator/v10`, testify/suite, Testcontainers, stdlib `net/http` + `crypto/hmac`/`sha256` (no courier SDK), `robfig/cron/v3` via `common/cron`, `redis/go-redis/v9` via `common/cachekit` (013-courier-fulfillment-platform)
+- PostgreSQL 16 (new tables, migration `032`; `033` for the physical-spec catalog; GORM `SingularTable: true`); Redis 7 volatile (rates/track/catalog, fail-open) + durable KV (idempotency, version counters, rate limiter, Shiprocket JWT) (013-courier-fulfillment-platform)
 
 - Go 1.25+ + Gin, GORM, validator, testify/suite, Testcontainers infrastructure (`test/integration/setup`), AWS SDK v2 (`service/s3`), GCS storage client, Azure Blob SDK (002-blob-adapters)
 - PostgreSQL 16 for `storage_config`/`storage_provider` source records; external blob storage providers (S3-compatible, GCS, Azure Blob) for object data (002-blob-adapters)
@@ -34,9 +36,9 @@ Auto-generated from all feature plans. Last updated: 2026-09-18
 Go 1.25+: Follow standard conventions
 
 ## Recent Changes
+- 013-courier-fulfillment-platform: Added Go 1.25+ (module `ecommerce-be`) + Gin (HTTP), GORM (ORM), `go-playground/validator/v10`, testify/suite, Testcontainers, stdlib `net/http` + `crypto/hmac`/`sha256` (no courier SDK), `robfig/cron/v3` via `common/cron`, `redis/go-redis/v9` via `common/cachekit`
 - 012-caching-infrastructure: Added Go 1.25+ (module `ecommerce-be`) + `github.com/redis/go-redis/v9` (new, replaces v8), `golang.org/x/sync` (singleflight — already indirect dep), Gin, GORM, testify/suite, Testcontainers
 - 010-payment-gateway-platform: Added Go 1.25+ + Gin, GORM, `go-playground/validator/v10`, testify/suite + Testcontainers, stdlib `net/http` + `crypto/hmac`/`sha256` (no Razorpay SDK), `github.com/robfig/cron/v3` via `common/cron`
-- 009-razorpay-payment-gateway: Added Go 1.25+ + Gin (HTTP), GORM (ORM), `go-playground/validator/v10` (validation),
 
 
 

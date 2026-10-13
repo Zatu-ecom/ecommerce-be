@@ -2,6 +2,7 @@ package setup
 
 import (
 	fileSingleton "ecommerce-be/file/factory/singleton"
+	fulfillmentSingleton "ecommerce-be/fulfillment/factory/singleton"
 	inventorySingleton "ecommerce-be/inventory/factory/singleton"
 	orderSingleton "ecommerce-be/order/factory/singleton"
 	paymentSingleton "ecommerce-be/payment/factory/singleton"
@@ -20,6 +21,7 @@ func ResetAllModuleSingletons() {
 	inventorySingleton.ResetInstance()
 	orderSingleton.ResetInstance()
 	paymentSingleton.ResetInstance()
+	fulfillmentSingleton.ResetInstance()
 	promotionSingleton.ResetInstance()
 	reportSingleton.ResetInstance()
 	fileSingleton.ResetInstance()

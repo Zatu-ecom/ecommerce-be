@@ -25,6 +25,7 @@ type ServiceFactory struct {
 	variantQueryService      service.VariantQueryService
 	variantBulkService       service.VariantBulkService
 	productAttributeService  service.ProductAttributeService
+	physicalSpecService      service.PhysicalSpecService
 	packageOptionService     service.PackageOptionService
 	productOptionService     service.ProductOptionService
 	optionValueService       service.ProductOptionValueService
@@ -127,11 +128,19 @@ func (f *ServiceFactory) initialize() {
 
 		f.categoryService = service.NewCategoryService(categoryRepo, productRepo, attributeRepo)
 		f.attributeService = service.NewAttributeDefinitionService(attributeRepo)
+		f.physicalSpecService = service.NewPhysicalSpecService(
+			f.repoFactory.GetPhysicalSpecRepository(),
+			attributeRepo,
+			productAttrRepo,
+			variantRepo,
+			f.validatorService,
+		)
 		f.productAttributeService = service.NewProductAttributeService(
 			productAttrRepo,
 			productRepo,
 			attributeRepo,
 			f.validatorService,
+			f.physicalSpecService,
 		)
 		f.packageOptionService = service.NewPackageOptionService(
 			packageOptionRepo,
@@ -325,6 +334,12 @@ func (f *ServiceFactory) GetVariantBulkService() service.VariantBulkService {
 func (f *ServiceFactory) GetProductAttributeService() service.ProductAttributeService {
 	f.initialize()
 	return f.productAttributeService
+}
+
+// GetPhysicalSpecService returns the singleton shippable spec service
+func (f *ServiceFactory) GetPhysicalSpecService() service.PhysicalSpecService {
+	f.initialize()
+	return f.physicalSpecService
 }
 
 // GetPackageOptionService returns the singleton package option service

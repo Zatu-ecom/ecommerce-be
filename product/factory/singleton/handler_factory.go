@@ -36,6 +36,7 @@ func (f *HandlerFactory) initialize() {
 		f.categoryHandler = handler.NewCategoryHandler(f.serviceFactory.GetCategoryService())
 		f.attributeHandler = handler.NewAttributeHandler(
 			f.serviceFactory.GetAttributeDefinitionService(),
+			f.serviceFactory.GetPhysicalSpecService(),
 		)
 		f.productHandler = handler.NewProductHandler(
 			f.serviceFactory.GetProductService(),
@@ -51,6 +52,7 @@ func (f *HandlerFactory) initialize() {
 		)
 		f.productAttributeHandler = handler.NewProductAttributeHandler(
 			f.serviceFactory.GetProductAttributeService(),
+			f.serviceFactory.GetPhysicalSpecService(),
 		)
 		f.packageOptionHandler = handler.NewPackageOptionHandler(
 			f.serviceFactory.GetPackageOptionService(),

@@ -18,6 +18,7 @@ import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/common/scheduler"
 	fileModule "ecommerce-be/file"
+	"ecommerce-be/fulfillment"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
@@ -142,6 +143,7 @@ func registerContainer(router *gin.Engine) {
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
+	_ = fulfillment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
 	_ = report.NewContainer(router)

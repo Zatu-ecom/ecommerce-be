@@ -275,6 +275,13 @@ func (s *PaymentSuite) seedSecondSellerGatewayConfig() {
 func (s *PaymentSuite) cleanupPaymentDomainData() {
 	// Orders created by the suite reference carts; clear order graph + carts for
 	// the involved users so each test starts with a clean slate.
+	// Fulfillment boxes hold RESTRICT references to order_item (auto-planned
+	// on confirm since 013), so the fulfillment graph goes first.
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_ndr`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_webhook_log`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_event`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_item`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_history`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_item_applied_promotion`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_applied_coupon`).Error)
