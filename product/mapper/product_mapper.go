@@ -23,9 +23,9 @@ type BrandWithProductCount struct {
 
 // Variant filter mappers
 type PriceRangeData struct {
-	MinPrice     float64 `json:"min_price"`
-	MaxPrice     float64 `json:"max_price"`
-	ProductCount uint    `json:"product_count"`
+	MinPriceCents int64 `gorm:"column:min_price_cents" json:"min_price"`
+	MaxPriceCents int64 `gorm:"column:max_price_cents" json:"max_price"`
+	ProductCount  uint  `gorm:"column:product_count"   json:"product_count"`
 }
 
 type VariantOptionData struct {

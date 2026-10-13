@@ -72,13 +72,13 @@ type FulfillmentType string
 
 const (
 	// Buy Online, Pick Up In Store
-	BOPIS     FulfillmentType = "bopis"
+	BOPIS FulfillmentType = "bopis"
 	// Direct Ship to CustomeR, for online order this is the default fulfillment type
 	DIRECTSHIP FulfillmentType = "directship"
 	// Delivery to Customer, this is for local delivery or third-party delivery service
-	DELIVERY  FulfillmentType = "delivery"
+	DELIVERY FulfillmentType = "delivery"
 	// Transfer to another store
-	TRANSFER  FulfillmentType = "transfer"
+	TRANSFER FulfillmentType = "transfer"
 )
 
 func ValidFulfillmentTypes() []FulfillmentType {
@@ -124,9 +124,9 @@ type Order struct {
 	FulfillmentType FulfillmentType `json:"fulfillmentType" gorm:"column:fulfillment_type;size:32;default:'directship'"`
 
 	// Associations for query preloading.
-	Items                  []OrderItem                 `json:"items,omitempty"                  gorm:"foreignKey:OrderID"`
-	Addresses              []OrderAddress              `json:"addresses,omitempty"              gorm:"foreignKey:OrderID"`
-	AppliedPromotions      []OrderAppliedPromotion     `json:"appliedPromotions,omitempty"      gorm:"foreignKey:OrderID"`
-	AppliedCoupons         []OrderAppliedCoupon        `json:"appliedCoupons,omitempty"         gorm:"foreignKey:OrderID"`
-	ItemAppliedPromotions  []OrderItemAppliedPromotion `json:"itemAppliedPromotions,omitempty"  gorm:"foreignKey:OrderID"`
+	Items                 []OrderItem                 `json:"items,omitempty"                  gorm:"foreignKey:OrderID"`
+	Addresses             []OrderAddress              `json:"addresses,omitempty"              gorm:"foreignKey:OrderID"`
+	AppliedPromotions     []OrderAppliedPromotion     `json:"appliedPromotions,omitempty"      gorm:"foreignKey:OrderID"`
+	AppliedCoupons        []OrderAppliedCoupon        `json:"appliedCoupons,omitempty"         gorm:"foreignKey:OrderID"`
+	ItemAppliedPromotions []OrderItemAppliedPromotion `json:"itemAppliedPromotions,omitempty"  gorm:"foreignKey:OrderID"`
 }

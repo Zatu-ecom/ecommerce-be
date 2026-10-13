@@ -15,4 +15,3 @@ const (
 	FAILED_TO_UPDATE_ORDER_STATUS_MSG = "Failed to update order status"
 	FAILED_TO_CANCEL_ORDER_MSG        = "Failed to cancel order"
 )
-

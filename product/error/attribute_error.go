@@ -37,4 +37,20 @@ var (
 		Message:    utils.ATTRIBUTE_DATA_TYPE_INVALID_MSG,
 		StatusCode: http.StatusBadRequest,
 	}
+
+	// ErrPhysicalSpecFamilyConflict is returned when a second unit key from
+	// an already-represented measurement family is attached to a product.
+	ErrPhysicalSpecFamilyConflict = &commonError.AppError{
+		Code:       utils.PHYSICAL_SPEC_FAMILY_CONFLICT_CODE,
+		Message:    utils.PHYSICAL_SPEC_FAMILY_CONFLICT_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
+
+	// ErrInvalidScope is returned when a scope query parameter is missing
+	// or not supported (the definitions catalog only serves fulfillment).
+	ErrInvalidScope = &commonError.AppError{
+		Code:       utils.INVALID_SCOPE_CODE,
+		Message:    utils.INVALID_SCOPE_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

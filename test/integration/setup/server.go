@@ -5,23 +5,27 @@ import (
 	"os"
 	"testing"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/db"
 	"ecommerce-be/common/log"
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/file"
+	"ecommerce-be/fulfillment"
+	fulfillmentSingleton "ecommerce-be/fulfillment/factory/singleton"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
+	orderSingleton "ecommerce-be/order/factory/singleton"
+	orderService "ecommerce-be/order/service"
 	"ecommerce-be/payment"
 	"ecommerce-be/product"
 	"ecommerce-be/promotion"
 	"ecommerce-be/report"
 	"ecommerce-be/user"
-
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -29,17 +33,14 @@ import (
 func setTestEnvVars() {
 	// Only set if not already set (allows override from .env.test or CI)
 	envDefaults := map[string]string{
-		"DB_HOST":        "localhost",
-		"DB_PORT":        "5432",
-		"DB_USER":        "postgres",
-		"DB_PASSWORD":    "postgres",
-		"DB_NAME":        "testdb",
-		"REDIS_HOST":     "localhost",
-		"REDIS_PORT":     "6379",
-		"REDIS_PASSWORD": "",
-		"JWT_SECRET":     "test-secret-key-for-integration-tests",
-		"APP_ENV":        "test",
-		"LOG_LEVEL":      "debug",
+		"DB_HOST":     "localhost",
+		"DB_PORT":     "5432",
+		"DB_USER":     "postgres",
+		"DB_PASSWORD": "postgres",
+		"DB_NAME":     "testdb",
+		"JWT_SECRET":  "test-secret-key-for-integration-tests",
+		"APP_ENV":     "test",
+		"LOG_LEVEL":   "debug",
 	}
 
 	for key, value := range envDefaults {
@@ -75,10 +76,12 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 		db.SetDB(database)
 	}
 
-	// 7. Set the test Redis client as the global Redis instance
-	if redisClient != nil {
-		cache.SetRedisClient(redisClient)
-	}
+	// 7. Wire cachekit role clients from test config (CACHE_ADDR/KV_ADDR
+	// published by SetupTestContainers). Strategies read these at call time;
+	// flags stay off unless a test enables them.
+	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))
+	cachekit.SetDefaultDurable(provider.NewDurable(cfg.Redis))
+	cachekit.SetTokenDenylist(cachekit.NewTokenDenylist(cachekit.DefaultDurable()))
 
 	// 8. Initialize Gin Router
 	gin.SetMode(gin.TestMode)
@@ -86,12 +89,20 @@ func SetupTestServer(t *testing.T, database *gorm.DB, redisClient *redis.Client)
 	router.Use(gin.Recovery())
 
 	// 9. Apply middleware (same as main.go)
-	router.Use(middleware.CorrelationID())
+	router.Use(middleware.UnlessSkipped(
+		middleware.CorrelationIDWebhookSkipRules,
+		middleware.CorrelationID(),
+		middleware.GenerateCorrelationID(),
+	))
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
 
 	// 10. Register modules
 	registerContainer(router)
+
+	// 11. Cross-module wiring (mirrors main.go): fulfillment planner
+	// triggers on order confirmation. Nil-safe when unwired.
+	wireFulfillmentPlanner()
 
 	return router
 }
@@ -102,8 +113,19 @@ func registerContainer(router *gin.Engine) {
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
+	_ = fulfillment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
 	_ = report.NewContainer(router)
 	_ = file.NewContainer(router)
+}
+
+// wireFulfillmentPlanner connects order confirmation to fulfillment
+// auto-planning (mirrors main.go). Type-asserted to keep the OrderService
+// interface fulfillment-free.
+func wireFulfillmentPlanner() {
+	planner := fulfillmentSingleton.GetInstance().GetServiceFactory().GetShipmentPlanner()
+	if impl, ok := orderSingleton.GetInstance().GetOrderService().(*orderService.OrderServiceImpl); ok {
+		impl.SetShipmentPlanner(planner)
+	}
 }

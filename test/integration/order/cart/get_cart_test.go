@@ -152,14 +152,14 @@ func (s *CartTestSuite) TestGET009PromotionSummaryIsAppliedOnGetCart() {
 	summary := data["summary"].(map[string]any)
 	appliedPromotions := data["appliedPromotions"].([]any)
 
-	assert.Equal(s.T(), float64(179800), summary["subtotal"])
-	assert.Equal(s.T(), float64(29800), summary["promotionDiscount"])
-	assert.Equal(s.T(), float64(150000), summary["afterDiscount"])
-	assert.Equal(s.T(), float64(150000), summary["total"])
+	assert.Equal(s.T(), int64(179800), helpers.MoneyCents(summary["subtotal"]))
+	assert.Equal(s.T(), int64(29800), helpers.MoneyCents(summary["promotionDiscount"]))
+	assert.Equal(s.T(), int64(150000), helpers.MoneyCents(summary["afterDiscount"]))
+	assert.Equal(s.T(), int64(150000), helpers.MoneyCents(summary["total"]))
 	require.Len(s.T(), appliedPromotions, 1)
 	ap := appliedPromotions[0].(map[string]any)
-	assert.Equal(s.T(), float64(29800), ap["discount"])
-	assert.Equal(s.T(), float64(0), ap["shippingDiscount"])
+	assert.Equal(s.T(), int64(29800), helpers.MoneyCents(ap["discount"]))
+	assert.Equal(s.T(), int64(0), helpers.MoneyCents(ap["shippingDiscount"]))
 	assert.NotEmpty(s.T(), ap["name"])
 	assert.NotEmpty(s.T(), ap["type"])
 }
@@ -240,9 +240,9 @@ func (s *CartTestSuite) TestGET011FreeShippingPromotionAppearsAtCartLevel() {
 			continue
 		}
 		foundFreeShipping = true
-		assert.Equal(s.T(), float64(0), ap["discount"])
-		assert.Equal(s.T(), float64(5000), ap["shippingDiscount"])
-		assert.NotEmpty(s.T(), ap["shippingDiscountFormatted"])
+		assert.Equal(s.T(), int64(0), helpers.MoneyCents(ap["discount"]))
+		assert.Equal(s.T(), int64(5000), helpers.MoneyCents(ap["shippingDiscount"]))
+		assert.NotEmpty(s.T(), ap["shippingDiscount"])
 	}
 	assert.True(s.T(), foundFreeShipping)
 }

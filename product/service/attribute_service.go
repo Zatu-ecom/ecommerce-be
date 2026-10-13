@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -22,8 +23,8 @@ type AttributeDefinitionService interface {
 		req model.AttributeDefinitionUpdateRequest,
 	) (*model.AttributeDefinitionResponse, error)
 	DeleteAttribute(ctx context.Context, id uint) error
-	GetAllAttributes(ctx context.Context) (*model.AttributeDefinitionsResponse, error)
-	GetAttributeByID(ctx context.Context, id uint) (*model.AttributeDefinitionResponse, error)
+	GetAllAttributes(ctx context.Context, sellerID *uint) (*model.AttributeDefinitionsResponse, error)
+	GetAttributeByID(ctx context.Context, id uint, sellerID *uint) (*model.AttributeDefinitionResponse, error)
 	GetAttributeByKey(ctx context.Context, key string) (*model.AttributeDefinitionResponse, error)
 	CreateCategoryAttributeDefinition(
 		ctx context.Context,
@@ -35,6 +36,20 @@ type AttributeDefinitionService interface {
 // AttributeDefinitionServiceImpl implements the AttributeDefinitionService interface
 type AttributeDefinitionServiceImpl struct {
 	attributeRepo repository.AttributeDefinitionRepository
+	categoryCache *cache.CategoryCache
+}
+
+// SetCategoryCache attaches the reference-data strategy for attribute lists
+// and per-id entries. Safe to call with nil.
+func (s *AttributeDefinitionServiceImpl) SetCategoryCache(c *cache.CategoryCache) {
+	s.categoryCache = c
+}
+
+func (s *AttributeDefinitionServiceImpl) invalidateAttributes(ctx context.Context, attributeID uint) {
+	if s.categoryCache == nil {
+		return
+	}
+	s.categoryCache.InvalidateAttributeLists(ctx, 0, attributeID)
 }
 
 // NewAttributeDefinitionService creates a new instance of AttributeDefinitionService
@@ -79,6 +94,7 @@ func (s *AttributeDefinitionServiceImpl) CreateAttribute(
 	if err := s.attributeRepo.Create(ctx, attribute); err != nil {
 		return nil, err
 	}
+	s.invalidateAttributes(ctx, attribute.ID)
 
 	// Build response using converter
 	attributeResponse := factory.BuildAttributeResponse(attribute)
@@ -111,6 +127,7 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 	if err := s.attributeRepo.Update(ctx, attribute); err != nil {
 		return nil, err
 	}
+	s.invalidateAttributes(ctx, id)
 
 	// Build response using converter
 	attributeResponse := factory.BuildAttributeResponse(attribute)
@@ -119,11 +136,28 @@ func (s *AttributeDefinitionServiceImpl) UpdateAttribute(
 
 // DeleteAttribute soft deletes an attribute definition
 func (s *AttributeDefinitionServiceImpl) DeleteAttribute(ctx context.Context, id uint) error {
-	return s.attributeRepo.Delete(ctx, id)
+	if err := s.attributeRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateAttributes(ctx, id)
+	return nil
 }
 
 // GetAllAttributes gets all active attribute definitions
 func (s *AttributeDefinitionServiceImpl) GetAllAttributes(
+	ctx context.Context,
+	sellerID *uint,
+) (*model.AttributeDefinitionsResponse, error) {
+	load := func(ctx context.Context) (*model.AttributeDefinitionsResponse, error) {
+		return s.loadAllAttributes(ctx)
+	}
+	if s.categoryCache == nil {
+		return load(ctx)
+	}
+	return s.categoryCache.GetAllAttributes(ctx, sellerID, load)
+}
+
+func (s *AttributeDefinitionServiceImpl) loadAllAttributes(
 	ctx context.Context,
 ) (*model.AttributeDefinitionsResponse, error) {
 	attributes, err := s.attributeRepo.FindAll(ctx)
@@ -146,14 +180,19 @@ func (s *AttributeDefinitionServiceImpl) GetAllAttributes(
 func (s *AttributeDefinitionServiceImpl) GetAttributeByID(
 	ctx context.Context,
 	id uint,
+	sellerID *uint,
 ) (*model.AttributeDefinitionResponse, error) {
-	attribute, err := s.attributeRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
+	load := func(ctx context.Context) (*model.AttributeDefinitionResponse, error) {
+		attribute, err := s.attributeRepo.FindByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return factory.BuildAttributeResponse(attribute), nil
 	}
-
-	attributeResponse := factory.BuildAttributeResponse(attribute)
-	return attributeResponse, nil
+	if s.categoryCache == nil {
+		return load(ctx)
+	}
+	return s.categoryCache.GetAttribute(ctx, sellerID, id, load)
 }
 
 // GetAttributeByKey gets an attribute definition by key
@@ -205,6 +244,7 @@ func (s *AttributeDefinitionServiceImpl) CreateCategoryAttributeDefinition(
 	if err := s.attributeRepo.CreateCategoryAttributeDefinition(ctx, attribute, categoryID); err != nil {
 		return nil, err
 	}
+	s.invalidateAttributes(ctx, attribute.ID)
 
 	attributeResponse := factory.BuildAttributeResponse(attribute)
 	return attributeResponse, nil

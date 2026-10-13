@@ -1,9 +1,9 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 )
 
 // PaginationResponse - Reuse from common package
-// Using common.PaginationResponse instead of local definition
-type PaginationResponse = common.PaginationResponse
+// Using commonModel.PaginationResponse instead of local definition
+type PaginationResponse = commonModel.PaginationResponse

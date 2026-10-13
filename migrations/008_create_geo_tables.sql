@@ -70,9 +70,17 @@ CREATE TABLE IF NOT EXISTS seller_settings (
     base_currency_id BIGINT NOT NULL REFERENCES currency(id),
     settlement_currency_id BIGINT REFERENCES currency(id),
     display_prices_in_buyer_currency BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Store checkout mode for the payment gateway platform: 'sandbox' | 'production'.
+    -- Checkout, refunds, webhooks and reconciliation read this; the chosen value
+    -- is frozen onto payment_transaction.environment at initiate time.
+    payments_environment VARCHAR(20) NOT NULL DEFAULT 'sandbox',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Idempotent backfill for databases created before payments_environment existed.
+ALTER TABLE seller_settings
+    ADD COLUMN IF NOT EXISTS payments_environment VARCHAR(20) NOT NULL DEFAULT 'sandbox';
 
 -- Create unique index on seller_settings
 CREATE UNIQUE INDEX IF NOT EXISTS idx_seller_settings_seller_id ON seller_settings(seller_id);

@@ -13,6 +13,26 @@ type AppConfig struct {
 
 	// System encryption key (32 bytes ideal for AES-256)
 	EncryptionKey string
+
+	// PublicAPIBaseURL is the externally reachable base URL used to compose
+	// provider-facing callback URLs (e.g. webhookUrl).
+	// Env: PUBLIC_API_BASE_URL (default http://localhost:8080).
+	PublicAPIBaseURL string
+
+	// PaymentPendingTTLMinutes bounds how long a pending transaction may stay
+	// open before the reconciler treats it as expired unpaid.
+	// Env: PAYMENT_PENDING_TTL_MINUTES (default 45).
+	PaymentPendingTTLMinutes int
+
+	// PaymentSessionlessTTLMinutes bounds how long a pending transaction without
+	// a gateway session id may stay open before the reconciler fails it.
+	// Env: PAYMENT_SESSIONLESS_TTL_MINUTES (default 5).
+	PaymentSessionlessTTLMinutes int
+
+	// RefundStuckTTLMinutes bounds how long a pending/processing refund may stay
+	// unresolved before the reconciler re-checks it with the provider.
+	// Env: REFUND_STUCK_TTL_MINUTES (default 30).
+	RefundStuckTTLMinutes int
 }
 
 // loadAppConfig loads app configuration from environment variables.
@@ -26,6 +46,10 @@ func loadAppConfig() AppConfig {
 			"ENCRYPTION_KEY",
 			"0123456789abcdef0123456789abcdef",
 		), // Default 32-byte key for local dev
+		PublicAPIBaseURL:             getEnvOrDefault("PUBLIC_API_BASE_URL", "http://localhost:8080"),
+		PaymentPendingTTLMinutes:     getEnvAsIntOrDefault("PAYMENT_PENDING_TTL_MINUTES", 45),
+		PaymentSessionlessTTLMinutes: getEnvAsIntOrDefault("PAYMENT_SESSIONLESS_TTL_MINUTES", 5),
+		RefundStuckTTLMinutes:        getEnvAsIntOrDefault("REFUND_STUCK_TTL_MINUTES", 30),
 	}
 }
 

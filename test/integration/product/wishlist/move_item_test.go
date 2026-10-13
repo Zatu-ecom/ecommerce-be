@@ -201,7 +201,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(1),
-			wishlist["itemCount"].(float64),
+			getItemCount(wishlist),
 			"Source should have 1 item left",
 		)
 
@@ -212,7 +212,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(1),
-			wishlist["itemCount"].(float64),
+			getItemCount(wishlist),
 			"Third wishlist should have 1 item",
 		)
 	})
@@ -840,7 +840,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(1),
-			sourceWishlist["itemCount"].(float64),
+			getItemCount(sourceWishlist),
 			"Source should have 1 item",
 		)
 
@@ -850,7 +850,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(0),
-			targetWishlist["itemCount"].(float64),
+			getItemCount(targetWishlist),
 			"Target should have 0 items",
 		)
 
@@ -870,7 +870,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(0),
-			sourceWishlist["itemCount"].(float64),
+			getItemCount(sourceWishlist),
 			"Source should have 0 items after move",
 		)
 
@@ -880,7 +880,7 @@ func TestMoveWishlistItem(t *testing.T) {
 		assert.Equal(
 			t,
 			float64(1),
-			targetWishlist["itemCount"].(float64),
+			getItemCount(targetWishlist),
 			"Target should have 1 item after move",
 		)
 	})

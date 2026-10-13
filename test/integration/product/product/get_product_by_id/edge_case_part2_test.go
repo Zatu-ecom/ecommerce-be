@@ -174,8 +174,8 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 
 		// Verify price range includes zero
 		priceRange := product["priceRange"].(map[string]any)
-		minPrice := priceRange["min"].(float64)
-		maxPrice := priceRange["max"].(float64)
+		minPrice := moneyAmount(priceRange["min"])
+		maxPrice := moneyAmount(priceRange["max"])
 
 		assert.Equal(t, 0.0, minPrice, "Min price should be 0.00 for free variant")
 		assert.Greater(t, maxPrice, 0.0, "Max price should be > 0 for paid variant")
@@ -188,7 +188,7 @@ func TestGetProductByID_EdgeCases_Part2(t *testing.T) {
 		hasFreeVariant := false
 		for _, v := range variants {
 			variant := v.(map[string]any)
-			price := variant["price"].(float64)
+			price := moneyAmount(variant["price"])
 
 			if price == 0.0 {
 				hasFreeVariant = true

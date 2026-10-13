@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/factory"
 	"ecommerce-be/promotion/model"
@@ -115,7 +116,7 @@ func (s *PromotionServiceImpl) applyPromotionBasedOnPriority(
 				summary.SkippedPromotions = append(
 					summary.SkippedPromotions,
 					model.SkippedPromotionResult{
-						Promotion: factory.PromotionEntityToResponse(promo),
+						Promotion: factory.PromotionEntityToResponse(promo, commonModel.CurrencyInfo{}),
 						SkippedPromotionReason: model.SkippedPromotionReason{
 							Reason: promotionConstant.VALIDATION_NON_STACKABLE_ALREADY_APPLIED_MSG,
 						},
@@ -313,7 +314,7 @@ func handlePromotionCalculationError(
 		summary.SkippedPromotions = append(
 			summary.SkippedPromotions,
 			model.SkippedPromotionResult{
-				Promotion:              factory.PromotionEntityToResponse(promo),
+				Promotion:              factory.PromotionEntityToResponse(promo, commonModel.CurrencyInfo{}),
 				SkippedPromotionReason: *reason,
 			},
 		)
@@ -335,7 +336,7 @@ func handlePromotionCalculationError(
 		summary.SkippedPromotions = append(
 			summary.SkippedPromotions,
 			model.SkippedPromotionResult{
-				Promotion: factory.PromotionEntityToResponse(promo),
+				Promotion: factory.PromotionEntityToResponse(promo, commonModel.CurrencyInfo{}),
 				SkippedPromotionReason: model.SkippedPromotionReason{
 					Reason: err.Error(),
 				},
@@ -375,7 +376,7 @@ func deepCopySummary(
 // with full promotion response details (same format as applied promotions).
 func skippedResult(promo *entity.Promotion, reason string) model.PromotionValidationResult {
 	return model.PromotionValidationResult{
-		Promotion: factory.PromotionEntityToResponse(promo),
+		Promotion: factory.PromotionEntityToResponse(promo, commonModel.CurrencyInfo{}),
 		Reason:    reason,
 	}
 }

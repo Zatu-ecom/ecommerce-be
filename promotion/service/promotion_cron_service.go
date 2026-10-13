@@ -15,21 +15,27 @@ type PromotionCronService interface {
 }
 
 type PromotionCronServiceImpl struct {
-	repo repository.PromotionRepository
+	repo             repository.PromotionRepository
+	discountCodeRepo repository.DiscountCodeRepository
 }
 
-func NewPromotionCronService(repo repository.PromotionRepository) PromotionCronService {
+func NewPromotionCronService(
+	repo repository.PromotionRepository,
+	discountCodeRepo repository.DiscountCodeRepository,
+) PromotionCronService {
 	return &PromotionCronServiceImpl{
-		repo: repo,
+		repo:             repo,
+		discountCodeRepo: discountCodeRepo,
 	}
 }
 
-// SweepStatusTransitions automatically updates promotion statuses based on their start/end dates
+// SweepStatusTransitions automatically updates promotion and discount-code statuses
+// based on their start/end dates.
 func (s *PromotionCronServiceImpl) SweepStatusTransitions() {
 	ctx := context.Background()
 	now := time.Now()
 
-	// 1. Auto-Start: scheduled -> active
+	// 1. Auto-Start promotions: scheduled -> active
 	startedCount, err := s.repo.AutoStartPromotions(ctx, now)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Cron: Failed to auto-start promotions", err)
@@ -37,11 +43,27 @@ func (s *PromotionCronServiceImpl) SweepStatusTransitions() {
 		log.InfoWithContext(ctx, fmt.Sprintf("Cron: Auto-started %d promotions", startedCount))
 	}
 
-	// 2. Auto-End: active -> ended
+	// 2. Auto-End promotions: active -> ended
 	endedCount, err := s.repo.AutoEndPromotions(ctx, now)
 	if err != nil {
 		log.ErrorWithContext(ctx, "Cron: Failed to auto-end promotions", err)
 	} else if endedCount > 0 {
 		log.InfoWithContext(ctx, fmt.Sprintf("Cron: Auto-ended %d promotions", endedCount))
+	}
+
+	// 3. Auto-Start discount codes: inactive -> active
+	dcStarted, err := s.discountCodeRepo.AutoStartDiscountCodes(ctx, now)
+	if err != nil {
+		log.ErrorWithContext(ctx, "Cron: Failed to auto-start discount codes", err)
+	} else if dcStarted > 0 {
+		log.InfoWithContext(ctx, fmt.Sprintf("Cron: Auto-started %d discount codes", dcStarted))
+	}
+
+	// 4. Auto-End discount codes: active -> inactive
+	dcEnded, err := s.discountCodeRepo.AutoEndDiscountCodes(ctx, now)
+	if err != nil {
+		log.ErrorWithContext(ctx, "Cron: Failed to auto-end discount codes", err)
+	} else if dcEnded > 0 {
+		log.InfoWithContext(ctx, fmt.Sprintf("Cron: Auto-ended %d discount codes", dcEnded))
 	}
 }

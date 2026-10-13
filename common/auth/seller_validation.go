@@ -1,12 +1,13 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 
 	"gorm.io/gorm"
@@ -60,18 +61,128 @@ func (svr *SellerValidationResult) ValidateForAccess() error {
 	return nil
 }
 
-func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidationResult, error) {
-	cacheKey := fmt.Sprintf("%s%d", constants.SELLER_COMPLETE_CACHE_KEY, sellerID)
+// Seller validation cache TTLs. The success TTL is capped by the
+// subscription end date so a cached "active" verdict can never outlive the
+// subscription (pre-spec §4.5). Failure TTL bounds negative caching of
+// database errors (fail-open retries refill quickly).
+const (
+	sellerValidationTTL         = 5 * time.Minute
+	sellerValidationFailureTTL  = 2 * time.Minute
+	sellerValidationNegativeTTL = 60 * time.Second
+)
 
-	// Try to get from cache first
-	cachedData, err := cache.Get(cacheKey)
+// sellerValidationFlight collapses concurrent validation misses per process.
+var sellerValidationFlight cachekit.Flight
+
+// sellerValidationRecorder records seller-validation cache events.
+var sellerValidationRecorder = cachekit.LogRecorder()
+
+// sellerValidationEnabled reports whether seller-validation caching applies.
+// Nil cache or disabled flags fall back to the legacy direct-DB path.
+func sellerValidationEnabled() bool {
+	if cachekit.DefaultCache() == nil {
+		return false
+	}
+	cfg := config.Get()
+	return cfg != nil && cfg.Cache.Enabled && cfg.Cache.SellerValidation
+}
+
+// ValidateSellerCompleteCached validates a seller with cache-aside. The ctx
+// carries timeouts and tracing into cache and fill paths.
+func ValidateSellerCompleteCached(ctx context.Context, db *gorm.DB, sellerID uint) (*SellerValidationResult, error) {
+	if !sellerValidationEnabled() {
+		return validateSellerComplete(db, sellerID)
+	}
+	cacheKey, err := cachekit.BuildSellerKey(sellerID, "seller", "complete")
+	if err != nil {
+		return validateSellerComplete(db, sellerID)
+	}
+	c := cachekit.DefaultCache()
+	start := time.Now()
+
+	body, err := c.Get(ctx, cacheKey)
 	if err == nil {
-		var result SellerValidationResult
-		if jsonErr := json.Unmarshal([]byte(cachedData), &result); jsonErr == nil {
-			return &result, nil
+		if cachekit.IsTombstone(body) {
+			sellerValidationRecorder.Record(ctx, "user", "seller-validation", cachekit.StoreCache, cachekit.ResultMiss, time.Since(start))
+			return nil, errors.New(constants.INVALID_SELLER_MSG)
+		}
+		var hit SellerValidationResult
+		if jsonErr := json.Unmarshal(body, &hit); jsonErr == nil {
+			sellerValidationRecorder.Record(ctx, "user", "seller-validation", cachekit.StoreCache, cachekit.ResultHit, time.Since(start))
+			return &hit, nil
 		}
 	}
 
+	// Miss or backend failure: singleflight fill from the database.
+	res, _, fillErr := sellerValidationFlight.Do(cacheKey, func() (any, error) {
+		return fillSellerValidation(ctx, c, cacheKey, db, sellerID)
+	})
+	if fillErr != nil {
+		// Fill ran and failed (database error): identical to the legacy path.
+		return nil, fillErr
+	}
+	result, ok := res.(*SellerValidationResult)
+	if !ok || result == nil {
+		return nil, errors.New(constants.INVALID_SELLER_MSG)
+	}
+	return result, nil
+}
+
+// fillSellerValidation loads validation from the database and stores it with
+// a subscription-capped TTL. Database failures store a short tombstone and
+// return the legacy INVALID_SELLER error.
+func fillSellerValidation(
+	ctx context.Context,
+	c cachekit.Cache,
+	cacheKey string,
+	db *gorm.DB,
+	sellerID uint,
+) (*SellerValidationResult, error) {
+	start := time.Now()
+	result, err := validateSellerComplete(db, sellerID)
+	if err != nil {
+		_ = c.Set(ctx, cacheKey, cachekit.TombstoneBytes,
+			cachekit.JitteredTTL(sellerValidationFailureTTL))
+		sellerValidationRecorder.Record(ctx, "user", "seller-validation",
+			cachekit.StoreCache, cachekit.ResultMiss, time.Since(start))
+		return nil, err
+	}
+	ttl := validationTTLFor(result)
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > cachekit.MaxValueBytes {
+		return result, nil // serve without storing; never truncate
+	}
+	if setErr := c.Set(ctx, cacheKey, raw, cachekit.JitteredTTL(ttl)); setErr != nil {
+		sellerValidationRecorder.Record(ctx, "user", "seller-validation",
+			cachekit.StoreCache, cachekit.ResultDropped, time.Since(start))
+	}
+	return result, nil
+}
+
+// validationTTLFor caps the verdict lifetime at the subscription end so a
+// cached "active" cannot outlive the subscription. Past/near ends fall back
+// to the negative window (fail-open refills quickly).
+func validationTTLFor(result *SellerValidationResult) time.Duration {
+	if result.SubscriptionEndDate == nil {
+		return sellerValidationTTL
+	}
+	remaining := time.Until(*result.SubscriptionEndDate)
+	switch {
+	case remaining <= 0:
+		return sellerValidationNegativeTTL
+	case remaining < sellerValidationTTL:
+		return remaining
+	default:
+		return sellerValidationTTL
+	}
+}
+
+// validateSellerComplete runs the single optimized validation query without
+// caching (legacy path and cache fill).
+func validateSellerComplete(db *gorm.DB, sellerID uint) (*SellerValidationResult, error) {
 	// Cache miss - single optimized query with correct JOINs
 	var result SellerValidationResult
 	query := `
@@ -93,24 +204,11 @@ func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidation
 
 	dbErr := db.Raw(query, sellerID).Scan(&result).Error
 	if dbErr != nil {
-		failureResult := SellerValidationResult{
-			SellerID:           sellerID,
-			IsActive:           false,
-			SubscriptionStatus: "inactive",
-		}
-		if jsonData, _ := json.Marshal(failureResult); jsonData != nil {
-			cache.Set(cacheKey, string(jsonData), constants.SELLER_CACHE_SHORT_EXPIRATION)
-		}
 		return nil, errors.New(constants.INVALID_SELLER_MSG)
 	}
 
 	if result.SellerID == 0 {
 		return nil, errors.New(constants.INVALID_SELLER_MSG)
-	}
-
-	// Cache the complete result as JSON
-	if jsonData, jsonErr := json.Marshal(result); jsonErr == nil {
-		cache.Set(cacheKey, string(jsonData), constants.SELLER_CACHE_EXPIRATION)
 	}
 
 	return &result, nil
@@ -119,8 +217,8 @@ func ValidateSellerCompleteCached(db *gorm.DB, sellerID uint) (*SellerValidation
 // Optimized wrapper functions using the single query approach
 
 // ValidateSellerSubscriptionOptimized - OPTIMIZED: Uses single query with caching
-func ValidateSellerSubscriptionOptimized(db *gorm.DB, sellerID uint) error {
-	result, err := ValidateSellerCompleteCached(db, sellerID)
+func ValidateSellerSubscriptionOptimized(ctx context.Context, db *gorm.DB, sellerID uint) error {
+	result, err := ValidateSellerCompleteCached(ctx, db, sellerID)
 	if err != nil {
 		return err
 	}
@@ -132,8 +230,8 @@ func ValidateSellerSubscriptionOptimized(db *gorm.DB, sellerID uint) error {
 	return nil
 }
 
-func ValidateSellerDetailsOptimized(db *gorm.DB, sellerID uint) error {
-	result, err := ValidateSellerCompleteCached(db, sellerID)
+func ValidateSellerDetailsOptimized(ctx context.Context, db *gorm.DB, sellerID uint) error {
+	result, err := ValidateSellerCompleteCached(ctx, db, sellerID)
 	if err != nil {
 		return err
 	}
@@ -141,6 +239,6 @@ func ValidateSellerDetailsOptimized(db *gorm.DB, sellerID uint) error {
 	return result.ValidateForAccess()
 }
 
-func GetSellerValidationData(db *gorm.DB, sellerID uint) (*SellerValidationResult, error) {
-	return ValidateSellerCompleteCached(db, sellerID)
+func GetSellerValidationData(ctx context.Context, db *gorm.DB, sellerID uint) (*SellerValidationResult, error) {
+	return ValidateSellerCompleteCached(ctx, db, sellerID)
 }

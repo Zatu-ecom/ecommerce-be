@@ -3,10 +3,14 @@ package service
 import (
 	"context"
 
+	commonModel "ecommerce-be/common/model"
+	fulfillmentservice "ecommerce-be/fulfillment/service"
 	inventoryService "ecommerce-be/inventory/service"
 	"ecommerce-be/order/entity"
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/repository"
+	promotionService "ecommerce-be/promotion/service"
+	userFactory "ecommerce-be/user/factory"
 	userModel "ecommerce-be/user/model"
 	userRepository "ecommerce-be/user/repository"
 	userService "ecommerce-be/user/service"
@@ -43,6 +47,13 @@ type OrderService interface {
 		orderID uint,
 		req model.CancelOrderRequest,
 	) (*model.UpdateStatusResponse, error)
+
+	// AttachTransactionID links our internal payment transaction id to the order.
+	AttachTransactionID(ctx context.Context, orderID, sellerID uint, transactionID string) error
+	// ConfirmPaymentByTransactionID confirms a pending order (pending → confirmed + paid_at).
+	ConfirmPaymentByTransactionID(ctx context.Context, transactionID string) error
+	// FailPaymentByTransactionID fails a pending order (pending → failed).
+	FailPaymentByTransactionID(ctx context.Context, transactionID, reason string) error
 }
 
 type OrderServiceImpl struct {
@@ -52,6 +63,18 @@ type OrderServiceImpl struct {
 	inventoryReserveSvc inventoryService.InventoryReservationService
 	addressSvc          userService.AddressService
 	userRepo            userRepository.UserRepository
+	userSvc             userService.UserService
+	couponApplySvc      promotionService.CouponApplyService
+	// shipmentPlanner auto-plans fulfillment drafts on confirmation.
+	// Nil-safe: planning is disabled until SetShipmentPlanner wires it
+	// (fulfillment factory owns the planner; this avoids ctor churn).
+	shipmentPlanner fulfillmentservice.ShipmentPlanner
+}
+
+// SetShipmentPlanner wires the fulfillment planner (called from main wiring;
+// may stay nil in contexts without fulfillment, e.g. unit tests).
+func (s *OrderServiceImpl) SetShipmentPlanner(planner fulfillmentservice.ShipmentPlanner) {
+	s.shipmentPlanner = planner
 }
 
 // createOrderContext carries validated inputs and locked resources required to create an order.
@@ -64,6 +87,16 @@ type createOrderContext struct {
 	billingAddress  *userModel.AddressResponse
 }
 
+// orderCurrency resolves the seller's base currency for order Money rendering.
+// Order presentation stays in the seller's base currency until FX (FR-010).
+func (s *OrderServiceImpl) orderCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
+}
+
 func NewOrderService(
 	cartSvc CartService,
 	orderRepo repository.OrderRepository,
@@ -71,6 +104,8 @@ func NewOrderService(
 	inventoryReserveSvc inventoryService.InventoryReservationService,
 	addressSvc userService.AddressService,
 	userRepo userRepository.UserRepository,
+	userSvc userService.UserService,
+	couponApplySvc promotionService.CouponApplyService,
 ) OrderService {
 	return &OrderServiceImpl{
 		cartSvc:             cartSvc,
@@ -79,5 +114,7 @@ func NewOrderService(
 		inventoryReserveSvc: inventoryReserveSvc,
 		addressSvc:          addressSvc,
 		userRepo:            userRepo,
+		userSvc:             userSvc,
+		couponApplySvc:      couponApplySvc,
 	}
 }

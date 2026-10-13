@@ -40,5 +40,10 @@ func (m *CartModule) RegisterRoutes(router *gin.Engine) {
 		// Device ID is provided in the request body (not headers),
 		// so standard CustomerAuth (JWT) is sufficient.
 		cartRoutes.POST("/merge", m.cartHandler.MergeGuestCart)
+
+		cartRoutes.POST("/coupon", m.cartHandler.ApplyCoupon)
+		cartRoutes.DELETE("/coupon/:code", m.cartHandler.RemoveCoupon)
+		cartRoutes.DELETE("/coupon", m.cartHandler.RemoveAllCoupons)
+		cartRoutes.GET("/available-coupon", m.cartHandler.GetAvailableCoupons)
 	}
 }

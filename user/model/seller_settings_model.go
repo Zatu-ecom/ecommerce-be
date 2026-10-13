@@ -7,10 +7,11 @@ package model
 // SellerSettingsBase contains common fields for seller settings
 // Changes here will reflect in create/update/response models
 type SellerSettingsBase struct {
-	BusinessCountryID            uint `json:"businessCountryId"`            // Country where business is registered
-	BaseCurrencyID               uint `json:"baseCurrencyId"`               // Prices stored in this currency
-	SettlementCurrencyID         uint `json:"settlementCurrencyId"`         // Payouts in this currency
-	DisplayPricesInBuyerCurrency bool `json:"displayPricesInBuyerCurrency"` // Convert prices for buyers
+	BusinessCountryID            uint   `json:"businessCountryId"`            // Country where business is registered
+	BaseCurrencyID               uint   `json:"baseCurrencyId"`               // Prices stored in this currency
+	SettlementCurrencyID         uint   `json:"settlementCurrencyId"`         // Payouts in this currency
+	DisplayPricesInBuyerCurrency bool   `json:"displayPricesInBuyerCurrency"` // Convert prices for buyers
+	PaymentsEnvironment          string `json:"paymentsEnvironment"`          // sandbox | production (payment checkout mode)
 }
 
 // ========================================
@@ -19,18 +20,20 @@ type SellerSettingsBase struct {
 
 // SellerSettingsCreateRequest - Seller creates their settings (onboarding)
 type SellerSettingsCreateRequest struct {
-	BusinessCountryID            uint  `json:"businessCountryId"            binding:"required"`
-	BaseCurrencyID               uint  `json:"baseCurrencyId"               binding:"required"`
-	SettlementCurrencyID         *uint `json:"settlementCurrencyId"`         // Optional, defaults to BaseCurrencyID
-	DisplayPricesInBuyerCurrency *bool `json:"displayPricesInBuyerCurrency"` // Optional, defaults to false
+	BusinessCountryID            uint   `json:"businessCountryId"            binding:"required"`
+	BaseCurrencyID               uint   `json:"baseCurrencyId"               binding:"required"`
+	SettlementCurrencyID         *uint  `json:"settlementCurrencyId"`         // Optional, defaults to BaseCurrencyID
+	DisplayPricesInBuyerCurrency *bool  `json:"displayPricesInBuyerCurrency"` // Optional, defaults to false
+	PaymentsEnvironment          string `json:"paymentsEnvironment"          binding:"omitempty,oneof=sandbox production"`
 }
 
 // SellerSettingsUpdateRequest - Seller updates their settings (all fields optional)
 type SellerSettingsUpdateRequest struct {
-	BusinessCountryID            *uint `json:"businessCountryId"`
-	BaseCurrencyID               *uint `json:"baseCurrencyId"`
-	SettlementCurrencyID         *uint `json:"settlementCurrencyId"`
-	DisplayPricesInBuyerCurrency *bool `json:"displayPricesInBuyerCurrency"`
+	BusinessCountryID            *uint   `json:"businessCountryId"`
+	BaseCurrencyID               *uint   `json:"baseCurrencyId"`
+	SettlementCurrencyID         *uint   `json:"settlementCurrencyId"`
+	DisplayPricesInBuyerCurrency *bool   `json:"displayPricesInBuyerCurrency"`
+	PaymentsEnvironment          *string `json:"paymentsEnvironment" binding:"omitempty,oneof=sandbox production"`
 }
 
 // ========================================
@@ -45,6 +48,7 @@ type SellerSettingsResponse struct {
 	BaseCurrencyID               uint   `json:"baseCurrencyId"`
 	SettlementCurrencyID         uint   `json:"settlementCurrencyId"`
 	DisplayPricesInBuyerCurrency bool   `json:"displayPricesInBuyerCurrency"`
+	PaymentsEnvironment          string `json:"paymentsEnvironment"`
 	CreatedAt                    string `json:"createdAt"`
 	UpdatedAt                    string `json:"updatedAt"`
 }
@@ -57,6 +61,7 @@ type SellerSettingsDetailResponse struct {
 	BaseCurrency                 CurrencyResponse `json:"baseCurrency"`
 	SettlementCurrency           CurrencyResponse `json:"settlementCurrency"`
 	DisplayPricesInBuyerCurrency bool             `json:"displayPricesInBuyerCurrency"`
+	PaymentsEnvironment          string           `json:"paymentsEnvironment"`
 	CreatedAt                    string           `json:"createdAt"`
 	UpdatedAt                    string           `json:"updatedAt"`
 }

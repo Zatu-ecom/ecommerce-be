@@ -168,10 +168,12 @@ func TestDeleteWishlist(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
 
-		// Check itemCount safely (may be 0 if products weren't available in seed data)
+		// Check totalItems from pagination (may be 0 if products weren't available in seed data)
 		var itemCount int
-		if itemCountRaw, ok := wishlist["itemCount"]; ok && itemCountRaw != nil {
-			itemCount = int(itemCountRaw.(float64))
+		if paginationRaw, ok := wishlist["pagination"].(map[string]any); ok {
+			if totalItemsRaw, ok := paginationRaw["totalItems"]; ok && totalItemsRaw != nil {
+				itemCount = int(totalItemsRaw.(float64))
+			}
 		}
 		t.Logf("Wishlist has %d items before deletion", itemCount)
 

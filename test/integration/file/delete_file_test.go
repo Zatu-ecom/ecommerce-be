@@ -55,7 +55,7 @@ func (s *UploadSuite) TestDeleteFile_UploadingCancelsSchedulerAndDeletesRow() {
 	var row struct{ ID uint64 }
 	err := s.container.DB.Raw("SELECT id FROM file_object WHERE file_id = ?", fileID).Scan(&row).Error
 	require.NoError(s.T(), err)
-	helpers.AssertSchedulerJobExists(s.T(), s.container.RedisClient, row.ID)
+	helpers.AssertSchedulerJobExists(s.T(), s.container.DurableKVClient, row.ID)
 
 	client := helpers.NewAPIClient(s.server)
 	client.SetToken(s.sellerToken)
@@ -63,7 +63,7 @@ func (s *UploadSuite) TestDeleteFile_UploadingCancelsSchedulerAndDeletesRow() {
 	w := client.Delete(s.T(), "/api/file/"+fileID)
 	helpers.AssertSuccessResponse(s.T(), w, http.StatusOK)
 
-	helpers.AssertNoSchedulerJob(s.T(), s.container.RedisClient, row.ID)
+	helpers.AssertNoSchedulerJob(s.T(), s.container.DurableKVClient, row.ID)
 
 	var countRow struct{ Count int64 }
 	err = s.container.DB.Raw("SELECT COUNT(1) AS count FROM file_object WHERE file_id = ?", fileID).Scan(&countRow).Error

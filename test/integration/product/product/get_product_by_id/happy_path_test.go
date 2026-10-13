@@ -9,6 +9,7 @@ import (
 	"ecommerce-be/test/integration/setup"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGetProductByID_HappyPath tests successful scenarios for retrieving a product by ID
@@ -22,6 +23,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 	containers.RunAllCoreSeeds(t)
 	containers.RunSeeds(t, "migrations/seeds/mock/001_seed_users.sql")
 	containers.RunSeeds(t, "migrations/seeds/mock/002_seed_products.sql")
+	containers.RunSeeds(t, "migrations/seeds/mock/005_seed_wishlist_data.sql")
 	containers.RunSeeds(t, "test/integration/data/get_product_by_id_seed_data.sql")
 
 	// Setup test server
@@ -105,6 +107,29 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		assert.NotNil(t, product["variants"], "Variants should be present")
 		assert.NotNil(t, product["options"], "Options should be present")
 		assert.NotNil(t, product["category"], "Category should be present")
+
+		// Verify wishlist item IDs are populated on variants
+		variants, ok := product["variants"].([]any)
+		assert.True(t, ok, "Variants should be an array")
+		assert.NotEmpty(t, variants, "Variants should not be empty")
+
+		// All 4 variants of product 1 are in Alice's wishlists (seed data)
+		for _, v := range variants {
+			variant := v.(map[string]any)
+			assert.True(t, variant["isWishlisted"].(bool),
+				"Variant %v should be wishlisted", variant["id"])
+
+			wishlistItems, ok := variant["wishlistItems"].([]any)
+			assert.True(t, ok, "wishlistItems should be an array for variant %v", variant["id"])
+			assert.NotEmpty(t, wishlistItems, "wishlistItems should not be empty for variant %v", variant["id"])
+
+			item := wishlistItems[0].(map[string]any)
+			assert.NotNil(t, item["wishlistItemId"], "wishlistItemId should be present")
+			assert.NotNil(t, item["wishlistId"], "wishlistId should be present")
+			// variantId should NOT be present (redundant with parent variant id)
+			_, hasVariantID := item["variantId"]
+			assert.False(t, hasVariantID, "variantId should not be in wishlistItems")
+		}
 	})
 
 	// ============================================================================
@@ -228,8 +253,8 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 
 		// Verify price range
 		priceRange := product["priceRange"].(map[string]any)
-		minPrice := priceRange["min"].(float64)
-		maxPrice := priceRange["max"].(float64)
+		minPrice := moneyAmount(priceRange["min"])
+		maxPrice := moneyAmount(priceRange["max"])
 		assert.True(t, minPrice <= maxPrice, "Min price should be <= max price")
 	})
 
@@ -268,7 +293,7 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 				assert.NotNil(t, packageOption["quantity"], "Package option should have quantity")
 
 				// Verify price is positive
-				price := packageOption["price"].(float64)
+				price := moneyAmount(packageOption["price"])
 				assert.True(t, price > 0, "Package option price should be positive")
 			}
 		}
@@ -322,7 +347,11 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 			"baseSku":    "TEST-SIMPLE-DETAIL-001",
 			"price":      55.50,
 		}
-		createResp := helpers.AssertSuccessResponse(t, client.Post(t, "/api/product", createBody), http.StatusCreated)
+		createResp := helpers.AssertSuccessResponse(
+			t,
+			client.Post(t, "/api/product", createBody),
+			http.StatusCreated,
+		)
 		productID := int(helpers.GetResponseData(t, createResp, "product")["id"].(float64))
 
 		client.SetHeader("X-Seller-ID", fmt.Sprintf("%d", helpers.SellerUserID))
@@ -331,11 +360,100 @@ func TestGetProductByID_HappyPath(t *testing.T) {
 		product := response["data"].(map[string]any)["product"].(map[string]any)
 
 		assert.Equal(t, false, product["hasVariants"])
-		assert.Equal(t, 55.50, product["price"])
+		assert.Equal(t, 55.50, moneyAmount(product["price"]))
 		assert.Equal(t, true, product["allowPurchase"])
 
 		variants, ok := product["variants"].([]any)
 		assert.True(t, ok)
 		assert.Empty(t, variants, "Simple product detail should not expose placeholder variants")
+	})
+
+	// ============================================================================
+	// HP-08: Simple product wishlisted → product-level wishlistItems (variants stay empty)
+	// ============================================================================
+	t.Run("HP-08: Simple product GET by ID returns product-level wishlistItems", func(t *testing.T) {
+		// Create as seller 2 so Alice (customer with seller context 2) can GET the product
+		sellerToken := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
+		client.SetToken(sellerToken)
+
+		createBody := map[string]any{
+			"name":       "Simple Wishlist Detail Product",
+			"categoryId": 4,
+			"baseSku":    "TEST-SIMPLE-WISHLIST-DETAIL-001",
+			"price":      42.00,
+		}
+		createResp := helpers.AssertSuccessResponse(
+			t,
+			client.Post(t, "/api/product", createBody),
+			http.StatusCreated,
+		)
+		productID := int(helpers.GetResponseData(t, createResp, "product")["id"].(float64))
+
+		// Customer wishlists the simple product via product ID (resolves to default placeholder)
+		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
+		client.SetToken(customerToken)
+		client.SetHeader("X-Seller-ID", "")
+
+		addResp := helpers.AssertSuccessResponse(
+			t,
+			client.Post(t, "/api/product/wishlist/1/item", map[string]any{
+				"variantId": productID,
+			}),
+			http.StatusCreated,
+		)
+		wishlistItem := helpers.GetResponseData(t, addResp, "wishlistItem")
+		assert.NotNil(t, wishlistItem["id"], "Wishlist item should be created")
+
+		w := client.Get(t, fmt.Sprintf("/api/product/%d", productID))
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		product := response["data"].(map[string]any)["product"].(map[string]any)
+
+		assert.Equal(t, false, product["hasVariants"], "Simple product should not have public variants")
+		variants, ok := product["variants"].([]any)
+		assert.True(t, ok)
+		assert.Empty(t, variants, "Simple product detail should not expose placeholder variants")
+
+		assert.True(t, product["isWishlisted"].(bool), "Product should be wishlisted")
+
+		wishlistItems, ok := product["wishlistItems"].([]any)
+		require.True(t, ok, "wishlistItems should be present at product level for simple products")
+		require.NotEmpty(t, wishlistItems, "wishlistItems should not be empty when wishlisted")
+
+		item := wishlistItems[0].(map[string]any)
+		assert.NotNil(t, item["wishlistItemId"], "wishlistItemId should be present")
+		assert.Equal(t, float64(1), item["wishlistId"], "wishlistId should be Alice's default wishlist")
+		_, hasVariantID := item["variantId"]
+		assert.False(t, hasVariantID, "variantId should not be in wishlistItems")
+	})
+
+	t.Run("HP-08b: Simple product GET by ID omits wishlistItems when not wishlisted", func(t *testing.T) {
+		sellerToken := helpers.Login(t, client, helpers.Seller2Email, helpers.Seller2Password)
+		client.SetToken(sellerToken)
+
+		createBody := map[string]any{
+			"name":       "Simple Not Wishlisted Product",
+			"categoryId": 4,
+			"baseSku":    "TEST-SIMPLE-NOT-WISHLIST-001",
+			"price":      19.99,
+		}
+		createResp := helpers.AssertSuccessResponse(
+			t,
+			client.Post(t, "/api/product", createBody),
+			http.StatusCreated,
+		)
+		productID := int(helpers.GetResponseData(t, createResp, "product")["id"].(float64))
+
+		customerToken := helpers.Login(t, client, helpers.CustomerEmail, helpers.CustomerPassword)
+		client.SetToken(customerToken)
+		client.SetHeader("X-Seller-ID", "")
+
+		w := client.Get(t, fmt.Sprintf("/api/product/%d", productID))
+		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
+		product := response["data"].(map[string]any)["product"].(map[string]any)
+
+		assert.Equal(t, false, product["hasVariants"])
+		assert.False(t, product["isWishlisted"].(bool), "Product should not be wishlisted")
+		_, hasWishlistItems := product["wishlistItems"]
+		assert.False(t, hasWishlistItems, "wishlistItems key should be absent when not wishlisted")
 	})
 }

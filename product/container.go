@@ -24,7 +24,7 @@ func NewContainer(router *gin.Engine) *common.Container {
 }
 
 /* Register all modules (Categories, Products, Attributes, etc.) */
-// TODO: We havve to use cache for most of this APIs because this sevice is very frequently
+// TODO: We have to use cache for most of this APIs because this sevice is very frequently
 // use service by users so it is very important to use cache for this service and create this sevice by AI so
 // as per my observation AI did not cache the data properly
 

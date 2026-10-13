@@ -24,10 +24,13 @@ type WebhookHeaders = db.JSONMap
 
 // PaymentWebhookLog represents a webhook event log
 type PaymentWebhookLog struct {
-	ID            uint           `json:"id" gorm:"primaryKey"`
-	GatewayID     *uint          `json:"gatewayId" gorm:"column:gateway_id;index"`
-	EventType     string         `json:"eventType" gorm:"column:event_type;size:100;not null"`
-	EventID       string         `json:"eventId" gorm:"column:event_id;size:255;index"`
+	ID        uint   `json:"id" gorm:"primaryKey"`
+	GatewayID *uint  `json:"gatewayId" gorm:"column:gateway_id;index"`
+	EventType string `json:"eventType" gorm:"column:event_type;size:100;not null"`
+	// EventID is the adapter-generated idempotency key. Always set (composite
+	// fallback {providerEvent}:{entityId}) so the unique (gateway_id, event_id)
+	// index is effective — never NULL or empty.
+	EventID       string         `json:"eventId" gorm:"column:event_id;size:255;not null;index"`
 	Payload       WebhookPayload `json:"payload" gorm:"column:payload;type:jsonb;not null"`
 	Headers       WebhookHeaders `json:"headers" gorm:"column:headers;type:jsonb"`
 	Status        WebhookStatus  `json:"status" gorm:"column:status;size:30;not null;index"`

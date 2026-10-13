@@ -1,12 +1,94 @@
 package factory
 
 import (
+	"encoding/json"
 	"time"
 
 	"ecommerce-be/common/db"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 )
+
+// configMoneyKeyMap maps major-unit config keys (client-facing) to the internal
+// cents keys the promotion strategies read from the discount_config JSONB.
+var configMoneyKeyMap = map[string]string{
+	"amount":                "amount_cents",
+	"min_order":             "min_order_cents",
+	"max_discount":          "max_discount_cents",
+	"bundle_price":          "bundle_price_cents",
+	"max_shipping_discount": "max_shipping_discount_cents",
+	"min_purchase_amount":   "min_purchase_amount_cents",
+	"max_discount_amount":   "max_discount_amount_cents",
+}
+
+// ConvertConfigMoneyToCents converts major-unit money values in a discount
+// config map to cents keys (e.g. "amount": 50.00 → "amount_cents": 5000).
+// Non-money keys are left untouched; percentages stay plain numbers.
+func ConvertConfigMoneyToCents(config map[string]any, ccy commonModel.CurrencyInfo) (map[string]any, error) {
+	out := make(map[string]any, len(config))
+	for k, v := range config {
+		if centsKey, ok := configMoneyKeyMap[k]; ok {
+			major, ok := v.(float64)
+			if !ok {
+				out[k] = v
+				continue
+			}
+			cents, err := ccy.ToCents(major)
+			if err != nil {
+				return nil, err
+			}
+			out[centsKey] = cents
+			continue
+		}
+		out[k] = v
+	}
+	return out, nil
+}
+
+// ConvertConfigCentsToMoney converts cents keys in a discount config map back to
+// Money objects under their major-unit key names for responses.
+func ConvertConfigCentsToMoney(config map[string]any, ccy commonModel.CurrencyInfo) map[string]any {
+	out := make(map[string]any, len(config))
+	for k, v := range config {
+		switch k {
+		case "amount_cents", "min_order_cents", "max_discount_cents", "bundle_price_cents", "max_shipping_discount_cents", "min_purchase_amount_cents", "max_discount_amount_cents":
+			cents, ok := toInt64(v)
+			if ok {
+				majorKey := centsToMajorKey(k)
+				out[majorKey] = commonModel.NewMoney(cents, ccy)
+				continue
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// toInt64 coerces a JSON-decoded number (float64 or int64) to int64.
+func toInt64(v any) (int64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return int64(n), true
+	case int64:
+		return n, true
+	case int:
+		return int64(n), true
+	case json.Number:
+		i, err := n.Int64()
+		return i, err == nil
+	}
+	return 0, false
+}
+
+func centsToMajorKey(centsKey string) string {
+	for major, cents := range configMoneyKeyMap {
+		if cents == centsKey {
+			return major
+		}
+	}
+	return centsKey
+}
 
 // PromotionRequestToEntity converts CreatePromotionRequest to Promotion entity
 func PromotionRequestToEntity(req model.CreatePromotionRequest, sellerID uint) *entity.Promotion {
@@ -65,7 +147,11 @@ func PromotionRequestToEntity(req model.CreatePromotionRequest, sellerID uint) *
 }
 
 // PromotionEntityToResponse converts Promotion entity to PromotionResponse
-func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResponse {
+func PromotionEntityToResponse(
+	promotion *entity.Promotion,
+	ccy commonModel.CurrencyInfo,
+) *model.PromotionResponse {
+	convertedConfig := ConvertConfigCentsToMoney(map[string]any(promotion.DiscountConfig), ccy)
 	response := &model.PromotionResponse{
 		ID:                          promotion.ID,
 		SellerID:                    promotion.SellerID,
@@ -74,7 +160,7 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 		Slug:                        promotion.Slug,
 		Description:                 promotion.Description,
 		PromotionType:               promotion.PromotionType,
-		DiscountConfig:              map[string]any(promotion.DiscountConfig),
+		DiscountConfig:              convertedConfig,
 		AppliesTo:                   promotion.AppliesTo,
 		EligibleFor:                 promotion.EligibleFor,
 		CustomerSegmentID:           promotion.CustomerSegmentID,
@@ -95,6 +181,13 @@ func PromotionEntityToResponse(promotion *entity.Promotion) *model.PromotionResp
 		UpdatedAt:                   promotion.UpdatedAt.Format(time.RFC3339),
 	}
 
+	// Expose thresholds at the top level from the converted config.
+	if m, ok := convertedConfig["min_purchase_amount"].(commonModel.Money); ok {
+		response.MinPurchaseAmount = &m
+	}
+	if m, ok := convertedConfig["max_discount_amount"].(commonModel.Money); ok {
+		response.MaxDiscountAmount = &m
+	}
 	// Format StartsAt
 	if promotion.StartsAt != nil {
 		startsAt := promotion.StartsAt.Format(time.RFC3339)

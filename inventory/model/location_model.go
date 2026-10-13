@@ -1,7 +1,7 @@
 package model
 
 import (
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/inventory/entity"
 )
@@ -64,7 +64,7 @@ type LocationsParam struct {
 }
 
 type LocationsFilterBase struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	IsActive *bool `form:"isActive"`
 }
 
@@ -104,6 +104,6 @@ type AddressResponse struct {
 
 // LocationsResponse represents the paginated response for getting all locations
 type LocationsResponse struct {
-	Locations  []LocationResponse        `json:"locations"`
-	Pagination common.PaginationResponse `json:"pagination"`
+	Locations  []LocationResponse             `json:"locations"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }

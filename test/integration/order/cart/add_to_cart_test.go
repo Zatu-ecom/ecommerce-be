@@ -388,10 +388,10 @@ func (s *CartTestSuite) TestPROMO002BundleFixedPrice() {
 	data := resp["data"].(map[string]any)
 	summary := data["summary"].(map[string]any)
 	// Aligns with bundle_test TestScenario2: subtotal 179800, discount 29800, final 150000
-	assert.Equal(s.T(), float64(179800), summary["subtotal"])
-	assert.Equal(s.T(), float64(29800), summary["promotionDiscount"])
-	assert.Equal(s.T(), float64(150000), summary["total"])
-	assert.Equal(s.T(), float64(150000), summary["afterDiscount"])
+	assert.Equal(s.T(), int64(179800), helpers.MoneyCents(summary["subtotal"]))
+	assert.Equal(s.T(), int64(29800), helpers.MoneyCents(summary["promotionDiscount"]))
+	assert.Equal(s.T(), int64(150000), helpers.MoneyCents(summary["total"]))
+	assert.Equal(s.T(), int64(150000), helpers.MoneyCents(summary["afterDiscount"]))
 }
 
 func (s *CartTestSuite) TestPROMO004MultipleLinesAggregate() {
@@ -673,9 +673,9 @@ func (s *CartTestSuite) assertCartItemPricing(
 ) {
 	assert.Equal(s.T(), float64(expectedVariantID), item["variantId"])
 	assert.Equal(s.T(), float64(expectedQty), item["quantity"])
-	assert.Equal(s.T(), float64(expectedUnit), item["unitPrice"])
-	assert.Equal(s.T(), float64(expectedLine), item["lineTotal"])
-	assert.Equal(s.T(), float64(expectedLine), item["discountedLineTotal"])
+	assert.Equal(s.T(), expectedUnit, helpers.MoneyCents(item["unitPrice"]))
+	assert.Equal(s.T(), expectedLine, helpers.MoneyCents(item["lineTotal"]))
+	assert.Equal(s.T(), expectedLine, helpers.MoneyCents(item["discountedLineTotal"]))
 	v, ok := item["variant"].(map[string]any)
 	require.True(s.T(), ok)
 	assert.Equal(s.T(), float64(expectedVariantID), v["id"])

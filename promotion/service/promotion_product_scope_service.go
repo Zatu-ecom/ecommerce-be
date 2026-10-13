@@ -3,15 +3,15 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
-	productService "ecommerce-be/product/service"
+	commonModel "ecommerce-be/common/model"
 	productModel "ecommerce-be/product/model"
+	productRepo "ecommerce-be/product/repository"
+	productService "ecommerce-be/product/service"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
-	productRepo "ecommerce-be/product/repository"
 )
 
 type PromotionProductScopeService interface {
@@ -25,10 +25,10 @@ type PromotionProductScopeService interface {
 }
 
 type PromotionProductScopeServiceImpl struct {
-	repo              repository.PromotionProductScopeRepository
-	promotionRepo     repository.PromotionRepository
-	productRepo       productRepo.ProductRepository
-	productMediaSvc   productService.ProductMediaService
+	repo            repository.PromotionProductScopeRepository
+	promotionRepo   repository.PromotionRepository
+	productRepo     productRepo.ProductRepository
+	productMediaSvc productService.ProductMediaService
 }
 
 func NewPromotionProductScopeServiceImpl(
@@ -134,7 +134,7 @@ func (s *PromotionProductScopeServiceImpl) GetProducts(
 	response := &model.GetPromotionProductsResponse{
 		BasePromotionScopeResponse: model.BasePromotionScopeResponse{PromotionID: req.PromotionID},
 		Products:                   make([]model.PromotionProductResponse, len(products)),
-		Pagination:                 common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination:                 commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}
 
 	for i, p := range products {

@@ -53,7 +53,7 @@ func (s *UploadSuite) TestCompleteUpload_ProductImage_HappyPath() {
 	var r row
 	err := s.container.DB.Raw("SELECT id FROM file_object WHERE file_id = ?", fileID).Scan(&r).Error
 	require.NoError(s.T(), err)
-	helpers.AssertNoSchedulerJob(s.T(), s.container.RedisClient, r.ID)
+	helpers.AssertNoSchedulerJob(s.T(), s.container.DurableKVClient, r.ID)
 
 	type jobRow struct {
 		Status string

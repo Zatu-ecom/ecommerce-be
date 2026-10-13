@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/promotion/entity"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
@@ -93,7 +93,7 @@ func (s *PromotionCategoryScopeServiceImpl) GetCategories(
 	response := &model.GetPromotionCategoriesResponse{
 		BasePromotionScopeResponse: model.BasePromotionScopeResponse{PromotionID: req.PromotionID},
 		Categories:                 make([]model.PromotionCategoryResponse, len(categories)),
-		Pagination:                 common.NewPaginationResponse(req.Page, req.PageSize, total),
+		Pagination:                 commonModel.NewPaginationResponse(req.Page, req.PageSize, total),
 	}
 
 	for i, c := range categories {

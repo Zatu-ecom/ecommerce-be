@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 
+	commonModel "ecommerce-be/common/model"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/mapper"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // VariantQueryService defines the interface for variant read operations
@@ -95,6 +99,16 @@ type VariantQueryServiceImpl struct {
 	optionService       ProductOptionService
 	validatorService    ProductValidatorService
 	variantMediaService VariantMediaService
+	userSvc             userService.UserService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// caching; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *VariantQueryServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
 }
 
 // NewVariantQueryService creates a new instance of VariantQueryService
@@ -104,6 +118,7 @@ func NewVariantQueryService(
 	optionService ProductOptionService,
 	validatorService ProductValidatorService,
 	variantMediaService VariantMediaService,
+	userSvc userService.UserService,
 ) VariantQueryService {
 	return &VariantQueryServiceImpl{
 		variantRepo:         variantRepo,
@@ -111,7 +126,17 @@ func NewVariantQueryService(
 		optionService:       optionService,
 		validatorService:    validatorService,
 		variantMediaService: variantMediaService,
+		userSvc:             userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for Money rendering.
+func (s *VariantQueryServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }
 
 // GetVariantByID retrieves detailed information about a specific variant
@@ -138,7 +163,34 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 		return nil, err
 	}
 
-	// Build response using helper method (reduces code duplication)
+	// Cached path: entities are already loaded and ownership-checked above;
+	// the strategy stores the stripped DTO and re-enriches on hits.
+	if s.productCache != nil {
+		return s.productCache.GetVariantDetail(ctx, sellerID, variantID, userID,
+			func(ctx context.Context) (*entity.ProductVariant, error) {
+				return variant, nil
+			},
+			func(ctx context.Context, v *entity.ProductVariant) (*model.VariantDetailResponse, error) {
+				return s.buildVariantDetailFull(ctx, v, product, productID, sellerID, userID)
+			})
+	}
+
+	// Build the full response (shared by live and cached-miss paths).
+	return s.buildVariantDetailFull(ctx, variant, product, productID, sellerID, userID)
+}
+
+// buildVariantDetailFull renders a complete variant response: base build,
+// media URL enrichment (best-effort), and wishlist flag for authenticated
+// callers (non-fatal on join failure).
+func (s *VariantQueryServiceImpl) buildVariantDetailFull(
+	ctx context.Context,
+	variant *entity.ProductVariant,
+	product *entity.Product,
+	productID uint,
+	sellerID uint,
+	userID *uint,
+) (*model.VariantDetailResponse, error) {
+	// Base build (unchanged legacy behavior).
 	response, err := s.buildVariantDetailResponse(ctx, variant, product, productID, sellerID)
 	if err != nil {
 		return nil, err
@@ -150,16 +202,16 @@ func (s *VariantQueryServiceImpl) GetVariantByID(
 		mediaSellerID = product.SellerID
 	}
 	if mediaMap, mErr := s.variantMediaService.GetMediaForVariants(
-		ctx, []uint{variantID}, &mediaSellerID,
+		ctx, []uint{variant.ID}, &mediaSellerID,
 	); mErr == nil {
-		if items, ok := mediaMap[variantID]; ok {
+		if items, ok := mediaMap[variant.ID]; ok {
 			response.Media = items
 		}
 	}
 
 	// Check if variant is wishlisted by user (if userID is provided)
 	if userID != nil {
-		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variantID, *userID)
+		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
 		if err != nil {
 			// Log error but don't fail the request - wishlist status is non-critical
 			isWishlisted = false
@@ -213,18 +265,53 @@ func (s *VariantQueryServiceImpl) FindVariantByOptions(
 		optionsResponse,
 	)
 
-	// Build response
-	response := factory.BuildVariantResponse(variant, selectedOptions)
+	// Resolve the seller's currency for Money rendering.
+	var effectiveSellerID uint
+	if sellerID != nil {
+		effectiveSellerID = *sellerID
+	} else {
+		product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, 0)
+		if err != nil {
+			return nil, err
+		}
+		effectiveSellerID = product.SellerID
+	}
+	ccy, err := s.sellerCurrency(ctx, effectiveSellerID)
+	if err != nil {
+		return nil, err
+	}
 
-	// Check wishlist status if user is logged in
+	// Build response
+	base := factory.BuildVariantResponse(variant, selectedOptions, ccy)
+
+	// Cached path for authenticated and anonymous callers alike: only the
+	// wishlist flag is stripped, so hits re-join one flag and return.
+	if s.productCache != nil && sellerID != nil {
+		resp, err := s.productCache.GetVariantByOptions(ctx, *sellerID, productID,
+			cache.CanonicalOptionHash(optionValues), userID,
+			func(ctx context.Context) (*entity.ProductVariant, error) {
+				return variant, nil
+			},
+			func(ctx context.Context, v *entity.ProductVariant) (*model.VariantResponse, error) {
+				return base, nil
+			})
+		if err != nil {
+			return nil, err
+		}
+		base = resp
+	}
+
+	// Check wishlist status if user is logged in. The live (cache-disabled)
+	// path does not re-join inside ProductCache; always apply here so
+	// FindVariantByOptions matches list/detail regardless of CACHE_ENABLED.
 	if userID != nil {
 		isWishlisted, err := s.wishlistItemService.IsVariantInUserWishlist(ctx, variant.ID, *userID)
 		if err == nil {
-			response.IsWishlisted = isWishlisted
+			base.IsWishlisted = isWishlisted
 		}
 	}
 
-	return response, nil
+	return base, nil
 }
 
 // GetProductVariantsWithOptions retrieves all variants with their selected option values
@@ -245,7 +332,17 @@ func (s *VariantQueryServiceImpl) GetProductVariantsWithOptions(
 		return []model.VariantDetailResponse{}, nil
 	}
 
-	responses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+	// Resolve the product's seller currency for Money rendering.
+	product, err := s.validatorService.GetAndValidateProductOwnershipNonPtr(ctx, productID, 0)
+	if err != nil {
+		return nil, err
+	}
+	ccy, err := s.sellerCurrency(ctx, product.SellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions, ccy)
 
 	// Batch-enrich with media.
 	variantIDs := make([]uint, len(responses))
@@ -300,9 +397,22 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 		return nil, err
 	}
 
+	// Resolve the effective seller for option scoping and currency. When the
+	// token seller is 0 (admin read), fall back to the product owner.
+	effectiveSellerID := sellerID
+	if effectiveSellerID == 0 && product != nil {
+		effectiveSellerID = product.SellerID
+	}
+
 	// Get product options
-	sellerIDPtr := &sellerID
+	sellerIDPtr := &effectiveSellerID
 	optionsResponse, err := s.optionService.GetAvailableOptions(ctx, productID, sellerIDPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve the seller's currency for Money rendering.
+	ccy, err := s.sellerCurrency(ctx, effectiveSellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +424,7 @@ func (s *VariantQueryServiceImpl) buildVariantDetailResponse(
 	)
 
 	// Build and return response
-	return factory.BuildVariantDetailResponse(variant, product, selectedOptions), nil
+	return factory.BuildVariantDetailResponse(variant, product, selectedOptions, ccy), nil
 }
 
 /***********************************************
@@ -344,6 +454,26 @@ func (s *VariantQueryServiceImpl) ListVariants(
 		request.SortOrder = "desc"
 	}
 
+	// Convert major-unit price filters to cents using the seller's currency.
+	var ccy commonModel.CurrencyInfo
+	if sellerID != nil {
+		var err error
+		ccy, err = s.sellerCurrency(ctx, *sellerID)
+		if err != nil {
+			return nil, err
+		}
+		if request.MinPrice != nil {
+			if cents, err := ccy.ToCents(*request.MinPrice); err == nil {
+				request.MinPriceCents = &cents
+			}
+		}
+		if request.MaxPrice != nil {
+			if cents, err := ccy.ToCents(*request.MaxPrice); err == nil {
+				request.MaxPriceCents = &cents
+			}
+		}
+	}
+
 	// Call repository to get filtered variants with options in one query (prevents N+1)
 	variantsWithOptions, total, err := s.variantRepo.ListVariantsWithFilters(
 		ctx,
@@ -356,7 +486,7 @@ func (s *VariantQueryServiceImpl) ListVariants(
 	}
 
 	// Build response using factory method (reduces code duplication)
-	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions)
+	variantResponses := factory.BuildVariantsDetailResponseFromMapper(variantsWithOptions, ccy)
 
 	// Check wishlist status for each variant if user is logged in
 	if userID != nil && len(variantResponses) > 0 {

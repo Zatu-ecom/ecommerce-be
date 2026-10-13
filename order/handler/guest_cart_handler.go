@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
 	errs "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/service"
@@ -37,7 +37,7 @@ func NewGuestCartHandler(guestCartService service.GuestCartService) *GuestCartHa
 func (h *GuestCartHandler) AddToGuestCart(c *gin.Context) {
 	deviceID, ok := auth.ExtractAndValidateDeviceID(c)
 	if !ok {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constants.DEVICE_ID_REQUIRED_MSG,
@@ -76,7 +76,7 @@ func (h *GuestCartHandler) AddToGuestCart(c *gin.Context) {
 func (h *GuestCartHandler) GetGuestCart(c *gin.Context) {
 	deviceID, ok := auth.ExtractAndValidateDeviceID(c)
 	if !ok {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constants.DEVICE_ID_REQUIRED_MSG,
@@ -108,7 +108,7 @@ func (h *GuestCartHandler) GetGuestCart(c *gin.Context) {
 func (h *GuestCartHandler) DeleteGuestCart(c *gin.Context) {
 	deviceID, ok := auth.ExtractAndValidateDeviceID(c)
 	if !ok {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			http.StatusBadRequest,
 			constants.DEVICE_ID_REQUIRED_MSG,

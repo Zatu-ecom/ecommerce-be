@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	orderEntity "ecommerce-be/order/entity"
+	promotionEntity "ecommerce-be/promotion/entity"
 	"ecommerce-be/test/integration/helpers"
 	"ecommerce-be/test/integration/setup"
 
@@ -83,6 +84,13 @@ func TestOrderSuite(t *testing.T) {
 
 func (s *OrderSuite) cleanupOrderDomainData() {
 	// Order graph cleanup (children first), then cart cleanup for test users.
+	// Fulfillment rows come first: the confirm trigger auto-plans drafts,
+	// and shipment items RESTRICT order_item deletes.
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_ndr`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_event`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment_item`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_shipment`).Error)
+	s.Require().NoError(s.container.DB.Exec(`DELETE FROM fulfillment_webhook_log`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_history`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_item_applied_promotion`).Error)
 	s.Require().NoError(s.container.DB.Exec(`DELETE FROM order_applied_coupon`).Error)
@@ -107,11 +115,61 @@ func (s *OrderSuite) cleanupOrderDomainData() {
 			Error,
 	)
 	if len(cartIDs) > 0 {
+		var itemIDs []uint
+		s.Require().NoError(
+			s.container.DB.Model(&orderEntity.CartItem{}).
+				Where("cart_id IN ?", cartIDs).
+				Pluck("id", &itemIDs).Error,
+		)
+		if len(itemIDs) > 0 {
+			s.Require().NoError(
+				s.container.DB.Where("cart_item_id IN ?", itemIDs).
+					Delete(&orderEntity.CartItemPromotion{}).Error,
+			)
+		}
+		s.Require().NoError(
+			s.container.DB.Where("cart_id IN ?", cartIDs).
+				Delete(&orderEntity.CartAppliedCoupon{}).Error,
+		)
 		s.Require().NoError(
 			s.container.DB.Where("cart_id IN ?", cartIDs).Delete(&orderEntity.CartItem{}).Error,
 		)
 	}
 	s.Require().NoError(
 		s.container.DB.Where("user_id IN ?", userIDs).Delete(&orderEntity.Cart{}).Error,
+	)
+
+	s.cleanupSeller2DiscountCodes()
+}
+
+func (s *OrderSuite) cleanupSeller2DiscountCodes() {
+	var codeIDs []uint
+	s.Require().NoError(
+		s.container.DB.Table("discount_code").
+			Where("seller_id = ?", helpers.Seller2UserID).
+			Pluck("id", &codeIDs).Error,
+	)
+	if len(codeIDs) == 0 {
+		return
+	}
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeUsage{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeProduct{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeCategory{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("discount_code_id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCodeCollection{}).Error,
+	)
+	s.Require().NoError(
+		s.container.DB.Where("id IN ?", codeIDs).
+			Delete(&promotionEntity.DiscountCode{}).Error,
 	)
 }

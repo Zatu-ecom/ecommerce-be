@@ -10,6 +10,7 @@ const (
 	// Authentication messages
 	AUTHENTICATION_REQUIRED_MSG = "Authentication required"
 	TOKEN_REVOKED_MSG           = "Token has been revoked"
+	AUTH_UNAVAILABLE_MSG        = "Authentication service temporarily unavailable"
 	INVALID_AUTH_FORMAT_MSG     = "Invalid authorization format"
 	NO_TOKEN_PROVIDED_MSG       = "No token provided"
 
@@ -17,6 +18,7 @@ const (
 	AUTH_REQUIRED_CODE       = "AUTH_REQUIRED"
 	TOKEN_INVALID_CODE       = "TOKEN_INVALID"
 	TOKEN_REVOKED_CODE       = "TOKEN_REVOKED"
+	AUTH_UNAVAILABLE_CODE    = "AUTH_UNAVAILABLE"
 	INVALID_AUTH_FORMAT_CODE = "INVALID_AUTH_FORMAT"
 	TOKEN_REQUIRED_CODE      = "TOKEN_REQUIRED"
 

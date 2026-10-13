@@ -149,40 +149,40 @@ ON CONFLICT DO NOTHING;
 
 -- Create product variants for testing variant preview
 -- TODO: Add stock column when inventory service is integrated
-INSERT INTO product_variant (product_id, sku, price, is_default, created_at, updated_at)
+INSERT INTO product_variant (product_id, sku, price_cents, is_default, created_at, updated_at)
 SELECT 
     101, 
     'IPHONE-14-BLACK-128GB',
-    799.00,
+    79900,
     true,
     NOW(),
     NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'IPHONE-14-BLACK-128GB')
 UNION ALL
-SELECT 101, 'IPHONE-14-BLACK-256GB', 899.00, false, NOW(), NOW()
+SELECT 101, 'IPHONE-14-BLACK-256GB', 89900, false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'IPHONE-14-BLACK-256GB')
 UNION ALL
-SELECT 101, 'IPHONE-14-WHITE-128GB', 799.00, false, NOW(), NOW()
+SELECT 101, 'IPHONE-14-WHITE-128GB', 79900, false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'IPHONE-14-WHITE-128GB')
 UNION ALL
-SELECT 105, 'PIXEL-8-BLACK-128GB', 699.00, true, NOW(), NOW()
+SELECT 105, 'PIXEL-8-BLACK-128GB', 69900, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'PIXEL-8-BLACK-128GB')
 UNION ALL
-SELECT 105, 'PIXEL-8-WHITE-256GB', 799.00, false, NOW(), NOW()
+SELECT 105, 'PIXEL-8-WHITE-256GB', 79900, false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'PIXEL-8-WHITE-256GB')
 UNION ALL
 -- TODO: Add stock testing when inventory service is integrated
-SELECT 148, 'IPHONE-12-DISC-BLACK', 599.00, true, NOW(), NOW()
+SELECT 148, 'IPHONE-12-DISC-BLACK', 59900, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'IPHONE-12-DISC-BLACK')
 UNION ALL
-SELECT 149, 'NOTE-20-OOS-BLACK', 899.00, true, NOW(), NOW()
+SELECT 149, 'NOTE-20-OOS-BLACK', 89900, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'NOTE-20-OOS-BLACK')
 UNION ALL
 -- Extreme price variants
-SELECT 150, 'BUDGET-PHONE-BLACK', 99.00, true, NOW(), NOW()
+SELECT 150, 'BUDGET-PHONE-BLACK', 9900, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'BUDGET-PHONE-BLACK')
 UNION ALL
-SELECT 151, 'FOLD-ULTRA-BLACK', 2499.00, true, NOW(), NOW()
+SELECT 151, 'FOLD-ULTRA-BLACK', 249900, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM product_variant WHERE sku = 'FOLD-ULTRA-BLACK');
 
 -- Display summary

@@ -1,9 +1,9 @@
 package model
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/inventory/entity"
 )
@@ -54,7 +54,7 @@ type CreateTransactionParams struct {
 
 // ListTransactionsQueryParams represents raw query parameters (auto-bound by Gin)
 type ListTransactionsQueryParams struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	InventoryIDs  string `form:"inventoryIds"`
 	VariantIDs    string `form:"variantIds"`
 	LocationIDs   string `form:"locationIds"`
@@ -68,7 +68,7 @@ type ListTransactionsQueryParams struct {
 
 // ListTransactionsFilter contains parsed filter parameters for listing transactions
 type ListTransactionsFilter struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	// Multiple ID support (parsed from comma-separated strings)
 	InventoryIDs []uint
 	VariantIDs   []uint
@@ -165,6 +165,6 @@ type TransactionResponse struct {
 
 // ListTransactionsResponse contains the paginated list of transactions
 type ListTransactionsResponse struct {
-	Transactions []TransactionResponse     `json:"transactions"`
-	Pagination   common.PaginationResponse `json:"pagination"`
+	Transactions []TransactionResponse          `json:"transactions"`
+	Pagination   commonModel.PaginationResponse `json:"pagination"`
 }

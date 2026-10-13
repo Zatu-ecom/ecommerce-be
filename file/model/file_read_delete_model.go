@@ -1,9 +1,9 @@
 package model
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
 	"ecommerce-be/file/entity"
 	"ecommerce-be/file/utils/constant"
@@ -11,7 +11,7 @@ import (
 
 // GetFilesBase contains the shared list controls for file read operations.
 type GetFilesBase struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	IncludeVariants    bool `form:"includeVariants" binding:"omitempty"`
 	IncludeDownloadURL bool `form:"includeDownloadUrl" binding:"omitempty"`
 }
@@ -59,17 +59,17 @@ type FileVariantItem struct {
 
 // FileItem is the list/get response shape for file metadata.
 type FileItem struct {
-	FileID           string            `json:"fileId"`
-	Status           string            `json:"status"`
-	Purpose          string            `json:"purpose"`
-	Visibility       string            `json:"visibility"`
-	OriginalFilename string            `json:"originalFilename"`
-	MimeType         string            `json:"mimeType"`
-	SizeBytes        int64             `json:"sizeBytes"`
-	Etag             *string           `json:"etag,omitempty"`
-	ObjectKey        string            `json:"objectKey"`
-	StorageProvider  string            `json:"storageProvider"`
-	CreatedAt        string            `json:"createdAt"`
+	FileID               string            `json:"fileId"`
+	Status               string            `json:"status"`
+	Purpose              string            `json:"purpose"`
+	Visibility           string            `json:"visibility"`
+	OriginalFilename     string            `json:"originalFilename"`
+	MimeType             string            `json:"mimeType"`
+	SizeBytes            int64             `json:"sizeBytes"`
+	Etag                 *string           `json:"etag,omitempty"`
+	ObjectKey            string            `json:"objectKey"`
+	StorageProvider      string            `json:"storageProvider"`
+	CreatedAt            string            `json:"createdAt"`
 	CompletedAt          *string           `json:"completedAt,omitempty"`
 	Variants             []FileVariantItem `json:"variants"`
 	DownloadURL          *string           `json:"downloadUrl,omitempty"`
@@ -78,8 +78,8 @@ type FileItem struct {
 
 // GetFilesResponse is the list payload for GET /api/file.
 type GetFilesResponse struct {
-	Items      []FileItem                 `json:"items"`
-	Pagination common.PaginationResponse  `json:"pagination"`
+	Items      []FileItem                     `json:"items"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }
 
 // GetFileResponse is the single-file payload for GET /api/file/:fileId.

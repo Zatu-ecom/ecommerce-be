@@ -21,8 +21,16 @@ type FakeGCSContainer struct {
 	ProjectID  string
 }
 
-// SetupFakeGCS starts a fake-gcs-server container and creates the requested bucket.
+// SetupFakeGCS returns a handle on the process-wide shared fake-gcs-server,
+// ensuring the requested bucket exists and starts empty. The backend stays up
+// for the next suite; Ryuk reaps it at process exit.
 func SetupFakeGCS(t *testing.T, projectID, bucketName string) *FakeGCSContainer {
+	t.Helper()
+	return acquireSharedFakeGCS(t, projectID, bucketName)
+}
+
+// bootFakeGCS starts one fake-gcs-server container and creates the requested bucket.
+func bootFakeGCS(t *testing.T, projectID, bucketName string) *FakeGCSContainer {
 	t.Helper()
 
 	ctx := context.Background()
@@ -75,13 +83,11 @@ func SetupFakeGCS(t *testing.T, projectID, bucketName string) *FakeGCSContainer 
 	}
 }
 
-// Cleanup terminates the fake-gcs-server container. Safe to call multiple times.
+// Cleanup is a no-op for the shared container: it stays up for the next
+// suite in this process and Ryuk reaps it at process exit. Safe to call
+// multiple times.
 func (g *FakeGCSContainer) Cleanup(t *testing.T) {
 	t.Helper()
-	if g == nil || g.Container == nil {
-		return
-	}
-	_ = g.Container.Terminate(context.Background())
 }
 
 // EnsureFakeGCSBucket creates the given bucket on a fake-gcs-server endpoint.

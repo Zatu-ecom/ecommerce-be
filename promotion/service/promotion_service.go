@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 
+	commonModel "ecommerce-be/common/model"
 	productService "ecommerce-be/product/service"
 	"ecommerce-be/promotion/model"
 	"ecommerce-be/promotion/repository"
+	userFactory "ecommerce-be/user/factory"
+	userService "ecommerce-be/user/service"
 )
 
 // PromotionService defines the interface for promotion-related business logic
@@ -64,6 +67,7 @@ type PromotionServiceImpl struct {
 	collectionScopeService                  PromotionCollectionScopeService
 	collectionProductService                productService.CollectionProductService
 	promotionScopeEligibilityServiceFactory *PromotionScopeEligibilityServiceFactory
+	userSvc                                 userService.UserService
 }
 
 // NewPromotionService creates a new instance of PromotionService
@@ -75,6 +79,7 @@ func NewPromotionService(
 	collectionScopeService PromotionCollectionScopeService,
 	collectionProductService productService.CollectionProductService,
 	promotionScopeEligibilityServiceFactory *PromotionScopeEligibilityServiceFactory,
+	userSvc userService.UserService,
 ) PromotionService {
 	return &PromotionServiceImpl{
 		promotionRepo:                           promotionRepo,
@@ -84,5 +89,15 @@ func NewPromotionService(
 		collectionScopeService:                  collectionScopeService,
 		collectionProductService:                collectionProductService,
 		promotionScopeEligibilityServiceFactory: promotionScopeEligibilityServiceFactory,
+		userSvc:                                 userSvc,
 	}
+}
+
+// sellerCurrency resolves the seller's base currency for price interpretation.
+func (s *PromotionServiceImpl) sellerCurrency(ctx context.Context, sellerID uint) (commonModel.CurrencyInfo, error) {
+	ccy, err := s.userSvc.GetSellerDefaultCurrency(ctx, sellerID)
+	if err != nil {
+		return commonModel.CurrencyInfo{}, err
+	}
+	return userFactory.ToCurrencyInfo(ccy), nil
 }

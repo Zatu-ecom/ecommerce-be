@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
@@ -76,7 +77,35 @@ type ProductOptionService interface {
 type ProductOptionServiceImpl struct {
 	optionRepo       repository.ProductOptionRepository
 	validatorService ProductValidatorService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *ProductOptionServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductOptionServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductOptionServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewProductOptionService creates a new instance of ProductOptionService
 func NewProductOptionService(
@@ -158,6 +187,7 @@ func (s *ProductOptionServiceImpl) CreateOption(
 
 	// Convert to response
 	response := factory.BuildProductOptionResponse(createdOption, productID)
+	s.invalidateTree(ctx, sellerId, productID)
 	return response, nil
 }
 
@@ -205,6 +235,7 @@ func (s *ProductOptionServiceImpl) UpdateOption(
 
 	// Convert to response
 	response := factory.BuildProductOptionResponse(updatedOption, productID)
+	s.invalidateTree(ctx, sellerId, productID)
 	return response, nil
 }
 
@@ -247,7 +278,11 @@ func (s *ProductOptionServiceImpl) DeleteOption(
 	}
 
 	// Delete option (cascade deletes option values)
-	return s.optionRepo.DeleteOption(ctx, optionID)
+	if err := s.optionRepo.DeleteOption(ctx, optionID); err != nil {
+		return err
+	}
+	s.invalidateTree(ctx, sellerId, productID)
+	return nil
 }
 
 // DeleteOptionsByProductID deletes all product options and their values for a product
@@ -430,6 +465,7 @@ func (s *ProductOptionServiceImpl) BulkUpdateOptions(
 		return nil, err
 	}
 
+	s.invalidateTree(ctx, sellerId, productID)
 	return &model.BulkUpdateResponse{
 		UpdatedCount: len(optionsToUpdate),
 		Message:      utils.PRODUCT_OPTIONS_BULK_UPDATED_MSG,
@@ -552,5 +588,6 @@ func (s *ProductOptionServiceImpl) CreateOptionsBulk(
 
 	// Convert entities to models using factory (no variant counts yet)
 	emptyVariantCounts := make(map[uint]int)
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildProductOptionsDetailResponse(createdOptions, emptyVariantCounts), nil
 }

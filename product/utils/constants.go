@@ -26,9 +26,6 @@ const (
 
 	// Token settings
 	TOKEN_EXPIRE_DURATION = constants.TOKEN_EXPIRE_DURATION
-
-	// Redis constants (use from common)
-	REDIS_NOT_INITIALIZED_MSG = constants.REDIS_NOT_INITIALIZED_MSG
 )
 
 // Product Media route path segments (relative to /:productId)
@@ -61,6 +58,4 @@ const (
 	EmailKey  = EMAIL_KEY
 
 	TokenExpireDuration = TOKEN_EXPIRE_DURATION
-
-	RedisNotInitializedMsg = REDIS_NOT_INITIALIZED_MSG
 )

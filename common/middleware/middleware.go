@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -130,16 +130,16 @@ func Logger() gin.HandlerFunc {
 	}
 }
 
-// CorrelationID middleware ensures every request has a correlation ID
-// If not provided in header, generates a new UUID
-// This is mandatory for all requests
+// CorrelationID middleware requires X-Correlation-ID on the request.
+// Missing or invalid values are rejected with 400. Use UnlessSkipped with
+// GenerateCorrelationID for routes that cannot send the header (webhooks).
 func CorrelationID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		correlationID := c.GetHeader(constants.CORRELATION_ID_HEADER)
 
 		// If no correlation ID provided, reject the request
 		if correlationID == "" {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.CORRELATION_ID_REQUIRED_MSG,
@@ -152,7 +152,7 @@ func CorrelationID() gin.HandlerFunc {
 		// Validate correlation ID format (basic validation)
 		correlationID = strings.TrimSpace(correlationID)
 		if len(correlationID) == 0 || len(correlationID) > 100 {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusBadRequest,
 				constants.CORRELATION_ID_INVALID_MSG,
@@ -201,7 +201,7 @@ func CORS() gin.HandlerFunc {
 			Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
 		c.Writer.Header().
 			Set("Access-Control-Allow-Headers",
-				"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Seller-ID, X-Correlation-ID, Idempotency-Key")
+				"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Seller-ID, X-Correlation-ID, X-Device-ID, Idempotency-Key")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)

@@ -1,11 +1,11 @@
 package handler
 
 import (
+	commonModel "ecommerce-be/common/model"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
@@ -27,7 +27,7 @@ func NewBaseHandler() *BaseHandler {
 func (h *BaseHandler) HandleError(c *gin.Context, err error, defaultMessage string) {
 	// Check if it's our custom AppError
 	if appErr, ok := commonError.AsAppError(err); ok {
-		common.ErrorWithCode(
+		commonModel.ErrorWithCode(
 			c,
 			appErr.StatusCode,
 			appErr.Message,
@@ -36,19 +36,39 @@ func (h *BaseHandler) HandleError(c *gin.Context, err error, defaultMessage stri
 		return
 	}
 
-	// Default to internal server error for unknown errors
+	// Default to internal server error for unknown errors.
+	// Never leak raw storage text (PG codes, constraint names) to clients:
+	// map known shapes to client-safe codes, else a generic message.
 	log.ErrorWithContext(c, "Unexpected error", err)
-	common.ErrorResp(
+	msg := err.Error()
+	switch {
+	case containsAny(msg, "23505", "duplicate key", "unique"):
+		commonModel.ErrorResp(c, http.StatusConflict, defaultMessage)
+		return
+	case containsAny(msg, "23503", "foreign key"):
+		commonModel.ErrorResp(c, http.StatusBadRequest, defaultMessage)
+		return
+	}
+	commonModel.ErrorResp(
 		c,
 		http.StatusInternalServerError,
-		defaultMessage+": "+err.Error(),
+		defaultMessage,
 	)
+}
+
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(strings.ToLower(s), strings.ToLower(sub)) {
+			return true
+		}
+	}
+	return false
 }
 
 // HandleValidationError handles JSON binding validation errors
 // It extracts field-specific validation errors from Gin's validator
 func (h *BaseHandler) HandleValidationError(c *gin.Context, err error) {
-	var validationErrors []common.ValidationError
+	var validationErrors []commonModel.ValidationError
 
 	// Check if it's a validator.ValidationErrors type
 	if validationErrs, ok := err.(validator.ValidationErrors); ok {
@@ -59,14 +79,14 @@ func (h *BaseHandler) HandleValidationError(c *gin.Context, err error) {
 			// Get custom error message based on the validation tag
 			message := getValidationErrorMessage(fieldErr)
 
-			validationErrors = append(validationErrors, common.ValidationError{
+			validationErrors = append(validationErrors, commonModel.ValidationError{
 				Field:   fieldName,
 				Message: message,
 			})
 		}
 	} else {
 		// Fallback for other binding errors (e.g., JSON syntax errors)
-		validationErrors = []common.ValidationError{
+		validationErrors = []commonModel.ValidationError{
 			{
 				Field:   constants.REQUEST_FIELD_NAME,
 				Message: err.Error(),
@@ -74,7 +94,7 @@ func (h *BaseHandler) HandleValidationError(c *gin.Context, err error) {
 		}
 	}
 
-	common.ErrorWithValidation(
+	commonModel.ErrorWithValidation(
 		c,
 		http.StatusBadRequest,
 		constants.VALIDATION_FAILED_MSG,
@@ -150,7 +170,7 @@ func (h *BaseHandler) BindJSON(c *gin.Context, obj any) error {
 
 // Success sends a success response
 func (h *BaseHandler) Success(c *gin.Context, statusCode int, message string, data any) {
-	common.SuccessResponse(c, statusCode, message, data)
+	commonModel.SuccessResponse(c, statusCode, message, data)
 }
 
 // SuccessWithData sends a success response with data wrapped in a key
@@ -161,7 +181,7 @@ func (h *BaseHandler) SuccessWithData(
 	dataKey string,
 	data any,
 ) {
-	common.SuccessResponse(c, statusCode, message, map[string]any{
+	commonModel.SuccessResponse(c, statusCode, message, map[string]any{
 		dataKey: data,
 	})
 }

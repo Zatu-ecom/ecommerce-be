@@ -1,24 +1,24 @@
 package model
 
 import (
-	"ecommerce-be/common"
 	"ecommerce-be/common/filegateway"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
 )
 
 // CollectionCreateRequest represents the request body for creating a collection
 type CollectionCreateRequest struct {
-	Name         string  `json:"name"         binding:"required,min=3,max=255"`
-	Description  *string `json:"description"  binding:"omitempty,max=2000"`
-	ImageFileID  *string `json:"imageFileId"  binding:"omitempty"`
+	Name        string  `json:"name"         binding:"required,min=3,max=255"`
+	Description *string `json:"description"  binding:"omitempty,max=2000"`
+	ImageFileID *string `json:"imageFileId"  binding:"omitempty"`
 }
 
 // CollectionUpdateRequest represents the request body for updating a collection
 type CollectionUpdateRequest struct {
-	Name         string  `json:"name"         binding:"required,min=3,max=255"`
-	Description  *string `json:"description"  binding:"omitempty,max=2000"`
-	ImageFileID  *string `json:"imageFileId"  binding:"omitempty"`
-	IsActive     *bool   `json:"isActive"`
+	Name        string  `json:"name"         binding:"required,min=3,max=255"`
+	Description *string `json:"description"  binding:"omitempty,max=2000"`
+	ImageFileID *string `json:"imageFileId"  binding:"omitempty"`
+	IsActive    *bool   `json:"isActive"`
 }
 
 // CollectionResponse represents collection data returned in API responses
@@ -72,13 +72,13 @@ type CollectionProductResponse struct {
 
 // GetCollectionProductsRequest is the request to list products in a collection
 type GetCollectionProductsRequest struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	ProductIDs []uint `json:"productIds" form:"productIds"`
 }
 
 // GetCollectionProductsQueryParams is the query params for listing collection products
 type GetCollectionProductsQueryParams struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	ProductIDs *string `form:"productIds" binding:"omitempty"`
 }
 

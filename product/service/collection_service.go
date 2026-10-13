@@ -4,13 +4,14 @@ import (
 	"context"
 	"strings"
 
-	"ecommerce-be/common/filegateway"
 	commonError "ecommerce-be/common/error"
+	"ecommerce-be/common/filegateway"
 	"ecommerce-be/common/log"
 	fileGateway "ecommerce-be/file/gateway"
-	"ecommerce-be/product/factory"
-	prodErrors "ecommerce-be/product/error"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
+	prodErrors "ecommerce-be/product/error"
+	"ecommerce-be/product/factory"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
 	"ecommerce-be/product/validator"
@@ -38,8 +39,27 @@ type CollectionService interface {
 
 // CollectionServiceImpl implements CollectionService
 type CollectionServiceImpl struct {
-	collectionRepo repository.CollectionRepository
-	fileGateway    filegateway.FileDisplayGateway
+	collectionRepo  repository.CollectionRepository
+	fileGateway     filegateway.FileDisplayGateway
+	collectionCache *cache.CollectionCache
+}
+
+// SetCollectionCache attaches the collection-by-id strategy. Safe to call with nil.
+func (s *CollectionServiceImpl) SetCollectionCache(c *cache.CollectionCache) {
+	s.collectionCache = c
+	if c != nil {
+		c.SetImages(func(ctx context.Context, fileID string, sellerID uint) *filegateway.FileAssetResponse {
+			fid := fileID
+			return filegateway.ResolveOptional(ctx, s.fileGateway, &fid, &sellerID)
+		})
+	}
+}
+
+func (s *CollectionServiceImpl) invalidateCollection(ctx context.Context, sellerID, collectionID uint) {
+	if s.collectionCache == nil {
+		return
+	}
+	s.collectionCache.InvalidateCollection(ctx, sellerID, collectionID)
 }
 
 // NewCollectionService creates a new CollectionService
@@ -73,6 +93,7 @@ func (s *CollectionServiceImpl) CreateCollection(
 		log.ErrorWithContext(ctx, "Failed to create collection", err)
 		return nil, err
 	}
+	s.invalidateCollection(ctx, sellerID, collection.ID)
 
 	return s.buildCollectionResponse(ctx, collection, 0), nil
 }
@@ -107,6 +128,7 @@ func (s *CollectionServiceImpl) UpdateCollection(
 		log.ErrorWithContext(ctx, "Failed to update collection", err)
 		return nil, err
 	}
+	s.invalidateCollection(ctx, sellerID, id)
 
 	count, err := s.collectionRepo.CountProducts(ctx, id)
 	if err != nil {
@@ -137,7 +159,7 @@ func (s *CollectionServiceImpl) DeleteCollection(
 		log.ErrorWithContext(ctx, "Failed to delete collection", err)
 		return err
 	}
-
+	s.invalidateCollection(ctx, sellerID, id)
 	return nil
 }
 
@@ -183,12 +205,17 @@ func (s *CollectionServiceImpl) GetCollectionByID(
 		return nil, err
 	}
 
-	count, err := s.collectionRepo.CountProducts(ctx, id)
-	if err != nil {
-		return nil, err
+	load := func(ctx context.Context) (*model.CollectionResponse, error) {
+		count, err := s.collectionRepo.CountProducts(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return s.buildCollectionResponse(ctx, collection, count), nil
 	}
-
-	return s.buildCollectionResponse(ctx, collection, count), nil
+	if s.collectionCache == nil || sellerID == nil {
+		return load(ctx)
+	}
+	return s.collectionCache.GetByID(ctx, sellerID, id, load)
 }
 
 func (s *CollectionServiceImpl) validateImageFileID(

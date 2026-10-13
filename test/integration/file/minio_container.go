@@ -25,9 +25,16 @@ type MinioContainer struct {
 	Region     string
 }
 
-// SetupMinio starts a MinIO container and creates the requested bucket.
-// The container is terminated automatically when Cleanup is called.
+// SetupMinio returns a handle on the process-wide shared MinIO container,
+// ensuring the requested bucket exists and starts empty. The container stays
+// up for the next suite; Ryuk reaps it at process exit.
 func SetupMinio(t *testing.T, bucketName string) *MinioContainer {
+	t.Helper()
+	return acquireSharedFileMinio(t, bucketName)
+}
+
+// bootFileMinio starts one MinIO container and creates the requested bucket.
+func bootFileMinio(t *testing.T, bucketName string) *MinioContainer {
 	t.Helper()
 
 	ctx := context.Background()
@@ -36,7 +43,7 @@ func SetupMinio(t *testing.T, bucketName string) *MinioContainer {
 	region := "us-east-1"
 
 	req := testcontainers.ContainerRequest{
-		Image:        "minio/minio:latest",
+		Image:        "quay.io/minio/minio:latest",
 		ExposedPorts: []string{"9000/tcp", "9001/tcp"},
 		Env: map[string]string{
 			"MINIO_ROOT_USER":     accessKey,
@@ -79,13 +86,43 @@ func SetupMinio(t *testing.T, bucketName string) *MinioContainer {
 	}
 }
 
-// Cleanup terminates the MinIO container. Safe to call multiple times.
+// Cleanup is a no-op for the shared container: it stays up for the next
+// suite in this process and Ryuk reaps it at process exit. Kept so existing
+// call sites behave without churn.
 func (m *MinioContainer) Cleanup(t *testing.T) {
 	t.Helper()
-	if m == nil || m.Container == nil {
-		return
+}
+
+// fileMinioS3Client dials a file-test MinIO instance.
+func fileMinioS3Client(ctx context.Context, m *MinioContainer) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(
+		context.Background(),
+		config.WithRegion(m.Region),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(m.AccessKey, m.SecretKey, ""),
+		),
+		config.WithEndpointResolverWithOptions(
+			aws.EndpointResolverWithOptionsFunc(
+				func(service, r string, _ ...any) (aws.Endpoint, error) {
+					if service == s3.ServiceID {
+						return aws.Endpoint{
+							URL:               m.Endpoint,
+							SigningRegion:     m.Region,
+							HostnameImmutable: true,
+						}, nil
+					}
+					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+				},
+			),
+		),
+	)
+	if err != nil {
+		return nil, err
 	}
-	_ = m.Container.Terminate(context.Background())
+	_ = ctx
+	return s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	}), nil
 }
 
 // EnsureS3Bucket creates the given bucket on a MinIO/S3-compatible endpoint.
