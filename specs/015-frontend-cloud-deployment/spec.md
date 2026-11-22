@@ -259,7 +259,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 | Frontend repositories | ✅ resolved (`storefront`, `seller-dashboard`) | — |
 | Vercel Hobby account | ✅ created | — |
 | Domain `vitrapay.io` | ✅ owned | Add `A api → 130.210.26.64`; optional `shop`/`seller` records later |
-| Config repo `Zatu-ecom/Config` | 📄 exists; layout + dev inventory defined in spec 016 | Bootstrap `envs/dev` files; mirror values into Vercel |
+| Config repo `Zatu-ecom/Config` | 📄 exists; layout + dev inventory defined in spec 016 | Bootstrap `dev` files; mirror values into Vercel |
 | Seller account for smoke test | ❌ none in prod | Create one real seller through the normal registration/admin flow (never via `seeds/mock`) |
 
 ## Success Criteria *(mandatory)*
@@ -275,7 +275,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 
 ## Open Questions
 
-Resolved on 2026-11-22: hosting (**Vercel Hobby**), repositories (URLs above), API name (**`api.vitrapay.io`**, base URL `https://api.vitrapay.io/api`), auth (**bearer token**, verified locally), Config layout (**spec 016: `envs/<env>/<service>.env`**).
+Resolved on 2026-11-22: hosting (**Vercel Hobby**), repositories (URLs above), API name (**`api.vitrapay.io`**, base URL `https://api.vitrapay.io/api`), auth (**bearer token**, verified locally), Config layout (**spec 016: `<env>/<service>.env`**).
 
 Still open:
 

@@ -26,7 +26,7 @@ without an explicit Run.
 | Input | Meaning |
 |---|---|
 | `ref` | Branch or tag to build (default `main`) |
-| `target_env` | `dev` or `prod` → which `Config/envs/<env>/backend.env` to render |
+| `target_env` | `dev` or `prod` → which `Config/<env>/backend.env` to render |
 | `run_migrations` | When true, runs `run_migrations.sh --production` on VM-1 (schema + CORE seeds only) |
 | `image_tag` | Optional tag override; default `<branch>-<sha>` (T056) |
 

@@ -52,7 +52,7 @@ jobs:
         with:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
-          path: config-repo
+          path: config
 
       - name: Validate and render .env from Config + secrets
         env:
@@ -63,8 +63,8 @@ jobs:
           KV_PASSWORD: ${{ secrets.KV_PASSWORD }}
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
         run: |
-          config-repo/scripts/validate.sh ${{ inputs.target_env }}
-          config-repo/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
+          config/scripts/validate.sh ${{ inputs.target_env }}
+          config/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
 
       - name: Compute image tag
         id: tag

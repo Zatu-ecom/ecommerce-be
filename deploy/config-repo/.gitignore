@@ -1,5 +1,0 @@
-*.local
-*.secret
-.env
-.env.*
-!.env.example

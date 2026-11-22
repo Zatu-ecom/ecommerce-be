@@ -143,10 +143,10 @@
 - [x] T068 Docs: `deploy/ORACLE-SETUP-TODO.md` updated with master checklist + current deployment record
 - [x] T069 Repo: commit `deploy/`, `specs/014`, `specs/015`, `specs/016`, the app CORS/trusted-proxy config, and `.github/workflows/deploy-oracle.yml` on branch `014-backend-cloud-deployment`
 - [x] T070 Docs: spec 015 / 016 cross-references added (spec 014 "Sibling specs"; 015 and 016 link back to 014)
-- [x] T071 [US2] Config adoption: `deploy/config-repo/scripts/render-backend-env.sh` renders a server `.env` from Config + secrets (validated, fail-fast); the full deploy-path switch remains future — server-side `.env` stays the source of truth until then
+- [x] T071 [US2] Config adoption: the `Zatu-ecom/Config` repo (`scripts/render-backend-env.sh`) renders a server `.env` from Config + secrets (validated, fail-fast); the full deploy-path switch remains future — server-side `.env` stays the source of truth until then
 - [x] T072 [US3] Migration-policy guard documented in `deploy/ORACLE-SETUP-TODO.md` (Production migration policy): only `run_migrations.sh --production`; `seeds/mock`, `--all`, `--seed`, `--seed-mock`, `--force-seed`, `--reset` forbidden
 - [x] T073 [US3] Post-migration verification SQL documented in the runbook (`schema_migration` all SUCCESS, reference tables populated, zero mock users/sellers)
-- [x] T074 [US2] Config scaffold in `deploy/config-repo/`: `envs/dev` + `envs/prod` for backend/storefront/seller-dashboard, `required/*.keys`, `scripts/validate.sh` + `render-backend-env.sh`, `README.md`, `.gitignore` (dev/prod key sets verified identical)
+- [x] T074 [US2] Config populated in `Zatu-ecom/Config` (not the app repo): `dev/` + `prod/` for backend/storefront/seller-dashboard, `required/*.keys`, `scripts/validate.sh` + `render-backend-env.sh`, `README.md`, `.gitignore` (dev/prod key sets verified identical)
 
 ---
 
@@ -158,4 +158,4 @@
 - **T054 (SSH) and T052 (TLS) are independent**; either can be done first.
 - **T055 (Ampere A1) is optional** and not required by the current design.
 - Production migrations always use `--production`; never `--all` (mock seeds).
-- The `deploy/config-repo/` scaffold is the source for `Zatu-ecom/Config`; push it, then adoption (T071) is a value move, not a redesign.
+- Configuration lives in `Zatu-ecom/Config` only (the app repo keeps `deploy/.env.example` for reference); adopting it (T071) is a value move, not a redesign.

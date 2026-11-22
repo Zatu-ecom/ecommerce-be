@@ -466,18 +466,20 @@ SELECT count(*) FROM seller_profile
 
 ## ⚙️ Configuration from `Zatu-ecom/Config` (T071/T074)
 
-Non-secret config lives in `Zatu-ecom/Config` (`envs/<env>/backend.env`). A
-ready-to-push scaffold (dev + prod files, `required/*.keys`, validate/render
-scripts) is in `deploy/config-repo/`. Render the server `.env` from Config + secrets:
+Non-secret config lives in `Zatu-ecom/Config` (`<env>/backend.env`) — the
+`dev/` and `prod/` files, `required/*.keys`, and the `validate`/`render` scripts
+are committed there (see its README). The app repo keeps only `deploy/.env.example`
+for reference and secrets never live in either repo. Render the server `.env`
+from Config + secrets:
 
 ```bash
-# on the deploy host, with secrets exported in the environment
+# from a Config repo checkout, with secrets exported in the environment
 DB_PASSWORD=... JWT_SECRET=... ENCRYPTION_KEY=... CACHE_PASSWORD=... \
-  deploy/config-repo/scripts/render-backend-env.sh prod ~/ecommerce-app/.env
+  scripts/render-backend-env.sh prod ~/ecommerce-app/.env
 ```
 
 Until this is adopted, the server-side `.env` files remain the source of truth;
-their key set matches `deploy/config-repo/envs/dev/backend.env`.
+their key set matches `Config/dev/backend.env`.
 
 ---
 
@@ -530,7 +532,7 @@ their key set matches `deploy/config-repo/envs/dev/backend.env`.
 | Database | PostgreSQL 16 + 41 migrations applied (`--production`; CORE seeds only) |
 | Public URL | `http://130.210.26.64` (HTTP only) — target `https://api.vitrapay.io` |
 | TLS / HTTPS | Not yet (needs the `api.vitrapay.io` DNS record + certbot — Task 3 / T052) |
-| Config | `deploy/config-repo/` scaffold (dev + prod) ready to push to `Zatu-ecom/Config` |
+| Config | `Zatu-ecom/Config` populated (`dev/` + `prod/`, `required/`, `scripts/`); app repo keeps `deploy/.env.example` |
 | Day-2 ops | Backup + restore, monitoring, rotation, log rotation artifacts under `deploy/` (see Day-2 section) |
 
 > ℹ️ Calling `http://130.210.26.64/` in a browser returns

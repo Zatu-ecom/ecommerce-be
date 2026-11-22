@@ -29,11 +29,11 @@ jobs:
         with:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
-          path: config-repo
+          path: config
 
       - name: Generate .env File
         run: |
-          CONFIG_FILE="config-repo/envs/${{ inputs.target_env }}/backend.env"
+          CONFIG_FILE="config/${{ inputs.target_env }}/backend.env"
           
           if [ ! -f "$CONFIG_FILE" ]; then
             echo "❌ Config file missing: $CONFIG_FILE"
