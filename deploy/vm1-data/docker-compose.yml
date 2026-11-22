@@ -1,0 +1,103 @@
+# VM-1 (data) — Postgres + durable Redis (KV). No app services here.
+# Layout on VM: ~/ecommerce-data/{docker-compose.yml,.env,migrations/,seeds/}
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecommerce-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # 1 GB Micro tuning (spec 014 FR5)
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c effective_cache_size=256MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+    ports:
+      # Reachable only from the VCN subnet: OCI security list gates 5432 to
+      # <subnet-cidr>, firewalld rich rule repeats the same restriction.
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Durable KV role: scheduler queue, idempotency, denylist, limiter.
+  # noeviction + snapshots - pressure must fail loud, never drop jobs.
+  cache-durable:
+    image: redis:7-alpine
+    container_name: ecommerce-cache-durable
+    restart: unless-stopped
+    logging: *default-logging
+    command: >
+      redis-server
+      --requirepass ${CACHE_PASSWORD}
+      --maxmemory ${KV_MAXMEMORY:-128mb}
+      --maxmemory-policy noeviction
+      --save "900 1 300 10"
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "6381:6379"
+    volumes:
+      - kv_data:/data
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${CACHE_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Migration runner (tools profile). Uses --production = migrations + CORE
+  # seeds only; the repo default --all would also load dev mock data.
+  migrate:
+    image: postgres:16-alpine
+    container_name: ecommerce-migrate
+    logging: *default-logging
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - ecommerce-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        cd migrations &&
+        chmod +x run_migrations.sh &&
+        ./run_migrations.sh --production
+      "
+    profiles:
+      - tools
+
+networks:
+  ecommerce-network:
+    driver: bridge
+    name: ecommerce-network
+
+volumes:
+  postgres_data:
+    name: ecommerce-postgres-data
+  kv_data:
+    name: ecommerce-kv-data

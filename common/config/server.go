@@ -9,13 +9,25 @@ import (
 type ServerConfig struct {
 	Port string
 	Mode string // "debug", "release", "test"
+
+	// CORSAllowedOrigins is a comma-separated origin allowlist. "*" or empty
+	// allows any origin (dev default). Production lists the deployed frontend
+	// origins only (spec 014 T050).
+	CORSAllowedOrigins string
+
+	// TrustedProxies is a comma-separated list of CIDRs/IPs whose
+	// X-Forwarded-For / X-Real-IP headers are trusted (the nginx hop).
+	// Empty keeps Gin's default (spec 014 T053).
+	TrustedProxies string
 }
 
 // loadServerConfig loads server configuration from environment variables.
 func loadServerConfig() ServerConfig {
 	return ServerConfig{
-		Port: getEnvOrDefault("PORT", "8080"),
-		Mode: getEnvOrDefault("GIN_MODE", "release"),
+		Port:               getEnvOrDefault("PORT", "8080"),
+		Mode:               getEnvOrDefault("GIN_MODE", "release"),
+		CORSAllowedOrigins: getEnvOrDefault("CORS_ALLOWED_ORIGINS", "*"),
+		TrustedProxies:     getEnvOrDefault("TRUSTED_PROXIES", ""),
 	}
 }
 

@@ -33,7 +33,7 @@ jobs:
 
       - name: Generate .env File
         run: |
-          CONFIG_FILE="config-repo/${{ inputs.target_env }}/backend.env"
+          CONFIG_FILE="config-repo/envs/${{ inputs.target_env }}/backend.env"
           
           if [ ! -f "$CONFIG_FILE" ]; then
             echo "❌ Config file missing: $CONFIG_FILE"

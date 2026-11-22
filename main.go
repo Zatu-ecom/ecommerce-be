@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +67,21 @@ func main() {
 
 	// Use gin.New() instead of gin.Default() to disable default logging
 	router := gin.New()
+
+	// Trust X-Forwarded-For/X-Real-IP only from the configured proxy range
+	// (the nginx hop) so the IP rate limiter sees real client IPs (T053).
+	if tp := strings.TrimSpace(cfg.Server.TrustedProxies); tp != "" {
+		proxies := make([]string, 0)
+		for _, p := range strings.Split(tp, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				proxies = append(proxies, p)
+			}
+		}
+		if err := router.SetTrustedProxies(proxies); err != nil {
+			logger.Warn("Invalid TRUSTED_PROXIES; using Gin default proxy trust")
+		}
+	}
+
 	router.Use(gin.Recovery()) // Add recovery middleware
 
 	/* Apply middleware */
