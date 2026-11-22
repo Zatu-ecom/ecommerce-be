@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `/specs/014-backend-cloud-deployment/`
 **Prerequisites**: `spec.md` (US1–US6), `plan.md` (as-built)
-**Status**: **Complete.** Backend live at `http://130.210.26.64`. Phases 1–9 delivered as repo artifacts + VM-1 ops; the remaining items are operator/console actions (boot-volume policy, SSH restrict, DNS/TLS) or a restart window (applying log rotation / the CORS + trusted-proxy image to the VMs).
+**Status**: **Delivered and applied.** Backend live at `http://130.210.26.64` (app deployed from `014-backend-cloud-deployment-0987949`). Three operator-only items remain — T046 (boot-volume policy), T052 (DNS + certbot), T054 (SSH restrict) — plus optional T055; every other task is done and, where it touches a host, applied and verified.
 
 **Organization**: One phase per concern, in the order the work actually happened. Completed work is kept in the list (marked `[x]`) so nothing is lost or repeated.
 
@@ -103,22 +103,22 @@
 ## Phase 7: Operations & Hardening (US6) — ✅ complete
 
 - [x] T045 [US6] Nightly `pg_dump`: `deploy/vm1-data/backup/pg-backup.sh` (gzip, `gzip -t` integrity check, 7-day retention) + `install-backup.sh`; **installed on VM-1** (first dump 32K, cron `0 3 * * *`)
-- [x] T046 [US6] Boot-volume backup policy (weekly full + daily incremental) — **operator, OCI console**; steps in `deploy/ORACLE-SETUP-TODO.md` (Day-2 → Backups)
-- [x] T047 [US6] Docker log rotation (`json-file`, `max-size=10m`, `max-file=3`) added to both compose files via an `x-logging` anchor; applies on the next `docker compose up -d` on each VM
+- [ ] T046 [US6] Boot-volume backup policy (weekly full + daily incremental) — **prepared; operator action pending (OCI console)**; steps in `deploy/ORACLE-SETUP-TODO.md` (Day-2 → Backups)
+- [x] T047 [US6] Docker log rotation (`json-file`, `max-size=10m`, `max-file=3`) added to both compose files via an `x-logging` anchor; **applied on VM-1 and VM-2** (verified via `docker inspect .HostConfig.LogConfig`)
 - [x] T048 [US6] Monitoring: `deploy/monitor/health-check.sh` (containers + root disk <85% + swap) + `install-monitor.sh` (5-min cron); **installed on VM-1** (`health=ok`); Prometheus deferred (documented)
 - [x] T049 [US6] Restore procedure + drill in `deploy/vm1-data/backup/RESTORE.md`; **drill executed on VM-1** (restored 82 tables = live)
-- [x] T050 [US4] CORS tightened to an env allowlist (`CORS_ALLOWED_ORIGINS`; `*` default, prod = the two frontend origins); code + Config `prod` value; ships with the next image
+- [x] T050 [US4] CORS is now an env allowlist (`CORS_ALLOWED_ORIGINS`; default `*`); code + Config `prod` value shipped. Live value deliberately stays `*` until the frontends deploy (spec 015).
 - [x] T051 [US2] `.env` rotation runbook: `deploy/ROTATION.md` (per-secret generate/apply/restart/verify + JWT/ENCRYPTION_KEY cautions)
 
 ---
 
 ## Phase 8: Deferred / Optional (US4, US1)
 
-- [x] T052 [US4] TLS rollout **prepared**: `deploy/vm2-app/TLS.md` (DNS `A api → 130.210.26.64`, certbot webroot, auto-renew cron, `PUBLIC_API_BASE_URL` switch). **Operator: add the DNS record**, then run certbot — hard dependency for spec 015.
-- [x] T053 [US4] Gin trusted proxies configured via `TRUSTED_PROXIES` (prod = `172.16.0.0/12`); verify real client IPs in the nginx access log after the next deploy
-- [x] T054 [US1] SSH hardening **operator**: restrict `22` to the operator IP or move to Tailscale (runbook Task 1) — currently key-only, world-open
+- [ ] T052 [US4] TLS rollout **prepared** (`deploy/vm2-app/TLS.md`: DNS `A api → 130.210.26.64`, certbot webroot, auto-renew cron, `PUBLIC_API_BASE_URL` switch). **Operator: add the DNS record**, then run certbot — hard dependency for spec 015.
+- [x] T053 [US4] Gin trusted proxies: `TRUSTED_PROXIES=172.16.0.0/12` set in VM-2's `.env` and applied (compose network is `172.18.0.0/16`); code ships in the deployed image
+- [ ] T054 [US1] SSH hardening **prepared; operator action pending**: restrict `22` to the operator IP or move to Tailscale (runbook Task 1) — currently key-only, world-open
 - [ ] T055 [US1] (Optional) Revisit Ampere A1 capacity in the home region; migrate if available — not required now
-- [x] T056 [US3] `ship-image.sh` now tags `:<branch>-<sha>` + `:latest` and preserves `:previous` for one-command rollback
+- [x] T056 [US3] `ship-image.sh` now tags `:<branch>-<sha>` + `:latest` and preserves `:previous` for one-command rollback; deployed image is `ecommerce-backend:014-backend-cloud-deployment-0987949`
 
 ---
 
@@ -154,7 +154,7 @@
 
 - **T052 (TLS) blocks spec 015** — an HTTPS frontend cannot call an HTTP API (mixed content). Only the DNS record + certbot remain.
 - **Node-nightly `pg_dump` is live on VM-1**; the OCI **boot-volume backup policy (T046)** is the remaining backup gap — attach it in the console.
-- **Restart window needed** to apply: log rotation (T047, recreates containers on both VMs) and the CORS + trusted-proxy image (T050/T053, VM-2 redeploy).
+- **Applied on the VMs (2026-11-22):** log rotation (T047) on both hosts; the CORS + trusted-proxy image (T050/T053) redeployed to VM-2; backup + monitor crons on VM-1.
 - **T054 (SSH) and T052 (TLS) are independent**; either can be done first.
 - **T055 (Ampere A1) is optional** and not required by the current design.
 - Production migrations always use `--production`; never `--all` (mock seeds).
