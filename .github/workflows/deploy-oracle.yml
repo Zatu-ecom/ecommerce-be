@@ -15,7 +15,6 @@ on:
         type: choice
         options:
           - dev
-          - prod
       run_migrations:
         description: Run DB migrations on VM-1 (run_migrations.sh --production)
         required: true
@@ -37,7 +36,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      IMAGE: ghcr.io/${{ github.repository }}/ecommerce-backend
       VM2_HOST: ${{ vars.VM2_HOST }}   # e.g. 130.210.26.64
       VM1_HOST: ${{ vars.VM1_HOST }}   # e.g. 140.238.240.2
     steps:
@@ -66,6 +64,10 @@ jobs:
           config/scripts/validate.sh ${{ inputs.target_env }}
           config/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
 
+      - name: Image name (GHCR requires lowercase)
+        id: image
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Compute image tag
         id: tag
         run: |
@@ -89,8 +91,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
-            ${{ env.IMAGE }}:latest
+            ${{ steps.image.outputs.name }}:${{ steps.tag.outputs.tag }}
+            ${{ steps.image.outputs.name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -99,6 +101,7 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           TAG: ${{ steps.tag.outputs.tag }}
           CONFIG_SHA: ${{ github.sha }}
+          IMAGE: ${{ steps.image.outputs.name }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
@@ -134,5 +137,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Deployed ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }} to ${{ inputs.target_env }}"
+          echo "Deployed ${{ steps.image.outputs.name }}:${{ steps.tag.outputs.tag }} to ${{ inputs.target_env }}"
           echo "Rollback: on VM-2 run  IMAGE_TAG=previous docker compose up -d app"
