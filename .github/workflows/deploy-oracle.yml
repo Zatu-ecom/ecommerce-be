@@ -1,0 +1,138 @@
+name: Deploy backend (Oracle)
+
+# Manual only — no push trigger. Pick a branch/tag and environment, press Run.
+# See deploy/GITHUB-DEPLOY.md for the required secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to deploy
+        required: true
+        default: main
+      target_env:
+        description: Config environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      run_migrations:
+        description: Run DB migrations on VM-1 (run_migrations.sh --production)
+        required: true
+        type: boolean
+        default: false
+      image_tag:
+        description: Optional image tag override (default <branch>-<sha>)
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-oracle-${{ inputs.target_env }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/ecommerce-backend
+      VM2_HOST: ${{ vars.VM2_HOST }}   # e.g. 130.210.26.64
+      VM1_HOST: ${{ vars.VM1_HOST }}   # e.g. 140.238.240.2
+    steps:
+      - name: Checkout application
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Checkout Config repo
+        uses: actions/checkout@v4
+        with:
+          repository: Zatu-ecom/Config
+          ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
+          path: config
+
+      - name: Validate and render .env from Config + secrets
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          CACHE_PASSWORD: ${{ secrets.CACHE_PASSWORD }}
+          KV_PASSWORD: ${{ secrets.KV_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+        run: |
+          config/scripts/validate.sh ${{ inputs.target_env }}
+          config/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          tag="${{ inputs.image_tag }}"
+          [ -n "$tag" ] || tag="$(echo '${{ inputs.ref }}' | tr '/' '-')-$(git rev-parse --short HEAD)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Using tag: $tag"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to VM-2
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          CONFIG_SHA: ${{ github.sha }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          SSH="ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new opc@${VM2_HOST}"
+          SCP="scp -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
+
+          # Ship the rendered .env and a deploy record (secrets never touch git).
+          $SCP .env opc@${VM2_HOST}:~/ecommerce-app/.env
+          cat > deploy-info.json <<EOF
+          {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${{ github.actor }}","ref":"${{ inputs.ref }}","env":"${{ inputs.target_env }}","deployed_at":"$(date -u +%FT%TZ)"}
+          EOF
+          $SCP deploy-info.json opc@${VM2_HOST}:~/ecommerce-app/deploy-info.json
+
+          # Retag the running image as :previous, pull + run the new tag.
+          # NOTE: the GHCR package must be public, or VM-2 must be logged in
+          # once with `docker login ghcr.io` (see deploy/GITHUB-DEPLOY.md).
+          $SSH "set -e; chmod 600 ~/ecommerce-app/.env; cd ~/ecommerce-app;
+                docker image tag ecommerce-backend:latest ecommerce-backend:previous 2>/dev/null || true;
+                docker pull ${IMAGE}:${TAG};
+                docker tag ${IMAGE}:${TAG} ecommerce-backend:${TAG};
+                docker tag ${IMAGE}:${TAG} ecommerce-backend:latest;
+                IMAGE_TAG=${TAG} docker compose up -d app;
+                docker compose ps app"
+
+      - name: Run migrations on VM-1 (optional)
+        if: ${{ inputs.run_migrations }}
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/mig && chmod 600 ~/.ssh/mig
+          ssh -i ~/.ssh/mig -o StrictHostKeyChecking=accept-new opc@${VM1_HOST} \
+            "cd ~/ecommerce-data && docker compose --profile tools run --rm migrate"
+
+      - name: Summary
+        run: |
+          echo "Deployed ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }} to ${{ inputs.target_env }}"
+          echo "Rollback: on VM-2 run  IMAGE_TAG=previous docker compose up -d app"

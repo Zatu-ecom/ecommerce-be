@@ -193,10 +193,32 @@ func GenerateCorrelationID() gin.HandlerFunc {
 	}
 }
 
-// CORS middleware for handling Cross-Origin Resource Sharing
+// CORS middleware for handling Cross-Origin Resource Sharing.
+// Allowed origins come from config (CORS_ALLOWED_ORIGINS); "*" or empty keeps
+// the permissive behavior, otherwise only listed origins are echoed back.
 func CORS() gin.HandlerFunc {
+	allowAll := true
+	allowed := map[string]struct{}{}
+	if cfg := config.Get(); cfg != nil {
+		if origins := strings.TrimSpace(cfg.Server.CORSAllowedOrigins); origins != "" && origins != "*" {
+			allowAll = false
+			for _, o := range strings.Split(origins, ",") {
+				if o = strings.TrimSpace(o); o != "" {
+					allowed[o] = struct{}{}
+				}
+			}
+		}
+	}
+
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		if allowAll {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		} else if origin := c.GetHeader("Origin"); origin != "" {
+			if _, ok := allowed[origin]; ok {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Add("Vary", "Origin")
+			}
+		}
 		c.Writer.Header().
 			Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
 		c.Writer.Header().
