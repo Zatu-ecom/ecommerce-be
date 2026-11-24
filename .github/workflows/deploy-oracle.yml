@@ -1,9 +1,11 @@
-name: Deploy backend (Oracle)
+name: Deploy backend (Oracle) - deploys the branch selected above
 
 # Manual only — no push trigger. Choose the branch with "Use workflow from",
 # pick the environment, press Run.
 # The image is built on the runner and shipped to VM-2 over SSH; no registry is
 # involved. See deploy/GITHUB-DEPLOY.md for the required secrets.
+run-name: Deploy ${{ github.ref_name }} to ${{ inputs.target_env }}
+
 on:
   workflow_dispatch:
     inputs:
