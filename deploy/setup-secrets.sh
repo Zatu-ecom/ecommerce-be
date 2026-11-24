@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# One-time secrets setup for the deployed Oracle two-VM environment.
+# LEGACY bootstrap path — use only for the very first setup.
+#
+# The normal path is the GitHub Actions workflow (.github/workflows/deploy-oracle.yml),
+# which renders ~/ecommerce-app/.env from Zatu-ecom/Config + repo secrets and ships
+# it. Anything written here is overwritten by the next workflow run.
 #
 # Run from anywhere on your laptop:
 #   ./deploy/setup-secrets.sh

@@ -3,9 +3,15 @@
 # free-tier Micros). Roles: VM-1=data, VM-2=app.
 # Installs: swap iff <2GB, static Docker + compose plugin, firewalld rules.
 # Usage: sudo bash bootstrap.sh data|app     (SUBNET_CIDR override optional)
-set -uo pipefail
+#
+# Pinned versions (override via env): DOCKER_VERSION, COMPOSE_VERSION.
+# Verification: the compose plugin checksum is always verified; set
+# DOCKER_TGZ_SHA256 to verify the engine tarball too.
+set -euo pipefail
 ROLE="${1:?usage: bootstrap.sh data|app}"
 SUBNET_CIDR="${SUBNET_CIDR:-10.0.0.0/24}"
+DOCKER_VERSION="${DOCKER_VERSION:-29.7.2}"
+COMPOSE_VERSION="${COMPOSE_VERSION:-v5.7.1}"
 
 if [ "$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)" -gt 1600 ]; then
   echo "Box >1.5GB RAM — plain dnf would work, keeping static install anyway."
@@ -29,23 +35,40 @@ if [ "${SWAP_MB_TOTAL:-0}" -lt 2000 ]; then
 fi
 free -m | awk 'NR==1||/Mem|Swap/'
 
-echo "==> Static Docker (tarball) + compose plugin (no dnf)"
+echo "==> Static Docker ${DOCKER_VERSION} (tarball) + compose ${COMPOSE_VERSION} (no dnf)"
 if ! command -v docker >/dev/null 2>&1; then
   TMPD=$(mktemp -d)
+  trap 'rm -rf "$TMPD"' EXIT
+
   echo "    downloading engine tarball..."
-  curl -fL --retry 3 -o "$TMPD/docker.tgz" https://download.docker.com/linux/static/stable/x86_64/docker-29.7.2.tgz
+  curl -fL --retry 3 -o "$TMPD/docker.tgz" \
+    "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz"
+  if [ -n "${DOCKER_TGZ_SHA256:-}" ]; then
+    actual="$(sha256sum "$TMPD/docker.tgz" | awk '{print $1}')"
+    [ "$actual" = "$DOCKER_TGZ_SHA256" ] || { echo "ERROR: engine tarball checksum mismatch" >&2; exit 1; }
+    echo "    engine checksum ok"
+  else
+    echo "    WARNING: DOCKER_TGZ_SHA256 not set — engine tarball not verified"
+  fi
   tar xzf "$TMPD/docker.tgz" -C "$TMPD"
   # static tarball extracts to $TMPD/docker/ (not docker-<version>/)
   cp "$TMPD"/docker/* /usr/local/bin/
   chmod +x /usr/local/bin/docker /usr/local/bin/dockerd /usr/local/bin/containerd \
     /usr/local/bin/containerd-shim-runc-v2 /usr/local/bin/runc /usr/local/bin/ctr \
     /usr/local/bin/docker-init /usr/local/bin/docker-proxy 2>/dev/null || true
+
+  echo "    downloading compose plugin ${COMPOSE_VERSION}..."
   mkdir -p /usr/local/lib/docker/cli-plugins
-  echo "    downloading compose plugin..."
-  curl -fL --retry 3 -o /usr/local/lib/docker/cli-plugins/docker-compose \
-    https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
-  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-  rm -rf "$TMPD"
+  curl -fL --retry 3 -o "$TMPD/compose" \
+    "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64"
+  curl -fL --retry 3 -o "$TMPD/compose.sha256" \
+    "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64.sha256"
+  expected="$(awk '{print $1}' "$TMPD/compose.sha256")"
+  actual="$(sha256sum "$TMPD/compose" | awk '{print $1}')"
+  [ "$expected" = "$actual" ] || { echo "ERROR: compose checksum mismatch" >&2; exit 1; }
+  echo "    compose checksum ok"
+  install -m 755 "$TMPD/compose" /usr/local/lib/docker/cli-plugins/docker-compose
+
   tee /etc/systemd/system/containerd.service >/dev/null <<'EOF'
 [Unit]
 Description=containerd container runtime

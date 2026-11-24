@@ -16,12 +16,12 @@ on:
         options:
           - dev
       run_migrations:
-        description: Run DB migrations (schema + CORE seeds; never mock data)
+        description: Run DB migrations BEFORE switching the app (schema + CORE seeds; never mock data)
         required: true
         type: boolean
         default: false
       image_tag:
-        description: Optional image tag override (default <branch>-<sha>)
+        description: Optional tag override (letters, digits, dot, dash, underscore)
         required: false
 
 permissions:
@@ -34,6 +34,8 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # Optional gate: attach reviewers/protection to this environment in GitHub.
+    environment: ${{ inputs.target_env }}
     env:
       VM2_HOST: ${{ vars.VM2_HOST }}   # e.g. 130.210.26.64
       VM1_HOST: ${{ vars.VM1_HOST }}   # e.g. 140.238.240.2
@@ -41,8 +43,8 @@ jobs:
       - name: Checkout application
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           # No `ref`: checkout uses the branch/tag picked in "Use workflow from".
-          fetch-depth: 0
 
       - name: Checkout Config repo
         uses: actions/checkout@v7
@@ -50,9 +52,11 @@ jobs:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
           path: config
+          persist-credentials: false
 
       - name: Validate and render .env from Config + secrets
         env:
+          TARGET_ENV: ${{ inputs.target_env }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
@@ -60,14 +64,24 @@ jobs:
           KV_PASSWORD: ${{ secrets.KV_PASSWORD }}
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
         run: |
-          config/scripts/validate.sh ${{ inputs.target_env }}
-          config/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
+          set -euo pipefail
+          config/scripts/validate.sh "$TARGET_ENV"
+          # Render outside the checkout so secrets never sit in the workspace.
+          config/scripts/render-backend-env.sh "$TARGET_ENV" "$RUNNER_TEMP/app.env"
 
       - name: Compute image tag
         id: tag
+        env:
+          IMAGE_TAG_INPUT: ${{ inputs.image_tag }}
         run: |
-          tag="${{ inputs.image_tag }}"
-          [ -n "$tag" ] || tag="$(echo '${{ github.ref_name }}' | tr '/' '-')-$(git rev-parse --short HEAD)"
+          set -euo pipefail
+          tag="${IMAGE_TAG_INPUT:-}"
+          if [ -z "$tag" ]; then
+            tag="$(printf '%s' "${GITHUB_REF_NAME}" | tr '/' '-')-$(git rev-parse --short HEAD)"
+          fi
+          case "$tag" in
+            *[!A-Za-z0-9._-]*|'') echo "invalid image tag: '$tag' (allowed: A-Z a-z 0-9 . _ -)" >&2; exit 1 ;;
+          esac
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Using tag: $tag"
 
@@ -84,43 +98,53 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Run DB migrations (before the app switch)
+        if: ${{ inputs.run_migrations }}
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/mig && chmod 600 ~/.ssh/mig
+          ssh -i ~/.ssh/mig -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            "opc@${VM1_HOST}" \
+            "cd ~/ecommerce-data && docker compose --profile tools run --rm migrate"
+
       - name: Deploy to VM-2
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           TAG: ${{ steps.tag.outputs.tag }}
           CONFIG_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REF_NAME: ${{ github.ref_name }}
+          TARGET_ENV: ${{ inputs.target_env }}
         run: |
+          set -euo pipefail
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
-          SSH="ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new opc@${VM2_HOST}"
-          SCP="scp -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
+          SSH_OPTS=(-i "$HOME/.ssh/deploy" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+          SSH=(ssh "${SSH_OPTS[@]}" "opc@${VM2_HOST}")
+          SCP=(scp "${SSH_OPTS[@]}")
 
-          # Ship the image FIRST (no registry) so a failed transfer changes
-          # nothing on the host. ~25-30 MB compressed.
-          docker save "ecommerce-backend:${TAG}" | gzip | $SSH 'gunzip | docker load'
+          # 1) Ship the image FIRST (no registry). Nothing on the host changes
+          #    unless this succeeds. ~25-30 MB compressed.
+          docker save "ecommerce-backend:${TAG}" | gzip | "${SSH[@]}" 'gunzip | docker load'
 
-          # Then the rendered .env and a deploy record (secrets never touch git).
-          $SCP .env opc@${VM2_HOST}:~/ecommerce-app/.env
-          cat > deploy-info.json <<EOF
-          {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${{ github.actor }}","ref":"${{ github.ref_name }}","env":"${{ inputs.target_env }}","deployed_at":"$(date -u +%FT%TZ)"}
-          EOF
-          $SCP deploy-info.json opc@${VM2_HOST}:~/ecommerce-app/deploy-info.json
+          # 2) Write the rendered .env with 600 perms from the first byte.
+          "${SSH[@]}" 'umask 077; cat > ~/ecommerce-app/.env' < "$RUNNER_TEMP/app.env"
 
-          # Retag the running image as :previous, then switch to the new tag.
-          $SSH "set -e; chmod 600 ~/ecommerce-app/.env; cd ~/ecommerce-app;
+          # 3) Retag + start, and FAIL the job if the app never becomes healthy.
+          "${SSH[@]}" "set -euo pipefail; cd ~/ecommerce-app;
                 docker image tag ecommerce-backend:latest ecommerce-backend:previous 2>/dev/null || true;
                 docker tag ecommerce-backend:${TAG} ecommerce-backend:latest;
-                IMAGE_TAG=${TAG} docker compose up -d app;
+                IMAGE_TAG=${TAG} docker compose up -d --wait --wait-timeout 90 app;
                 docker compose ps app"
 
-      - name: Run migrations on VM-1 (optional)
-        if: ${{ inputs.run_migrations }}
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: |
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/mig && chmod 600 ~/.ssh/mig
-          ssh -i ~/.ssh/mig -o StrictHostKeyChecking=accept-new opc@${VM1_HOST} \
-            "cd ~/ecommerce-data && docker compose --profile tools run --rm migrate"
+          # 4) Record the deploy only after it is healthy.
+          cat > deploy-info.json <<EOF
+          {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${ACTOR}","ref":"${REF_NAME}","env":"${TARGET_ENV}","deployed_at":"$(date -u +%FT%TZ)"}
+          EOF
+          "${SCP[@]}" deploy-info.json "opc@${VM2_HOST}:~/ecommerce-app/deploy-info.json"
 
       - name: Summary
         run: |
