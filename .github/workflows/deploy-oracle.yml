@@ -40,13 +40,13 @@ jobs:
       VM1_HOST: ${{ vars.VM1_HOST }}   # e.g. 140.238.240.2
     steps:
       - name: Checkout application
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
       - name: Checkout Config repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
@@ -72,10 +72,10 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Using tag: $tag"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build image (linux/amd64, loaded into the local daemon)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
