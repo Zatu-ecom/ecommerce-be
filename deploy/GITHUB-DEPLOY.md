@@ -23,11 +23,14 @@ without an explicit Run.
 
 ## Inputs
 
+The **branch/tag is chosen with GitHub's "Use workflow from" selector** at the
+top of the Run-workflow dialog — there is no separate ref input, so the workflow
+file and the code always come from the same ref.
+
 | Input | Meaning |
 |---|---|
-| `ref` | Branch or tag to build (default `main`) |
-| `target_env` | `dev` or `prod` → which `Config/<env>/backend.env` to render |
-| `run_migrations` | When true, runs `run_migrations.sh --production` on VM-1 (schema + CORE seeds only) |
+| `target_env` | `dev` → which `Config/<env>/backend.env` to render |
+| `run_migrations` | When true, runs DB migrations (schema + CORE seeds; never mock data) |
 | `image_tag` | Optional tag override; default `<branch>-<sha>` (T056) |
 
 ## What a run does
@@ -37,13 +40,13 @@ copied straight over SSH. That removes the token/visibility failure mode a
 private GHCR package adds. Add a registry later only if a second machine needs
 to pull the image.
 
-1. Checks out the app at `ref` and the Config repo.
+1. Checks out the app at the "Use workflow from" ref, plus the Config repo.
 2. Validates + renders `.env` from Config + secrets (fails early on a missing key).
 3. Builds a `linux/amd64` image on the runner — **no registry is used**.
 4. Ships the image to VM-2 over SSH (`docker save | gzip | ssh | docker load`),
    then ships the rendered `.env`, retags the running image as `:previous`,
    starts the new tag, and writes `~/ecommerce-app/deploy-info.json`.
-5. Optionally runs migrations on VM-1.
+5. Optionally runs DB migrations (schema + CORE seeds).
 
 ## Build visibility (T060)
 
@@ -54,7 +57,7 @@ to pull the image.
 ## Rollback
 
 On VM-2: `cd ~/ecommerce-app && IMAGE_TAG=previous docker compose up -d app`.
-Or re-run the workflow with an earlier `ref`/`image_tag`.
+Or re-run the workflow from an earlier branch/tag ("Use workflow from") or with an `image_tag`.
 
 ## Still manual (by design, for now)
 
