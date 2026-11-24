@@ -32,11 +32,17 @@ without an explicit Run.
 
 ## What a run does
 
+No container registry is involved: VM-2 is the only consumer, so the image is
+copied straight over SSH. That removes the token/visibility failure mode a
+private GHCR package adds. Add a registry later only if a second machine needs
+to pull the image.
+
 1. Checks out the app at `ref` and the Config repo.
 2. Validates + renders `.env` from Config + secrets (fails early on a missing key).
-3. Builds a `linux/amd64` image and pushes `:<branch>-<sha>` + `:latest` to GHCR.
-4. Ships the `.env` to VM-2, retags the running image as `:previous`, pulls and
-   runs the new tag, and writes `~/ecommerce-app/deploy-info.json`.
+3. Builds a `linux/amd64` image on the runner — **no registry is used**.
+4. Ships the image to VM-2 over SSH (`docker save | gzip | ssh | docker load`),
+   then ships the rendered `.env`, retags the running image as `:previous`,
+   starts the new tag, and writes `~/ecommerce-app/deploy-info.json`.
 5. Optionally runs migrations on VM-1.
 
 ## Build visibility (T060)
