@@ -1,15 +1,12 @@
 name: Deploy backend (Oracle)
 
-# Manual only — no push trigger. Pick a branch/tag and environment, press Run.
+# Manual only — no push trigger. Choose the branch with "Use workflow from",
+# pick the environment, press Run.
 # The image is built on the runner and shipped to VM-2 over SSH; no registry is
 # involved. See deploy/GITHUB-DEPLOY.md for the required secrets.
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: Branch or tag to deploy
-        required: true
-        default: main
       target_env:
         description: Config environment
         required: true
@@ -17,7 +14,7 @@ on:
         options:
           - dev
       run_migrations:
-        description: Run DB migrations on VM-1 (run_migrations.sh --production)
+        description: Run DB migrations (schema + CORE seeds; never mock data)
         required: true
         type: boolean
         default: false
@@ -42,7 +39,7 @@ jobs:
       - name: Checkout application
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          # No `ref`: checkout uses the branch/tag picked in "Use workflow from".
           fetch-depth: 0
 
       - name: Checkout Config repo
@@ -68,7 +65,7 @@ jobs:
         id: tag
         run: |
           tag="${{ inputs.image_tag }}"
-          [ -n "$tag" ] || tag="$(echo '${{ inputs.ref }}' | tr '/' '-')-$(git rev-parse --short HEAD)"
+          [ -n "$tag" ] || tag="$(echo '${{ github.ref_name }}' | tr '/' '-')-$(git rev-parse --short HEAD)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Using tag: $tag"
 
@@ -103,7 +100,7 @@ jobs:
           # Then the rendered .env and a deploy record (secrets never touch git).
           $SCP .env opc@${VM2_HOST}:~/ecommerce-app/.env
           cat > deploy-info.json <<EOF
-          {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${{ github.actor }}","ref":"${{ inputs.ref }}","env":"${{ inputs.target_env }}","deployed_at":"$(date -u +%FT%TZ)"}
+          {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${{ github.actor }}","ref":"${{ github.ref_name }}","env":"${{ inputs.target_env }}","deployed_at":"$(date -u +%FT%TZ)"}
           EOF
           $SCP deploy-info.json opc@${VM2_HOST}:~/ecommerce-app/deploy-info.json
 
