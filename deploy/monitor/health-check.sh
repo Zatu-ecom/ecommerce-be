@@ -7,6 +7,9 @@
 # cAdvisor) — that stays a future option; this is a "is prod okay" tripwire.
 set -uo pipefail
 
+# cron runs with a minimal PATH; the static Docker install lives in /usr/local/bin.
+export PATH="/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
 DISK_MAX_PCT="${DISK_MAX_PCT:-85}"
 fail=0
 
@@ -20,6 +23,10 @@ if command -v docker >/dev/null 2>&1; then
       *) echo "CONTAINER $name: $state"; fail=1 ;;
     esac
   done < <(docker ps -a --format '{{.Names}}')
+else
+  # Never report healthy without checking containers.
+  echo "docker not found on PATH"
+  fail=1
 fi
 
 # 2) Root filesystem headroom.

@@ -13,10 +13,16 @@ else
   chmod 700 "$DEST_DIR/pg-backup.sh"
 fi
 
+CRON_PATH="PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 CRON_LINE="0 3 * * * $DEST_DIR/pg-backup.sh >> $HOME/ecommerce-data/backups/backup.log 2>&1"
 
-# Drop any previous managed line, then append the current one.
-{ crontab -l 2>/dev/null | grep -v 'ecommerce-data/backup/pg-backup.sh' || true; echo "$CRON_LINE"; } | crontab -
+# PATH goes first — cron's default PATH omits /usr/local/bin where docker lives.
+# Then keep existing lines minus stale managed ones, and append the current entry.
+{
+  echo "$CRON_PATH"
+  crontab -l 2>/dev/null | grep -vE '^PATH=|ecommerce-data/backup/pg-backup.sh' || true
+  echo "$CRON_LINE"
+} | crontab -
 
 echo "Installed cron:"; crontab -l | grep pg-backup.sh
 echo "Logs: $HOME/ecommerce-data/backups/backup.log"

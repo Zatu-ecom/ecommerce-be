@@ -8,6 +8,9 @@
 # Restore:  see ./RESTORE.md
 set -euo pipefail
 
+# cron runs with a minimal PATH; the static Docker install lives in /usr/local/bin.
+export PATH="/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
 CONTAINER="${PG_CONTAINER:-ecommerce-postgres}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/ecommerce-data/backups}"
 RETAIN_DAYS="${RETAIN_DAYS:-7}"

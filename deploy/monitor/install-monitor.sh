@@ -12,8 +12,15 @@ else
   chmod 700 "$DEST_DIR/health-check.sh"
 fi
 
+CRON_PATH="PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 CRON_LINE="*/5 * * * * $DEST_DIR/health-check.sh >> $HOME/monitor/health.log 2>&1"
-{ crontab -l 2>/dev/null | grep -v 'monitor/health-check.sh' || true; echo "$CRON_LINE"; } | crontab -
+
+# PATH goes first — cron's default PATH omits /usr/local/bin where docker lives.
+{
+  echo "$CRON_PATH"
+  crontab -l 2>/dev/null | grep -vE '^PATH=|monitor/health-check.sh' || true
+  echo "$CRON_LINE"
+} | crontab -
 
 echo "Installed cron:"; crontab -l | grep health-check.sh
 echo "Run one now: $DEST_DIR/health-check.sh"
