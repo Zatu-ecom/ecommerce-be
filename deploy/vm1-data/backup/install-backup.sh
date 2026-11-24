@@ -14,7 +14,10 @@ else
 fi
 
 CRON_PATH="PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-CRON_LINE="0 3 * * * $DEST_DIR/pg-backup.sh >> $HOME/ecommerce-data/backups/backup.log 2>&1"
+ENV_PREFIX=""
+[ -n "${BACKUP_PASSPHRASE_FILE:-}" ] && ENV_PREFIX="BACKUP_PASSPHRASE_FILE=$BACKUP_PASSPHRASE_FILE "
+[ -n "${BACKUP_RCLONE_REMOTE:-}" ] && ENV_PREFIX="${ENV_PREFIX}BACKUP_RCLONE_REMOTE=$BACKUP_RCLONE_REMOTE "
+CRON_LINE="0 3 * * * ${ENV_PREFIX}$DEST_DIR/pg-backup.sh >> $HOME/ecommerce-data/backups/backup.log 2>&1"
 
 # PATH goes first — cron's default PATH omits /usr/local/bin where docker lives.
 # Then keep existing lines minus stale managed ones, and append the current entry.

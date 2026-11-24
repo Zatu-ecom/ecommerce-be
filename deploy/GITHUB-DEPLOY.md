@@ -43,10 +43,15 @@ to pull the image.
 1. Checks out the app at the "Use workflow from" ref, plus the Config repo.
 2. Validates + renders `.env` from Config + secrets (fails early on a missing key).
 3. Builds a `linux/amd64` image on the runner — **no registry is used**.
-4. Ships the image to VM-2 over SSH (`docker save | gzip | ssh | docker load`),
-   then ships the rendered `.env`, retags the running image as `:previous`,
-   starts the new tag, and writes `~/ecommerce-app/deploy-info.json`.
-5. Optionally runs DB migrations (schema + CORE seeds).
+4. Optionally runs DB migrations on VM-1 **before** the app is switched.
+5. Ships the image to VM-2 over SSH (`docker save | gzip | ssh | docker load`),
+   writes the rendered `.env` (mode 600 from the first byte), retags the running
+   image as `:previous`, and starts the new tag with `--wait` — so the job fails
+   if the app never becomes healthy.
+6. Writes `~/ecommerce-app/deploy-info.json` **after** the health check passes.
+
+The job runs under a GitHub Environment named after `target_env` (`dev`), so you
+can attach required reviewers / protection rules there if you want a gate.
 
 ## Build visibility (T060)
 

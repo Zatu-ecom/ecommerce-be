@@ -13,7 +13,9 @@ else
 fi
 
 CRON_PATH="PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-CRON_LINE="*/5 * * * * $DEST_DIR/health-check.sh >> $HOME/monitor/health.log 2>&1"
+ENV_PREFIX=""
+[ -n "${HEALTH_WEBHOOK:-}" ] && ENV_PREFIX="HEALTH_WEBHOOK=$HEALTH_WEBHOOK "
+CRON_LINE="*/5 * * * * ${ENV_PREFIX}$DEST_DIR/health-check.sh >> $HOME/monitor/health.log 2>&1"
 
 # PATH goes first — cron's default PATH omits /usr/local/bin where docker lives.
 {
