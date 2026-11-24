@@ -108,6 +108,11 @@ jobs:
           SSH="ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new opc@${VM2_HOST}"
           SCP="scp -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
 
+          # Pull FIRST so a registry/auth failure changes nothing on the host.
+          # The GHCR package must be public, or VM-2 logged in once with
+          # `docker login ghcr.io` (see deploy/GITHUB-DEPLOY.md).
+          $SSH "set -e; cd ~/ecommerce-app; docker pull ${IMAGE}:${TAG}"
+
           # Ship the rendered .env and a deploy record (secrets never touch git).
           $SCP .env opc@${VM2_HOST}:~/ecommerce-app/.env
           cat > deploy-info.json <<EOF
@@ -115,12 +120,9 @@ jobs:
           EOF
           $SCP deploy-info.json opc@${VM2_HOST}:~/ecommerce-app/deploy-info.json
 
-          # Retag the running image as :previous, pull + run the new tag.
-          # NOTE: the GHCR package must be public, or VM-2 must be logged in
-          # once with `docker login ghcr.io` (see deploy/GITHUB-DEPLOY.md).
+          # Retag the running image as :previous, then switch to the new tag.
           $SSH "set -e; chmod 600 ~/ecommerce-app/.env; cd ~/ecommerce-app;
                 docker image tag ecommerce-backend:latest ecommerce-backend:previous 2>/dev/null || true;
-                docker pull ${IMAGE}:${TAG};
                 docker tag ${IMAGE}:${TAG} ecommerce-backend:${TAG};
                 docker tag ${IMAGE}:${TAG} ecommerce-backend:latest;
                 IMAGE_TAG=${TAG} docker compose up -d app;
