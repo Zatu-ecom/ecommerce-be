@@ -434,6 +434,8 @@ docker compose --profile tools run --rm migrate   # -> run_migrations.sh --produ
 
 `--production` = all schema migrations + CORE seeds (`migrations/seeds/core/`).
 
+> `--production` is a **runner mode** meaning "schema + CORE seeds, never mock data" — it is not the environment name. The deployed environment is `dev`.
+
 **Forbidden in production:** `migrations/seeds/mock/` (demo users/products) and
 the runner modes `--all` (the default), `--seed`, `--seed-mock`, `--force-seed`,
 and `--reset`. The repo-root `docker-compose.yml` migrate service runs `--all`
@@ -467,7 +469,7 @@ SELECT count(*) FROM seller_profile
 ## ⚙️ Configuration from `Zatu-ecom/Config` (T071/T074)
 
 Non-secret config lives in `Zatu-ecom/Config` (`<env>/backend.env`) — the
-`dev/` and `prod/` files, `required/*.keys`, and the `validate`/`render` scripts
+`local/` and `dev/` files, `required/*.keys`, and the `validate`/`render` scripts
 are committed there (see its README). The app repo keeps only `deploy/.env.example`
 for reference and secrets never live in either repo. Render the server `.env`
 from Config + secrets:
@@ -529,10 +531,11 @@ their key set matches `Config/dev/backend.env`.
 | Branch / code | `014-backend-cloud-deployment` (built from local working tree) |
 | Image | `ecommerce-backend:latest` (78.5 MB, linux/amd64); `deploy/ship-image.sh` now also tags `:<branch>-<sha>` + `:previous` |
 | Deploy method | Manual scripts from laptop (no CI/CD yet); manual-trigger workflow tracked in `deploy/GITHUB-DEPLOY.md` |
-| Database | PostgreSQL 16 + 41 migrations applied (`--production`; CORE seeds only) |
+| Database | PostgreSQL 16 + 41 migrations applied (`--production` runner mode; CORE seeds only) |
+| Environment | `dev` (`APP_ENV=dev`) — the Oracle VMs are the dev environment; there is no prod |
 | Public URL | `http://130.210.26.64` (HTTP only) — target `https://api.vitrapay.io` |
 | TLS / HTTPS | Not yet (needs the `api.vitrapay.io` DNS record + certbot — Task 3 / T052) |
-| Config | `Zatu-ecom/Config` populated (`dev/` + `prod/`, `required/`, `scripts/`); app repo keeps `deploy/.env.example` |
+| Config | `Zatu-ecom/Config` populated (`local/` + `dev/`, `required/`, `scripts/`); app repo keeps `deploy/.env.example` |
 | Day-2 ops | Backup + restore, monitoring, rotation, log rotation artifacts under `deploy/` (see Day-2 section) |
 
 > ℹ️ Calling `http://130.210.26.64/` in a browser returns

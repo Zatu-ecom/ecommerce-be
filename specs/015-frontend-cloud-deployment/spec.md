@@ -182,7 +182,7 @@ Each frontend can be attached to a friendly domain (`shop.vitrapay.io` for the s
 
 Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ecom/Config`, organized per service and per environment. A frontend build reads its environment's values from there (or from mirrored Vercel settings); secrets never live in the repo and are supplied only through Vercel/environment variables.
 
-**Why this priority**: Today every value lives in a local `.env`; without a shared, reviewable source, dev/prod drift is inevitable and deployments become manual guesswork.
+**Why this priority**: Today every value lives in a local `.env`; without a shared, reviewable source, environment drift is inevitable and deployments become manual guesswork.
 
 **Independent Test**: Change one non-secret value in the Config repo, deploy, and observe the new value in the running site — without touching application code or committing secrets.
 
@@ -224,7 +224,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 - **FR-010**: A smoke test MUST verify: storefront product list, seller login, and one authenticated read (e.g. couriers/orders).
 - **FR-011**: Image/upload flows MUST respect the backend's 100 MB body limit and object-storage URLs returned by the API.
 - **FR-012**: Neither frontend repository may contain backend secrets; only public build-time variables are permitted.
-- **FR-013**: Both frontends MUST consume non-secret configuration from `Zatu-ecom/Config`, organized per service and per environment (`dev` now, `prod` when it exists).
+- **FR-013**: Both frontends MUST consume non-secret configuration from `Zatu-ecom/Config`, organized per service and per environment (`local` for laptops, `dev` for the deployed Oracle environment).
 - **FR-014**: The Config repo MUST contain placeholders/references only for secrets; real secret values MUST come from Vercel/environment secret stores.
 - **FR-015**: Each deployment MUST record the Config revision used (commit SHA), so the running build is traceable to a config point.
 - **FR-016**: Builds/deploys MUST fail early with a clear error when a required configuration key is missing.
@@ -260,7 +260,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 | Vercel Hobby account | ✅ created | — |
 | Domain `vitrapay.io` | ✅ owned | Add `A api → 130.210.26.64`; optional `shop`/`seller` records later |
 | Config repo `Zatu-ecom/Config` | 📄 exists; layout + dev inventory defined in spec 016 | Bootstrap `dev` files; mirror values into Vercel |
-| Seller account for smoke test | ❌ none in prod | Create one real seller through the normal registration/admin flow (never via `seeds/mock`) |
+| Seller account for smoke test | ❌ none in the deployed environment | Create one real seller through the normal registration/admin flow (never via `seeds/mock`) |
 
 ## Success Criteria *(mandatory)*
 

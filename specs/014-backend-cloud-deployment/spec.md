@@ -3,7 +3,7 @@
 **Feature Branch**: `014-backend-cloud-deployment`
 **Created**: 2026-10-13
 **Updated**: 2026-11-22
-**Status**: **Implemented — live in production** (HTTP, IP-based; `api.vitrapay.io` DNS + TLS pending)
+**Status**: **Implemented — live** (`dev` environment; HTTP, IP-based; `api.vitrapay.io` DNS + TLS pending)
 **Input**: User description: "Deploy the backend with all its dependencies on Oracle Cloud first; frontends come later as a separate phase."
 **Related docs**: `specs/014-backend-cloud-deployment/plan.md`, `tasks.md`, `deploy/ORACLE-SETUP-TODO.md`, `deploy/bootstrap.sh`, `deploy/setup-secrets.sh`, `deploy/ship-image.sh`, `deploy/vm1-data/`, `deploy/vm2-app/`, `deploy/monitor/`, `deploy/vm1-data/backup/`, `deploy/ROTATION.md`, `deploy/GITHUB-DEPLOY.md`, `.github/workflows/deploy-oracle.yml`, `Zatu-ecom/Config` (non-secret configuration)
 **Sibling specs**: `specs/015-frontend-cloud-deployment/spec.md` (frontends, Phase 2), `specs/016-config-repository/spec.md` (non-secret configuration)
@@ -80,7 +80,7 @@ The operator provisions server-side `.env` files (never committed) with producti
 **Acceptance Scenarios**:
 
 1. **Given** the secret checklist, **When** `.env` is written, **Then** `DB_PASSWORD`, `CACHE_PASSWORD`/`KV_PASSWORD`, `JWT_SECRET`, and `ENCRYPTION_KEY` (32-byte, freshly generated) are all set and differ from dev values. ✅
-2. **Given** production, **When** the app boots, **Then** `APP_ENV=prod`, `GIN_MODE=release`, `PUBLIC_API_BASE_URL=http://130.210.26.64` (switch to `https://api.vitrapay.io` with TLS), `DB_SSLMODE=disable` (same-VCN Postgres), and `MESSAGING_ENABLED=false`. ✅
+2. **Given** the deployed VM, **When** the app boots, **Then** `APP_ENV=dev`, `GIN_MODE=release`, `PUBLIC_API_BASE_URL=http://130.210.26.64` (switch to `https://api.vitrapay.io` with TLS), `DB_SSLMODE=disable` (same-VCN Postgres), and `MESSAGING_ENABLED=false`. ✅
 3. **Given** the split-host layout, **When** configured, **Then** `DB_HOST`/`KV_HOST` point at VM-1's **private** IP (`10.0.0.208`) and Redis caps are lowered (`CACHE_MAXMEMORY=64mb`, `KV_MAXMEMORY=128mb`). ✅
 
 ---
@@ -227,7 +227,7 @@ WHERE business_name IN ('Tech Gadgets Pro', 'Fashion Forward', 'Home & Living St
 
 ### Configuration Sources (target — spec 016)
 
-- **Non-secret values** come from `Zatu-ecom/Config` at `<env>/backend.env` (`dev` now; `prod` when the environment is created). The full key inventory and layout are defined in `specs/016-config-repository/spec.md`.
+- **Non-secret values** come from `Zatu-ecom/Config` at `<env>/backend.env` (`local` for laptops, `dev` for the deployed Oracle VMs). The full key inventory and layout are defined in `specs/016-config-repository/spec.md`.
 - **Secrets** (`DB_PASSWORD`, `JWT_SECRET`, `ENCRYPTION_KEY`, `CACHE_PASSWORD`, `KV_PASSWORD`, and any broker/provider credential) come from the environment or a secret store at deploy time; they are never committed to the Config repo.
 - The deploy step renders `~/ecommerce-data/.env` and `~/ecommerce-app/.env` from Config + secrets, validates required keys, and records the Config commit SHA in the deployment record (T071).
 - Until T071 lands, the current server-side `.env` files remain the source of truth, but their **key set must match** the Config repo's `backend.env` so the switch is a value move, not a redesign.

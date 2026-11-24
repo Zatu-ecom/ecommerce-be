@@ -3,7 +3,7 @@
 **Feature Branch**: `016-config-repository`
 **Created**: 2026-11-22
 **Updated**: 2026-11-22
-**Status**: Bootstrapped — `Zatu-ecom/Config` is populated (`dev/` + `prod/`, `required/`, `scripts/`, README, `.gitignore`). Remaining: commit/push the Config repo, add a secret-scan hook, and switch the deploy path to Config (014 T071).
+**Status**: Bootstrapped and pushed — `Zatu-ecom/Config` holds `local/` (laptop) and `dev/` (deployed Oracle VMs) plus `required/`, `scripts/`, README, `.gitignore`. Remaining: add a secret-scan hook and switch the deploy path to Config (014 T071).
 **Input**: User description: "We have a shared Config repo — all non-secret `.env` values should live there per environment; passwords/secrets stay in environment variables or a secret store. Deployment should take values from the Config repo."
 **Related docs**: `specs/014-backend-cloud-deployment/`, `specs/015-frontend-cloud-deployment/`, `https://github.com/Zatu-ecom/Config`
 
@@ -11,7 +11,7 @@
 
 Configuration is currently duplicated across local `.env` files and the two production servers (`~/ecommerce-data/.env`, `~/ecommerce-app/.env`). The app reads a large set of environment variables (`common/config`), and each frontend adds its own build-time variables. Without a single source of truth:
 
-- dev and prod drift silently;
+- `local` and `dev` drift silently;
 - a new environment requires copying values by hand;
 - nobody can see *what configuration a running deployment used*;
 - secrets risk being pasted into the wrong file or committed by accident.
@@ -24,8 +24,8 @@ A dedicated repository, `Zatu-ecom/Config`, holds **non-secret** configuration p
 |---|---|
 | Non-secret values | Committed in `Zatu-ecom/Config`, one file per service per environment |
 | Secrets | Never committed; injected from the environment/secret store at deploy time |
-| Dev today | `dev/{backend,storefront,seller-dashboard}.env` |
-| Prod later | `prod/{backend,storefront,seller-dashboard}.env` with the same key set |
+| Local (laptop) | `local/{backend,storefront,seller-dashboard}.env` |
+| Deployed (`dev`) | `dev/{backend,storefront,seller-dashboard}.env` — the Oracle VMs; no `prod` environment exists |
 | Local developer overrides | Allowed via each developer's own `.env`; never committed |
 | Backend runtime | Deploy renders `~/ecommerce-data/.env` and `~/ecommerce-app/.env` from Config + secrets |
 | Frontend runtime | Vercel environment variables mirror the Config values (manual first, API automation later) |
@@ -35,14 +35,14 @@ A dedicated repository, `Zatu-ecom/Config`, holds **non-secret** configuration p
 ```text
 Config/
 ├── README.md                     # layout, key reference, quoting rules, secret names
-├── dev/
-│   ├── backend.env               # non-secret backend values + secret placeholders
-│   ├── storefront.env            # NEXT_PUBLIC_* only
-│   └── seller-dashboard.env      # NEXT_PUBLIC_* only
-├── prod/                         # added when the prod environment is formalized
+├── local/                        # a developer laptop (localhost values)
 │   ├── backend.env
 │   ├── storefront.env
 │   └── seller-dashboard.env
+├── dev/                          # the deployed Oracle environment
+│   ├── backend.env               # non-secret backend values + secret placeholders
+│   ├── storefront.env            # NEXT_PUBLIC_* only
+│   └── seller-dashboard.env      # NEXT_PUBLIC_* only
 ├── required/
 │   ├── backend.keys              # required-key list for validation
 │   ├── storefront.keys
@@ -68,8 +68,8 @@ This inventory is derived from the local `.env`, `.env.test`, `common/config/*.g
 
 | Key | Secret? | Dev value | Notes |
 |---|---|---|---|
-| `APP_ENV` | No | `local` | `prod` in production; drives `IsProduction()` |
-| `GIN_MODE` | No | `debug` | `release` in production |
+| `APP_ENV` | No | `local` | `dev` on the Oracle VMs; `prod` is not used |
+| `GIN_MODE` | No | `debug` | `release` on the VMs (cheaper on 1 GB hosts) |
 | `PORT` | No | `8080` | App listen port; nginx proxies to it |
 | `LOG_LEVEL` | No | `debug` | `info` in production |
 | `EXTENDED_LOGGING` | No | `false` | Verbose request logging |
@@ -84,9 +84,9 @@ This inventory is derived from the local `.env`, `.env.test`, `common/config/*.g
 | `DB_USER` | No | `postgres` | |
 | `DB_PASSWORD` | **Yes** | placeholder | Injected from environment/secret store |
 | `DB_SSLMODE` | No | `disable` | Same-VCN Postgres in production |
-| `DB_MAX_OPEN_CONNS` | No | `25` | Lower on 1 GB hosts (`20` prod) |
-| `DB_MAX_IDLE_CONNS` | No | `25` | Lower on 1 GB hosts (`5` prod) |
-| `DB_CONN_MAX_LIFETIME_MINUTES` | No | `5` | `30` prod |
+| `DB_MAX_OPEN_CONNS` | No | `25` | Lower on 1 GB hosts (`20` on the VMs) |
+| `DB_MAX_IDLE_CONNS` | No | `25` | Lower on 1 GB hosts (`5` on the VMs) |
+| `DB_CONN_MAX_LIFETIME_MINUTES` | No | `5` | `30` on the VMs |
 | `DB_CONN_MAX_IDLE_TIME_MINUTES` | No | `5` | |
 
 ### Backend — auth
@@ -104,7 +104,7 @@ This inventory is derived from the local `.env`, `.env.test`, `common/config/*.g
 | `CACHE_PORT` | No | `6379` | |
 | `CACHE_PASSWORD` | **Yes** | placeholder | Authenticates the volatile role |
 | `CACHE_ADDR` | No | unset | Optional full `host:port` override; compose sets it |
-| `CACHE_MAXMEMORY` | No | unset | Compose-only (`64mb` prod); not read by the app |
+| `CACHE_MAXMEMORY` | No | unset | Compose-only (`64mb` on the VMs); not read by the app |
 | `REDIS_POOL_SIZE` | No | `20` | |
 | `REDIS_MIN_IDLE_CONNS` | No | `5` | |
 | `REDIS_DIAL_TIMEOUT_MS` | No | `5000` | |
@@ -140,13 +140,13 @@ Per-area cache flags (all non-secret booleans; dev values from the local `.env`)
 | `KV_PORT` | No | `6379` | `6381` in production |
 | `KV_PASSWORD` | **Yes** | placeholder | Falls back to `CACHE_PASSWORD` if unset |
 | `KV_ADDR` | No | unset | Optional full `host:port` override; compose sets it |
-| `KV_MAXMEMORY` | No | unset | Compose-only (`128mb` prod); not read by the app |
+| `KV_MAXMEMORY` | No | unset | Compose-only (`128mb` on the VMs); not read by the app |
 
 ### Backend — application behaviour
 
 | Key | Secret? | Dev value | Notes |
 |---|---|---|---|
-| `PUBLIC_API_BASE_URL` | No | `http://localhost:8080` | Origin only, no trailing slash; `https://api.vitrapay.io` in production; used for courier webhook URLs |
+| `PUBLIC_API_BASE_URL` | No | `http://localhost:8080` | Origin only, no trailing slash; on the VMs it is `http://130.210.26.64` until TLS lands (`https://api.vitrapay.io`); used for courier webhook URLs |
 | `ENCRYPTION_KEY` | **Yes** | placeholder | 32-byte key protecting stored gateway/courier credentials; never the dev default |
 | `WORKER_POOL_SIZE` | No | `1` | `5` in production |
 | `MAX_WISHLIST_ITEMS` | No | `100` | |
@@ -221,12 +221,12 @@ The seller dashboard derives `X-Seller-ID` from the logged-in seller, so it has 
 - Vendor/CI variables (`AWS_*`, `AZURE_*`, `GOOGLE_*`, `DOCKER_*`, `SONIC_*`, `CLICOLOR*`) — not application configuration for this deployment; the normal storage path keeps provider credentials in the DB.
 - `CACHE_MAXMEMORY`, `KV_MAXMEMORY`, `DRAGONFLY_CACHE_PORT`, `DRAGONFLY_KV_PORT` — listed above for completeness, but they are compose-level only; they belong in the deployment compose files, not in `backend.env`.
 
-## Dev Environment (`dev`)
+## Local Environment (`local`)
 
-The dev files mirror the current local setup so a developer can compare and switch without guesswork. Secret lines use an explicit placeholder that the renderer must resolve; an unresolved placeholder fails validation. `dev` is the developer environment and uses `APP_ENV=local` to match the current local `.env`; a future deployed `dev` environment can use `APP_ENV=dev`.
+The `local` files mirror the current laptop setup so a developer can compare and switch without guesswork. Secret lines use an explicit placeholder that the renderer must resolve; an unresolved placeholder fails validation. `local` uses `APP_ENV=local`; the deployed environment is `dev` (`APP_ENV=dev`, VM private IPs).
 
 ```dotenv
-# dev/backend.env — non-secret values + secret placeholders
+# local/backend.env — non-secret values + secret placeholders
 APP_ENV=local
 GIN_MODE=debug
 PORT=8080
@@ -319,14 +319,14 @@ RABBITMQ_PASSWORD=__REQUIRED_SECRET__
 Local database setup: `make migrate` / `./run_migrations.sh --all` loads schema + CORE + MOCK seeds (demo users/products). If you do not want mock data, use `--migrate` (schema only) or `--production` (schema + CORE seeds); production always uses `--production`.
 
 ```dotenv
-# dev/storefront.env
+# local/storefront.env
 NEXT_PUBLIC_API_URL=http://localhost:8080/api
 NEXT_PUBLIC_SELLER_ID=2
 NEXT_PUBLIC_SITE_NAME=E-Shop
 ```
 
 ```dotenv
-# dev/seller-dashboard.env
+# local/seller-dashboard.env
 NEXT_PUBLIC_API_URL=http://localhost:8080/api
 ```
 
@@ -336,13 +336,13 @@ Developer workflow:
 2. Replace `__REQUIRED_SECRET__` with local values (generated or low-risk dev values).
 3. Never commit the local file; `.gitignore` covers `.env*` in the application repos.
 
-## Production Environment (`prod`)
+## Deployed Environment (`dev`)
 
-The `prod` files exist with the **same key set** as `dev` and production values; the differences are visible in git, not hidden on a server.
+The `dev` files hold the Oracle VM values (`APP_ENV=dev`, VM private IPs) with the **same key set** as `local`; the differences are visible in git, not hidden on a server.
 
 | Key group | Production values (non-secret) |
 |---|---|
-| Runtime | `APP_ENV=prod`, `GIN_MODE=release`, `PORT=8080`, `LOG_LEVEL=info` |
+| Runtime | `APP_ENV=dev`, `GIN_MODE=release`, `PORT=8080`, `LOG_LEVEL=info` |
 | PostgreSQL | `DB_HOST=10.0.0.208`, `DB_PORT=5432`, `DB_NAME=ecommerce`, `DB_USER=postgres`, `DB_SSLMODE=disable`, `DB_MAX_OPEN_CONNS=20`, `DB_MAX_IDLE_CONNS=5`, `DB_CONN_MAX_LIFETIME_MINUTES=30` |
 | Auth | `JWT_EXPIRY_HOURS=24`; `JWT_SECRET` from secrets |
 | Volatile cache | `CACHE_HOST=cache-volatile`, `CACHE_PORT=6379`; `CACHE_PASSWORD` from secrets |
@@ -351,7 +351,7 @@ The `prod` files exist with the **same key set** as `dev` and production values;
 | Messaging | `MESSAGING_ENABLED=false` (current deploy) |
 | Frontends | `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`, real `NEXT_PUBLIC_SELLER_ID`, brand `NEXT_PUBLIC_SITE_NAME` |
 
-Until the production files are committed and adopted (014 T071), the server-side `.env` files remain the source of truth. Their key set must match `dev/backend.env` (plus production-only values) so adoption is a value move, not a redesign.
+Until the deployed files are adopted (014 T071), the server-side `.env` files remain the source of truth. Their key set matches `local/backend.env` so adoption is a value move, not a redesign.
 
 ## Composition & Deployment
 
@@ -436,11 +436,11 @@ The Config repo contains only non-secret values and placeholders. Real passwords
 
 ### User Story 4 - Adding a new environment needs no code changes (Priority: P2)
 
-The operator adds a `prod` environment by adding config files (and secret values), without modifying application code or deployment scripts.
+A new environment is added by adding config files (and secret values), without modifying application code or deployment scripts.
 
-**Why this priority**: The team currently has `dev` and expects a future `prod`; the layout must scale.
+**Why this priority**: The layout must scale if more than the current `dev` environment is ever needed.
 
-**Independent Test**: Create `prod` files by copying `dev`, change values, deploy — the service starts with the new environment.
+**Independent Test**: Create a new env folder by copying `dev`, change values, deploy — the service starts with the new environment.
 
 **Acceptance Scenarios**:
 
@@ -498,7 +498,7 @@ The operator can compare the running service's effective configuration with the 
 
 ### Functional Requirements
 
-- **FR-001**: The Config repo MUST organize values **per service** (`backend`, `storefront`, `seller-dashboard`) and **per environment** (`dev` now; `prod` later) using `<env>/<service>.env`.
+- **FR-001**: The Config repo MUST organize values **per service** (`backend`, `storefront`, `seller-dashboard`) and **per environment** (`local` for laptops, `dev` for the deployed Oracle VMs) using `<env>/<service>.env`.
 - **FR-002**: All **non-secret** values consumed by a service MUST be committed in its environment file, covering the inventory in this spec.
 - **FR-003**: Secret values MUST NOT be committed; files MAY reference secret **names/placeholders** only (`__REQUIRED_SECRET__`).
 - **FR-004**: The backend deployment MUST compose the environment file + secrets into the server-side `.env` (or equivalent) automatically, with no manual server edits.
@@ -506,13 +506,13 @@ The operator can compare the running service's effective configuration with the 
 - **FR-006**: Each service/environment MUST have a validation list of required keys; deploys MUST fail early and name missing keys.
 - **FR-007**: A secret scan MUST run on the repo (and ideally in CI) to prevent accidental secret commits.
 - **FR-008**: The deployment record MUST include the Config commit SHA used (together with the application build revision).
-- **FR-009**: The repo MUST support at least `dev` and `prod` with identical key sets (values may differ); adding an environment MUST NOT require code changes.
+- **FR-009**: The repo MUST support at least `local` and `dev` with identical key sets (values may differ); adding an environment MUST NOT require code changes.
 - **FR-010**: Rollback MUST be possible by reverting a Config commit (or promoting a previous tag) and redeploying.
 - **FR-011**: Access to the Config repo MUST be restricted; deployment credentials MUST be read-only.
 - **FR-012**: A README MUST document file layout, required keys, secret names, quoting rules, and the validation/render commands.
-- **FR-013**: `dev/backend.env` MUST cover every non-secret key from the local `.env`, `.env.test`, `common/config/*.go`, and `deploy/.env.example` inventory in this spec.
+- **FR-013**: `local/backend.env` MUST cover every non-secret key from the local `.env`, `.env.test`, `common/config/*.go`, and `deploy/.env.example` inventory in this spec.
 - **FR-014**: The secret inventory MUST list every required secret by name; values MUST come from the environment/secret store.
-- **FR-015**: `prod/*` MUST be added when the production environment is formalized, using the same key set as `dev`.
+- **FR-015**: `dev/*` (the deployed environment) MUST keep the same key set as `local/*`; adding an environment is a folder, not a redesign.
 - **FR-016**: `NEXT_PUBLIC_API_URL` MUST include the `/api` path prefix; `PUBLIC_API_BASE_URL` MUST be origin-only with no trailing slash.
 - **FR-017**: The storefront MUST define `NEXT_PUBLIC_SELLER_ID` per environment; the seller dashboard MUST derive seller ID from the login session.
 - **FR-018**: Test-only (`TEST_*`) and vendor/CI variables MUST NOT be added to the Config repo.
@@ -552,14 +552,14 @@ The operator can compare the running service's effective configuration with the 
 
 ## Bootstrap Checklist (initial `dev` commit)
 
-- [x] Create `dev/backend.env` from the inventory/sample above (non-secret values + `__REQUIRED_SECRET__` placeholders).
-- [x] Create `dev/storefront.env` and `dev/seller-dashboard.env` with `NEXT_PUBLIC_*` values only.
+- [x] Create `local/backend.env` from the inventory/sample above (non-secret values + `__REQUIRED_SECRET__` placeholders).
+- [x] Create `local/storefront.env` and `local/seller-dashboard.env` with `NEXT_PUBLIC_*` values only.
 - [x] Create `required/backend.keys`, `required/storefront.keys`, and `required/seller-dashboard.keys` (backend includes secret names).
 - [x] Add `scripts/validate.sh` (required keys + placeholder check) and `scripts/render-backend-env.sh` (Config + secrets → `.env`) — both validated locally.
 - [x] Add `README.md` documenting layout, key reference, secret names, quoting rules, and validation/render commands.
 - [x] Add `.gitignore` (ignores `*.local`, `*.secret`, `.env`, `.env.*`); **secret-scan pre-commit hook / CI job still pending**.
 - [ ] Commit the initial config and record the commit SHA for 014 T071 — **pending (commit + push the Config repo)**.
-- [x] `prod/` files added with the same key set as `dev` (parity verified).
+- [x] `dev/` (deployed) files added with the same key set as `local/` (parity verified).
 
 ## Success Criteria *(mandatory)*
 
@@ -570,7 +570,7 @@ The operator can compare the running service's effective configuration with the 
 - **SC-003**: Zero real secret values exist in the repo or its history (verified by scan).
 - **SC-004**: Any deployment can be traced to an application revision **and** a Config commit SHA.
 - **SC-005**: A configuration rollback (revert + redeploy) restores previous behavior in under 10 minutes.
-- **SC-006**: `dev` and `prod` have identical key sets: `comm -3 <(cut -d= -f1 dev/backend.env | sort) <(cut -d= -f1 prod/backend.env | sort)` is empty (same check for each frontend file).
+- **SC-006**: `local` and `dev` have identical key sets: `comm -3 <(cut -d= -f1 local/backend.env | sort) <(cut -d= -f1 dev/backend.env | sort)` is empty (same check for each frontend file).
 - **SC-007**: A deploy with a missing required key fails before the service starts and names the key.
 
 ## Open Questions
@@ -598,4 +598,4 @@ Still open:
 - The backend remains a single production environment for now; `prod` files are added when that environment is formalized.
 - Plain POSIX env files are sufficient (no YAML/JSON templating required initially).
 - Local `.env` files remain developer overrides; they are never the shared source of truth.
-- The current production `.env` key set will be reconciled to `dev/backend.env` before T071 switches the deploy to Config.
+- The current server `.env` key set will be reconciled to `local/backend.env` before T071 switches the deploy to Config.

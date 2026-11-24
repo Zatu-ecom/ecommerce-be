@@ -78,10 +78,10 @@ This feature adds no Go module code, migrations, or API contracts. It does not c
 
 - Secrets live **only** in `~/ecommerce-data/.env` (VM-1) and `~/ecommerce-app/.env` (VM-2), mode `600`, owned by `opc`; both verified placeholder-free.
 - VM-1 `.env` keys: `DB_HOST=postgres` (compose service for the migration runner), `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `CACHE_PASSWORD`, `KV_MAXMEMORY`.
-- VM-2 `.env` keys: `APP_ENV=prod`, `GIN_MODE=release`, `PORT`, `LOG_LEVEL`, `DB_*` (host = VM-1 private IP), `JWT_*`, `CACHE_*`, `KV_*` (host = VM-1 private IP), `PUBLIC_API_BASE_URL=http://130.210.26.64` (no trailing slash), `ENCRYPTION_KEY`, `WORKER_POOL_SIZE=5`, `MESSAGING_ENABLED=false`.
+- VM-2 `.env` keys: `APP_ENV=dev`, `GIN_MODE=release`, `PORT`, `LOG_LEVEL`, `DB_*` (host = VM-1 private IP), `JWT_*`, `CACHE_*`, `KV_*` (host = VM-1 private IP), `PUBLIC_API_BASE_URL=http://130.210.26.64` (no trailing slash), `ENCRYPTION_KEY`, `WORKER_POOL_SIZE=5`, `MESSAGING_ENABLED=false`.
 - `CACHE_PASSWORD` and `KV_PASSWORD` share one generated value; the same `DB_PASSWORD` is used on both hosts by construction of the setup script.
 - No secret ever appears in git, shell history, or chat; the setup script wipes its temp directory on exit.
-- **Future (spec 016):** non-secret configuration will be sourced from `Zatu-ecom/Config` per environment and merged with secrets at deploy time; until then, the server-side `.env` files remain the source of truth. Secrets always come from the environment/secret store, never the Config repo. The Config repo's `dev/backend.env` must contain the full non-secret key set (see spec 016), and `prod/backend.env` is added when the production environment is formalized.
+- **Future (spec 016):** non-secret configuration will be sourced from `Zatu-ecom/Config` per environment and merged with secrets at deploy time; until then, the server-side `.env` files remain the source of truth. Secrets always come from the environment/secret store, never the Config repo. The Config repo's `local/backend.env` must contain the full non-secret key set (see spec 016), and `dev/backend.env` holds the deployed Oracle values (there is no prod environment).
 - **Domain target:** `api.vitrapay.io` (`A → 130.210.26.64`); `PUBLIC_API_BASE_URL` switches to `https://api.vitrapay.io` when TLS lands (T052). The API path prefix is `/api`; frontends use `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`.
 
 ## Deployment Procedure (as-built)
@@ -145,4 +145,4 @@ This feature adds no Go module code, migrations, or API contracts. It does not c
 
 ## Remaining Work
 
-Tracked in [tasks.md](./tasks.md) Phase 7–9: backups + retention, Docker log rotation, boot-volume backup policy, TLS rollout (`api.vitrapay.io` + certbot), SSH hardening, repo/docs commit, central-config adoption (spec 016; bootstrap `dev` first, then `prod`), and the future manual GitHub deploy. `/version` is intentionally dropped from scope.
+Tracked in [tasks.md](./tasks.md) Phase 7–9: backups + retention, Docker log rotation, boot-volume backup policy, TLS rollout (`api.vitrapay.io` + certbot), SSH hardening, repo/docs commit, central-config adoption (spec 016; `local` + `dev` bootstrapped), and the future manual GitHub deploy. `/version` is intentionally dropped from scope.

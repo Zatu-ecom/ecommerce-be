@@ -107,7 +107,7 @@
 - [x] T047 [US6] Docker log rotation (`json-file`, `max-size=10m`, `max-file=3`) added to both compose files via an `x-logging` anchor; **applied on VM-1 and VM-2** (verified via `docker inspect .HostConfig.LogConfig`)
 - [x] T048 [US6] Monitoring: `deploy/monitor/health-check.sh` (containers + root disk <85% + swap) + `install-monitor.sh` (5-min cron); **installed on VM-1** (`health=ok`); Prometheus deferred (documented)
 - [x] T049 [US6] Restore procedure + drill in `deploy/vm1-data/backup/RESTORE.md`; **drill executed on VM-1** (restored 82 tables = live)
-- [x] T050 [US4] CORS is now an env allowlist (`CORS_ALLOWED_ORIGINS`; default `*`); code + Config `prod` value shipped. Live value deliberately stays `*` until the frontends deploy (spec 015).
+- [x] T050 [US4] CORS is now an env allowlist (`CORS_ALLOWED_ORIGINS`; default `*`); code + Config `dev` value shipped. Live value deliberately stays `*` until the frontends deploy (spec 015).
 - [x] T051 [US2] `.env` rotation runbook: `deploy/ROTATION.md` (per-secret generate/apply/restart/verify + JWT/ENCRYPTION_KEY cautions)
 
 ---
@@ -146,7 +146,7 @@
 - [x] T071 [US2] Config adoption: the `Zatu-ecom/Config` repo (`scripts/render-backend-env.sh`) renders a server `.env` from Config + secrets (validated, fail-fast); the full deploy-path switch remains future — server-side `.env` stays the source of truth until then
 - [x] T072 [US3] Migration-policy guard documented in `deploy/ORACLE-SETUP-TODO.md` (Production migration policy): only `run_migrations.sh --production`; `seeds/mock`, `--all`, `--seed`, `--seed-mock`, `--force-seed`, `--reset` forbidden
 - [x] T073 [US3] Post-migration verification SQL documented in the runbook (`schema_migration` all SUCCESS, reference tables populated, zero mock users/sellers)
-- [x] T074 [US2] Config populated in `Zatu-ecom/Config` (not the app repo): `dev/` + `prod/` for backend/storefront/seller-dashboard, `required/*.keys`, `scripts/validate.sh` + `render-backend-env.sh`, `README.md`, `.gitignore` (dev/prod key sets verified identical)
+- [x] T074 [US2] Config populated in `Zatu-ecom/Config` (not the app repo): `local/` + `dev/` for backend/storefront/seller-dashboard, `required/*.keys`, `scripts/validate.sh` + `render-backend-env.sh`, `README.md`, `.gitignore` (local/dev key sets verified identical)
 
 ---
 

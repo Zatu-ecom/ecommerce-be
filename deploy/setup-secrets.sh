@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time production secrets setup for the Oracle two-VM deployment.
+# One-time secrets setup for the deployed Oracle two-VM environment.
 #
 # Run from anywhere on your laptop:
 #   ./deploy/setup-secrets.sh
@@ -91,7 +91,7 @@ EOF
 
 cat > "$TMPD/vm2.env" <<EOF
 # VM-2 (app): Go backend + volatile Redis + nginx. Generated $(date -u +%Y-%m-%dT%H:%M:%SZ)
-APP_ENV=prod
+APP_ENV=dev
 GIN_MODE=release
 PORT=8080
 LOG_LEVEL=info
