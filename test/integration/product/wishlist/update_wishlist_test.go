@@ -705,7 +705,7 @@ func TestUpdateWishlist(t *testing.T) {
 		w := client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		originalWishlist := helpers.GetResponseData(t, response, "wishlist")
-		originalItemCount := originalWishlist["itemCount"].(float64)
+		originalItemCount := getItemCount(originalWishlist)
 
 		// Update name
 		updateReq := map[string]any{

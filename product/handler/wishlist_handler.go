@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/handler"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -97,7 +97,7 @@ func (h *WishlistHandler) GetWishlistByID(c *gin.Context) {
 	}
 
 	// Parse pagination params
-	var params common.BaseListParams
+	var params commonModel.BaseListParams
 	if err := c.ShouldBindQuery(&params); err != nil {
 		h.HandleValidationError(c, err)
 		return

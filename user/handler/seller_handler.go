@@ -40,9 +40,9 @@ func NewSellerHandler(
 // @Produce		json
 // @Param			request	body		model.SellerRegisterRequest	true	"Seller registration request"
 // @Success		201		{object}	model.SellerRegisterResponse
-// @Failure		400		{object}	common.ErrorResponse	"Validation error"
-// @Failure		409		{object}	common.ErrorResponse	"Email or Tax ID already exists"
-// @Failure		500		{object}	common.ErrorResponse	"Internal server error"
+// @Failure		400		{object}	commonModel.ErrorResponse	"Validation error"
+// @Failure		409		{object}	commonModel.ErrorResponse	"Email or Tax ID already exists"
+// @Failure		500		{object}	commonModel.ErrorResponse	"Internal server error"
 // @Router			/api/seller/register [post]
 func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 	var req model.SellerRegisterRequest
@@ -74,9 +74,9 @@ func (h *SellerHandler) RegisterSeller(c *gin.Context) {
 // @Produce		json
 // @Security		BearerAuth
 // @Success		200		{object}	model.SellerFullProfileResponse
-// @Failure		401		{object}	common.ErrorResponse	"Unauthorized"
-// @Failure		404		{object}	common.ErrorResponse	"Profile not found"
-// @Failure		500		{object}	common.ErrorResponse	"Internal server error"
+// @Failure		401		{object}	commonModel.ErrorResponse	"Unauthorized"
+// @Failure		404		{object}	commonModel.ErrorResponse	"Profile not found"
+// @Failure		500		{object}	commonModel.ErrorResponse	"Internal server error"
 // @Router			/api/seller/profile [get]
 func (h *SellerHandler) GetProfile(c *gin.Context) {
 	// Get authenticated user ID from context
@@ -110,11 +110,11 @@ func (h *SellerHandler) GetProfile(c *gin.Context) {
 // @Security		BearerAuth
 // @Param			request	body		model.SellerProfileUpdateRequest	true	"Profile update request"
 // @Success		200		{object}	model.SellerProfileResponse
-// @Failure		400		{object}	common.ErrorResponse	"Validation error"
-// @Failure		401		{object}	common.ErrorResponse	"Unauthorized"
-// @Failure		404		{object}	common.ErrorResponse	"Profile not found"
-// @Failure		409		{object}	common.ErrorResponse	"Tax ID already exists"
-// @Failure		500		{object}	common.ErrorResponse	"Internal server error"
+// @Failure		400		{object}	commonModel.ErrorResponse	"Validation error"
+// @Failure		401		{object}	commonModel.ErrorResponse	"Unauthorized"
+// @Failure		404		{object}	commonModel.ErrorResponse	"Profile not found"
+// @Failure		409		{object}	commonModel.ErrorResponse	"Tax ID already exists"
+// @Failure		500		{object}	commonModel.ErrorResponse	"Internal server error"
 // @Router			/api/seller/profile [put]
 func (h *SellerHandler) UpdateProfile(c *gin.Context) {
 	// Get authenticated user ID from context

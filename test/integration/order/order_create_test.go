@@ -87,10 +87,10 @@ func (s *OrderSuite) TestScenario1_8_OrderTotalsPresent() {
 	resp := helpers.AssertSuccessResponse(s.T(), w, http.StatusCreated)
 	data := resp["data"].(map[string]any)
 
-	s.Require().NotNil(data["subtotalCents"])
-	s.Require().Greater(data["subtotalCents"].(float64), float64(0))
-	s.Require().NotNil(data["totalCents"])
-	s.Require().Greater(data["totalCents"].(float64), float64(0))
+	s.Require().NotNil(data["subtotal"])
+	s.Require().Greater(helpers.MoneyCents(data["subtotal"]), int64(0))
+	s.Require().NotNil(data["total"])
+	s.Require().Greater(helpers.MoneyCents(data["total"]), int64(0))
 }
 
 // ─── 1.10 placedAt is set ───────────────────────────────────────────────────
@@ -231,8 +231,8 @@ func (s *OrderSuite) TestScenario1_25_CreateResponseIncludesItems() {
 
 	item := items[0].(map[string]any)
 	s.Require().NotEmpty(item["productName"], "productName must be snapshotted")
-	s.Require().Greater(item["unitPriceCents"].(float64), float64(0))
-	s.Require().Greater(item["lineTotalCents"].(float64), float64(0))
+	s.Require().Greater(helpers.MoneyCents(item["unitPrice"]), int64(0))
+	s.Require().Greater(helpers.MoneyCents(item["lineTotal"]), int64(0))
 	s.Require().Equal(float64(1), item["quantity"])
 }
 
@@ -261,6 +261,6 @@ func (s *OrderSuite) TestScenarioD1_OrderItemPriceIsSnapshot() {
 	items := data["items"].([]any)
 	s.Require().NotEmpty(items)
 	item := items[0].(map[string]any)
-	// unitPriceCents is snapshotted; it must be > 0 and stable.
-	s.Require().Greater(item["unitPriceCents"].(float64), float64(0))
+	// unitPrice is snapshotted; it must be > 0 and stable.
+	s.Require().Greater(helpers.MoneyCents(item["unitPrice"]), int64(0))
 }

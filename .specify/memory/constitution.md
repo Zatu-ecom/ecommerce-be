@@ -196,14 +196,25 @@ All implementations MUST consider performance from the start.
 - Select only needed fields when full entity loading is unnecessary.
 - Use raw SQL via GORM for complex queries when the ORM abstractions are insufficient.
 
-**Caching Strategy**:
+**Caching Strategy** (amended by 012-caching-infrastructure; rationale in
+`specs/012-caching-infrastructure/pre-spec.md` §§0.3, 5.4, 8.6):
 
-- Redis caching with LRU eviction (256MB max memory).
-- Cache reads first, fall back to database on miss.
-- Invalidate cache on mutations (create, update, delete).
-- Use pattern-based cache invalidation for list caches.
+- Two backend roles, never one mixed-eviction instance: volatile cache
+  (evictable, restart-losable, fail-open domain reads) + durable KV
+  (`noeviction`, snapshotted: scheduler queue, idempotency, denylist,
+  limiter, list-version counters — fail-closed where required).
+- Cache reads first, fall back to database on miss; responses never wait
+  for cache writes (async bounded population, drop and count).
+- Invalidate with exact key deletes after DB commit (never inside the
+  transaction); retire list/search pages with durable version counters
+  (`INCR`), never prefix/pattern deletes on the request path.
+- Admission-gate combinatorial query caching (second sight earns the SET);
+  jitter every TTL (±15%); shed writes automatically under error storms
+  while reads continue.
+- Every cacheable area ships behind a default-off flag; money-movement,
+  reservation, and audit reads are never cached.
 
-**Stateless Services**: All services MUST be stateless to enable horizontal scaling. State lives in PostgreSQL and Redis only.
+**Stateless Services**: All services MUST be stateless to enable horizontal scaling. State lives in PostgreSQL and cache backends only (volatile cache + durable KV). In-process singleflight maps, shed flags, and limiter fallbacks are ephemeral per-pod state — safe to lose, never authoritative.
 
 **Rationale**: E-commerce systems handle high-traffic bursts (flash sales, promotions). Performance cannot be retrofitted; it must be designed in from the beginning.
 
@@ -212,7 +223,7 @@ All implementations MUST consider performance from the start.
 **Language/Runtime**: Go 1.25+
 **HTTP Framework**: Gin (`github.com/gin-gonic/gin`)
 **Database**: PostgreSQL 16 with GORM (`gorm.io/gorm`, `gorm.io/driver/postgres`)
-**Cache**: Redis 7 with go-redis (`github.com/go-redis/redis/v8`)
+**Cache**: RESP-compatible backends (Redis 7 now, DragonflyDB cutover candidate — config-only swap) with go-redis (`github.com/redis/go-redis/v9`), confined to `common/cachekit/provider/`; everything else programs to `cachekit` interfaces
 **Authentication**: JWT via `github.com/golang-jwt/jwt/v5`
 **Messaging**: RabbitMQ via `github.com/rabbitmq/amqp091-go`
 **Scheduling**: Cron jobs via `github.com/robfig/cron/v3`

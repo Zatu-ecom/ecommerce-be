@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
 	"ecommerce-be/common/auth"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/db"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/log"
@@ -19,7 +21,6 @@ import (
 	"ecommerce-be/file/utils"
 	"ecommerce-be/file/utils/constant"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -41,11 +42,14 @@ type FileUploadService interface {
 }
 
 type fileUploadService struct {
-	repo        repository.FileUploadRepository
-	configRepo  repository.ConfigRepository
-	scheduler   UploadExpiryScheduler
-	publisher   VariantPublisher
-	redisClient *redis.Client
+	repo       repository.FileUploadRepository
+	configRepo repository.ConfigRepository
+	scheduler  UploadExpiryScheduler
+	publisher  VariantPublisher
+	// durable carries init-upload idempotency records (claim, replay, TTL).
+	// Nil disables idempotency paths fail-closed (same as the old nil
+	// client): every entry point returns ErrFileUploadStorageUnavailable.
+	durable cachekit.Durable
 }
 
 func NewFileUploadService(
@@ -53,14 +57,14 @@ func NewFileUploadService(
 	configRepo repository.ConfigRepository,
 	scheduler UploadExpiryScheduler,
 	publisher VariantPublisher,
-	redisClient *redis.Client,
+	durable cachekit.Durable,
 ) FileUploadService {
 	return &fileUploadService{
-		repo:        repo,
-		configRepo:  configRepo,
-		scheduler:   scheduler,
-		publisher:   publisher,
-		redisClient: redisClient,
+		repo:       repo,
+		configRepo: configRepo,
+		scheduler:  scheduler,
+		publisher:  publisher,
+		durable:    durable,
 	}
 }
 
@@ -219,11 +223,14 @@ func (s *fileUploadService) cacheInitIdempotencyRecord(
 	data *model.InitUploadData,
 	expiryMinutes int,
 ) error {
+	if s.durable == nil {
+		return fileError.ErrFileUploadStorageUnavailable
+	}
 	raw, err := s.marshalInitIdempotencyRecord(data, fingerprint)
 	if err != nil {
 		return err
 	}
-	return s.redisClient.Set(ctx, redisKey, raw, s.initIdempotencyTTL(expiryMinutes)).Err()
+	return s.durable.Set(ctx, redisKey, raw, s.initIdempotencyTTL(expiryMinutes))
 }
 
 func (s *fileUploadService) replayInitUploadFromIdempotency(
@@ -233,13 +240,13 @@ func (s *fileUploadService) replayInitUploadFromIdempotency(
 	fingerprint string,
 	expiryMinutes int,
 ) (*model.InitUploadData, error) {
-	if s.redisClient == nil {
+	if s.durable == nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
 
-	raw, err := s.redisClient.Get(ctx, redisKey).Bytes()
+	raw, err := s.durable.Get(ctx, redisKey)
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, cachekit.ErrMiss) {
 			return nil, fileError.ErrFileUploadConflict
 		}
 		return nil, fileError.ErrFileUploadStorageUnavailable
@@ -302,7 +309,7 @@ func (s *fileUploadService) replayInitUploadFromIdempotency(
 
 	data := factory.BuildInitUploadData(row.FileID, row.MimeType, row.ObjectKey, presigned)
 	data.Replayed = true
-	ttl, ttlErr := s.redisClient.TTL(ctx, redisKey).Result()
+	ttl, ttlErr := s.durable.TTL(ctx, redisKey)
 	if ttlErr != nil || ttl <= 0 {
 		ttl = s.initIdempotencyTTL(expiryMinutes)
 	}
@@ -310,7 +317,7 @@ func (s *fileUploadService) replayInitUploadFromIdempotency(
 	if err != nil {
 		return nil, fileError.ErrFileUploadInternal
 	}
-	if err := s.redisClient.Set(ctx, redisKey, raw, ttl).Err(); err != nil {
+	if err := s.durable.Set(ctx, redisKey, raw, ttl); err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
 	return data, nil
@@ -323,7 +330,7 @@ func (s *fileUploadService) initUploadWithIdempotency(
 	key string,
 	expiryMinutes int,
 ) (*model.InitUploadData, error) {
-	if s.redisClient == nil {
+	if s.durable == nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
 	if !utils.ValidateIdempotencyKey(key) {
@@ -357,12 +364,12 @@ func (s *fileUploadService) initUploadWithIdempotency(
 	if err != nil {
 		return nil, fileError.ErrFileUploadInternal
 	}
-	claimed, err := s.redisClient.SetNX(
+	claimed, err := s.durable.SetNX(
 		ctx,
 		redisKey,
 		rawReservation,
 		s.initIdempotencyTTL(expiryMinutes),
-	).Result()
+	)
 	if err != nil {
 		return nil, fileError.ErrFileUploadStorageUnavailable
 	}
@@ -373,7 +380,7 @@ func (s *fileUploadService) initUploadWithIdempotency(
 	committed := false
 	defer func() {
 		if !committed {
-			_ = s.redisClient.Del(context.Background(), redisKey).Err()
+			_ = s.durable.Del(ctx, redisKey)
 		}
 	}()
 

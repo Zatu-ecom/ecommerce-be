@@ -24,6 +24,7 @@ const (
 	ATTRIBUTE_NAME_LENGTH_MSG          = "Attribute name must be between 3 and 100 characters"
 	ATTRIBUTE_DATA_TYPE_REQUIRED_MSG   = "Attribute data type is required"
 	ATTRIBUTE_DATA_TYPE_INVALID_MSG    = "Invalid attribute data type. Must be string, number, boolean, or array"
+	INVALID_SCOPE_MSG                  = "Invalid scope. Must be fulfillment"
 	ATTRIBUTE_UNIT_LENGTH_MSG          = "Attribute unit must not exceed 20 characters"
 	ATTRIBUTE_DESCRIPTION_LENGTH_MSG   = "Attribute description must not exceed 500 characters"
 )
@@ -54,15 +55,20 @@ const (
 
 // Product Attribute messages
 const (
-	PRODUCT_ATTRIBUTE_NOT_FOUND_MSG     = "Product attribute not found"
-	PRODUCT_ATTRIBUTE_EXISTS_MSG        = "Product already has this attribute assigned"
-	INVALID_ATTRIBUTE_VALUE_MSG         = "Invalid attribute value"
-	UNAUTHORIZED_ATTRIBUTE_ACCESS_MSG   = "You do not have permission to modify this product's attributes"
-	PRODUCT_ATTRIBUTE_ADDED_MSG         = "Product attribute added successfully"
-	PRODUCT_ATTRIBUTE_UPDATED_MSG       = "Product attribute updated successfully"
-	PRODUCT_ATTRIBUTE_DELETED_MSG       = "Product attribute deleted successfully"
-	PRODUCT_ATTRIBUTES_RETRIEVED_MSG    = "Product attributes retrieved successfully"
-	PRODUCT_ATTRIBUTES_BULK_UPDATED_MSG = "Product attributes bulk updated successfully"
+	PRODUCT_ATTRIBUTE_NOT_FOUND_MSG         = "Product attribute not found"
+	PRODUCT_ATTRIBUTE_EXISTS_MSG            = "Product already has this attribute assigned"
+	INVALID_ATTRIBUTE_VALUE_MSG             = "Invalid attribute value"
+	PHYSICAL_SPEC_FAMILY_CONFLICT_MSG       = "Parameter already set with another unit; remove it first"
+	UNAUTHORIZED_ATTRIBUTE_ACCESS_MSG       = "You do not have permission to modify this product's attributes"
+	PRODUCT_ATTRIBUTE_ADDED_MSG             = "Product attribute added successfully"
+	PRODUCT_ATTRIBUTE_UPDATED_MSG           = "Product attribute updated successfully"
+	PRODUCT_ATTRIBUTE_DELETED_MSG           = "Product attribute deleted successfully"
+	PRODUCT_ATTRIBUTES_RETRIEVED_MSG        = "Product attributes retrieved successfully"
+	PRODUCT_ATTRIBUTES_BULK_UPDATED_MSG     = "Product attributes bulk updated successfully"
+	PHYSICAL_SPEC_DEFINITIONS_RETRIEVED_MSG = "Fulfillment spec definitions retrieved successfully"
+	SHIPPING_SPECS_RETRIEVED_MSG            = "Shipping specs retrieved successfully"
+	FAILED_TO_LIST_SPEC_DEFINITIONS_MSG     = "Failed to list spec definitions"
+	FAILED_TO_GET_SHIPPING_SPECS_MSG        = "Failed to get shipping specs"
 )
 
 // Package Option messages

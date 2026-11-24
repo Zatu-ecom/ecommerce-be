@@ -39,7 +39,7 @@ func TestGetPackageOptions(t *testing.T) {
 		first := options[0].(map[string]any)
 		assert.NotNil(t, first["id"])
 		assert.Equal(t, "T-Shirt 3-Pack", first["name"])
-		assert.Equal(t, 75.0, first["price"])
+		assert.Equal(t, 75.0, moneyAmount(first["price"]))
 		assert.Equal(t, float64(3), first["quantity"])
 	})
 

@@ -417,7 +417,7 @@ func TestCreateProductIntegration(t *testing.T) {
 		for _, v := range productVariants {
 			variant := v.(map[string]any)
 			sku := variant["sku"].(string)
-			price := variant["price"].(float64)
+			price := moneyAmount(variant["price"])
 			variantPriceMap[sku] = price
 		}
 

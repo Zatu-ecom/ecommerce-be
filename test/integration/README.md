@@ -55,7 +55,13 @@ test/integration/
 
 ## Running Tests
 
-### Run all integration tests
+### Run all tests (unit + integration)
+
+```bash
+go test -v ./test/...
+```
+
+### Run only integration tests
 
 ```bash
 go test -v ./test/integration/...
@@ -162,7 +168,17 @@ Each test should:
 
 ## Notes
 
-- Each test gets fresh Docker containers (Postgres + Redis)
+## Test lifecycle (shared containers)
+
+- One Postgres + one Redis (+ MinIO/RabbitMQ/blob backends) per `go test`
+- package process, reused across suites. Each `SetupTestContainers()` call
+- truncates all tables (`TRUNCATE ... RESTART IDENTITY CASCADE`) and flushes
+- Redis — the data-equivalent of a fresh container without the boot cost.
+- Migrations run once per process; seeds (upsert-safe) repopulate per suite.
+- Optional fastest local loop: `docker compose -f docker-compose.test.yml up -d`
+- then `TEST_USE_EXTERNAL=1 make test` (single backends for the whole run).
+- Each test gets a clean slate (shared backends + reset), and suites stay
+- isolated without paying container startup per suite.
 - Tests are isolated and can run in parallel
 - Use meaningful test names: `TestServiceName_FeatureName`
 - Group related tests using `t.Run()` subtests

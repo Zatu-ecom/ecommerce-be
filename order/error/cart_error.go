@@ -47,3 +47,10 @@ func ErrCartMergeFailed(err error) *commonError.AppError {
 		StatusCode: http.StatusInternalServerError,
 	}
 }
+
+// ErrCouponApplyRateLimited is returned when a customer applies coupons too frequently
+var ErrCouponApplyRateLimited = &commonError.AppError{
+	Code:       "COUPON_APPLY_RATE_LIMITED",
+	Message:    "Too many coupon apply attempts. Please try again shortly",
+	StatusCode: http.StatusTooManyRequests,
+}

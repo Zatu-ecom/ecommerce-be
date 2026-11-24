@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ecommerce-be/common/constants"
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
@@ -67,6 +68,24 @@ type CategoryServiceImpl struct {
 	categoryRepo  repository.CategoryRepository
 	productRepo   repository.ProductRepository
 	attributeRepo repository.AttributeDefinitionRepository
+	// categoryCache is the optional reference-data strategy (012). Nil disables
+	// caching; wired by the factory via SetCategoryCache.
+	categoryCache *cache.CategoryCache
+}
+
+// SetCategoryCache attaches the reference-data strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *CategoryServiceImpl) SetCategoryCache(c *cache.CategoryCache) {
+	s.categoryCache = c
+}
+
+// invalidateCategory clears one category entry and retires category lists.
+// Call AFTER DB commit with the owning seller scope.
+func (s *CategoryServiceImpl) invalidateCategory(ctx context.Context, sellerID, categoryID uint) {
+	if s.categoryCache == nil {
+		return
+	}
+	s.categoryCache.InvalidateCategory(ctx, sellerID, categoryID)
 }
 
 // NewCategoryService creates a new instance of CategoryService
@@ -124,6 +143,7 @@ func (s *CategoryServiceImpl) CreateCategory(
 	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
+	s.invalidateCategory(ctx, sellerId, category.ID)
 
 	// Create response using converter utility
 	categoryResponse := factory.BuildCategoryResponse(category)
@@ -216,6 +236,7 @@ func (s *CategoryServiceImpl) UpdateCategory(
 	if err := s.categoryRepo.Update(ctx, category); err != nil {
 		return nil, err
 	}
+	s.invalidateCategory(ctx, sellerId, id)
 
 	// Create response using converter utility
 	categoryResponse := factory.BuildCategoryResponse(category)
@@ -265,13 +286,27 @@ func (s *CategoryServiceImpl) DeleteCategory(
 	}
 
 	// Soft delete category
-	return s.categoryRepo.Delete(ctx, id)
+	if err := s.categoryRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateCategory(ctx, sellerId, id)
+	return nil
 }
 
 // GetAllCategories gets all categories in hierarchical structure
 // Multi-tenant: Returns global categories + seller-specific categories
 // If sellerID is nil (admin), returns all categories
 func (s *CategoryServiceImpl) GetAllCategories(ctx context.Context, sellerID *uint) (*model.CategoriesResponse, error) {
+	if s.categoryCache == nil {
+		return s.getAllCategories(ctx, sellerID)
+	}
+	return s.categoryCache.GetAllCategories(ctx, sellerID, func(ctx context.Context) (*model.CategoriesResponse, error) {
+		return s.getAllCategories(ctx, sellerID)
+	})
+}
+
+// getAllCategories loads the full hierarchy without caching.
+func (s *CategoryServiceImpl) getAllCategories(ctx context.Context, sellerID *uint) (*model.CategoriesResponse, error) {
 	categories, err := s.categoryRepo.FindAllHierarchical(ctx, sellerID)
 	if err != nil {
 		return nil, err
@@ -319,6 +354,20 @@ func (s *CategoryServiceImpl) GetCategoryByID(
 	id uint,
 	sellerID *uint,
 ) (*model.CategoryResponse, error) {
+	if s.categoryCache == nil {
+		return s.getCategoryByID(ctx, id, sellerID)
+	}
+	return s.categoryCache.GetCategory(ctx, sellerID, id, func(ctx context.Context) (*model.CategoryResponse, error) {
+		return s.getCategoryByID(ctx, id, sellerID)
+	})
+}
+
+// getCategoryByID loads one category with ownership checks, without caching.
+func (s *CategoryServiceImpl) getCategoryByID(
+	ctx context.Context,
+	id uint,
+	sellerID *uint,
+) (*model.CategoryResponse, error) {
 	category, err := s.categoryRepo.FindByID(ctx, id)
 	if err != nil {
 		// Check if it's a "not found" error
@@ -353,6 +402,24 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 	parentID *uint,
 	sellerID *uint,
 ) (*model.CategoriesResponse, error) {
+	if s.categoryCache == nil {
+		return s.getCategoriesByParent(ctx, parentID, sellerID)
+	}
+	var pid uint
+	if parentID != nil {
+		pid = *parentID
+	}
+	return s.categoryCache.GetCategoriesByParent(ctx, sellerID, pid, func(ctx context.Context) (*model.CategoriesResponse, error) {
+		return s.getCategoriesByParent(ctx, parentID, sellerID)
+	})
+}
+
+// getCategoriesByParent loads one parent's children without caching.
+func (s *CategoryServiceImpl) getCategoriesByParent(
+	ctx context.Context,
+	parentID *uint,
+	sellerID *uint,
+) (*model.CategoriesResponse, error) {
 	categories, err := s.categoryRepo.FindByParentID(ctx, parentID, sellerID)
 	if err != nil {
 		return nil, err
@@ -370,6 +437,21 @@ func (s *CategoryServiceImpl) GetCategoriesByParent(
 }
 
 func (s *CategoryServiceImpl) GetAttributesByCategoryIDWithInheritance(
+	ctx context.Context,
+	catagoryID uint,
+	sellerID *uint,
+) (model.AttributeDefinitionsResponse, error) {
+	if s.categoryCache == nil {
+		return s.loadAttributesWithInheritance(ctx, catagoryID, sellerID)
+	}
+	return s.categoryCache.GetCategoryAttrs(ctx, sellerID, catagoryID,
+		func(ctx context.Context) (model.AttributeDefinitionsResponse, error) {
+			return s.loadAttributesWithInheritance(ctx, catagoryID, sellerID)
+		})
+}
+
+// loadAttributesWithInheritance reads inherited attributes without caching.
+func (s *CategoryServiceImpl) loadAttributesWithInheritance(
 	ctx context.Context,
 	catagoryID uint,
 	sellerID *uint,
@@ -448,6 +530,10 @@ func (s *CategoryServiceImpl) LinkAttributeToCategory(
 	if err != nil {
 		return nil, err
 	}
+	s.invalidateCategory(ctx, sellerID, categoryID)
+	if s.categoryCache != nil {
+		s.categoryCache.InvalidateAttributeLists(ctx, sellerID, req.AttributeDefinitionID)
+	}
 
 	return &model.LinkAttributeResponse{
 		CategoryID:            categoryID,
@@ -481,6 +567,10 @@ func (s *CategoryServiceImpl) UnlinkAttributeFromCategory(
 	err = s.categoryRepo.UnlinkAttribute(ctx, categoryID, attributeID)
 	if err != nil {
 		return err
+	}
+	s.invalidateCategory(ctx, sellerID, categoryID)
+	if s.categoryCache != nil {
+		s.categoryCache.InvalidateAttributeLists(ctx, sellerID, attributeID)
 	}
 
 	return nil

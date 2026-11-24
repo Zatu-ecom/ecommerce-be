@@ -3,7 +3,7 @@ package factory
 import (
 	"strings"
 
-	"ecommerce-be/common"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/inventory/entity"
 	"ecommerce-be/inventory/mapper"
 	"ecommerce-be/inventory/model"
@@ -254,7 +254,7 @@ func BuildProductsAtLocationResponse(
 		LocationID:   locationID,
 		LocationName: locationName,
 		Products:     products,
-		Pagination:   common.NewPaginationResponse(page, pageSize, totalCount),
+		Pagination:   commonModel.NewPaginationResponse(page, pageSize, totalCount),
 	}
 }
 

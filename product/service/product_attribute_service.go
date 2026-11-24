@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"ecommerce-be/product/cache"
 	"ecommerce-be/product/entity"
 	prodErrors "ecommerce-be/product/error"
 	"ecommerce-be/product/factory"
@@ -66,6 +67,34 @@ type ProductAttributeServiceImpl struct {
 	productRepo      repository.ProductRepository
 	attributeRepo    repository.AttributeDefinitionRepository
 	validatorService ProductValidatorService
+	specService      PhysicalSpecService
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
+}
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *ProductAttributeServiceImpl) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductAttributeServiceImpl) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *ProductAttributeServiceImpl) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
 }
 
 // NewProductAttributeService creates a new instance of ProductAttributeService
@@ -74,12 +103,14 @@ func NewProductAttributeService(
 	productRepo repository.ProductRepository,
 	attributeRepo repository.AttributeDefinitionRepository,
 	validatorService ProductValidatorService,
+	specService PhysicalSpecService,
 ) ProductAttributeService {
 	return &ProductAttributeServiceImpl{
 		productAttrRepo:  productAttrRepo,
 		productRepo:      productRepo,
 		attributeRepo:    attributeRepo,
 		validatorService: validatorService,
+		specService:      specService,
 	}
 }
 
@@ -111,6 +142,14 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 		return nil, err
 	}
 
+	// Shippable-spec guard (013): numeric value + one key per family.
+	if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, req.Value); err != nil {
+		return nil, err
+	}
+	if err := s.specService.CheckFamilyConflict(ctx, productID, attributeDef.Key, req.AttributeDefinitionID); err != nil {
+		return nil, err
+	}
+
 	// Check if attribute already exists for this product
 	exists, err := s.productAttrRepo.ExistsByProductIDAndAttributeID(
 		ctx,
@@ -139,6 +178,7 @@ func (s *ProductAttributeServiceImpl) AddProductAttribute(
 	}
 
 	// Build response using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildProductAttributeDetailResponse(createdAttr), nil
 }
 
@@ -178,6 +218,12 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 		return nil, err
 	}
 
+	// Shippable-spec guard (013): the value must stay numeric > 0.
+	// The definition is fixed on update, so no family check is needed.
+	if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, req.Value); err != nil {
+		return nil, err
+	}
+
 	// Update entity using factory
 	factory.BuildProductAttributeFromUpdateRequest(productAttribute, req)
 
@@ -193,6 +239,7 @@ func (s *ProductAttributeServiceImpl) UpdateProductAttribute(
 	}
 
 	// Build response using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return factory.BuildProductAttributeDetailResponse(updatedAttr), nil
 }
 
@@ -221,7 +268,11 @@ func (s *ProductAttributeServiceImpl) DeleteProductAttribute(
 	}
 
 	// Delete from database
-	return s.productAttrRepo.Delete(ctx, attributeID)
+	if err := s.productAttrRepo.Delete(ctx, attributeID); err != nil {
+		return err
+	}
+	s.invalidateTree(ctx, sellerID, productID)
+	return nil
 }
 
 // GetProductAttributes retrieves all attributes for a product
@@ -288,6 +339,11 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 			return nil, err
 		}
 
+		// Shippable-spec guard (013): the value must stay numeric > 0.
+		if err := s.specService.ValidateShippableValue(ctx, attributeDef.Key, attrUpdate.Value); err != nil {
+			return nil, err
+		}
+
 		// Update attribute fields
 		productAttribute.Value = attrUpdate.Value
 		productAttribute.SortOrder = attrUpdate.SortOrder
@@ -307,6 +363,7 @@ func (s *ProductAttributeServiceImpl) BulkUpdateProductAttributes(
 		attributeResponses[i] = *factory.BuildProductAttributeDetailResponse(attr)
 	}
 
+	s.invalidateTree(ctx, sellerID, productID)
 	return &model.BulkUpdateProductAttributesResponse{
 		UpdatedCount: updatedCount,
 		Attributes:   attributeResponses,
@@ -342,6 +399,12 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 		return nil, err
 	}
 
+	// Shippable-spec guard (013): numeric values + one key per family,
+	// including conflicts inside this payload.
+	if err := s.specService.ValidateShippableBulk(ctx, productID, requests); err != nil {
+		return nil, err
+	}
+
 	// Process attributes and prepare bulk operations
 	operations := processAttributesForBulkOperations(productID, requests, attributeMap)
 
@@ -351,6 +414,7 @@ func (s *ProductAttributeServiceImpl) CreateProductAttributesBulk(
 	}
 
 	// Convert entities to models using factory
+	s.invalidateTree(ctx, sellerID, productID)
 	return s.convertAttributesToModels(operations.productAttributesToCreate), nil
 }
 

@@ -34,7 +34,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 	// EDGE CASES & BOUNDARY TESTING
 	// ============================================================================
 
-	t.Run("EdgeCase - Price with many decimal places", func(t *testing.T) {
+	t.Run("EdgeCase - Price with excess decimal places is rejected", func(t *testing.T) {
 		// Login as seller
 		sellerToken := helpers.Login(t, client, helpers.SellerEmail, helpers.SellerPassword)
 		client.SetToken(sellerToken)
@@ -55,7 +55,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			"variants": []map[string]any{
 				{
 					"sku":   "TEST-PRECISE-PRICE-001-V1",
-					"price": 19.999999, // Many decimal places
+					"price": 19.999999, // Many decimal places — exceeds 2dp precision
 					"options": []map[string]any{
 						{"optionName": "color", "value": "black"},
 					},
@@ -65,21 +65,10 @@ func TestCreateProductEdgeCases(t *testing.T) {
 
 		w := client.Post(t, "/api/product", requestBody)
 
-		// Should succeed and verify rounding behavior
-		response := helpers.AssertSuccessResponse(t, w, http.StatusCreated)
-		product := helpers.GetResponseData(t, response, "product")
-
-		variants, ok := product["variants"].([]any)
-		assert.True(t, ok, "variants should be an array")
-		assert.Len(t, variants, 1)
-
-		variant := variants[0].(map[string]any)
-		price := variant["price"].(float64)
-
-		// Verify price is rounded appropriately (typically to 2 decimal places)
-		// The exact behavior depends on your database and application logic
-		assert.InDelta(t, 20.00, price, 0.01, "Price should be rounded appropriately")
-		t.Logf("Price with many decimals (19.999999) was stored as: %.2f", price)
+		// FR-002: excess fractional precision is rejected (not silently rounded).
+		helpers.AssertErrorResponse(t, w, http.StatusBadRequest)
+		resp := helpers.ParseResponse(t, w.Body)
+		assert.Equal(t, "VALIDATION_ERROR", resp["code"])
 	})
 
 	t.Run("EdgeCase - Price with exactly 2 decimals", func(t *testing.T) {
@@ -120,7 +109,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 		variant := variants[0].(map[string]any)
 
 		// Should preserve exact price
-		assert.Equal(t, 99.99, variant["price"], "Price should be preserved exactly")
+		assert.Equal(t, 99.99, moneyAmount(variant["price"]), "Price should be preserved exactly")
 	})
 
 	t.Run("EdgeCase - Unicode characters in product name (Japanese)", func(t *testing.T) {
@@ -375,7 +364,7 @@ func TestCreateProductEdgeCases(t *testing.T) {
 			product := helpers.GetResponseData(t, response, "product")
 			variants := product["variants"].([]any)
 			variant := variants[0].(map[string]any)
-			assert.Equal(t, 999999.99, variant["price"], "High price should be stored")
+			assert.Equal(t, 999999.99, moneyAmount(variant["price"]), "High price should be stored")
 			t.Log("Very high price was accepted")
 		} else {
 			// Price too high - validation error

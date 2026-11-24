@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ecommerce-be/user/entity"
+	usercache "ecommerce-be/user/cache"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
 	"ecommerce-be/user/model"
@@ -42,6 +43,22 @@ type CountryCurrencyServiceImpl struct {
 	countryCurrencyRepo repository.CountryCurrencyRepository
 	countryRepo         repository.CountryRepository
 	currencyRepo        repository.CurrencyRepository
+	// geoCache is the optional geo reference strategy (012). Nil disables
+	// caching; wired by the factory via SetGeoCache.
+	geoCache *usercache.GeoCache
+}
+
+// SetGeoCache attaches the geo reference strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *CountryCurrencyServiceImpl) SetGeoCache(c *usercache.GeoCache) {
+	s.geoCache = c
+}
+
+// invalidateMapping retires geo lists after mapping writes (post-commit).
+func (s *CountryCurrencyServiceImpl) invalidateMapping(ctx context.Context) {
+	if s.geoCache != nil {
+		s.geoCache.InvalidateMapping(ctx)
+	}
 }
 
 // NewCountryCurrencyService creates a new instance of CountryCurrencyService
@@ -116,6 +133,7 @@ func (s *CountryCurrencyServiceImpl) AddCurrencyToCountry(
 	if err := s.countryCurrencyRepo.Create(ctx, mapping); err != nil {
 		return nil, err
 	}
+	s.invalidateMapping(ctx)
 
 	// Build response
 	response := factory.BuildCountryCurrencySimpleResponse(mapping)
@@ -211,6 +229,7 @@ func (s *CountryCurrencyServiceImpl) UpdateCountryCurrency(
 	if err := s.countryCurrencyRepo.Update(ctx, mapping); err != nil {
 		return nil, err
 	}
+	s.invalidateMapping(ctx)
 
 	// Build response
 	response := factory.BuildCountryCurrencySimpleResponse(mapping)
@@ -238,5 +257,9 @@ func (s *CountryCurrencyServiceImpl) RemoveCurrencyFromCountry(
 	}
 
 	// Delete the mapping
-	return s.countryCurrencyRepo.Delete(ctx, countryID, currencyID)
+	if err := s.countryCurrencyRepo.Delete(ctx, countryID, currencyID); err != nil {
+		return err
+	}
+	s.invalidateMapping(ctx)
+	return nil
 }

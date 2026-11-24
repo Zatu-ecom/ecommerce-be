@@ -10,9 +10,12 @@ import (
 	"ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
 
+	orderError "ecommerce-be/order/error"
 	"ecommerce-be/order/model"
 	"ecommerce-be/order/service"
+	orderUtils "ecommerce-be/order/utils"
 	orderConstants "ecommerce-be/order/utils/constant"
+	promotionModel "ecommerce-be/promotion/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,8 +46,8 @@ func NewCartHandler(
 // @Security BearerAuth
 // @Param request body model.AddCartItemRequest true "Add Cart Item Request"
 // @Success 201 {object} common.StandardResponse{data=model.CartResponse}
-// @Failure 401 {object} common.ErrorResponse
-// @Failure 400 {object} common.ErrorResponse
+// @Failure 401 {object} commonModel.ErrorResponse
+// @Failure 400 {object} commonModel.ErrorResponse
 // @Router /api/cart/item [post]
 func (h *CartHandler) AddToCart(c *gin.Context) {
 	// 1. Get user context
@@ -174,4 +177,95 @@ func (h *CartHandler) MergeGuestCart(c *gin.Context) {
 	}
 
 	h.Success(c, http.StatusOK, orderConstants.CART_MERGED_MSG, resp)
+}
+
+func (h *CartHandler) ApplyCoupon(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+	if !orderUtils.AllowCouponApply(c.Request.Context(), userID) {
+		h.HandleError(c, orderError.ErrCouponApplyRateLimited, orderConstants.COUPON_APPLY_RATE_LIMITED_MSG)
+		return
+	}
+
+	var req promotionModel.ApplyCouponRequest
+	if err := h.BindJSON(c, &req); err != nil {
+		h.HandleValidationError(c, err)
+		return
+	}
+
+	resp, err := h.cartService.ApplyCoupon(c, userID, sellerID, req.Code)
+	if err != nil {
+		h.HandleError(c, err, orderConstants.FAILED_TO_APPLY_COUPON_MSG)
+		return
+	}
+	h.Success(c, http.StatusOK, orderConstants.COUPON_APPLIED_MSG, resp)
+}
+
+func (h *CartHandler) RemoveCoupon(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	code := c.Param("code")
+	resp, err := h.cartService.RemoveCoupon(c, userID, sellerID, code)
+	if err != nil {
+		h.HandleError(c, err, orderConstants.FAILED_TO_REMOVE_COUPON_MSG)
+		return
+	}
+	h.Success(c, http.StatusOK, orderConstants.COUPON_REMOVED_MSG, resp)
+}
+
+func (h *CartHandler) RemoveAllCoupons(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	resp, err := h.cartService.RemoveAllCoupons(c, userID, sellerID)
+	if err != nil {
+		h.HandleError(c, err, orderConstants.FAILED_TO_REMOVE_COUPON_MSG)
+		return
+	}
+	h.Success(c, http.StatusOK, orderConstants.ALL_COUPONS_REMOVED_MSG, resp)
+}
+
+func (h *CartHandler) GetAvailableCoupons(c *gin.Context) {
+	userID, exists := auth.GetUserIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, constants.AUTHENTICATION_REQUIRED_MSG)
+		return
+	}
+	sellerID, exists := auth.GetSellerIDFromContext(c)
+	if !exists {
+		h.HandleError(c, errs.UnauthorizedError, orderConstants.SELLER_CONTEXT_REQUIRED_MSG)
+		return
+	}
+
+	resp, err := h.cartService.GetAvailableCoupons(c, userID, sellerID)
+	if err != nil {
+		h.HandleError(c, err, orderConstants.FAILED_TO_LIST_AVAILABLE_COUPONS_MSG)
+		return
+	}
+	h.Success(c, http.StatusOK, orderConstants.AVAILABLE_COUPONS_RETRIEVED_MSG, resp)
 }

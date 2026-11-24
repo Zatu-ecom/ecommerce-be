@@ -27,10 +27,10 @@
 
 ### Tech Stack
 
-- **Language**: Go 1.21+
+- **Language**: Go 1.25+
 - **Framework**: Gin (HTTP router)
-- **Database**: PostgreSQL
-- **Cache**: Redis
+- **Database**: PostgreSQL 16
+- **Cache**: Two-role RESP backends — volatile cache (fail-open domain reads) + durable KV (`noeviction`: scheduler, idempotency, denylist, limiter, list versions); Redis 7 now, DragonflyDB cutover candidate (see `specs/012-caching-infrastructure/`)
 - **ORM**: GORM
 - **Authentication**: JWT (JSON Web Tokens)
 - **Testing**: Go testing framework + testcontainers
@@ -431,12 +431,13 @@ common/
 - `GetUserIDFromContext(c)` - Extract authenticated user ID
 - `GetSellerIDFromContext(c)` - Extract seller ID for multi-tenancy
 
-**Caching (`cache/`)**:
+**Caching (`common/cachekit/` + per-module `cache/` strategies)**:
 
-- `Get(key)` - Retrieve from Redis
-- `Set(key, value, ttl)` - Store in Redis
-- `Delete(key)` - Invalidate cache
-- `InvalidatePattern(pattern)` - Bulk invalidation
+- `cachekit.Cache` (volatile) - Async bounded population, fail-open reads, exact-key `Del` after DB commit
+- `cachekit.Durable` (durable KV) - Scheduler transport, idempotency claims, denylist, atomic Lua limiter, list-version counters
+- List/search pages retire via durable version counters (`INCR`) — prefix/pattern deletes are forbidden on the request path
+- Every cacheable area ships behind a default-off `CACHE_*` flag; money-movement, reservation, and audit reads are never cached
+- Legacy `common/cache/` client targets the pre-012 single Redis and remains only as a fallback for unwired environments
 
 **Middleware (`middleware/`)**:
 
@@ -1332,8 +1333,7 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=password
 DB_NAME=ecommerce
-REDIS_HOST=localhost
-REDIS_PORT=6379
+CACHE_PASSWORD=your-secret
 JWT_SECRET=your-secret-key
 PORT=8080
 ```

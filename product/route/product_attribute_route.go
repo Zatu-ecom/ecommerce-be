@@ -35,6 +35,11 @@ func (m *ProductAttributeModule) RegisterRoutes(router *gin.Engine) {
 		productAttrRoutes.GET("", publicRoutesAuth, m.productAttrHandler.GetProductAttributes)
 
 		// Protected routes - seller/admin only
+		productAttrRoutes.GET(
+			"/shipping-specs",
+			sellerAuth,
+			m.productAttrHandler.GetShippingSpecs,
+		)
 		productAttrRoutes.POST("", sellerAuth, m.productAttrHandler.AddProductAttribute)
 		productAttrRoutes.PUT("/bulk", sellerAuth, m.productAttrHandler.BulkUpdateProductAttributes)
 		productAttrRoutes.PUT(

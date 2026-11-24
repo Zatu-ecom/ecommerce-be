@@ -8,6 +8,7 @@ type Config struct {
 	Server        ServerConfig
 	Database      DatabaseConfig
 	Redis         RedisConfig
+	Cache         CacheFlags
 	Auth          AuthConfig
 	App           AppConfig
 	Log           LogConfig

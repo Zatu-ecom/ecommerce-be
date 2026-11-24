@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 
@@ -50,6 +51,14 @@ type WishlistItemService interface {
 		variantIDs []uint,
 		userID uint,
 	) (map[uint]bool, error)
+
+	// GetWishlistItemsByVariantIDs returns wishlist item info for variant IDs.
+	// Returns map of variantID -> []WishlistItemInfo for efficient per-variant enrichment.
+	GetWishlistItemsByVariantIDs(
+		ctx context.Context,
+		variantIDs []uint,
+		userID uint,
+	) (map[uint][]model.WishlistItemInfo, error)
 }
 
 // ============================================================================
@@ -59,21 +68,29 @@ type WishlistItemService interface {
 type wishlistItemServiceImpl struct {
 	wishlistItemRepo prodRepo.WishlistItemRepository
 	wishlistRepo     prodRepo.WishlistRepository
+	variantRepo      prodRepo.VariantRepository
+	productRepo      prodRepo.ProductRepository
 }
 
 // NewWishlistItemService creates a new instance of WishlistItemService
 func NewWishlistItemService(
 	wishlistItemRepo prodRepo.WishlistItemRepository,
 	wishlistRepo prodRepo.WishlistRepository,
+	variantRepo prodRepo.VariantRepository,
+	productRepo prodRepo.ProductRepository,
 ) WishlistItemService {
 	return &wishlistItemServiceImpl{
 		wishlistItemRepo: wishlistItemRepo,
 		wishlistRepo:     wishlistRepo,
+		variantRepo:      variantRepo,
+		productRepo:      productRepo,
 	}
 }
 
 // AddItem adds an item to a wishlist
 // If wishlist has reached MaxWishlistItems (configurable, default 100), removes the oldest item first
+// The req.VariantID is resolved defensively: if the ID is a product ID (not found in the
+// variant table), the product's default variant is used automatically.
 func (s *wishlistItemServiceImpl) AddItem(
 	ctx context.Context,
 	userID, wishlistID uint,
@@ -93,8 +110,14 @@ func (s *wishlistItemServiceImpl) AddItem(
 		return nil, prodErrors.ErrUnauthorizedWishlist
 	}
 
+	// Resolve the variant ID (handles product ID → default variant fallback)
+	variantID, err := s.resolveVariantID(ctx, req.VariantID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if item already exists in wishlist
-	exists, err := s.wishlistItemRepo.ExistsByWishlistIDAndVariantID(ctx, wishlistID, req.VariantID)
+	exists, err := s.wishlistItemRepo.ExistsByWishlistIDAndVariantID(ctx, wishlistID, variantID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +141,7 @@ func (s *wishlistItemServiceImpl) AddItem(
 	// Create wishlist item
 	item := &entity.WishlistItem{
 		WishlistID: wishlistID,
-		VariantID:  req.VariantID,
+		VariantID:  variantID,
 	}
 
 	if err := s.wishlistItemRepo.Create(ctx, item); err != nil {
@@ -131,6 +154,50 @@ func (s *wishlistItemServiceImpl) AddItem(
 		CreatedAt: item.CreatedAt,
 	}, nil
 }
+
+// resolveVariantID resolves an ID to a valid variant ID.
+// If the ID is already a valid variant ID, returns it as-is.
+// If the ID is not a variant but is a valid product ID, finds the product's
+// default variant (IsDefault=true, fallback to lowest ID) and returns that.
+// Returns ErrVariantNotFound if neither a variant nor product is found.
+func (s *wishlistItemServiceImpl) resolveVariantID(ctx context.Context, id uint) (uint, error) {
+	// Try as variant ID first
+	_, err := s.variantRepo.FindVariantByID(ctx, id)
+	if err == nil {
+		return id, nil
+	}
+
+	// If it's not "variant not found", it's a real DB error — propagate it
+	if !errors.Is(err, prodErrors.ErrVariantNotFound) {
+		return 0, err
+	}
+
+	// Try as product ID — find the product's variants and pick the default
+	product, err := s.productRepo.FindByID(ctx, id)
+	if err != nil {
+		// Product not found either — return the original variant-not-found error
+		return 0, prodErrors.ErrVariantNotFound
+	}
+
+	variants, err := s.variantRepo.FindVariantsByProductID(ctx, product.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(variants) == 0 {
+		return 0, prodErrors.ErrVariantNotFound
+	}
+
+	defaultVariant := findDefaultVariantEntity(variants)
+	if defaultVariant == nil {
+		return 0, prodErrors.ErrVariantNotFound
+	}
+
+	return defaultVariant.ID, nil
+}
+
+// findDefaultVariantEntity returns the default variant from a slice.
+// Prefers the variant with IsDefault=true; otherwise returns the one with the lowest ID.
 
 // RemoveItem removes an item from a wishlist
 func (s *wishlistItemServiceImpl) RemoveItem(
@@ -264,4 +331,26 @@ func (s *wishlistItemServiceImpl) AreVariantsInUserWishlist(
 	userID uint,
 ) (map[uint]bool, error) {
 	return s.wishlistItemRepo.AreVariantsInUserWishlist(ctx, variantIDs, userID)
+}
+
+// GetWishlistItemsByVariantIDs returns wishlist item info for variant IDs.
+// Returns map of variantID -> []WishlistItemInfo for efficient per-variant enrichment.
+// Delegates to repository for the raw SQL query.
+func (s *wishlistItemServiceImpl) GetWishlistItemsByVariantIDs(
+	ctx context.Context,
+	variantIDs []uint,
+	userID uint,
+) (map[uint][]model.WishlistItemInfo, error) {
+	items, err := s.wishlistItemRepo.FindWishlistItemsByVariantIDsAndUserID(ctx, variantIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint][]model.WishlistItemInfo)
+	for _, item := range items {
+		result[item.VariantID] = append(result[item.VariantID], model.WishlistItemInfo{
+			WishlistItemID: item.ID,
+			WishlistID:     item.WishlistID,
+		})
+	}
+	return result, nil
 }

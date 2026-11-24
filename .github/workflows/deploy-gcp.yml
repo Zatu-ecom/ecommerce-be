@@ -29,11 +29,11 @@ jobs:
         with:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
-          path: config-repo
+          path: config
 
       - name: Generate .env File
         run: |
-          CONFIG_FILE="config-repo/${{ inputs.target_env }}/backend.env"
+          CONFIG_FILE="config/${{ inputs.target_env }}/backend.env"
           
           if [ ! -f "$CONFIG_FILE" ]; then
             echo "❌ Config file missing: $CONFIG_FILE"
@@ -46,13 +46,13 @@ jobs:
           if [ "${{ inputs.target_env }}" == "prod" ]; then
             echo "DB_USER=${{ secrets.PROD_DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}" >> .env
+            echo "CACHE_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}" >> .env
             echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> .env
             echo "JWT_EXPIRY_HOURS=${{ secrets.PROD_JWT_EXPIRY }}" >> .env
           elif [ "${{ inputs.target_env }}" == "dev" ]; then
             echo "DB_USER=${{ secrets.DEV_DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.DEV_REDIS_PASSWORD }}" >> .env
+            echo "CACHE_PASSWORD=${{ secrets.DEV_REDIS_PASSWORD }}" >> .env
             echo "JWT_SECRET=${{ secrets.DEV_JWT_SECRET }}" >> .env
             echo "JWT_EXPIRY_HOURS=${{ secrets.DEV_JWT_EXPIRY }}" >> .env
           fi

@@ -1,0 +1,79 @@
+# VM-2 (app) — Go backend + volatile Redis + edge Nginx (container). No Postgres here.
+# TLS: certbot container at domain time; until then HTTP-only on :80.
+# Layout on VM: ~/ecommerce-app/{docker-compose.yml,.env,nginx-ecommerce.conf}
+# Image arrives pre-built: ./deploy/ship-image.sh opc@<VM2_PUBLIC_IP>
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ecommerce-nginx
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-ecommerce.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - ecommerce-network
+
+  app:
+    image: ecommerce-backend:${IMAGE_TAG:-latest}
+    container_name: ecommerce-app
+    restart: unless-stopped
+    logging: *default-logging
+    # Localhost-only publish: Nginx on the host is the public front door.
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - .env
+    environment:
+      CACHE_ADDR: cache-volatile:6379
+      KV_ADDR: ${KV_HOST}:${KV_PORT}
+      CACHE_MAXMEMORY: ${CACHE_MAXMEMORY:-64mb}
+      KV_MAXMEMORY: 128mb
+    depends_on:
+      cache-volatile:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    # The app has no anonymous health route (every route needs auth and/or
+    # X-Correlation-ID and "/" is 404), so check that the server accepts TCP.
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Volatile cache: evictable, restart-losable, fail-open. No volume by design.
+  cache-volatile:
+    image: redis:7-alpine
+    container_name: ecommerce-cache-volatile
+    restart: unless-stopped
+    logging: *default-logging
+    command: >
+      redis-server
+      --requirepass ${CACHE_PASSWORD}
+      --maxmemory ${CACHE_MAXMEMORY:-64mb}
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${CACHE_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  ecommerce-network:
+    driver: bridge
+    name: ecommerce-network

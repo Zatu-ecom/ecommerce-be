@@ -102,11 +102,16 @@ func InitLogger(cfg *config.Config) {
 // GetLogger returns the global logger instance
 func GetLogger() *logrus.Logger {
 	if Log == nil {
-		// Fallback: initialize with default config if not initialized
+		// Fallback: initialize with default config if not initialized.
+		// Config may be absent in unit tests — default to non-pretty output.
+		prettyPrint := false
+		if cfg := config.Get(); cfg != nil {
+			prettyPrint = cfg.App.IsLocal()
+		}
 		Log = logrus.New()
 		Log.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-			PrettyPrint:     config.Get().App.IsLocal(),
+			PrettyPrint:     prettyPrint,
 		})
 		Log.AddHook(&CallerHook{})
 		Log.SetOutput(os.Stdout)

@@ -21,4 +21,11 @@ var (
 		Message:    constant.SELLER_SETTINGS_EXISTS_MSG,
 		StatusCode: http.StatusConflict,
 	}
+
+	// ErrInvalidPaymentsEnvironment is returned for unknown checkout modes
+	ErrInvalidPaymentsEnvironment = &commonerrors.AppError{
+		Code:       constant.INVALID_PAYMENTS_ENVIRONMENT_CODE,
+		Message:    constant.INVALID_PAYMENTS_ENVIRONMENT_MSG,
+		StatusCode: http.StatusBadRequest,
+	}
 )

@@ -135,7 +135,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		assert.Equal(t, float64(3), wishlist["itemCount"].(float64), "Wishlist should have 3 items")
+		assert.Equal(t, float64(3), getItemCount(wishlist), "Wishlist should have 3 items")
 	})
 
 	t.Run("HP-ADD-003: Add same variant to different wishlists", func(t *testing.T) {
@@ -359,7 +359,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", michaelWishlistID))
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		assert.Equal(t, float64(0), wishlist["itemCount"].(float64),
+		assert.Equal(t, float64(0), getItemCount(wishlist),
 			"Michael's wishlist should still have 0 items")
 	})
 
@@ -397,7 +397,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w := client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		countBefore := int(wishlist["itemCount"].(float64))
+		countBefore := int(getItemCount(wishlist))
 
 		// Remove item
 		w = client.Delete(
@@ -410,7 +410,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist = helpers.GetResponseData(t, response, "wishlist")
-		countAfter := int(wishlist["itemCount"].(float64))
+		countAfter := int(getItemCount(wishlist))
 		assert.Equal(t, countBefore-1, countAfter, "Item count should decrease by 1")
 	})
 
@@ -655,7 +655,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID2))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		countAfterAdd := int(wishlist["itemCount"].(float64))
+		countAfterAdd := int(getItemCount(wishlist))
 		assert.Greater(t, countAfterAdd, 0, "Should have items after adding")
 
 		// Remove the item
@@ -669,7 +669,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", aliceWishlistID2))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist = helpers.GetResponseData(t, response, "wishlist")
-		countAfterRemove := int(wishlist["itemCount"].(float64))
+		countAfterRemove := int(getItemCount(wishlist))
 		assert.Equal(t, countAfterAdd-1, countAfterRemove, "Item count should decrease by 1")
 
 		// Verify item is gone from database
@@ -704,7 +704,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", testWishlistID))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist := helpers.GetResponseData(t, response, "wishlist")
-		assert.Equal(t, float64(1), wishlist["itemCount"].(float64), "Should have 1 item")
+		assert.Equal(t, float64(1), getItemCount(wishlist), "Should have 1 item")
 
 		// Remove item
 		w = client.Delete(
@@ -717,7 +717,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		w = client.Get(t, fmt.Sprintf("/api/product/wishlist/%d", testWishlistID))
 		response = helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		wishlist = helpers.GetResponseData(t, response, "wishlist")
-		assert.Equal(t, float64(0), wishlist["itemCount"].(float64), "Should have 0 items")
+		assert.Equal(t, float64(0), getItemCount(wishlist), "Should have 0 items")
 	})
 
 	t.Run("INT-003: Multiple users can have same variant in their wishlists", func(t *testing.T) {
@@ -745,7 +745,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		aliceWishlistData := helpers.GetResponseData(t, response, "wishlist")
 		assert.Greater(
 			t,
-			aliceWishlistData["itemCount"].(float64),
+			getItemCount(aliceWishlistData),
 			float64(0),
 			"Alice should have items",
 		)
@@ -756,7 +756,7 @@ func TestAddAndRemoveWishlistItem(t *testing.T) {
 		michaelWishlistData := helpers.GetResponseData(t, response, "wishlist")
 		assert.Greater(
 			t,
-			michaelWishlistData["itemCount"].(float64),
+			getItemCount(michaelWishlistData),
 			float64(0),
 			"Michael should have items",
 		)

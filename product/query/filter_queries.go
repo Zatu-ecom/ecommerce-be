@@ -3,18 +3,18 @@ package query
 // Filter subquery constants for product filtering
 // These are reusable WHERE clause fragments used in FindAll and Search operations
 const (
-	// FILTER_PRICE_MIN_SUBQUERY filters products by minimum variant price
+	// FILTER_PRICE_MIN_SUBQUERY filters products by minimum variant price (cents)
 	FILTER_PRICE_MIN_SUBQUERY = `EXISTS (
 		SELECT 1 FROM product_variant pv 
 		WHERE pv.product_id = product.id 
-		AND pv.price >= ?
+		AND pv.price_cents >= ?
 	)`
 
-	// FILTER_PRICE_MAX_SUBQUERY filters products by maximum variant price
+	// FILTER_PRICE_MAX_SUBQUERY filters products by maximum variant price (cents)
 	FILTER_PRICE_MAX_SUBQUERY = `EXISTS (
 		SELECT 1 FROM product_variant pv 
 		WHERE pv.product_id = product.id 
-		AND pv.price <= ?
+		AND pv.price_cents <= ?
 	)`
 
 	// FILTER_IN_STOCK_SUBQUERY filters products that have at least one purchasable variant

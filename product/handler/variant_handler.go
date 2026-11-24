@@ -3,11 +3,11 @@ package handler
 import (
 	"net/http"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/constants"
 	commonError "ecommerce-be/common/error"
 	"ecommerce-be/common/handler"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/service"
 	"ecommerce-be/product/utils"
@@ -317,7 +317,7 @@ func (h *VariantHandler) BulkUpdateVariants(c *gin.Context) {
 	}
 
 	// Return success response
-	common.SuccessResponse(
+	commonModel.SuccessResponse(
 		c,
 		http.StatusOK,
 		utils.VARIANTS_BULK_UPDATED_MSG,
@@ -378,7 +378,7 @@ func (h *VariantHandler) ListVariants(c *gin.Context) {
 	}
 
 	// Success response with pagination metadata
-	common.SuccessResponse(
+	commonModel.SuccessResponse(
 		c,
 		http.StatusOK,
 		utils.VARIANT_RETRIEVED_MSG,

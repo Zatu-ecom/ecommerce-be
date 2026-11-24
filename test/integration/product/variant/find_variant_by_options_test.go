@@ -53,7 +53,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		// Assert response fields
 		assert.NotNil(t, variant["id"])
 		assert.Equal(t, "IPHONE-15-PRO-NAT-128", variant["sku"])
-		assert.Equal(t, 999.00, variant["price"])
+		assert.Equal(t, 999.00, moneyAmount(variant["price"]))
 		assert.NotNil(t, variant["selectedOptions"])
 
 		// Verify selected options
@@ -79,7 +79,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 		// Assert response fields
 		assert.Equal(t, "NIKE-TSHIRT-BLK-M", variant["sku"])
-		assert.Equal(t, 29.99, variant["price"])
+		assert.Equal(t, 29.99, moneyAmount(variant["price"]))
 		assert.Equal(t, true, variant["isDefault"])
 		assert.Equal(t, true, variant["isPopular"])
 
@@ -119,7 +119,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, "MBP-16-M3-SB-16-512", variant["sku"])
-		assert.Equal(t, 2499.00, variant["price"])
+		assert.Equal(t, 2499.00, moneyAmount(variant["price"]))
 
 		selectedOptions, ok := variant["selectedOptions"].([]any)
 		assert.True(t, ok)
@@ -175,7 +175,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, "NIKE-TSHIRT-WHT-M", variant["sku"])
-		assert.Equal(t, 29.99, variant["price"])
+		assert.Equal(t, 29.99, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Success - Admin finding any product variant", func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestFindVariantByOptions(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, "SAMSUNG-S24-BLK-128", variant["sku"])
-		assert.Equal(t, 799.00, variant["price"])
+		assert.Equal(t, 799.00, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Success - Find non-default variant", func(t *testing.T) {
@@ -588,7 +588,7 @@ func TestFindVariantByOptions(t *testing.T) {
 
 			// Should get the 256GB variant, not the 128GB one
 			assert.Equal(t, "IPHONE-15-PRO-NAT-256", variant["sku"])
-			assert.Equal(t, 1099.00, variant["price"]) // 256GB costs more than 128GB
+			assert.Equal(t, 1099.00, moneyAmount(variant["price"])) // 256GB costs more than 128GB
 		},
 	)
 

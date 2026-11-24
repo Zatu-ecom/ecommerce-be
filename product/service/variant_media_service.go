@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-be/common/log"
 	"ecommerce-be/product/entity"
+	"ecommerce-be/product/cache"
 	productError "ecommerce-be/product/error"
 	"ecommerce-be/product/model"
 	"ecommerce-be/product/repository"
@@ -61,7 +62,35 @@ type variantMediaService struct {
 	variantRepo repository.VariantRepository
 	productRepo repository.ProductRepository
 	fileGateway ProductFileGateway
+	// productCache is the optional detail cache strategy (012). Nil disables
+	// invalidation hooks; wired by the factory via SetProductCache.
+	productCache *cache.ProductCache
 }
+
+// SetProductCache attaches the detail cache strategy. Safe to call with nil
+// (disables invalidation hooks). Called once by the factory after construction.
+func (s *variantMediaService) SetProductCache(c *cache.ProductCache) {
+	s.productCache = c
+}
+
+// invalidateTree clears a product entry, all its variants, and retires lists.
+// Call AFTER DB commit.
+func (s *variantMediaService) invalidateTree(ctx context.Context, sellerID, productID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateProductTree(ctx, sellerID, productID)
+}
+
+// invalidateVariant clears one variant entry, its parent, and retires lists.
+// Call AFTER DB commit.
+func (s *variantMediaService) invalidateVariant(ctx context.Context, sellerID, productID, variantID uint) {
+	if s.productCache == nil {
+		return
+	}
+	s.productCache.InvalidateVariant(ctx, sellerID, productID, variantID)
+}
+
 
 // NewVariantMediaService returns a VariantMediaService backed by GORM repositories
 // and the shared ProductFileGateway.
@@ -188,6 +217,7 @@ func (s *variantMediaService) AttachMedia(
 		return nil, err
 	}
 
+	s.invalidateVariant(ctx, sellerID, productID, variantID)
 	return &model.VariantMediaResponse{
 		FileID:       media.FileID,
 		URL:          fileInfo.URL,
@@ -258,6 +288,7 @@ func (s *variantMediaService) UpdateMediaMetadata(
 		resp.ThumbnailURL = fi.ThumbnailURL
 	}
 
+	s.invalidateVariant(ctx, sellerID, productID, variantID)
 	return resp, nil
 }
 
@@ -321,5 +352,6 @@ func (s *variantMediaService) RemoveMedia(
 		)
 	}
 
+	s.invalidateVariant(ctx, sellerID, productID, variantID)
 	return nil
 }

@@ -19,11 +19,54 @@ type RabbitMQContainer struct {
 	ctx        context.Context
 }
 
-// SetupRabbitMQContainer boots RabbitMQ and returns a live AMQP connection.
+// SetupRabbitMQContainer returns a handle on the process-wide shared broker
+// with a fresh AMQP connection per caller. The broker boots once per `go
+// test` package process; Ryuk reaps it at process exit. Queues remain
+// caller-owned: suites declare their queues and drain them in teardown.
 func SetupRabbitMQContainer(t *testing.T) *RabbitMQContainer {
 	t.Helper()
 
 	ctx := context.Background()
+	sharedRabbitMu.Lock()
+	defer sharedRabbitMu.Unlock()
+
+	if sharedRabbitContainer != nil {
+		conn, err := amqp.Dial(sharedRabbitContainer.AMQPURL)
+		if err == nil {
+			return &RabbitMQContainer{
+				Container:  sharedRabbitContainer.Container,
+				AMQPURL:    sharedRabbitContainer.AMQPURL,
+				Connection: conn,
+				ctx:        ctx,
+			}
+		}
+		t.Logf("shared rabbitmq unreachable; starting a replacement")
+		_ = sharedRabbitContainer.Container.Terminate(ctx)
+		sharedRabbitContainer = nil
+	}
+
+	container, amqpURL := startRabbitMQBroker(t, ctx)
+	conn, err := amqp.Dial(amqpURL)
+	if err != nil {
+		_ = container.Terminate(ctx)
+		t.Fatalf("failed to connect rabbitmq amqp: %v", err)
+	}
+	sharedRabbitContainer = &RabbitMQContainer{
+		Container: container,
+		AMQPURL:   amqpURL,
+		ctx:       ctx,
+	}
+	return &RabbitMQContainer{
+		Container:  container,
+		AMQPURL:    amqpURL,
+		Connection: conn,
+		ctx:        ctx,
+	}
+}
+
+// startRabbitMQBroker boots one RabbitMQ container and returns it with its URL.
+func startRabbitMQBroker(t *testing.T, ctx context.Context) (testcontainers.Container, string) {
+	t.Helper()
 	container, err := testcontainers.GenericContainer(
 		ctx,
 		testcontainers.GenericContainerRequest{
@@ -51,22 +94,11 @@ func SetupRabbitMQContainer(t *testing.T) *RabbitMQContainer {
 		t.Fatalf("failed to resolve rabbitmq mapped port: %v", err)
 	}
 
-	amqpURL := fmt.Sprintf("amqp://guest:guest@%s:%s/", host, port.Port())
-	conn, err := amqp.Dial(amqpURL)
-	if err != nil {
-		_ = container.Terminate(ctx)
-		t.Fatalf("failed to connect rabbitmq amqp: %v", err)
-	}
-
-	return &RabbitMQContainer{
-		Container:  container,
-		AMQPURL:    amqpURL,
-		Connection: conn,
-		ctx:        ctx,
-	}
+	return container, fmt.Sprintf("amqp://guest:guest@%s:%s/", host, port.Port())
 }
 
-// Cleanup closes AMQP connection and container.
+// Cleanup closes this handle's AMQP connection. The shared broker stays up
+// for the next suite in this process; Ryuk reaps it at process exit.
 func (r *RabbitMQContainer) Cleanup(t *testing.T) {
 	t.Helper()
 	if r == nil {
@@ -74,8 +106,5 @@ func (r *RabbitMQContainer) Cleanup(t *testing.T) {
 	}
 	if r.Connection != nil && !r.Connection.IsClosed() {
 		_ = r.Connection.Close()
-	}
-	if r.Container != nil {
-		_ = r.Container.Terminate(r.ctx)
 	}
 }

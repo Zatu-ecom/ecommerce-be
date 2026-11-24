@@ -57,9 +57,9 @@ type SummaryMetrics struct {
 }
 
 type TrendMetric struct {
-	Date         string  `gorm:"column:date"`
-	TotalRevenue float64 `gorm:"column:total_revenue"`
-	TotalOrders  int     `gorm:"column:total_orders"`
+	Date         string `gorm:"column:date"`
+	TotalRevenue int64  `gorm:"column:total_revenue"`
+	TotalOrders  int    `gorm:"column:total_orders"`
 }
 
 type ReportRepository interface {
@@ -149,7 +149,7 @@ func (r *reportRepository) GetSalesTrendsMetrics(
 
 	selectQuery := fmt.Sprintf(
 		"TO_CHAR(%s, 'YYYY-MM-DD HH24:MI:SS') as date, "+
-			"COALESCE(SUM(total_cents)/100.0, 0) as total_revenue, "+
+			"COALESCE(SUM(total_cents), 0) as total_revenue, "+
 			"COUNT(id) as total_orders",
 		bucketExpr,
 	)

@@ -1,6 +1,8 @@
 package model
 
-import "ecommerce-be/common"
+import (
+	commonModel "ecommerce-be/common/model"
+)
 
 // StockStatus represents the inventory status at location/product/variant level
 type StockStatus string
@@ -42,6 +44,6 @@ type LocationSummaryResponse struct {
 
 // LocationsSummaryResponse represents the paginated response for location summaries
 type LocationsSummaryResponse struct {
-	Locations  []LocationSummaryResponse `json:"locations"`
-	Pagination common.PaginationResponse `json:"pagination"`
+	Locations  []LocationSummaryResponse      `json:"locations"`
+	Pagination commonModel.PaginationResponse `json:"pagination"`
 }

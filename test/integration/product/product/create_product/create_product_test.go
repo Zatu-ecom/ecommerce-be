@@ -92,7 +92,7 @@ func TestCreateProduct(t *testing.T) {
 		variant := variants[0].(map[string]any)
 		assert.NotNil(t, variant["id"])
 		assert.Equal(t, "TEST-SINGLE-001-V1", variant["sku"])
-		assert.Equal(t, 99.99, variant["price"])
+		assert.Equal(t, 99.99, moneyAmount(variant["price"]))
 
 		// Verify option created
 		selectedOptions, ok := variant["selectedOptions"].([]any)
@@ -131,7 +131,7 @@ func TestCreateProduct(t *testing.T) {
 		assert.Equal(t, "Simple Product - Price Only", product["name"])
 		assert.Equal(t, "TEST-SIMPLE-001", product["sku"])
 		assert.Equal(t, false, product["hasVariants"])
-		assert.Equal(t, 49.99, product["price"])
+		assert.Equal(t, 49.99, moneyAmount(product["price"]))
 		assert.Equal(t, true, product["allowPurchase"])
 
 		variants, ok := product["variants"].([]any)
@@ -359,7 +359,7 @@ func TestCreateProduct(t *testing.T) {
 		var foundLowPrice, foundHighPrice bool
 		for _, v := range variants {
 			variant := v.(map[string]any)
-			price := variant["price"].(float64)
+			price := moneyAmount(variant["price"])
 			if price == 1299.99 {
 				foundLowPrice = true
 			}
@@ -619,10 +619,10 @@ func TestCreateProduct(t *testing.T) {
 		}
 
 		assert.Contains(t, packageMap, "Extended Warranty")
-		assert.Equal(t, 49.99, packageMap["Extended Warranty"]["price"])
+		assert.Equal(t, 49.99, moneyAmount(packageMap["Extended Warranty"]["price"]))
 
 		assert.Contains(t, packageMap, "Screen Protector")
-		assert.Equal(t, 9.99, packageMap["Screen Protector"]["price"])
+		assert.Equal(t, 9.99, moneyAmount(packageMap["Screen Protector"]["price"]))
 	})
 
 	t.Run("Success - Create product with product attributes", func(t *testing.T) {
@@ -773,7 +773,7 @@ func TestCreateProduct(t *testing.T) {
 			if pkg["name"] == "Care Package" {
 				foundCarePackage = true
 				assert.Equal(t, "Complete protection package", pkg["description"])
-				assert.Equal(t, 99.99, pkg["price"])
+				assert.Equal(t, 99.99, moneyAmount(pkg["price"]))
 				assert.Equal(t, float64(1), pkg["quantity"])
 			}
 		}

@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
+	"ecommerce-be/common/cachekit/provider"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/cron"
 	"ecommerce-be/common/db"
@@ -17,6 +19,7 @@ import (
 	"ecommerce-be/common/middleware"
 	"ecommerce-be/common/scheduler"
 	fileModule "ecommerce-be/file"
+	"ecommerce-be/fulfillment"
 	"ecommerce-be/inventory"
 	"ecommerce-be/notification"
 	"ecommerce-be/order"
@@ -50,8 +53,11 @@ func main() {
 	/* Connect Database */
 	db.ConnectDB(cfg)
 
-	/* Connect Redis */
-	cache.ConnectRedis(cfg)
+	/* Wire cachekit role clients (012). Volatile construction never blocks
+	boot; durable health gates the scheduler worker pool at startup. */
+	cachekit.SetDefaultCache(provider.NewCache(cfg.Redis))
+	cachekit.SetDefaultDurable(provider.NewDurable(cfg.Redis))
+	cachekit.SetTokenDenylist(cachekit.NewTokenDenylist(cachekit.DefaultDurable()))
 
 	/* Initialize Cron Scheduler */
 	cron.Init()
@@ -61,11 +67,30 @@ func main() {
 
 	// Use gin.New() instead of gin.Default() to disable default logging
 	router := gin.New()
+
+	// Trust X-Forwarded-For/X-Real-IP only from the configured proxy range
+	// (the nginx hop) so the IP rate limiter sees real client IPs (T053).
+	if tp := strings.TrimSpace(cfg.Server.TrustedProxies); tp != "" {
+		proxies := make([]string, 0)
+		for _, p := range strings.Split(tp, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				proxies = append(proxies, p)
+			}
+		}
+		if err := router.SetTrustedProxies(proxies); err != nil {
+			logger.Warn("Invalid TRUSTED_PROXIES; using Gin default proxy trust")
+		}
+	}
+
 	router.Use(gin.Recovery()) // Add recovery middleware
 
 	/* Apply middleware */
 	router.Use(middleware.CORS())
-	router.Use(middleware.CorrelationID()) // Mandatory correlation ID middleware
+	router.Use(middleware.UnlessSkipped(
+		middleware.CorrelationIDWebhookSkipRules,
+		middleware.CorrelationID(),
+		middleware.GenerateCorrelationID(),
+	))
 	router.Use(middleware.Logger())
 
 	/* Register modules */
@@ -117,9 +142,9 @@ func gracefulShutdown(srv *http.Server) {
 	logger.Info("Closing database connections...")
 	db.CloseDB()
 
-	// Close Redis connections
-	logger.Info("Closing Redis connections...")
-	cache.CloseRedis()
+	// Close cache backend connections
+	logger.Info("Closing cache connections...")
+	cachekit.CloseDefaults()
 
 	// Stop Cron Scheduler
 	cron.Stop()
@@ -134,6 +159,7 @@ func registerContainer(router *gin.Engine) {
 	_ = inventory.NewContainer(router)
 	_ = order.NewContainer(router)
 	_ = payment.NewContainer(router)
+	_ = fulfillment.NewContainer(router)
 	_ = notification.NewContainer(router)
 	_ = promotion.NewContainer(router)
 	_ = report.NewContainer(router)

@@ -465,16 +465,35 @@ func (r *InventoryRepositoryImpl) GetVariantInventoriesAtLocationWithSort(
 	return results, nil
 }
 
-// IncrementReservedQuantity atomically increments/decrements reserved_quantity
-// Use negative delta to release reserved stock
+// IncrementReservedQuantity atomically increments/decrements reserved_quantity.
+// Positive deltas require available stock (quantity - reserved_quantity >= delta).
+// Negative deltas require reserved_quantity >= abs(delta). Zero rows updated
+// yields ErrInsufficientStock or ErrInsufficientReservedStock.
 func (r *InventoryRepositoryImpl) IncrementReservedQuantity(
 	ctx context.Context,
 	inventoryID uint,
 	delta int,
 ) error {
-	return db.DB(ctx).Model(&entity.Inventory{}).
-		Where("id = ?", inventoryID).
-		Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta)).Error
+	if delta == 0 {
+		return nil
+	}
+	q := db.DB(ctx).Model(&entity.Inventory{}).Where("id = ?", inventoryID)
+	if delta > 0 {
+		q = q.Where("quantity - reserved_quantity >= ?", delta)
+	} else {
+		q = q.Where("reserved_quantity >= ?", -delta)
+	}
+	result := q.Update("reserved_quantity", gorm.Expr("reserved_quantity + ?", delta))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		if delta > 0 {
+			return invErrors.ErrInsufficientStock
+		}
+		return invErrors.ErrInsufficientReservedStock
+	}
+	return nil
 }
 
 // FindWithFilters retrieves inventories with filters, pagination and sorting

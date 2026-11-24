@@ -49,7 +49,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.Equal(t, float64(variantID), variant["id"])
 		assert.Equal(t, float64(productID), variant["productId"])
 		assert.Equal(t, "NIKE-TSHIRT-BLK-M", variant["sku"])
-		assert.Equal(t, 29.99, variant["price"])
+		assert.Equal(t, 29.99, moneyAmount(variant["price"]))
 		assert.NotNil(t, variant["product"], "Should include product info")
 		assert.NotNil(t, variant["selectedOptions"])
 		assert.NotNil(t, variant["createdAt"])
@@ -72,7 +72,7 @@ func TestGetVariantByID(t *testing.T) {
 		// Assert complete variant detail response
 		assert.Equal(t, float64(variantID), variant["id"])
 		assert.Equal(t, "IPHONE-15-PRO-NAT-128", variant["sku"])
-		assert.Equal(t, 999.00, variant["price"])
+		assert.Equal(t, 999.00, moneyAmount(variant["price"]))
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
@@ -99,7 +99,7 @@ func TestGetVariantByID(t *testing.T) {
 		assert.Len(t, selectedOptions, 3, "MacBook should have 3 options: Color, Memory, Storage")
 
 		assert.Equal(t, "MBP-16-M3-SB-16-512", variant["sku"])
-		assert.Equal(t, 2499.00, variant["price"])
+		assert.Equal(t, 2499.00, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Success - Get default variant", func(t *testing.T) {
@@ -555,10 +555,8 @@ func TestGetVariantByID(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		// Price should be float64 in JSON
-		price, ok := variant["price"].(float64)
-		assert.True(t, ok, "price should be a float64")
-		assert.Equal(t, 29.99, price)
+		// Price should be a nested Money object in JSON
+		assert.InDelta(t, 29.99, moneyAmount(variant["price"]), 0.0001)
 	})
 
 	// ============================================================================

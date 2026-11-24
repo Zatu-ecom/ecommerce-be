@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"ecommerce-be/common/cache"
+	"ecommerce-be/common/cachekit"
 	"ecommerce-be/common/scheduler"
 	"ecommerce-be/file/utils/constant"
 )
@@ -80,7 +80,7 @@ func (s *uploadExpiryScheduler) Schedule(
 	}
 
 	job := scheduler.NewJob(
-		constant.SchedulerCommandUploadExpiry, 
+		constant.SchedulerCommandUploadExpiry,
 		json.RawMessage(payloadBytes),
 	)
 
@@ -90,10 +90,17 @@ func (s *uploadExpiryScheduler) Schedule(
 		return "", fmt.Errorf("upload expiry scheduler: schedule: %w", err)
 	}
 
-	// Cache the jobID so Cancel can retrieve it later.
+	// Persist the queue-side jobID for Cancel on DURABLE KV (FR-016):
+	// scheduler pointers are correctness state and must survive eviction
+	// and restart. Durable is mandatory here — without it uploads cannot be
+	// cancelled later, so fail the schedule instead of hiding the outage.
+	d := cachekit.DefaultDurable()
+	if d == nil {
+		return "", fmt.Errorf("upload expiry scheduler: durable KV unwired")
+	}
 	cacheTTL := delay + constant.CacheBufferDuration
 	cacheKey := s.cacheKey(fileObjectID, sellerID)
-	cache.Set(cacheKey, jobID, cacheTTL)
+	_ = d.Set(ctx, cacheKey, []byte(jobID), cacheTTL)
 
 	return jobID, nil
 }
@@ -108,14 +115,10 @@ func (s *uploadExpiryScheduler) Cancel(
 ) error {
 	cacheKey := s.cacheKey(fileObjectID, sellerID)
 
-	jobID, err := cache.Get(cacheKey)
-	if err != nil {
-		// Cache miss (TTL expired or Redis unavailable). Log and return nil — the
-		// scheduler handler is idempotent against ACTIVE rows (FR-029).
-		return nil
-	}
-
+	jobID := s.queuedJobID(ctx, cacheKey)
 	if jobID == "" {
+		// Pointer miss (TTL expired or store unavailable). Return nil — the
+		// scheduler handler is idempotent against ACTIVE rows (FR-029).
 		return nil
 	}
 
@@ -123,8 +126,24 @@ func (s *uploadExpiryScheduler) Cancel(
 		return fmt.Errorf("upload expiry scheduler: cancel: %w", err)
 	}
 
-	cache.Del(cacheKey)
+	if d := cachekit.DefaultDurable(); d != nil {
+		_ = d.Del(ctx, cacheKey)
+	}
 	return nil
+}
+
+// queuedJobID resolves the queue-side job ID from durable KV. Misses (TTL
+// expiry, already-run jobs) return "" and Cancel short-circuits to nil.
+func (s *uploadExpiryScheduler) queuedJobID(ctx context.Context, cacheKey string) string {
+	d := cachekit.DefaultDurable()
+	if d == nil {
+		return ""
+	}
+	b, err := d.Get(ctx, cacheKey)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // cacheKey returns the Redis key for the expiry job ID.

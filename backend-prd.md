@@ -2803,10 +2803,8 @@ DB_PASSWORD=password
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=24h
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+# KV roles (volatile cache + durable KV). Must be non-empty for compose.
+CACHE_PASSWORD=
 
 # Server
 PORT=8080

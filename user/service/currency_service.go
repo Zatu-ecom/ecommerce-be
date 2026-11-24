@@ -4,8 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/helper"
+	commonModel "ecommerce-be/common/model"
+	usercache "ecommerce-be/user/cache"
 	"ecommerce-be/user/entity"
 	userErrors "ecommerce-be/user/error"
 	"ecommerce-be/user/factory"
@@ -45,6 +46,27 @@ type CurrencyService interface {
 // CurrencyServiceImpl implements the CurrencyService interface
 type CurrencyServiceImpl struct {
 	currencyRepo repository.CurrencyRepository
+	// geoCache is the optional geo reference strategy (012). Nil disables
+	// caching; wired by the factory via SetGeoCache.
+	geoCache *usercache.GeoCache
+}
+
+// SetGeoCache attaches the geo reference strategy. Safe to call with nil
+// (disables caching). Called once by the factory after construction.
+func (s *CurrencyServiceImpl) SetGeoCache(c *usercache.GeoCache) {
+	s.geoCache = c
+}
+
+// isDefaultCurrencyFilter reports whether a list request matches the cached
+// default shape: active-only public view, first page, default page size.
+func isDefaultCurrencyFilter(filter model.CurrencyQueryParams, includeInactive bool) bool {
+	if includeInactive || filter.IsActive != nil {
+		return false
+	}
+	if filter.Page > 1 {
+		return false
+	}
+	return filter.Limit <= 0 || filter.Limit == 50
 }
 
 // NewCurrencyService creates a new instance of CurrencyService
@@ -59,6 +81,20 @@ func NewCurrencyService(
 // GetAllCurrencies retrieves all currencies with optional filters
 // includeInactive: false for public API (only active), true for admin API
 func (s *CurrencyServiceImpl) GetAllCurrencies(
+	ctx context.Context,
+	filter model.CurrencyQueryParams,
+	includeInactive bool,
+) (*model.CurrencyListResponse, error) {
+	if s.geoCache != nil && isDefaultCurrencyFilter(filter, includeInactive) {
+		return s.geoCache.GetDefaultCurrencyList(ctx, func(ctx context.Context) (*model.CurrencyListResponse, error) {
+			return s.loadAllCurrencies(ctx, filter, includeInactive)
+		})
+	}
+	return s.loadAllCurrencies(ctx, filter, includeInactive)
+}
+
+// loadAllCurrencies runs the list query without caching.
+func (s *CurrencyServiceImpl) loadAllCurrencies(
 	ctx context.Context,
 	filter model.CurrencyQueryParams,
 	includeInactive bool,
@@ -92,7 +128,7 @@ func (s *CurrencyServiceImpl) GetAllCurrencies(
 
 	return &model.CurrencyListResponse{
 		Currencies: currencyResponses,
-		Pagination: common.PaginationResponse{
+		Pagination: commonModel.PaginationResponse{
 			CurrentPage:  filter.Page,
 			ItemsPerPage: filter.Limit,
 			TotalItems:   totalItems,
@@ -105,6 +141,19 @@ func (s *CurrencyServiceImpl) GetAllCurrencies(
 
 // GetCurrencyByID retrieves a currency by ID with its countries
 func (s *CurrencyServiceImpl) GetCurrencyByID(
+	ctx context.Context,
+	id uint,
+) (*model.CurrencyDetailResponse, error) {
+	if s.geoCache != nil {
+		return s.geoCache.GetCurrencyByID(ctx, id, func(ctx context.Context) (*model.CurrencyDetailResponse, error) {
+			return s.loadCurrencyByID(ctx, id)
+		})
+	}
+	return s.loadCurrencyByID(ctx, id)
+}
+
+// loadCurrencyByID reads one currency with countries without caching.
+func (s *CurrencyServiceImpl) loadCurrencyByID(
 	ctx context.Context,
 	id uint,
 ) (*model.CurrencyDetailResponse, error) {
@@ -149,6 +198,9 @@ func (s *CurrencyServiceImpl) CreateCurrency(
 	// Save to database
 	if err := s.currencyRepo.Create(ctx, currency); err != nil {
 		return nil, err
+	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCurrency(ctx, currency.ID)
 	}
 
 	// Build response
@@ -204,6 +256,9 @@ func (s *CurrencyServiceImpl) UpdateCurrency(
 	if err := s.currencyRepo.Update(ctx, currency); err != nil {
 		return nil, err
 	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCurrency(ctx, id)
+	}
 
 	// Build response
 	response := factory.BuildCurrencyResponse(currency)
@@ -219,5 +274,11 @@ func (s *CurrencyServiceImpl) DeleteCurrency(ctx context.Context, id uint) error
 	}
 
 	// Delete currency (soft delete via GORM)
-	return s.currencyRepo.Delete(ctx, id)
+	if err := s.currencyRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	if s.geoCache != nil {
+		s.geoCache.InvalidateCurrency(ctx, id)
+	}
+	return nil
 }

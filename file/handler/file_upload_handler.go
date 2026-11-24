@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/constants"
 	baseHandler "ecommerce-be/common/handler"
 	"ecommerce-be/common/log"
+	commonModel "ecommerce-be/common/model"
 	"ecommerce-be/file/model"
 	"ecommerce-be/file/service"
 	"ecommerce-be/file/utils"
@@ -54,11 +54,11 @@ func (h *FileUploadHandler) InitUpload(c *gin.Context) {
 	var idempotencyKey *string
 	if idemKey != "" {
 		if !utils.ValidateIdempotencyKey(idemKey) {
-			common.ErrorWithValidation(
+			commonModel.ErrorWithValidation(
 				c,
 				http.StatusBadRequest,
 				constants.VALIDATION_FAILED_MSG,
-				[]common.ValidationError{
+				[]commonModel.ValidationError{
 					{
 						Field:   "Idempotency-Key",
 						Message: "Idempotency-Key must be 8..128 characters and contain only A-Z, a-z, 0-9, '.', '_', '~', or '-'",

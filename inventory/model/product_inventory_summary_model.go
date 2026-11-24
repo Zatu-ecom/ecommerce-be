@@ -1,6 +1,8 @@
 package model
 
-import "ecommerce-be/common"
+import (
+	commonModel "ecommerce-be/common/model"
+)
 
 // =========================================================================
 // Endpoint: GET /api/inventory/locations/{locationId}/products
@@ -10,7 +12,7 @@ import "ecommerce-be/common"
 // ProductsAtLocationParams represents path and query parameters
 type ProductsAtLocationParams struct {
 	LocationID uint `uri:"locationId" binding:"required"`
-	common.BaseListParams
+	commonModel.BaseListParams
 }
 
 // ProductsAtLocationFilter represents optional filter parameters
@@ -45,10 +47,10 @@ type ProductAtLocationResponse struct {
 
 // ProductsAtLocationResponse represents the paginated response
 type ProductsAtLocationResponse struct {
-	LocationID   uint                      `json:"locationId"`
-	LocationName string                    `json:"locationName"`
-	Products     []ProductInventorySummary `json:"products"`
-	Pagination   common.PaginationResponse `json:"pagination"`
+	LocationID   uint                           `json:"locationId"`
+	LocationName string                         `json:"locationName"`
+	Products     []ProductInventorySummary      `json:"products"`
+	Pagination   commonModel.PaginationResponse `json:"pagination"`
 }
 
 // =========================================================================
@@ -66,7 +68,7 @@ type VariantInventoryParams struct {
 // VariantInventoryFilter represents query parameters for filtering variants (API 3)
 // Embeds BaseListParams for sorting (pagination ignored for this API)
 type VariantInventoryFilter struct {
-	common.BaseListParams
+	commonModel.BaseListParams
 	StockStatus string `form:"stockStatus" binding:"omitempty,oneof=all IN_STOCK LOW_STOCK OUT_OF_STOCK"`
 	Search      string `form:"search"      binding:"omitempty,max=100"`
 }

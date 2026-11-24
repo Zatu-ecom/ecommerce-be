@@ -15,7 +15,9 @@ const (
 // GatewayCredentials represents encrypted gateway credentials
 type GatewayCredentials = db.JSONMap
 
-// PaymentGatewayConfig represents seller's gateway configuration
+// PaymentGatewayConfig represents seller's gateway configuration.
+// One row per (seller, gateway, environment). Geo is resolved from the
+// gateway catalog join tables plus seller_settings — never stored here.
 type PaymentGatewayConfig struct {
 	db.BaseEntity
 	SellerID    uint               `json:"sellerId"    gorm:"column:seller_id;not null;index"`
@@ -24,7 +26,6 @@ type PaymentGatewayConfig struct {
 	Credentials GatewayCredentials `json:"credentials" gorm:"column:credentials;type:jsonb;not null"`
 	IsActive    bool               `json:"isActive"    gorm:"column:is_active;default:true"`
 	Priority    int                `json:"priority"    gorm:"column:priority;default:0"`
-	Country     string             `json:"country"     gorm:"column:country;size:2;not null"`
 
 	// Relationships
 	Gateway *PaymentGateway `json:"gateway,omitempty" gorm:"foreignKey:GatewayID"`

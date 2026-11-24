@@ -59,7 +59,7 @@ func TestCreateVariant(t *testing.T) {
 		assert.NotNil(t, variant["id"])
 		assert.Equal(t, float64(productID), variant["productId"])
 		assert.Equal(t, "NIKE-TSHIRT-NAVY-XL", variant["sku"])
-		assert.Equal(t, 29.99, variant["price"])
+		assert.Equal(t, 29.99, moneyAmount(variant["price"]))
 		assert.NotNil(t, variant["createdAt"])
 		assert.NotNil(t, variant["updatedAt"])
 
@@ -95,7 +95,7 @@ func TestCreateVariant(t *testing.T) {
 
 		// Assert all fields
 		assert.Equal(t, "NIKE-TSHIRT-GRAY-XL", variant["sku"])
-		assert.Equal(t, 34.99, variant["price"])
+		assert.Equal(t, 34.99, moneyAmount(variant["price"]))
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 		assert.False(t, variant["isDefault"].(bool))
@@ -167,7 +167,7 @@ func TestCreateVariant(t *testing.T) {
 		assert.Len(t, selectedOptions, 3, "Should have 3 selected options")
 
 		assert.Equal(t, "MBP-16-M3-SB-32-1TB", variant["sku"])
-		assert.Equal(t, 2999.00, variant["price"])
+		assert.Equal(t, 2999.00, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Success - Variant creation response includes empty media array", func(t *testing.T) {
@@ -838,7 +838,7 @@ func TestCreateVariant(t *testing.T) {
 		assert.NotNil(t, variant["id"])
 		assert.Equal(t, float64(productID), variant["productId"])
 		assert.Equal(t, "ZARA-DRESS-WHITE-M-ADMIN", variant["sku"])
-		assert.Equal(t, 49.99, variant["price"])
+		assert.Equal(t, 49.99, moneyAmount(variant["price"]))
 
 		// Verify selected options
 		selectedOptions, ok := variant["selectedOptions"].([]any)
@@ -1007,7 +1007,7 @@ func TestCreateVariant(t *testing.T) {
 		product := helpers.GetResponseData(t, getResp, "product")
 
 		assert.Equal(t, true, product["hasVariants"])
-		assert.Equal(t, 64.99, product["price"])
+		assert.Equal(t, 64.99, moneyAmount(product["price"]))
 
 		variants, ok := product["variants"].([]any)
 		assert.True(t, ok, "variants should be an array")

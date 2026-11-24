@@ -22,12 +22,14 @@ type OrderRepository interface {
 	CreateOrderItems(ctx context.Context, items []entity.OrderItem) error
 	CreateOrderAddresses(ctx context.Context, addresses []entity.OrderAddress) error
 	CreateOrderAppliedPromotions(ctx context.Context, promos []entity.OrderAppliedPromotion) error
+	CreateOrderAppliedCoupons(ctx context.Context, coupons []entity.OrderAppliedCoupon) error
 	CreateOrderItemAppliedPromotions(
 		ctx context.Context,
 		promos []entity.OrderItemAppliedPromotion,
 	) error
 
 	FindOrderByID(ctx context.Context, orderID uint) (*entity.Order, error)
+	FindOrderByTransactionID(ctx context.Context, transactionID string) (*entity.Order, error)
 	FindOrdersByUserID(
 		ctx context.Context,
 		userID uint,
@@ -104,6 +106,16 @@ func (r *OrderRepositoryImpl) CreateOrderAppliedPromotions(
 	return db.DB(ctx).Create(&promos).Error
 }
 
+func (r *OrderRepositoryImpl) CreateOrderAppliedCoupons(
+	ctx context.Context,
+	coupons []entity.OrderAppliedCoupon,
+) error {
+	if len(coupons) == 0 {
+		return nil
+	}
+	return db.DB(ctx).Create(&coupons).Error
+}
+
 func (r *OrderRepositoryImpl) CreateOrderItemAppliedPromotions(
 	ctx context.Context,
 	promos []entity.OrderItemAppliedPromotion,
@@ -126,6 +138,23 @@ func (r *OrderRepositoryImpl) FindOrderByID(
 		Preload("AppliedCoupons").
 		Preload("ItemAppliedPromotions").
 		Where("id = ?", orderID).
+		First(&order).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *OrderRepositoryImpl) FindOrderByTransactionID(
+	ctx context.Context,
+	transactionID string,
+) (*entity.Order, error) {
+	var order entity.Order
+	err := db.DB(ctx).
+		Where("transaction_id = ?", transactionID).
 		First(&order).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

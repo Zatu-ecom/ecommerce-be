@@ -46,7 +46,7 @@ func TestUpdatePackageOption(t *testing.T) {
 		assert.Equal(t, float64(packageOptionID), packageOption["id"])
 		assert.Equal(t, float64(productID), packageOption["productId"])
 		assert.Equal(t, "T-Shirt 5-Pack", packageOption["name"])
-		assert.Equal(t, 110.0, packageOption["price"])
+		assert.Equal(t, 110.0, moneyAmount(packageOption["price"]))
 		assert.Equal(t, float64(5), packageOption["quantity"])
 	})
 

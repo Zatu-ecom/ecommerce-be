@@ -8,7 +8,7 @@ type ProductVariant struct {
 	db.BaseEntity
 	ProductID     uint    `json:"productId"     gorm:"column:product_id;not null"`
 	SKU           string  `json:"sku"           gorm:"column:sku"                      binding:"required"`
-	Price         float64 `json:"price"         gorm:"column:price"                    binding:"required,gt=0"`
+	PriceCents    int64   `json:"priceCents"    gorm:"column:price_cents;not null"     binding:"required,gt=0"`
 	AllowPurchase bool    `json:"allowPurchase" gorm:"column:allow_purchase"`
 	IsPopular     bool    `json:"isPopular"     gorm:"column:is_popular;default:false"`
 	IsDefault     bool    `json:"isDefault"     gorm:"column:is_default;default:false"`

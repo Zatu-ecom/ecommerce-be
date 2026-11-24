@@ -118,8 +118,9 @@ func (r *InventoryReservationRepositoryImpl) UpdateStatusByIDs(
 	ids []uint,
 	status entity.ReservationStatus,
 ) error {
+	// Guarded: only PENDING rows may expire. A row CONFIRMed between the
+	// in-memory filter and this write must not be clobbered to EXPIRED.
 	return db.DB(ctx).Model(&entity.InventoryReservation{}).
-		Where("id IN ?", ids).
-		Update("status", status).
-		Update("updated_at", time.Now().UTC()).Error
+		Where("id IN ? AND status = ?", ids, entity.ResPending).
+		Updates(map[string]any{"status": status, "updated_at": time.Now().UTC()}).Error
 }

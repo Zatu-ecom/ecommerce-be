@@ -3,10 +3,10 @@ package middleware
 import (
 	"net/http"
 
-	"ecommerce-be/common"
 	"ecommerce-be/common/auth"
 	"ecommerce-be/common/config"
 	"ecommerce-be/common/constants"
+	commonModel "ecommerce-be/common/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +27,7 @@ func AdminAuth() gin.HandlerFunc {
 		// Check if user has admin role level
 		roleLevel, _, exists := auth.GetUserRoleFromContext(c)
 		if !exists || !auth.HasRequiredRoleLevel(roleLevel, constants.ADMIN_ROLE_LEVEL) {
-			common.ErrorWithCode(
+			commonModel.ErrorWithCode(
 				c,
 				http.StatusForbidden,
 				constants.INSUFFICIENT_PERMISSIONS_MSG,

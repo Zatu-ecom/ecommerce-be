@@ -71,7 +71,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 1399.99, variant["price"])
+		assert.Equal(t, 1399.99, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Success - Update response always includes media field", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestUpdateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, "MBP-16-M3-UPDATED", variant["sku"])
-		assert.Equal(t, 2799.99, variant["price"])
+		assert.Equal(t, 2799.99, moneyAmount(variant["price"]))
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.True(t, variant["isPopular"].(bool))
 	})
@@ -185,7 +185,7 @@ func TestUpdateVariant(t *testing.T) {
 		variant := helpers.GetResponseData(t, response, "variant")
 
 		assert.Equal(t, "NIKE-TSHIRT-COMPLETE-UPDATE", variant["sku"])
-		assert.Equal(t, 39.99, variant["price"])
+		assert.Equal(t, 39.99, moneyAmount(variant["price"]))
 		assert.True(t, variant["allowPurchase"].(bool))
 		assert.False(t, variant["isPopular"].(bool))
 		assert.True(t, variant["isDefault"].(bool))
@@ -377,7 +377,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 1149.99, variant["price"])
+		assert.Equal(t, 1149.99, moneyAmount(variant["price"]))
 	})
 
 	// ============================================================================
@@ -456,7 +456,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 999999.99, variant["price"])
+		assert.Equal(t, 999999.99, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Edge Case - Update with very long SKU", func(t *testing.T) {
@@ -498,7 +498,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 59.99, variant["price"])
+		assert.Equal(t, 59.99, moneyAmount(variant["price"]))
 		_, ok := variant["media"].([]any)
 		assert.True(t, ok, "media should be a JSON array after update")
 	})
@@ -520,7 +520,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 1234.56, variant["price"])
+		assert.Equal(t, 1234.56, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Edge Case - Update with minimal price (0.01)", func(t *testing.T) {
@@ -540,7 +540,7 @@ func TestUpdateVariant(t *testing.T) {
 		response := helpers.AssertSuccessResponse(t, w, http.StatusOK)
 		variant := helpers.GetResponseData(t, response, "variant")
 
-		assert.Equal(t, 0.01, variant["price"])
+		assert.Equal(t, 0.01, moneyAmount(variant["price"]))
 	})
 
 	t.Run("Edge Case - Update variant multiple times consecutively", func(t *testing.T) {
@@ -559,7 +559,7 @@ func TestUpdateVariant(t *testing.T) {
 		w1 := client.Put(t, url, requestBody1)
 		response1 := helpers.AssertSuccessResponse(t, w1, http.StatusOK)
 		variant1 := helpers.GetResponseData(t, response1, "variant")
-		assert.Equal(t, 799.99, variant1["price"])
+		assert.Equal(t, 799.99, moneyAmount(variant1["price"]))
 
 		// Second update
 		requestBody2 := map[string]any{}

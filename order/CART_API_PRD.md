@@ -118,7 +118,7 @@ type CartResponse struct {
 ### Base URL
 
 ```
-/api/cart
+/api/order/cart
 ```
 
 ---
@@ -128,7 +128,7 @@ type CartResponse struct {
 **Retrieves the current user's cart with all items, applied promotions, coupons, and calculated totals.**
 
 ```
-GET /api/cart
+GET /api/order/cart
 ```
 
 #### Headers
@@ -287,7 +287,7 @@ GET /api/cart
 **Lightweight summary for header/badge display.**
 
 ```
-GET /api/cart/summary
+GET /api/order/cart/summary
 ```
 
 #### Response (200 OK)
@@ -318,7 +318,7 @@ GET /api/cart/summary
 **Adds a product variant to the cart (or increases quantity if exists).**
 
 ```
-POST /api/cart/item
+POST /api/order/cart/item
 ```
 
 #### Request Body
@@ -413,7 +413,7 @@ Returns the cart with all items (without promotions, coupons, and summary). Uses
 **Updates the quantity of an existing cart item.**
 
 ```
-PUT /api/cart/item/:itemId
+PUT /api/order/cart/item/:itemId
 ```
 
 #### Path Parameters
@@ -490,7 +490,7 @@ Returns the updated cart with all items. Uses `CartBasicResponse` model (same as
 **Removes an item from the cart.**
 
 ```
-DELETE /api/cart/item/:itemId
+DELETE /api/order/cart/item/:itemId
 ```
 
 #### Path Parameters
@@ -554,7 +554,7 @@ Returns the updated cart with remaining items. Uses `CartBasicResponse` model.
 **Removes all items from the cart.**
 
 ```
-DELETE /api/cart
+DELETE /api/order/cart
 ```
 
 #### Response (200 OK)
@@ -576,7 +576,7 @@ DELETE /api/cart
 **Applies a discount code (coupon) to the cart.**
 
 ```
-POST /api/cart/coupon
+POST /api/order/cart/coupon
 ```
 
 #### Request Body
@@ -634,7 +634,7 @@ POST /api/cart/coupon
 **Removes a specific coupon from the cart.**
 
 ```
-DELETE /api/cart/coupon/:code
+DELETE /api/order/cart/coupon/:code
 ```
 
 #### Path Parameters
@@ -668,7 +668,7 @@ DELETE /api/cart/coupon/:code
 **Removes all coupons from the cart.**
 
 ```
-DELETE /api/cart/coupon
+DELETE /api/order/cart/coupon
 ```
 
 #### Response (200 OK)
@@ -690,7 +690,7 @@ DELETE /api/cart/coupon
 **Lists coupons available for the current cart.**
 
 ```
-GET /api/cart/available-coupon
+GET /api/order/cart/available-coupon
 ```
 
 #### Response (200 OK)
@@ -871,7 +871,7 @@ Calculation:
 ```go
 // routes/cart_route.go
 func (m *CartModule) RegisterRoutes(router *gin.Engine) {
-    cart := router.Group("/api/cart")
+    cart := router.Group("/api/order/cart")
     cart.Use(middleware.CorrelationID())
     cart.Use(middleware.AuthMiddleware())
     cart.Use(middleware.CustomerAuth())
