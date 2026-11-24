@@ -1,7 +1,8 @@
 name: Deploy backend (Oracle)
 
 # Manual only — no push trigger. Pick a branch/tag and environment, press Run.
-# See deploy/GITHUB-DEPLOY.md for the required secrets.
+# The image is built on the runner and shipped to VM-2 over SSH; no registry is
+# involved. See deploy/GITHUB-DEPLOY.md for the required secrets.
 on:
   workflow_dispatch:
     inputs:
@@ -26,7 +27,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: deploy-oracle-${{ inputs.target_env }}
@@ -64,10 +64,6 @@ jobs:
           config/scripts/validate.sh ${{ inputs.target_env }}
           config/scripts/render-backend-env.sh ${{ inputs.target_env }} .env
 
-      - name: Image name (GHCR requires lowercase)
-        id: image
-        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
       - name: Compute image tag
         id: tag
         run: |
@@ -78,21 +74,14 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push image
+      - name: Build image (linux/amd64, loaded into the local daemon)
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ steps.tag.outputs.tag }}
-            ${{ steps.image.outputs.name }}:latest
+          push: false
+          load: true
+          tags: ecommerce-backend:${{ steps.tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -101,19 +90,17 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           TAG: ${{ steps.tag.outputs.tag }}
           CONFIG_SHA: ${{ github.sha }}
-          IMAGE: ${{ steps.image.outputs.name }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           SSH="ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new opc@${VM2_HOST}"
           SCP="scp -i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
 
-          # Pull FIRST so a registry/auth failure changes nothing on the host.
-          # The GHCR package must be public, or VM-2 logged in once with
-          # `docker login ghcr.io` (see deploy/GITHUB-DEPLOY.md).
-          $SSH "set -e; cd ~/ecommerce-app; docker pull ${IMAGE}:${TAG}"
+          # Ship the image FIRST (no registry) so a failed transfer changes
+          # nothing on the host. ~25-30 MB compressed.
+          docker save "ecommerce-backend:${TAG}" | gzip | $SSH 'gunzip | docker load'
 
-          # Ship the rendered .env and a deploy record (secrets never touch git).
+          # Then the rendered .env and a deploy record (secrets never touch git).
           $SCP .env opc@${VM2_HOST}:~/ecommerce-app/.env
           cat > deploy-info.json <<EOF
           {"tag":"${TAG}","config_sha":"${CONFIG_SHA}","actor":"${{ github.actor }}","ref":"${{ inputs.ref }}","env":"${{ inputs.target_env }}","deployed_at":"$(date -u +%FT%TZ)"}
@@ -123,8 +110,7 @@ jobs:
           # Retag the running image as :previous, then switch to the new tag.
           $SSH "set -e; chmod 600 ~/ecommerce-app/.env; cd ~/ecommerce-app;
                 docker image tag ecommerce-backend:latest ecommerce-backend:previous 2>/dev/null || true;
-                docker tag ${IMAGE}:${TAG} ecommerce-backend:${TAG};
-                docker tag ${IMAGE}:${TAG} ecommerce-backend:latest;
+                docker tag ecommerce-backend:${TAG} ecommerce-backend:latest;
                 IMAGE_TAG=${TAG} docker compose up -d app;
                 docker compose ps app"
 
@@ -139,5 +125,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Deployed ${{ steps.image.outputs.name }}:${{ steps.tag.outputs.tag }} to ${{ inputs.target_env }}"
+          echo "Deployed ecommerce-backend:${{ steps.tag.outputs.tag }} to ${{ inputs.target_env }} (shipped over SSH)"
           echo "Rollback: on VM-2 run  IMAGE_TAG=previous docker compose up -d app"
