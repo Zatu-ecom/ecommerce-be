@@ -319,7 +319,7 @@ OPTION B — free auto-name (works today, free)
    ✅ real HTTPS   ❌ odd-looking URL
 
 OPTION C — subdomain of the domain you own (chosen 2026-11-22)
-   https://api.vitrapay.io  →  your app
+   https://api.dev.ecom.vitrapay.io  →  your app
    ✅ real HTTPS   ✅ clean URL   ✅ your other site is NOT affected
    (just one DNS record: A  api  →  130.210.26.64)
 ```
@@ -332,9 +332,9 @@ OPTION C — subdomain of the domain you own (chosen 2026-11-22)
 | Server-to-server calls | Razorpay webhooks (require HTTPS) |
 | Internal/admin testing | Secure cookies in production |
 
-- [x] Picked: **C — `api.vitrapay.io`**
+- [x] Picked: **C — `api.dev.ecom.vitrapay.io`**
 - [ ] Added the DNS record `A  api  →  130.210.26.64`
-- [ ] Certbot + nginx TLS + `PUBLIC_API_BASE_URL=https://api.vitrapay.io` (spec 014 T052)
+- [ ] Certbot + nginx TLS + `PUBLIC_API_BASE_URL=https://api.dev.ecom.vitrapay.io` (spec 014 T052)
 
 **HTTPS is still pending.** The backend currently serves HTTP on the IP; the domain decision does not change the running stack until T052.
 
@@ -344,7 +344,7 @@ OPTION C — subdomain of the domain you own (chosen 2026-11-22)
 
 | Task | Who | Notes |
 |---|---|---|
-| HTTPS with `api.vitrapay.io` | me + you | Adds the padlock; see Task 3 / spec 014 T052 |
+| HTTPS with `api.dev.ecom.vitrapay.io` | me + you | Adds the padlock; see Task 3 / spec 014 T052 |
 | Nightly database backups | me | `pg_dump` cron + retention |
 | Boot-volume backup policy | you (console) | ~2 min in Oracle Console |
 | Docker log rotation | me | Prevents disk fill |
@@ -393,11 +393,11 @@ Checks container health, root-disk headroom (<85%), and swap. A metrics stack
 
 Per-secret runbook and restart order: `deploy/ROTATION.md`.
 
-### TLS — `api.vitrapay.io` (T052) — **operator (DNS) + deploy**
+### TLS — `api.dev.ecom.vitrapay.io` (T052) — **operator (DNS) + deploy**
 
 1. **operator** — add DNS `A api → 130.210.26.64`.
 2. Run the certbot/nginx steps in `deploy/vm2-app/TLS.md`, then set
-   `PUBLIC_API_BASE_URL=https://api.vitrapay.io`.
+   `PUBLIC_API_BASE_URL=https://api.dev.ecom.vitrapay.io`.
 
 ### Real client IPs (T053)
 
@@ -515,7 +515,7 @@ their key set matches `Config/dev/backend.env`.
 | 12 | Open public port 80 | you | ✅ done |
 | 13 | Verify from the internet | me | ✅ done — **LIVE** 🎉 |
 | 13b | Reserve static public IP (Task 2.8) | you | ✅ done |
-| 14 | Server name + HTTPS (`api.vitrapay.io`) | later | ⏳ pending 014 T052 |
+| 14 | Server name + HTTPS (`api.dev.ecom.vitrapay.io`) | later | ⏳ pending 014 T052 |
 | 15 | Manual GitHub deploy (pick branch, no auto-push) | me | ⬜ future (014 tasks T057–T060) |
 | 16 | `/version` endpoint for build visibility | me | ❌ dropped (Actions history + deploy record cover it) |
 | 17 | Frontend deployment (storefront + seller dashboard, free host) | me + you | 📄 spec written: `specs/015-frontend-cloud-deployment/spec.md` |
@@ -533,8 +533,8 @@ their key set matches `Config/dev/backend.env`.
 | Deploy method | Manual scripts from laptop (no CI/CD yet); manual-trigger workflow tracked in `deploy/GITHUB-DEPLOY.md` |
 | Database | PostgreSQL 16 + 41 migrations applied (`--production` runner mode; CORE seeds only) |
 | Environment | `dev` (`APP_ENV=dev`) — the Oracle VMs are the dev environment; there is no prod |
-| Public URL | `http://130.210.26.64` (HTTP only) — target `https://api.vitrapay.io` |
-| TLS / HTTPS | Not yet (needs the `api.vitrapay.io` DNS record + certbot — Task 3 / T052) |
+| Public URL | `http://130.210.26.64` (HTTP only) — target `https://api.dev.ecom.vitrapay.io` |
+| TLS / HTTPS | Not yet (needs the `api.dev.ecom.vitrapay.io` DNS record + certbot — Task 3 / T052) |
 | Config | `Zatu-ecom/Config` populated (`local/` + `dev/`, `required/`, `scripts/`); app repo keeps `deploy/.env.example` |
 | Day-2 ops | Backup + restore, monitoring, rotation, log rotation artifacts under `deploy/` (see Day-2 section) |
 

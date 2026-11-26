@@ -146,7 +146,7 @@ Per-area cache flags (all non-secret booleans; dev values from the local `.env`)
 
 | Key | Secret? | Dev value | Notes |
 |---|---|---|---|
-| `PUBLIC_API_BASE_URL` | No | `http://localhost:8080` | Origin only, no trailing slash; on the VMs it is `http://130.210.26.64` until TLS lands (`https://api.vitrapay.io`); used for courier webhook URLs |
+| `PUBLIC_API_BASE_URL` | No | `http://localhost:8080` | Origin only, no trailing slash; on the VMs it is `http://130.210.26.64` until TLS lands (`https://api.dev.ecom.vitrapay.io`); used for courier webhook URLs |
 | `ENCRYPTION_KEY` | **Yes** | placeholder | 32-byte key protecting stored gateway/courier credentials; never the dev default |
 | `WORKER_POOL_SIZE` | No | `1` | `5` in production |
 | `MAX_WISHLIST_ITEMS` | No | `100` | |
@@ -191,7 +191,7 @@ Provider credentials (Razorpay key/secret, Shiprocket email/password/token) are 
 
 | Key | Secret? | Dev value | Production value |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8080/api` | `https://api.vitrapay.io/api` |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8080/api` | `https://api.dev.ecom.vitrapay.io/api` |
 | `NEXT_PUBLIC_SELLER_ID` | No | `2` | Real seller ID for the storefront tenant |
 | `NEXT_PUBLIC_SITE_NAME` | No | `E-Shop` | Brand name |
 
@@ -199,7 +199,7 @@ Provider credentials (Razorpay key/secret, Shiprocket email/password/token) are 
 
 | Key | Secret? | Dev value | Production value |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8080/api` | `https://api.vitrapay.io/api` |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8080/api` | `https://api.dev.ecom.vitrapay.io/api` |
 
 The seller dashboard derives `X-Seller-ID` from the logged-in seller, so it has no seller-ID build variable. Frontends contain **no secrets**; only `NEXT_PUBLIC_*` values are allowed.
 
@@ -347,9 +347,9 @@ The `dev` files hold the Oracle VM values (`APP_ENV=dev`, VM private IPs) with t
 | Auth | `JWT_EXPIRY_HOURS=24`; `JWT_SECRET` from secrets |
 | Volatile cache | `CACHE_HOST=cache-volatile`, `CACHE_PORT=6379`; `CACHE_PASSWORD` from secrets |
 | Durable KV | `KV_HOST=10.0.0.208`, `KV_PORT=6381`; `KV_PASSWORD` from secrets |
-| App | `PUBLIC_API_BASE_URL=https://api.vitrapay.io`, `WORKER_POOL_SIZE=5`; `ENCRYPTION_KEY` from secrets |
+| App | `PUBLIC_API_BASE_URL=https://api.dev.ecom.vitrapay.io`, `WORKER_POOL_SIZE=5`; `ENCRYPTION_KEY` from secrets |
 | Messaging | `MESSAGING_ENABLED=false` (current deploy) |
-| Frontends | `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`, real `NEXT_PUBLIC_SELLER_ID`, brand `NEXT_PUBLIC_SITE_NAME` |
+| Frontends | `NEXT_PUBLIC_API_URL=https://api.dev.ecom.vitrapay.io/api`, real `NEXT_PUBLIC_SELLER_ID`, brand `NEXT_PUBLIC_SITE_NAME` |
 
 Until the deployed files are adopted (014 T071), the server-side `.env` files remain the source of truth. Their key set matches `local/backend.env` so adoption is a value move, not a redesign.
 

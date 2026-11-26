@@ -3,7 +3,7 @@
 **Feature Branch**: `014-backend-cloud-deployment`
 **Created**: 2026-10-13
 **Updated**: 2026-11-22
-**Status**: **Implemented — live** (`dev` environment; HTTP, IP-based; `api.vitrapay.io` DNS + TLS pending)
+**Status**: **Implemented — live** (`dev` environment; HTTP, IP-based; `api.dev.ecom.vitrapay.io` DNS + TLS pending)
 **Input**: User description: "Deploy the backend with all its dependencies on Oracle Cloud first; frontends come later as a separate phase."
 **Related docs**: `specs/014-backend-cloud-deployment/plan.md`, `tasks.md`, `deploy/ORACLE-SETUP-TODO.md`, `deploy/bootstrap.sh`, `deploy/setup-secrets.sh`, `deploy/ship-image.sh`, `deploy/vm1-data/`, `deploy/vm2-app/`, `deploy/monitor/`, `deploy/vm1-data/backup/`, `deploy/ROTATION.md`, `deploy/GITHUB-DEPLOY.md`, `.github/workflows/deploy-oracle.yml`, `Zatu-ecom/Config` (non-secret configuration)
 **Sibling specs**: `specs/015-frontend-cloud-deployment/spec.md` (frontends, Phase 2), `specs/016-config-repository/spec.md` (non-secret configuration)
@@ -24,15 +24,15 @@ The backend (`ecommerce-be`, Go/Gin monolith) runs locally via `docker compose` 
 
 Public URL today: **`http://130.210.26.64`** (HTTP only; TLS deferred — see US4).
 
-**Domain and DNS plan (2026-11-22):** `vitrapay.io` is owned. The backend target name is **`api.vitrapay.io`**; TLS rollout is pending (US4 / T052).
+**Domain and DNS plan (2026-11-22):** `vitrapay.io` is owned. The backend target name is **`api.dev.ecom.vitrapay.io`**; TLS rollout is pending (US4 / T052).
 
 | Record | Type | Target | Purpose | Status |
 |---|---|---|---|---|
-| `api.vitrapay.io` | `A` | `130.210.26.64` | Backend API (required) | ⏳ create with TLS rollout (T052) |
+| `api.dev.ecom.vitrapay.io` | `A` | `130.210.26.64` | Backend API (required) | ⏳ create with TLS rollout (T052) |
 | `shop.vitrapay.io` | `CNAME` | Vercel storefront project | Storefront (optional) | P3, spec 015 |
 | `seller.vitrapay.io` | `CNAME` | Vercel seller-dashboard project | Seller dashboard (optional) | P3, spec 015 |
 
-The API is served under the **`/api` path prefix** (`/api/user`, `/api/product`, `/api/fulfillment`, …). `PUBLIC_API_BASE_URL` is the origin only (`https://api.vitrapay.io`, no trailing slash); the frontends use `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`.
+The API is served under the **`/api` path prefix** (`/api/user`, `/api/product`, `/api/fulfillment`, …). `PUBLIC_API_BASE_URL` is the origin only (`https://api.dev.ecom.vitrapay.io`, no trailing slash); the frontends use `NEXT_PUBLIC_API_URL=https://api.dev.ecom.vitrapay.io/api`.
 
 The primary single-Ampere-A1 design from the original draft was not used; the two-Micro fallback became the deployed architecture because A1 capacity was unavailable in the home region. Nginx (not Caddy) was chosen as the edge for the IP-first phase; certbot is the planned TLS path when a name exists.
 
@@ -80,7 +80,7 @@ The operator provisions server-side `.env` files (never committed) with producti
 **Acceptance Scenarios**:
 
 1. **Given** the secret checklist, **When** `.env` is written, **Then** `DB_PASSWORD`, `CACHE_PASSWORD`/`KV_PASSWORD`, `JWT_SECRET`, and `ENCRYPTION_KEY` (32-byte, freshly generated) are all set and differ from dev values. ✅
-2. **Given** the deployed VM, **When** the app boots, **Then** `APP_ENV=dev`, `GIN_MODE=release`, `PUBLIC_API_BASE_URL=http://130.210.26.64` (switch to `https://api.vitrapay.io` with TLS), `DB_SSLMODE=disable` (same-VCN Postgres), and `MESSAGING_ENABLED=false`. ✅
+2. **Given** the deployed VM, **When** the app boots, **Then** `APP_ENV=dev`, `GIN_MODE=release`, `PUBLIC_API_BASE_URL=http://130.210.26.64` (switch to `https://api.dev.ecom.vitrapay.io` with TLS), `DB_SSLMODE=disable` (same-VCN Postgres), and `MESSAGING_ENABLED=false`. ✅
 3. **Given** the split-host layout, **When** configured, **Then** `DB_HOST`/`KV_HOST` point at VM-1's **private** IP (`10.0.0.208`) and Redis caps are lowered (`CACHE_MAXMEMORY=64mb`, `KV_MAXMEMORY=128mb`). ✅
 
 ---
@@ -103,7 +103,7 @@ The operator ships a pre-built `linux/amd64` image to VM-2 (never builds Go on a
 
 ### User Story 4 - Public HTTPS serves the API (Priority: P1) — ⚠️ Partial (HTTP live, TLS deferred)
 
-The public IP serves the API over HTTP today. HTTPS (TLS termination, auto-renew) is pending the `api.vitrapay.io` DNS record + certbot; the domain name is decided (T052), and certbot takes over nginx once the record resolves.
+The public IP serves the API over HTTP today. HTTPS (TLS termination, auto-renew) is pending the `api.dev.ecom.vitrapay.io` DNS record + certbot; the domain name is decided (T052), and certbot takes over nginx once the record resolves.
 
 **Why this priority**: Frontends and courier webhooks both ultimately require a public HTTPS endpoint; HTTPS is a launch blocker for Phase 2 (spec 015), not for backend smoke testing.
 
@@ -112,7 +112,7 @@ The public IP serves the API over HTTP today. HTTPS (TLS termination, auto-renew
 **Acceptance Scenarios**:
 
 1. **Given** the IP-based phase, **When** a request arrives through nginx, **Then** the app answers and the request is logged by nginx. ✅
-2. **Given** the DNS `A` record `api.vitrapay.io → 130.210.26.64`, **When** certbot runs with the webroot, **Then** `https://api.vitrapay.io/` responds and renews without operator action. ⏳ deferred (T052)
+2. **Given** the DNS `A` record `api.dev.ecom.vitrapay.io → 130.210.26.64`, **When** certbot runs with the webroot, **Then** `https://api.dev.ecom.vitrapay.io/` responds and renews without operator action. ⏳ deferred (T052)
 3. **Given** proxied requests, **When** the app logs client IPs, **Then** the real client IP is visible via `X-Forwarded-For` (trusted-proxy configuration). ⏳ to verify with HTTPS rollout
 
 ---
@@ -239,7 +239,7 @@ WHERE business_name IN ('Tech Gadgets Pro', 'Fashion Forward', 'Home & Living St
 - **CI/CD pipelines / auto-deploy** — every deploy is manual today. A manual-trigger GitHub Actions deploy (`workflow_dispatch`, pick a branch, no push trigger) is tracked as future work in `tasks.md`.
 - **`/version` endpoint** — dropped. Build visibility is provided by GitHub Actions run history and a server-side deploy record when the manual-deploy feature lands; no API endpoint is required for Phase 1.
 - Multi-region/HA, managed DB (Autonomous Database), Kafka, A1 migration (kept as a future option).
-- TLS rollout itself is deferred (blocked on the `api.vitrapay.io` DNS record + certbot), but the domain target is decided.
+- TLS rollout itself is deferred (blocked on the `api.dev.ecom.vitrapay.io` DNS record + certbot), but the domain target is decided.
 
 ## Rollback
 
