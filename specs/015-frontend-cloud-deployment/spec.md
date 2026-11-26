@@ -20,21 +20,21 @@ They are **not** deployed to the Oracle VMs by decision: both are `VM.Standard.E
 
 | Item | Decision |
 |---|---|
-| Backend domain | **`api.vitrapay.io`** (subdomain of the existing `vitrapay.io` domain, A record → `130.210.26.64`) |
+| Backend domain | **`api.dev.ecom.vitrapay.io`** (subdomain of the existing `vitrapay.io` domain, A record → `130.210.26.64`) |
 | Frontend repos | `https://github.com/Zatu-ecom/storefront`, `https://github.com/Zatu-ecom/seller-dashboard` (both cloned locally) |
 | Hosting | **Vercel Hobby** account created |
 | Auth transport | **Bearer token** in the `Authorization` header — verified locally with both frontends calling the API |
 | Shared configuration | `https://github.com/Zatu-ecom/Config` — non-secret values per environment; secrets stay in environment/platform secrets (dedicated spec: `specs/016-config-repository`) |
 | Optional frontend domains | `shop.vitrapay.io` (storefront), `seller.vitrapay.io` (dashboard) — P3, optional |
 
-**Critical constraint — HTTPS:** free frontend hosts serve over HTTPS. Browsers block an HTTPS page from calling an HTTP API (mixed content). Therefore **the backend must serve TLS on `https://api.vitrapay.io` before either frontend can be used in a browser** — this spec depends on spec 014 task **T052** (DNS A record + certbot).
+**Critical constraint — HTTPS:** free frontend hosts serve over HTTPS. Browsers block an HTTPS page from calling an HTTP API (mixed content). Therefore **the backend must serve TLS on `https://api.dev.ecom.vitrapay.io` before either frontend can be used in a browser** — this spec depends on spec 014 task **T052** (DNS A record + certbot).
 
 **Current backend facts relevant to frontends:**
 
 | Fact | Value |
 |---|---|
 | API base URL (today) | `http://130.210.26.64/api` (HTTP only; not usable from an HTTPS page) |
-| API base URL (target) | **`https://api.vitrapay.io/api`** (origin + `/api` prefix, after 014 T052) |
+| API base URL (target) | **`https://api.dev.ecom.vitrapay.io/api`** (origin + `/api` prefix, after 014 T052) |
 | API contract | Every request needs `X-Correlation-ID`; protected routes need `Authorization: Bearer <jwt>` |
 | CORS | Wildcard `Access-Control-Allow-Origin: *` today (to be tightened) |
 | Uploads | nginx allows 100 MB request bodies |
@@ -69,16 +69,16 @@ They are **not** deployed to the Oracle VMs by decision: both are `VM.Standard.E
 3. Every protected request sends `Authorization: Bearer <jwt>` plus the mandatory `X-Correlation-ID`; the storefront also sends `X-Seller-ID` and `X-Device-ID`, and the dashboard sends `X-Seller-ID` from the seller store.
 4. On `401`, the client calls `POST /api/user/auth/refresh` with the current bearer token, retries the original request once, and on failure clears the session and redirects to login.
 5. The backend CORS policy allows `Authorization`, `X-Correlation-ID`, `X-Seller-ID`, `X-Device-ID`, and `Idempotency-Key`; no `Access-Control-Allow-Credentials` is needed because no cookies are used.
-6. Production changes only the API base URL (`https://api.vitrapay.io/api`) and the allowed origins; the auth contract is unchanged.
+6. Production changes only the API base URL (`https://api.dev.ecom.vitrapay.io/api`) and the allowed origins; the auth contract is unchanged.
 
 **Frontend configuration keys (non-secret; source: `Zatu-ecom/Config`, spec 016):**
 
 | App | Key | Dev value | Production value |
 |---|---|---|---|
-| Storefront | `NEXT_PUBLIC_API_URL` | `http://localhost:8080/api` | `https://api.vitrapay.io/api` |
+| Storefront | `NEXT_PUBLIC_API_URL` | `http://localhost:8080/api` | `https://api.dev.ecom.vitrapay.io/api` |
 | Storefront | `NEXT_PUBLIC_SELLER_ID` | `2` (local mock seller) | real seller ID for the storefront tenant |
 | Storefront | `NEXT_PUBLIC_SITE_NAME` | `E-Shop` | `E-Shop` (or brand name) |
-| Seller dashboard | `NEXT_PUBLIC_API_URL` | `http://localhost:8080/api` | `https://api.vitrapay.io/api` |
+| Seller dashboard | `NEXT_PUBLIC_API_URL` | `http://localhost:8080/api` | `https://api.dev.ecom.vitrapay.io/api` |
 
 The API base URL **must include the `/api` prefix** — the backend routes are `/api/user`, `/api/product`, etc. A URL without `/api` returns 404s. The seller dashboard derives the seller ID from the logged-in seller, so it needs no seller-ID build variable.
 
@@ -118,7 +118,7 @@ A seller opens the dashboard URL, logs in with seller credentials, and sees prod
 
 ### User Story 3 - Browser → API traffic is secure (Priority: P1, blocking)
 
-Both frontends talk to the backend over HTTPS. The backend gets a TLS certificate for **`api.vitrapay.io`**. No mixed-content warnings; no plaintext credentials.
+Both frontends talk to the backend over HTTPS. The backend gets a TLS certificate for **`api.dev.ecom.vitrapay.io`**. No mixed-content warnings; no plaintext credentials.
 
 **Why this priority**: Without this, neither frontend works in a browser. It is the gating dependency.
 
@@ -126,8 +126,8 @@ Both frontends talk to the backend over HTTPS. The backend gets a TLS certificat
 
 **Acceptance Scenarios**:
 
-1. **Given** the DNS `A` record `api.vitrapay.io → 130.210.26.64`, **When** certbot completes, **Then** `https://api.vitrapay.io/` serves the API with a valid certificate and auto-renew.
-2. **Given** the frontends are configured with `https://api.vitrapay.io/api`, **When** they call the API, **Then** no mixed-content errors appear and CORS preflight succeeds.
+1. **Given** the DNS `A` record `api.dev.ecom.vitrapay.io → 130.210.26.64`, **When** certbot completes, **Then** `https://api.dev.ecom.vitrapay.io/` serves the API with a valid certificate and auto-renew.
+2. **Given** the frontends are configured with `https://api.dev.ecom.vitrapay.io/api`, **When** they call the API, **Then** no mixed-content errors appear and CORS preflight succeeds.
 3. **Given** certificate renewal, **When** it happens, **Then** no operator action or downtime is required.
 
 ---
@@ -142,7 +142,7 @@ Each frontend has per-environment configuration (API base URL, public keys only)
 
 **Acceptance Scenarios**:
 
-1. **Given** a production deployment, **When** the build runs, **Then** `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`, `NEXT_PUBLIC_SELLER_ID` is the real storefront seller ID, and `NEXT_PUBLIC_SITE_NAME` is the brand name; no other environment-dependent values are required.
+1. **Given** a production deployment, **When** the build runs, **Then** `NEXT_PUBLIC_API_URL=https://api.dev.ecom.vitrapay.io/api`, `NEXT_PUBLIC_SELLER_ID` is the real storefront seller ID, and `NEXT_PUBLIC_SITE_NAME` is the brand name; no other environment-dependent values are required.
 2. **Given** a preview deployment, **When** it builds, **Then** it uses the same API (or a preview API if one exists later) and never a developer's localhost.
 3. **Given** the repository, **When** scanned, **Then** no secret values are committed (`.env*` ignored).
 
@@ -205,7 +205,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 - Backend restarts briefly during a deploy — frontends must show a retry/error state, not crash.
 - `PUBLIC_API_BASE_URL` on the backend must match the HTTPS name so webhook URLs are correct.
 - Cookie-based auth across origins is fragile; **not used here** — both frontends use bearer tokens in `Authorization` (verified locally). No `SameSite`/`Secure`/CORS-credentials design is required.
-- The API base URL must include `/api`; using only the origin (`https://api.vitrapay.io`) makes every call 404 even though TLS and CORS succeed.
+- The API base URL must include `/api`; using only the origin (`https://api.dev.ecom.vitrapay.io`) makes every call 404 even though TLS and CORS succeed.
 - `NEXT_PUBLIC_SELLER_ID` is a public tenant selector, not a secret; a wrong value silently shows another seller's catalog, so it must be validated during the smoke test.
 
 ## Requirements *(mandatory)*
@@ -215,7 +215,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 - **FR-001**: Both frontends MUST be hosted on a free managed platform (Vercel Hobby recommended for Next.js; Cloudflare Pages or Netlify acceptable) — **not** on the Oracle VMs.
 - **FR-002**: Each frontend MUST build and deploy independently from its own repository.
 - **FR-003**: Production deployments MUST be manual/promoted; preview deployments MAY be automatic per branch/PR.
-- **FR-004**: `NEXT_PUBLIC_API_URL` MUST be configurable per environment in the platform; production MUST use `https://api.vitrapay.io/api` (origin **plus** the `/api` prefix).
+- **FR-004**: `NEXT_PUBLIC_API_URL` MUST be configurable per environment in the platform; production MUST use `https://api.dev.ecom.vitrapay.io/api` (origin **plus** the `/api` prefix).
 - **FR-005**: The API client MUST send `X-Correlation-ID` on every request and propagate `Authorization: Bearer <jwt>`, `X-Seller-ID`, and (storefront) `X-Device-ID` where required.
 - **FR-006**: The backend MUST serve HTTPS for the API (dependency: 014 T052) before frontends are considered usable.
 - **FR-007**: CORS MUST allow the deployed frontend origins; wildcard is acceptable only temporarily and MUST be replaced by an allowlist (014 T050). The allowlist MUST include `Authorization`, `X-Correlation-ID`, `X-Seller-ID`, `X-Device-ID`, `Idempotency-Key`, and `Content-Type`.
@@ -254,7 +254,7 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 
 | Dependency | Status | Impact |
 |---|---|---|
-| Backend HTTPS on `api.vitrapay.io` (014 T052: DNS A record + certbot) | ⏳ pending | **Blocks browser use of both frontends** |
+| Backend HTTPS on `api.dev.ecom.vitrapay.io` (014 T052: DNS A record + certbot) | ⏳ pending | **Blocks browser use of both frontends** |
 | CORS allowlist tightening (014 T050) | ⏳ pending | Wildcard `*` remains acceptable temporarily |
 | Frontend repositories | ✅ resolved (`storefront`, `seller-dashboard`) | — |
 | Vercel Hobby account | ✅ created | — |
@@ -275,14 +275,14 @@ Non-secret configuration (API URL, public keys, feature flags) lives in `Zatu-ec
 
 ## Open Questions
 
-Resolved on 2026-11-22: hosting (**Vercel Hobby**), repositories (URLs above), API name (**`api.vitrapay.io`**, base URL `https://api.vitrapay.io/api`), auth (**bearer token**, verified locally), Config layout (**spec 016: `<env>/<service>.env`**).
+Resolved on 2026-11-22: hosting (**Vercel Hobby**), repositories (URLs above), API name (**`api.dev.ecom.vitrapay.io`**, base URL `https://api.dev.ecom.vitrapay.io/api`), auth (**bearer token**, verified locally), Config layout (**spec 016: `<env>/<service>.env`**).
 
 Still open:
 
 1. **Preview data safety** — should Vercel preview deployments point at the production API, or be blocked from real data?
 2. **Custom frontend domains** — add `shop.vitrapay.io` / `seller.vitrapay.io` now or after first production deploy?
 3. **Test seller account** — who creates the first seller for the login smoke test, and in which environment?
-4. **`PUBLIC_API_BASE_URL` switch** — schedule the VM-2 env change to `https://api.vitrapay.io` together with the certbot rollout.
+4. **`PUBLIC_API_BASE_URL` switch** — schedule the VM-2 env change to `https://api.dev.ecom.vitrapay.io` together with the certbot rollout.
 5. **Vercel env sync** — mirror Config values into Vercel manually for the first deploy, or automate via the Vercel API later?
 
 ## Assumptions
