@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deploy the `ecommerce-be` monolith and its runtime dependencies on Oracle Cloud Always Free using two `VM.Standard.E2.1.Micro` hosts split by role: **VM-1 data** (PostgreSQL 16 + durable Redis) and **VM-2 app** (Go backend + volatile Redis + nginx edge). Both hosts run Docker Engine 29.7.2 installed from static tarballs (no `dnf` transactions — package operations OOM-storm on 1 GB Micros), with 2 GB additional swap and OS background package scans disabled. The database/cache plane is reachable only over the VCN private subnet (`10.0.0.0/24`), enforced twice (OCI security list + firewalld). The application image is built on the operator's `amd64` laptop and shipped to VM-2 via `docker save | gzip | ssh | docker load`; deploys are manual. The `vitrapay.io` domain is owned and the backend target is `api.vitrapay.io`; TLS is pending the DNS record + certbot.
+Deploy the `ecommerce-be` monolith and its runtime dependencies on Oracle Cloud Always Free using two `VM.Standard.E2.1.Micro` hosts split by role: **VM-1 data** (PostgreSQL 16 + durable Redis) and **VM-2 app** (Go backend + volatile Redis + nginx edge). Both hosts run Docker Engine 29.7.2 installed from static tarballs (no `dnf` transactions — package operations OOM-storm on 1 GB Micros), with 2 GB additional swap and OS background package scans disabled. The database/cache plane is reachable only over the VCN private subnet (`10.0.0.0/24`), enforced twice (OCI security list + firewalld). The application image is built on the operator's `amd64` laptop and shipped to VM-2 via `docker save | gzip | ssh | docker load`; deploys are manual. The `vitrapay.io` domain is owned and the backend target is `api.dev.ecom.vitrapay.io`; TLS is pending the DNS record + certbot.
 
 ## Technical Context
 
@@ -18,7 +18,7 @@ Deploy the `ecommerce-be` monolith and its runtime dependencies on Oracle Cloud 
 **Testing**: external port scan, container health checks, `pg_isready`, curl smoke tests, `pg_tables`/`schema_migration` queries
 **Target Platform**: Linux `amd64` Docker hosts
 **Project Type**: deployment/ops (no application module changes)
-**Constraints**: ~1 GB RAM/host; no `dnf`; manual image delivery; domain decided (`api.vitrapay.io`), TLS pending; no CI/CD
+**Constraints**: ~1 GB RAM/host; no `dnf`; manual image delivery; domain decided (`api.dev.ecom.vitrapay.io`), TLS pending; no CI/CD
 **Scale/Scope**: single production environment, single host per role (no HA)
 
 ## Constitution Check
@@ -82,7 +82,7 @@ This feature adds no Go module code, migrations, or API contracts. It does not c
 - `CACHE_PASSWORD` and `KV_PASSWORD` share one generated value; the same `DB_PASSWORD` is used on both hosts by construction of the setup script.
 - No secret ever appears in git, shell history, or chat; the setup script wipes its temp directory on exit.
 - **Future (spec 016):** non-secret configuration will be sourced from `Zatu-ecom/Config` per environment and merged with secrets at deploy time; until then, the server-side `.env` files remain the source of truth. Secrets always come from the environment/secret store, never the Config repo. The Config repo's `local/backend.env` must contain the full non-secret key set (see spec 016), and `dev/backend.env` holds the deployed Oracle values (there is no prod environment).
-- **Domain target:** `api.vitrapay.io` (`A → 130.210.26.64`); `PUBLIC_API_BASE_URL` switches to `https://api.vitrapay.io` when TLS lands (T052). The API path prefix is `/api`; frontends use `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api`.
+- **Domain target:** `api.dev.ecom.vitrapay.io` (`A → 130.210.26.64`); `PUBLIC_API_BASE_URL` switches to `https://api.dev.ecom.vitrapay.io` when TLS lands (T052). The API path prefix is `/api`; frontends use `NEXT_PUBLIC_API_URL=https://api.dev.ecom.vitrapay.io/api`.
 
 ## Deployment Procedure (as-built)
 
@@ -145,4 +145,4 @@ This feature adds no Go module code, migrations, or API contracts. It does not c
 
 ## Remaining Work
 
-Tracked in [tasks.md](./tasks.md) Phase 7–9: backups + retention, Docker log rotation, boot-volume backup policy, TLS rollout (`api.vitrapay.io` + certbot), SSH hardening, repo/docs commit, central-config adoption (spec 016; `local` + `dev` bootstrapped), and the future manual GitHub deploy. `/version` is intentionally dropped from scope.
+Tracked in [tasks.md](./tasks.md) Phase 7–9: backups + retention, Docker log rotation, boot-volume backup policy, TLS rollout (`api.dev.ecom.vitrapay.io` + certbot), SSH hardening, repo/docs commit, central-config adoption (spec 016; `local` + `dev` bootstrapped), and the future manual GitHub deploy. `/version` is intentionally dropped from scope.

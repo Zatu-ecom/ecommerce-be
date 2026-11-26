@@ -1,59 +1,55 @@
-# TLS rollout for `api.vitrapay.io` (spec 014 / T052)
+# TLS for `api.dev.ecom.vitrapay.io` (spec 014 / T052)
 
-Today the API is HTTP-only on `http://130.210.26.64`. HTTPS is a hard
-dependency for spec 015 (an HTTPS frontend cannot call an HTTP API).
+**Status: live on VM-2.** Let's Encrypt certificate issued 2026-11-26, expires
+2027-02-24, renewed daily by cron. The only remaining step is the OCI ingress
+rule for port 443.
 
-## Prerequisites
+## What is in place
 
-- DNS: add `A  api  →  130.210.26.64` at the `vitrapay.io` registrar/zone.
-  Confirm it resolves before running certbot (use the reserved public IP).
-- VM-2 only. VM-1 needs no public name.
+- DNS `A api.dev.ecom` -> `130.210.26.64` (Hostinger).
+- nginx serves HTTP **and** HTTPS (`deploy/vm2-app/nginx-ecommerce.conf`).
+- certbot is a one-shot compose service (`--profile tools`): webroot
+  `~/ecommerce-app/certbot/www`, certs `~/ecommerce-app/certbot/conf`.
+- Renewal: daily cron on VM-2 at 04:15 -> `~/ecommerce-app/renew-certs.sh`
+  (certbot renew is a no-op until ~30 days before expiry).
+- firewalld allows http/https; compose publishes 80 and 443.
 
-## Steps (VM-2, certbot + nginx)
+## Remaining steps
 
-```bash
-# 0. DNS check from the laptop
-dig +short api.vitrapay.io          # must print 130.210.26.64
+1. **operator** - OCI console -> Networking -> VCN -> Subnet -> Security List ->
+   Add Ingress Rule: source `0.0.0.0/0`, IP protocol TCP, destination port `443`.
+2. Verify: `curl -sS -o /dev/null -w "%{http_code}\n" https://api.dev.ecom.vitrapay.io/` -> `400`.
+3. Point the app at HTTPS: set in `Zatu-ecom/Config -> dev/backend.env`
+   `PUBLIC_API_BASE_URL=https://api.dev.ecom.vitrapay.io`, then re-run the
+   deploy workflow.
+4. Optional once 1-3 are verified: replace the HTTP `location /` block with
+   `return 301 https://$host$request_uri;` so HTTP redirects to HTTPS.
 
-# 1. On VM-2, point nginx at the name and open :443
-#    Edit ~/ecommerce-app/nginx-ecommerce.conf: server_name _;  ->  server_name api.vitrapay.io;
-sed -i 's/server_name _;/server_name api.vitrapay.io;/' ~/ecommerce-app/nginx-ecommerce.conf
+## Fresh host / re-issue
 
-# 2. Add a certbot service (one-shot) to ~/ecommerce-app/docker-compose.yml:
-#      certbot:
-#        image: certbot/certbot
-#        volumes:
-#          - ./certbot/conf:/etc/letsencrypt
-#          - ./certbot/www:/var/www/certbot
-#    and mount the same two dirs into nginx as read-only.
-#
-# 3. Issue the certificate (standalone webroot), then reload nginx:
-docker compose run --rm certbot certonly --webroot -w /var/www/certbot \
-  -d api.vitrapay.io --email <you>@vitrapay.io --agree-tos --no-eff-email
-docker compose exec nginx nginx -s reload
+nginx refuses to start if the 443 block references a certificate that does not
+exist yet, so the rollout is two-stage:
 
-# 4. Switch the backend's public URL so webhook links use HTTPS:
-#    ~/ecommerce-app/.env  ->  PUBLIC_API_BASE_URL=https://api.vitrapay.io
-docker compose up -d app
+1. Install the bootstrap variant as the live config (HTTP + ACME challenge only):
 
-# 5. Verify
-curl -sS https://api.vitrapay.io/ -o /dev/null -w '%{http_code}\n'   # expect 400
-```
+       cp nginx-ecommerce-bootstrap.conf nginx-ecommerce.conf
+       docker compose up -d nginx
 
-## Auto-renewal
+2. Issue the certificate:
 
-Add a daily cron on VM-2:
+       docker compose --profile tools run --rm certbot certonly \
+         --webroot -w /var/www/certbot -d api.dev.ecom.vitrapay.io \
+         --agree-tos --register-unsafely-without-email --non-interactive
 
-```cron
-0 4 * * * cd /home/opc/ecommerce-app && docker compose run --rm certbot renew --quiet && docker compose exec nginx nginx -s reload
-```
+3. Install the TLS variant as the live config and reload:
 
-Certs renew at ~30 days remaining; the command is a no-op otherwise.
+       cp nginx-ecommerce.conf.tls nginx-ecommerce.conf
+       docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
 
-## After TLS (spec 015)
+   (In this repo `nginx-ecommerce.conf` *is* the TLS variant; keep the bootstrap
+   file alongside it so a rebuild can repeat the order above.)
 
-- Update backend CORS allowlist to the real origins (`CORS_ALLOWED_ORIGINS`).
-- Set `NEXT_PUBLIC_API_URL=https://api.vitrapay.io/api` in both Vercel projects.
+## Why not one config
 
-> Do not open `:443` in the OCI security list until certbot has a cert, and
-> never expose `:8080`.
+A `listen 443 ssl` block with missing `fullchain.pem` aborts nginx startup. Two
+files keep first-time issuance working without hand-editing.
