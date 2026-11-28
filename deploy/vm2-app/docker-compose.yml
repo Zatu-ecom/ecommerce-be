@@ -31,6 +31,7 @@ services:
     image: ecommerce-backend:${IMAGE_TAG:-latest}
     container_name: ecommerce-app
     restart: unless-stopped
+    init: true
     logging: *default-logging
     # Localhost-only publish: Nginx is the public front door.
     ports:
