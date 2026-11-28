@@ -68,3 +68,108 @@ Or re-run the workflow from an earlier branch/tag ("Use workflow from") or with 
 
 The first production deploys may continue to use `deploy/ship-image.sh` from a
 workstation; this workflow is the tracked path to replace it.
+
+---
+
+# Frontend deploys (Vercel Hobby) — spec 015
+
+Two Next.js apps deploy to **Vercel Hobby** from their own repositories:
+`Zatu-ecom/storefront` and `Zatu-ecom/seller-dashboard`. Each repo carries
+`.github/workflows/deploy-vercel.yml` — **manual only** (`workflow_dispatch`),
+same shape as the backend workflow.
+
+## Why GitHub Actions and not Vercel's Git integration
+
+Vercel does not support connecting a project on a **Hobby team** to a Git
+repository owned by a **GitHub organization**. `Zatu-ecom` is an organization, so
+the Git integration is unavailable. The CLI path (`vercel deploy`) is the only
+option on Hobby.
+
+## Required repository settings (in BOTH frontend repos)
+
+**Secrets**:
+
+| Secret | Purpose |
+|---|---|
+| `VERCEL_TOKEN` | Account token from Vercel → Account → Tokens |
+| `VERCEL_TEAM_ID` | Team/org ID (`orgId` in `.vercel/project.json`) — mapped to `VERCEL_ORG_ID` in the workflow |
+| `VERCEL_PROJECT_ID` | `projectId` from `.vercel/project.json` |
+| `CONFIG_DEPLOY_KEY` | Read-only deploy key for `Zatu-ecom/Config` (same key as the backend) |
+
+The workflow maps `secrets.VERCEL_TEAM_ID` onto the `VERCEL_ORG_ID` environment
+variable, because that is the name the Vercel CLI reads.
+
+**Variables**: none — the API URL and tenant values live in Vercel's project
+environment, and Config is the source of truth (see below).
+
+## What a run does
+
+1. Checks out the app at the "Use workflow from" ref, plus the Config repo.
+2. Records the Config commit SHA.
+3. Validates `config/<env>/<service>.env` against `required/<service>.keys`.
+4. **Drift check** — pulls the Vercel project's production variables and fails if
+   any `NEXT_PUBLIC_*` value differs from Config. A config change therefore
+   cannot silently miss a deploy.
+5. `npm ci`, then strips `.git` and runs `vercel deploy --prod` (Vercel builds
+   and serves; no artifacts are shipped from the runner).
+6. Writes the deployment URL and Config SHA to the Actions summary.
+
+The build runs on Vercel rather than on the runner so it uses the project's own
+build cache and system environment variables — `vercel build` + `--prebuilt`
+drops the Vercel system variables at build time.
+
+### Why the workflow deletes `.git`
+
+A Vercel **Hobby** team only accepts deployments whose commit author is the team
+owner; anything else fails with `TEAM_ACCESS_REQUIRED`. Club that with the fact
+that a Hobby project cannot be git-connected to an organization repository in the
+first place, and the checkout's git metadata is pure liability — it can only block
+the deploy. The Config SHA is recorded *before* the strip, so traceability is
+unaffected.
+
+If commits are ever signed by a second identity (e.g. a CI bot), the durable fix
+is to add that email under Vercel → Account Settings → Email and verify it.
+
+## Environment variables
+
+`NEXT_PUBLIC_*` values are inlined by Next.js at build time, so they must exist
+in the Vercel project. Set them once per project, per environment:
+
+```bash
+# storefront
+vercel env add NEXT_PUBLIC_API_URL   production --value "https://api.dev.ecom.vitrapay.io/api" --no-sensitive --yes
+vercel env add NEXT_PUBLIC_SELLER_ID production --value "<real seller id>" --no-sensitive --yes
+vercel env add NEXT_PUBLIC_SITE_NAME production --value "E-Shop" --no-sensitive --yes
+# repeat with --environment preview
+
+# seller-dashboard (derives the seller id from the login session)
+vercel env add NEXT_PUBLIC_API_URL   production --value "https://api.dev.ecom.vitrapay.io/api" --no-sensitive --yes
+# repeat with --environment preview
+```
+
+Keep them as **Config** type (not Secret) — the drift check reads the values
+back. `NEXT_PUBLIC_*` variables are public by definition; they must never hold a
+backend secret.
+
+`NEXT_PUBLIC_API_URL` requires the `/api` path prefix. `PUBLIC_API_BASE_URL` on
+the backend stays origin-only — they are not the same value.
+
+## Rollback
+
+Promote the previous deployment — no backend involvement:
+
+- Dashboard → Project → Deployments → pick the good one → **Promote to
+  Production**.
+- CLI: `vercel promote <deployment-url>`.
+
+A Config rollback needs the Vercel variables updated first; the drift check will
+otherwise refuse the deploy and name the mismatched key.
+
+## Still manual
+
+- The two frontends are separate Vercel projects, each needing its own
+  `vercel link` and secret set.
+- Custom domains (`shop.vitrapay.io`, `seller.vitrapay.io`) are optional and
+  attached in the Vercel dashboard (spec 015 US6, P3).
+- Vercel Hobby is restricted to non-commercial use; a live commercial storefront
+  requires Pro or a different host.
