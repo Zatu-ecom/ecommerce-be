@@ -47,12 +47,17 @@ jobs:
           # No `ref`: checkout uses the branch/tag picked in "Use workflow from".
 
       - name: Checkout Config repo
+        id: config
         uses: actions/checkout@v7
         with:
           repository: Zatu-ecom/Config
           ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
           path: config
           persist-credentials: false
+
+      - name: Record Config revision
+        id: config_sha
+        run: echo "sha=$(git -C config rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Validate and render .env from Config + secrets
         env:
@@ -114,12 +119,14 @@ jobs:
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           TAG: ${{ steps.tag.outputs.tag }}
-          CONFIG_SHA: ${{ github.sha }}
+          CONFIG_SHA: ${{ steps.config_sha.outputs.sha }}
           ACTOR: ${{ github.actor }}
           REF_NAME: ${{ github.ref_name }}
           TARGET_ENV: ${{ inputs.target_env }}
         run: |
           set -euo pipefail
+          echo "App revision: $GITHUB_SHA"
+          echo "Config revision: $CONFIG_SHA"
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           SSH_OPTS=(-i "$HOME/.ssh/deploy" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
